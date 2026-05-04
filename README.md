@@ -422,6 +422,22 @@ Das Dashboard ruft `window.rasiSerial.list()` auf, um vorhandene COM-Ports im Dr
 
 `serialport` ist ein natives Modul. Beim ersten `npm install` läuft `electron-builder install-app-deps` automatisch und holt sich die zur installierten Electron-Version passende Prebuild-Variante. Auf Windows brauchst du dafür normalerweise nichts extra — falls doch, installiere die [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
 
+### Automatischer Windows-Build via GitHub Actions
+
+Im Repo liegt unter `.github/workflows/build-windows.yml` ein Workflow, der die .exe automatisch baut und als GitHub Release veröffentlicht.
+
+**So baust du eine Release-Version:**
+
+```bash
+# Versionsnummer in package.json anpassen, dann:
+git tag v9.6.0
+git push origin v9.6.0
+```
+
+Der Workflow läuft automatisch, baut auf einem Windows-Runner und legt einen Release mit `RasiCross-Telemetrie-9.6.0-portable.exe` und `RasiCross-Telemetrie-9.6.0-x64.exe` (Installer) an.
+
+**Manueller Test ohne Tag:** Auf github.com → Tab `Actions` → `Windows-Build` → `Run workflow`. Die Artefakte landen dann unter dem Workflow-Run und sind 30 Tage abrufbar (kein Release).
+
 ### Icon anpassen (optional)
 
 Lege ein `.ico` (256 × 256, Multi-Resolution) als `build/icon.ico` ab und ergänze in `package.json`:

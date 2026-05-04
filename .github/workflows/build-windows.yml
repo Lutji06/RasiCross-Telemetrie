@@ -1,0 +1,64 @@
+# ============================================================
+#  Baut die RasiCross-Telemetrie als Windows-.exe
+# ============================================================
+#  Loest aus bei:
+#    - Push eines Tags der Form vX.Y.Z (z.B. v9.6.0)
+#    - Manuelle Ausfuehrung ueber den "Actions"-Tab auf GitHub
+#
+#  Ergebnis bei Tag-Push:
+#    - dist/RasiCross-Telemetrie-X.Y.Z-portable.exe
+#    - dist/RasiCross-Telemetrie-X.Y.Z-x64.exe (NSIS-Installer)
+#    -> automatisch als GitHub Release mit den .exe-Dateien
+# ============================================================
+
+name: Windows-Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # noetig fuer das Erstellen von Releases
+
+jobs:
+  build:
+    name: Build Windows EXE
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Windows installers
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+          generate_release_notes: true
+          fail_on_unmatched_files: false
