@@ -1,0 +1,18 @@
+# Node / Electron
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-error.log
+
+# Build-Ausgaben
+dist/
+out/
+*.exe
+*.app
+*.dmg
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

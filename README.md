@@ -20,6 +20,7 @@ Ein Live-Telemetrie-System für Kart-Rennen / Rasenmäher-Rennen ("RasiCross") a
 - [Status-LEDs](#status-leds)
 - [Funk: Long-Range-Modus](#funk-long-range-modus)
 - [Fehlersuche](#fehlersuche)
+- [Dashboard als .exe bauen](#dashboard-als-exe-bauen)
 - [Versionsstand](#versionsstand)
 - [Lizenz](#lizenz)
 
@@ -155,7 +156,10 @@ mpremote connect /dev/ttyUSB0 fs cp micropyGPS.py :
 
 ### Dashboard öffnen
 
-`RasiCross_Telemetry_v9_6.html` einfach im Browser öffnen (Chromium-basierter Browser empfohlen, da Web Serial benötigt wird). In der UI auf "Connect" klicken und den USB-Port der Bridge auswählen.
+Zwei Wege:
+
+1. **Im Browser** — `RasiCross_Telemetry_v9_6.html` direkt öffnen (Chromium-basierter Browser empfohlen, da Web Serial benötigt wird) und in der UI auf "Connect" klicken.
+2. **Als Desktop-App** (.exe) — siehe Abschnitt [Dashboard als .exe bauen](#dashboard-als-exe-bauen).
 
 ---
 
@@ -364,6 +368,58 @@ Bei Verbindungsproblemen prüfen, ob ein Knoten unbeabsichtigt im Standardmodus 
 | Sender startet alle 8 s neu                          | Watchdog feuert — Endlosschleife/Hänger; `WATCHDOG_MS=0` zum Debug |
 
 **Strukturierte Logs** sind über die `Config.DEBUG`-Schalter beider Skripte aktivierbar. Die Topics `init`, `config`, `pit_call`, `display`, `recv` werden auch ohne globalen Debug-Flag angezeigt.
+
+---
+
+## Dashboard als .exe bauen
+
+Die HTML-Oberfläche kann als eigenständige Windows-Anwendung verpackt werden — mit **Electron**. Vorteil: Web Serial funktioniert ohne Browser-Setup, das Programm läuft per Doppelklick.
+
+### Voraussetzungen
+
+- [Node.js](https://nodejs.org/) ≥ 18 (LTS empfohlen)
+- npm (kommt mit Node.js)
+- Internetzugang beim ersten `npm install`
+
+### Build-Schritte
+
+```bash
+# Abhängigkeiten installieren (einmalig)
+npm install
+
+# Lokal starten — schnelle Vorschau ohne Build
+npm start
+
+# Windows-Builds (Output landet in dist/)
+npm run build:portable    # eine einzelne portable .exe
+npm run build:installer   # NSIS-Installer mit Desktop-Verknüpfung
+npm run build:win         # beides auf einmal
+```
+
+Ergebnisse:
+
+- `dist/RasiCross-Telemetrie-9.6.0-portable.exe` — startet ohne Installation, alles in einer Datei
+- `dist/RasiCross-Telemetrie-9.6.0-x64.exe` — NSIS-Installer
+
+### Wie es funktioniert
+
+| Datei            | Zweck                                                                   |
+| ---------------- | ----------------------------------------------------------------------- |
+| `package.json`   | Electron-Abhängigkeiten + electron-builder-Konfiguration                |
+| `main.js`        | Electron-Hauptprozess: lädt das HTML, schaltet Web-Serial-Berechtigungen frei, zeigt nativen Port-Picker |
+
+Beim Start:
+- Bei genau einem angeschlossenen USB-Serial-Gerät verbindet sich das Dashboard direkt.
+- Sind mehrere Ports vorhanden, erscheint ein nativer Auswahldialog mit Port-Namen und VID.
+- `Alt` blendet die Menüleiste ein (Reload, DevTools, Vollbild …).
+
+### Icon anpassen (optional)
+
+`main.js` referenziert `icon.png` im Projekt-Wurzelverzeichnis. Eigenes 256 × 256-PNG dort ablegen, dann erscheint es im Fenster und in der Taskleiste. Für die .exe selbst kann unter `build.win.icon` in der `package.json` ein `.ico` (256 × 256, Multi-Resolution) angegeben werden.
+
+### Was Electron NICHT braucht
+
+Die ESP-NOW-Funkstrecke und der ESP32-Code sind unabhängig von der Electron-App. Die .exe ersetzt nur den Browser — die Bridge bleibt am USB.
 
 ---
 
