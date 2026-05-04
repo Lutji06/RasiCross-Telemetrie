@@ -6,8 +6,8 @@
 #    - Manuelle Ausfuehrung ueber den "Actions"-Tab auf GitHub
 #
 #  Ergebnis bei Tag-Push:
-#    - dist/RasiCross-Telemetrie-X.Y.Z-portable.exe
-#    - dist/RasiCross-Telemetrie-X.Y.Z-x64.exe (NSIS-Installer)
+#    - dist/RasiCross-Telemetry-Setup.exe (NSIS-Installer)
+#    - dist/RasiCross-Telemetry-Portable.exe
 #    -> automatisch als GitHub Release mit den .exe-Dateien
 # ============================================================
 
@@ -35,12 +35,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+
+      - name: Stub icon.ico (falls keines im Repo liegt)
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'icon.ico')) {
+            Write-Host 'Kein icon.ico - lege leeren Stub an, Default-Icon wird verwendet.'
+            New-Item -ItemType File -Path 'icon.ico' -Force | Out-Null
+          }
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Rebuild native modules for Electron
+        run: npx electron-rebuild -f -w serialport
+        continue-on-error: true
 
       - name: Build Windows installers
-        run: npm run build:win
+        run: npm run build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
