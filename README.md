@@ -131,26 +131,35 @@ esptool.py --chip esp32 --port /dev/ttyUSB0 --baud 460800 \
 
 ### Bibliotheken auf den ESP32 spielen
 
-Auf den **Kart-ESP32** gehören diese Module ins Wurzelverzeichnis des Filesystems:
+Die nötigen MicroPython-Treiber liegen im Ordner [`esp_libs/`](esp_libs/) — siehe auch [`esp_libs/README.md`](esp_libs/README.md) für Details.
 
-- `sender_v9_main.py` (Hauptprogramm)
-- `mpu6050.py`     – Treiber für die IMU
-- `ssd1306.py`     – Treiber für das OLED
-- `micropyGPS.py`  – NMEA-Parser
+Auf den **Kart-ESP32** ins Wurzelverzeichnis des Filesystems:
+
+- `sender_v9_main.py` (Hauptprogramm) — als `main.py`
+- `esp_libs/ssd1306.py`     – OLED-Treiber
+- `esp_libs/mpu6050.py`     – IMU-Treiber
+- `esp_libs/micropyGPS.py`  – NMEA-Parser
 
 Auf den **Bridge-ESP32**:
 
-- `bridge_v9_main.py` (Hauptprogramm)
-- `ssd1306.py`     – Treiber für das OLED
+- `bridge_v9_main.py` (Hauptprogramm) — als `main.py`
+- `esp_libs/ssd1306.py`     – OLED-Treiber
 
 Übertragen z. B. mit [`mpremote`](https://docs.micropython.org/en/latest/reference/mpremote.html) oder [`ampy`](https://github.com/scientifichackers/ampy):
 
 ```bash
-mpremote connect /dev/ttyUSB0 fs cp sender_v9_main.py :main.py
-mpremote connect /dev/ttyUSB0 fs cp ssd1306.py :
-mpremote connect /dev/ttyUSB0 fs cp mpu6050.py :
-mpremote connect /dev/ttyUSB0 fs cp micropyGPS.py :
+# Sender flashen
+mpremote connect /dev/ttyUSB0 cp esp_libs/ssd1306.py :
+mpremote connect /dev/ttyUSB0 cp esp_libs/mpu6050.py :
+mpremote connect /dev/ttyUSB0 cp esp_libs/micropyGPS.py :
+mpremote connect /dev/ttyUSB0 cp sender_v9_main.py :main.py
+
+# Bridge flashen
+mpremote connect /dev/ttyUSB1 cp esp_libs/ssd1306.py :
+mpremote connect /dev/ttyUSB1 cp bridge_v9_main.py :main.py
 ```
+
+Bei OLED-Problemen hilft das Diagnose-Skript [`esp_libs/oled_diagnose.py`](esp_libs/oled_diagnose.py): einfach in Thonny laden und in der REPL ausführen — es prüft I²C, OLED-Adresse und schreibt am Ende ein Test-Bild.
 
 > **Hinweis:** Beide Skripte starten ihre `main()`/`Bridge().run()` automatisch beim Import. Wenn sie als `main.py` auf dem ESP liegen, läuft das System direkt nach dem Boot.
 
@@ -383,31 +392,54 @@ Die HTML-Oberfläche kann als eigenständige Windows-Anwendung verpackt werden �
 
 ### Build-Schritte
 
+**Einfachster Weg unter Windows:** das mitgelieferte PowerShell-Script [`BUILD_EXE.ps1`](BUILD_EXE.ps1) ausführen — es prüft Node.js, lädt fehlende USB-Treiber, ruft `npm install` + `electron-rebuild` und baut beide EXE-Varianten.
+
+```powershell
+# Im Repo-Ordner, Rechtsklick → "In Terminal öffnen"
+.\BUILD_EXE.ps1
+```
+
+Falls Windows blockiert ("Skripte sind deaktiviert"), einmalig:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+**Manueller Weg:**
+
 ```bash
-# Abhängigkeiten installieren (einmalig)
+# Abhängigkeiten installieren (einmalig, ca. 350 MB)
 npm install
 
 # Lokal starten — schnelle Vorschau ohne Build
 npm start
 
 # Windows-Builds (Output landet in dist/)
-npm run build:portable    # eine einzelne portable .exe
-npm run build:installer   # NSIS-Installer mit Desktop-Verknüpfung
-npm run build:win         # beides auf einmal
+npm run build           # NSIS-Installer + portable EXE
+npm run build-portable  # nur die portable EXE
 ```
 
-Ergebnisse:
+Ergebnisse im `dist/`-Ordner:
 
-- `dist/RasiCross-Telemetrie-9.6.0-portable.exe` — startet ohne Installation, alles in einer Datei
-- `dist/RasiCross-Telemetrie-9.6.0-x64.exe` — NSIS-Installer
+- `RasiCross Telemetry Setup 9.6.0.exe` — NSIS-Installer mit Desktop-Verknüpfung und automatischer USB-Treiber-Installation
+- `RasiCross-Telemetry-Portable.exe` — startet ohne Installation, alles in einer Datei
+
+### Admin-Rechte
+
+- **Installer (Setup.exe):** fragt einmalig beim Installieren nach Admin — nötig für die USB-Treiber (`installer.nsh` ruft `CP210xVCPInstaller_x64.exe` und ggf. CH341)
+- **Installierte App:** läuft als normaler Nutzer, kein UAC-Prompt
+- **Portable EXE:** läuft als normaler Nutzer, USB-Treiber müssen ggf. separat installiert werden
 
 ### Wie es funktioniert
 
-| Datei            | Zweck                                                                   |
-| ---------------- | ----------------------------------------------------------------------- |
-| `package.json`   | Electron- und SerialPort-Abhängigkeiten, electron-builder-Konfiguration |
-| `main.js`        | Electron-Hauptprozess: lädt das HTML, verwaltet den seriellen Port      |
-| `preload.js`     | Stellt im Renderer `window.rasiSerial` als sichere IPC-Bridge bereit    |
+| Datei                       | Zweck                                                                   |
+| --------------------------- | ----------------------------------------------------------------------- |
+| `package.json`              | Electron- und SerialPort-Abhängigkeiten, electron-builder-Konfiguration |
+| `main.js`                   | Electron-Hauptprozess: lädt das HTML, verwaltet den seriellen Port      |
+| `preload.js`                | Stellt im Renderer `window.rasiSerial` als sichere IPC-Bridge bereit    |
+| `installer.nsh`             | NSIS-Custom-Hook: installiert die USB-Treiber beim Setup                |
+| `BUILD_EXE.ps1`             | Komfort-Skript für den lokalen Build unter Windows                      |
+| `drivers/`                  | Mitgelieferte USB-Seriell-Treiber (CP210x von Silicon Labs)             |
 
 Datenfluss in der App:
 
@@ -434,19 +466,17 @@ git tag v9.6.0
 git push origin v9.6.0
 ```
 
-Der Workflow läuft automatisch, baut auf einem Windows-Runner und legt einen Release mit `RasiCross-Telemetrie-9.6.0-portable.exe` und `RasiCross-Telemetrie-9.6.0-x64.exe` (Installer) an.
+Der Workflow läuft automatisch, baut auf einem Windows-Runner und legt einen Release mit beiden EXE-Varianten an.
 
 **Manueller Test ohne Tag:** Auf github.com → Tab `Actions` → `Windows-Build` → `Run workflow`. Die Artefakte landen dann unter dem Workflow-Run und sind 30 Tage abrufbar (kein Release).
 
+**Bei Pull-Requests:** Der Workflow läuft auch automatisch, lädt aber nur Artefakte hoch, ohne ein Release zu erstellen — so bleibt die Build-Pipeline grün-getestet, bevor etwas gemergt wird.
+
 ### Icon anpassen (optional)
 
-Lege ein `.ico` (256 × 256, Multi-Resolution) als `build/icon.ico` ab und ergänze in `package.json`:
+Lege ein `.ico` (256 × 256, Multi-Resolution) als `icon.ico` direkt im Projekt-Wurzelverzeichnis ab. `package.json` referenziert den Pfad bereits — beim nächsten Build wird es automatisch verwendet, sowohl im Fenster, im Installer als auch im Uninstaller.
 
-```json
-"build": {
-  "win": { "icon": "build/icon.ico" }
-}
-```
+Konvertierung von PNG zu ICO z.B. via [convertio.co/png-ico](https://convertio.co/png-ico/) oder [icoconvert.com](https://icoconvert.com/).
 
 ### Was Electron NICHT braucht
 
@@ -472,4 +502,11 @@ Neuerungen gegenüber v8 (Sender & Bridge):
 
 ## Lizenz
 
-Noch keine Lizenz festgelegt. Solange das nicht geschieht, gilt das Standard-Urheberrecht — bitte vor Verwendung mit dem Eigentümer abstimmen.
+Dieses Projekt steht unter der [MIT-Lizenz](LICENSE) — kostenlose Nutzung, Modifikation und Verbreitung erlaubt, ohne Gewährleistung.
+
+Treiber und Bibliotheken Dritter haben eigene Lizenzen:
+
+- `drivers/CP210xVCPInstaller_x64.exe` — Silicon Labs (proprietär, frei verteilbar)
+- `esp_libs/ssd1306.py` — MicroPython, MIT
+- `esp_libs/mpu6050.py` — MIT (Eigenentwicklung)
+- `esp_libs/micropyGPS.py` — MIT (kompakter NMEA-Parser, kompatibel zur inmcm/micropyGPS-API)
