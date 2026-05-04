@@ -51,11 +51,12 @@
           ]
         }
       ],
-      "requestedExecutionLevel": "requireAdministrator",
+      "requestedExecutionLevel": "asInvoker",
       "icon": "icon.ico"
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": true,
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "RasiCross Telemetry",
       "createDesktopShortcut": true,
@@ -66,7 +67,7 @@
     },
     "portable": {
       "artifactName": "RasiCross-Telemetry-Portable.exe",
-      "requestExecutionLevel": "admin"
+      "requestExecutionLevel": "user"
     },
     "npmRebuild": true
   },
