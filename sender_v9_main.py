@@ -414,8 +414,10 @@ class Display:
     def cancel_pit_call(self):
         self._pit_active = False
 
-    def big_text(self, text, x, y, scale=2):
-        """Pixel-vergrößerter Text (Helper für Pages)."""
+    def big_text(self, text, x, y, scale=2, color=1):
+        """Pixel-vergrößerter Text (Helper für Pages).
+        color=1 zeichnet weiße Pixel auf schwarzem Grund (Standard),
+        color=0 zeichnet schwarze Pixel auf weißem Grund (z.B. Shift-Alarm)."""
         w = 8 * len(text)
         fb = framebuf.FrameBuffer(bytearray(w * 8), w, 8, framebuf.MONO_VLSB)
         fb.text(text, 0, 0, 1)
@@ -423,7 +425,7 @@ class Display:
             for j in range(8):
                 if fb.pixel(i, j):
                     self._oled.fill_rect(x + i * scale, y + j * scale,
-                                         scale, scale, 1)
+                                         scale, scale, color)
 
     # ── Interne Zeichen-Methoden ──────────────────────────────────────────
 
@@ -462,13 +464,11 @@ class Display:
         + RPM + km/h. Wird ausgeloest wenn rpm >= MAX_RPM."""
         o = self._oled
         o.fill(1)
-        # "Release" und "Throttle" untereinander, jeweils 1.5x skaliert wuerde
-        # nicht aufgehen (kein 1.5x) - wir nehmen normale Schrift gross zentriert
-        # und schreiben es in zwei Zeilen damit es passt.
+        # Voll-invertierter Hintergrund -> Text in Farbe 0 (schwarz auf weiss)
         # Zeile 1: "RELEASE" (8*7=56 px breit, 2x = 112 -> passt)
-        self.big_text("RELEASE", 8, 4, 2)
+        self.big_text("RELEASE", 8, 4, 2, 0)
         # Zeile 2: "THROTTLE" (8*8=64 px, 2x = 128 -> passt genau)
-        self.big_text("THROTTLE", 0, 22, 2)
+        self.big_text("THROTTLE", 0, 22, 2, 0)
         # RPM und km/h klein darunter
         o.text("{:5d} rpm".format(int(ctx.get("rpm", 0))), 16, 44, 0)
         o.text("{:3d} km/h".format(int(ctx.get("speed", 0))), 24, 54, 0)
