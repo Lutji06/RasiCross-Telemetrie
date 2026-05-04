@@ -8,10 +8,15 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "postinstall": "electron-builder install-app-deps",
+    "rebuild": "electron-builder install-app-deps",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:portable": "electron-builder --win portable",
     "build:installer": "electron-builder --win nsis"
+  },
+  "dependencies": {
+    "serialport": "^12.0.0"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -22,6 +27,7 @@
     "productName": "RasiCross-Telemetrie",
     "files": [
       "main.js",
+      "preload.js",
       "RasiCross_Telemetry_v9_6.html",
       "package.json"
     ],

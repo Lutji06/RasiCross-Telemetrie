@@ -11,6 +11,10 @@ out/
 *.app
 *.dmg
 
+# Python
+__pycache__/
+*.pyc
+
 # IDE / OS
 .vscode/
 .idea/

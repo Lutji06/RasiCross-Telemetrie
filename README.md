@@ -405,17 +405,32 @@ Ergebnisse:
 
 | Datei            | Zweck                                                                   |
 | ---------------- | ----------------------------------------------------------------------- |
-| `package.json`   | Electron-Abhängigkeiten + electron-builder-Konfiguration                |
-| `main.js`        | Electron-Hauptprozess: lädt das HTML, schaltet Web-Serial-Berechtigungen frei, zeigt nativen Port-Picker |
+| `package.json`   | Electron- und SerialPort-Abhängigkeiten, electron-builder-Konfiguration |
+| `main.js`        | Electron-Hauptprozess: lädt das HTML, verwaltet den seriellen Port      |
+| `preload.js`     | Stellt im Renderer `window.rasiSerial` als sichere IPC-Bridge bereit    |
 
-Beim Start:
-- Bei genau einem angeschlossenen USB-Serial-Gerät verbindet sich das Dashboard direkt.
-- Sind mehrere Ports vorhanden, erscheint ein nativer Auswahldialog mit Port-Namen und VID.
-- `Alt` blendet die Menüleiste ein (Reload, DevTools, Vollbild …).
+Datenfluss in der App:
+
+```
+HTML (Renderer) ──IPC──► preload.js ──IPC──► main.js ──node-serialport──► COM-Port
+                ◄─JSON-Lines────────────────────────────────────────────┘
+```
+
+Das Dashboard ruft `window.rasiSerial.list()` auf, um vorhandene COM-Ports im Dropdown anzuzeigen, und `window.rasiSerial.open(path, baud)` zum Verbinden. Empfangene Zeilen werden via Event an die HTML-Logik durchgereicht — exakt wie im Browser, nur über Node `serialport` statt Web Serial.
+
+### Native Module
+
+`serialport` ist ein natives Modul. Beim ersten `npm install` läuft `electron-builder install-app-deps` automatisch und holt sich die zur installierten Electron-Version passende Prebuild-Variante. Auf Windows brauchst du dafür normalerweise nichts extra — falls doch, installiere die [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
 
 ### Icon anpassen (optional)
 
-`main.js` referenziert `icon.png` im Projekt-Wurzelverzeichnis. Eigenes 256 × 256-PNG dort ablegen, dann erscheint es im Fenster und in der Taskleiste. Für die .exe selbst kann unter `build.win.icon` in der `package.json` ein `.ico` (256 × 256, Multi-Resolution) angegeben werden.
+Lege ein `.ico` (256 × 256, Multi-Resolution) als `build/icon.ico` ab und ergänze in `package.json`:
+
+```json
+"build": {
+  "win": { "icon": "build/icon.ico" }
+}
+```
 
 ### Was Electron NICHT braucht
 
