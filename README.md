@@ -486,9 +486,10 @@ Die ESP-NOW-Funkstrecke und der ESP32-Code sind unabhängig von der Electron-App
 
 ## Versionsstand
 
-- **Sender:** v9.0 (`sender_v9_main.py`)
-- **Bridge:** v9.0 (`bridge_v9_main.py`)
+- **Sender:** v9.6 (`sender_v9_main.py`)
+- **Bridge:** v9.6 (`bridge_v9_main.py`)
 - **Dashboard:** v9.6 (`RasiCross_Telemetry_v9_6.html`)
+- **Electron-App:** 9.6.0 (`package.json`)
 
 Neuerungen gegenüber v8 (Sender & Bridge):
 - Saubere Trennung Sensors / Display / Link / App

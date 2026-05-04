@@ -1,5 +1,5 @@
 # ============================================================
-#  RasiCross  --  BRIDGE ESP32  ESP-NOW ⇆ USB SERIAL  v9.0
+#  RasiCross  --  BRIDGE ESP32  ESP-NOW ⇆ USB SERIAL  v9.6
 # ============================================================
 #  Rolle:    Boxen-seitiger ESP. Empfängt Telemetrie vom Kart
 #            per ESP-NOW und gibt sie als JSON-Lines per USB-Serial
@@ -358,7 +358,7 @@ class Bridge:
         jprint({
             "type":           "bridge_status",
             "bridge":         "ready",
-            "version":        "9.0",
+            "version":        "9.6",
             "mac":            mac,
             "channel":        Config.ESPNOW_CHANNEL,
             "return_channel": self.poll is not None,

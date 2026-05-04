@@ -1,5 +1,5 @@
 # ============================================================
-#  RasiCross  --  KART ESP32 SENDER  v9.0
+#  RasiCross  --  KART ESP32 SENDER  v9.6
 # ============================================================
 #  Rolle:    Mäher-seitiger ESP. Sammelt Sensordaten und sendet
 #            sie via ESP-NOW an die Bridge (Boxengasse).
@@ -782,7 +782,7 @@ def apply_config(cfg, rpm_counter):
 
 
 def main():
-    log("init", "RasiCross Sender v9.0 startet")
+    log("init", "RasiCross Sender v9.6 startet")
 
     # Watchdog
     wdt = None
