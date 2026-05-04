@@ -1,55 +1,76 @@
 {
-  "name": "rasicross-telemetrie",
+  "name": "rasicross-telemetry",
   "version": "9.6.0",
-  "description": "RasiCross Telemetry Dashboard als Desktop-App",
+  "description": "RasiCross Telemetry \u2013 ESP-NOW USB Dashboard",
   "main": "main.js",
-  "author": "Lutji06",
-  "license": "UNLICENSED",
-  "private": true,
+  "author": "RasiCross",
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "postinstall": "electron-builder install-app-deps",
-    "rebuild": "electron-builder install-app-deps",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win",
-    "build:portable": "electron-builder --win portable",
-    "build:installer": "electron-builder --win nsis"
-  },
-  "dependencies": {
-    "serialport": "^12.0.0"
+    "build": "electron-builder --win --x64",
+    "build-portable": "electron-builder --win portable --x64"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.5"
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "de.rasicross.telemetrie",
-    "productName": "RasiCross-Telemetrie",
+    "appId": "com.rasicross.telemetry",
+    "productName": "RasiCross Telemetry",
+    "directories": {
+      "output": "dist"
+    },
     "files": [
       "main.js",
       "preload.js",
       "RasiCross_Telemetry_v9_6.html",
-      "package.json"
+      "icon.ico"
     ],
-    "directories": {
-      "output": "dist"
-    },
+    "extraResources": [
+      {
+        "from": "drivers/",
+        "to": "drivers/",
+        "filter": [
+          "**/*.exe",
+          "**/*.EXE"
+        ]
+      }
+    ],
     "win": {
       "target": [
-        { "target": "portable", "arch": ["x64"] },
-        { "target": "nsis",     "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "requestedExecutionLevel": "requireAdministrator",
+      "icon": "icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "shortcutName": "RasiCross Telemetry",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "RasiCross Telemetrie"
+      "include": "installer.nsh",
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico"
     },
     "portable": {
-      "artifactName": "${productName}-${version}-portable.${ext}"
-    }
+      "artifactName": "RasiCross-Telemetry-Portable.exe",
+      "requestExecutionLevel": "admin"
+    },
+    "npmRebuild": true
+  },
+  "dependencies": {
+    "serialport": "^12.0.0"
   }
 }
