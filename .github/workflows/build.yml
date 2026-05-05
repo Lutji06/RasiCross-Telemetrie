@@ -1,17 +1,18 @@
 # ============================================================
-#  Baut die RasiCross-Telemetrie als Windows-.exe
+#  Baut die RasiCross-Telemetrie fuer Windows, macOS und Linux
 # ============================================================
 #  Loest aus bei:
 #    - Push eines Tags der Form vX.Y.Z (z.B. v9.6.0)
+#    - Pull-Request gegen main
 #    - Manuelle Ausfuehrung ueber den "Actions"-Tab auf GitHub
 #
-#  Ergebnis bei Tag-Push:
-#    - dist/RasiCross-Telemetry-Setup.exe (NSIS-Installer)
-#    - dist/RasiCross-Telemetry-Portable.exe
-#    -> automatisch als GitHub Release mit den .exe-Dateien
+#  Ergebnis bei Tag-Push: GitHub Release mit allen Builds:
+#    Windows: RasiCross-Telemetry-Setup.exe + Portable.exe
+#    macOS:   RasiCross-Telemetry-9.6.0.dmg + .zip
+#    Linux:   RasiCross-Telemetry-9.6.0.AppImage
 # ============================================================
 
-name: Windows-Build
+name: Build
 
 on:
   push:
@@ -27,8 +28,12 @@ permissions:
 
 jobs:
   build:
-    name: Build Windows EXE
-    runs-on: windows-latest
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
       - name: Checkout
@@ -41,6 +46,7 @@ jobs:
           cache: 'npm'
 
       - name: Stub icon.ico (falls keines im Repo liegt)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           if (-not (Test-Path 'icon.ico')) {
@@ -55,19 +61,36 @@ jobs:
         run: npx electron-rebuild -f -w serialport
         continue-on-error: true
 
-      - name: Build Windows installers
-        run: npm run build
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: npm run build:linux
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build
+          name: build-${{ matrix.os }}
           path: |
             dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
             dist/*.blockmap
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
 
       - name: Create GitHub Release
@@ -76,5 +99,9 @@ jobs:
         with:
           files: |
             dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
           generate_release_notes: true
           fail_on_unmatched_files: false

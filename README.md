@@ -99,6 +99,9 @@ RasiCross-Telemetrie überträgt Sensordaten vom Fahrzeug live in die Boxengasse
 
 ## Verkabelung & Pinbelegung
 
+Detailliertes Schaubild und Hinweise zur Stromversorgung & Antenne:
+**[docs/VERKABELUNG.md](docs/VERKABELUNG.md)**.
+
 Standard-Pins, im `Config`-Block beider Skripte änderbar:
 
 ### Kart-Sender
@@ -182,12 +185,23 @@ Im Dashboard gibt es einen eingebauten Demo-Modus, der Telemetrie simuliert — 
 
 Beim ersten Start der `.exe` zeigt Windows einen blauen SmartScreen-Bildschirm
 ("Der Computer wurde durch Windows geschützt"). Das ist normal — die EXE ist
-nicht mit einem Code-Signing-Zertifikat signiert (Zertifikate kosten ~80 €/Jahr).
+nicht mit einem Code-Signing-Zertifikat signiert.
 
 So startest du sie trotzdem:
 1. Auf **"Weitere Informationen"** klicken
 2. Unten erscheint **"Trotzdem ausführen"** — klicken
 3. Beim nächsten Start kommt die Warnung nicht mehr
+
+Wer die Warnung dauerhaft loswerden will, kann das Projekt kostenlos via
+SignPath signieren lassen — siehe **[docs/CODE_SIGNING.md](docs/CODE_SIGNING.md)**.
+
+### Audio-Cues und Outdoor-Modus
+
+Im Header oben rechts gibt es zwei neue Knöpfe:
+- **Theme-Toggle** (◐) wechselt zwischen *dunkel*, *hell* und *outdoor* (hoher
+  Kontrast für Sonneneinstrahlung in der Boxengasse)
+- **Audio-Toggle** (🔊/🔇) schaltet akustische Hinweise an/aus
+  (Sektor-Best, neue Bestzeit)
 
 ---
 

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Dokumentation lesen
+    url: https://github.com/Lutji06/RasiCross-Telemetrie#readme
+    about: Vielleicht steht die Antwort schon im README — Pinbelegung, Konfiguration, Fehlersuche.
+  - name: 💬 Diskussion starten
+    url: https://github.com/Lutji06/RasiCross-Telemetrie/discussions
+    about: Allgemeine Fragen oder Erfahrungsaustausch (kein Bug, kein Feature).

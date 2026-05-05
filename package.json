@@ -7,7 +7,10 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win --x64",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win --x64",
+    "build:mac": "electron-builder --mac --universal",
+    "build:linux": "electron-builder --linux",
     "build-portable": "electron-builder --win portable --x64"
   },
   "devDependencies": {
@@ -68,6 +71,24 @@
     "portable": {
       "artifactName": "RasiCross-Telemetry-Portable.exe",
       "requestExecutionLevel": "user"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["universal"] },
+        { "target": "zip", "arch": ["universal"] }
+      ],
+      "category": "public.app-category.utilities"
+    },
+    "dmg": {
+      "title": "RasiCross Telemetry"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb",      "arch": ["x64"] }
+      ],
+      "category": "Utility",
+      "synopsis": "Live-Telemetrie-Dashboard fuer ESP32-Kart-Sender"
     },
     "npmRebuild": true
   },

@@ -36,11 +36,27 @@ except Exception:
     _HAS_SELECT = False
 
 try:
-    from machine import Pin, I2C
+    from machine import Pin, I2C, WDT
+    _HAS_WDT = True
+except Exception:
+    _HAS_WDT = False
+    try:
+        from machine import Pin, I2C
+    except Exception:
+        pass
+
+try:
     import ssd1306
     _HAS_OLED = True
 except Exception:
     _HAS_OLED = False
+
+# NVS fuer persistente Peer-Liste (Kart-MAC ueberlebt Reboot)
+try:
+    import esp32
+    _HAS_NVS = True
+except Exception:
+    _HAS_NVS = False
 
 
 # ── Konfiguration ─────────────────────────────────────────────────────────
@@ -48,8 +64,12 @@ except Exception:
 class Config:
     ESPNOW_CHANNEL    = 1       # Muss mit Sender übereinstimmen
     HEARTBEAT_MS      = 2000    # Status-Meldung an Dashboard
-    HELLO_MS          = 5000    # Bridge-Hello an alle bekannten Peers
+    HELLO_MS          = 5000    # Bridge-Hello (nur wenn Kart laenger nichts sendet)
+    HELLO_QUIET_MS    = 5000    # Hello nur senden, wenn so lange nichts vom Kart kam
     LOOP_SLEEP_MS     = 2
+
+    # Sicherheit
+    WATCHDOG_MS       = 8000    # Hardware-Watchdog (0 = aus); Bridge-Hang wird automatisch behoben
 
     # OLED
     OLED_ENABLED      = True
@@ -71,6 +91,47 @@ class Config:
 def jprint(obj):
     """Eine JSON-Zeile auf stdout — das ist das Dashboard-Protokoll."""
     print(ujson.dumps(obj))
+
+
+# ── Persistenz ────────────────────────────────────────────────────────────
+
+class PeerStore:
+    """Speichert die zuletzt bekannte Kart-MAC im ESP32-NVS, sodass die
+    Bridge nach einem Reboot ohne Neulernen direkt senden kann."""
+
+    NAMESPACE = "rasicross"
+    KEY       = "kart_mac"
+
+    def __init__(self):
+        self._nvs = None
+        if not _HAS_NVS:
+            return
+        try:
+            self._nvs = esp32.NVS(self.NAMESPACE)
+        except Exception as e:
+            print("[init] NVS init fehler:", e)
+            self._nvs = None
+
+    def load(self):
+        if not self._nvs:
+            return None
+        try:
+            buf = bytearray(6)
+            n = self._nvs.get_blob(self.KEY, buf)
+            if n == 6:
+                return bytes(buf)
+        except Exception:
+            pass
+        return None
+
+    def save(self, mac_bytes):
+        if not self._nvs or not mac_bytes or len(mac_bytes) != 6:
+            return
+        try:
+            self._nvs.set_blob(self.KEY, mac_bytes)
+            self._nvs.commit()
+        except Exception as e:
+            print("[init] NVS save fehler:", e)
 
 
 # ── Statistik ─────────────────────────────────────────────────────────────
@@ -340,6 +401,24 @@ class Bridge:
         self.last_usb_at  = 0
         self.usb_errors   = 0
 
+        # Persistente Peer-Liste: Kart-MAC ueberlebt Reboot
+        self.peer_store = PeerStore()
+        saved_mac = self.peer_store.load()
+        if saved_mac:
+            self.kart_host = saved_mac
+            self._add_peer(saved_mac)
+            print("[init] Kart-MAC aus NVS geladen:",
+                  ubinascii.hexlify(saved_mac, ":").decode())
+
+        # Watchdog
+        self.wdt = None
+        if _HAS_WDT and Config.WATCHDOG_MS > 0:
+            try:
+                self.wdt = WDT(timeout=Config.WATCHDOG_MS)
+                print("[init] Watchdog aktiv:", Config.WATCHDOG_MS, "ms")
+            except Exception as e:
+                print("[init] WDT init fehler:", e)
+
         # Display + LED
         self.display = BridgeDisplay()
         self.led     = StatusLED()
@@ -369,6 +448,9 @@ class Bridge:
 
     def run(self):
         while True:
+            if self.wdt:
+                self.wdt.feed()
+
             # Alle wartenden Pakete in einem Rutsch verarbeiten
             while True:
                 try:
@@ -409,7 +491,10 @@ class Bridge:
         # Peer-Lernen
         if host:
             self._add_peer(host)
-            self.kart_host = host
+            # Neue MAC -> persistent speichern, damit sie Reboots ueberlebt
+            if self.kart_host != host:
+                self.kart_host = host
+                self.peer_store.save(host)
 
         # JSON parsen
         try:
@@ -494,6 +579,7 @@ class Bridge:
                     mac_bytes = bytes.fromhex(clean)
                     self.kart_host = mac_bytes
                     self._add_peer(mac_bytes)
+                    self.peer_store.save(mac_bytes)
                     jprint({"type": "bridge_info",
                             "info": "kart_mac_set",
                             "kart_mac": mac_str})
@@ -561,12 +647,15 @@ class Bridge:
         })
 
     def _send_hello(self):
-        """Sendet ein Hello-Paket an alle bekannten Peers — der Sender
-        kann dadurch die Bridge-MAC lernen ohne Hardcoding."""
+        """Sendet ein Hello-Paket an den Kart, aber nur wenn vom Kart
+        laenger nichts kam (HELLO_QUIET_MS). Spart Airtime."""
         if not self.kart_host:
             return
         now = utime.ticks_ms()
         if utime.ticks_diff(now, self.last_hello_ms) < Config.HELLO_MS:
+            return
+        # Nur senden wenn Kart laenger nichts geschickt hat
+        if self.stats.packet_age_ms < Config.HELLO_QUIET_MS:
             return
         self.last_hello_ms = now
         try:

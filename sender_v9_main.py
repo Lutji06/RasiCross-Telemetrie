@@ -78,10 +78,15 @@ class Config:
 
     # Timing (alle Werte in ms)
     SEND_MS         = 80         # Telemetrie-Intervall (12.5 Hz)
+    SEND_MS_DEGRADED = 200       # Bei schlechter Funkverbindung -> langsamere Rate (5 Hz)
+    SEND_FAIL_THRESHOLD = 10     # Ab so vielen TX-Fehlern in Folge: degraded mode
     OLED_MS         = 120        # Display-Refresh
     PAGE_MS         = 4000       # Auto-Seitenwechsel
     BLINK_MS        = 150        # Shift-Light Blink
     LED_BLINK_MS    = 500        # Status-LED Blink (GPS sucht)
+
+    # GPS-Health
+    GPS_TIMEOUT_MS  = 10000      # Nach so vielen ms ohne validen Fix -> als verloren melden
 
     # Drehzahl-Grenzen
     MAX_RPM         = 6000       # Shift-Light Schwelle
@@ -288,6 +293,21 @@ class GPS:
         if not self._ok or not self._last_rx_ms:
             return False
         return utime.ticks_diff(utime.ticks_ms(), self._last_rx_ms) < 3000
+
+    @property
+    def health(self):
+        """'ok' = Fix vorhanden, 'searching' = noch keine NMEA-Daten,
+        'lost' = NMEA kommt zwar an, aber kein Fix seit GPS_TIMEOUT_MS,
+        'disabled' = Modul nicht installiert."""
+        if not self._ok:
+            return "disabled"
+        if self.fix:
+            return "ok"
+        if not self._last_rx_ms:
+            return "searching"
+        if utime.ticks_diff(utime.ticks_ms(), self._last_rx_ms) > Config.GPS_TIMEOUT_MS:
+            return "lost"
+        return "searching"
 
 
 # ── OLED-Display ──────────────────────────────────────────────────────────
@@ -861,7 +881,12 @@ def main():
                 log("config", "Bridge hat sich gemeldet")
 
         # ── Telemetrie senden ──
-        if utime.ticks_diff(now, last_send) >= Config.SEND_MS:
+        # Adaptive Rate: bei vielen Fehlern in Folge langsamer senden
+        # (mehr Zeit pro Paket -> hoehere Erfolgsrate bei schlechter Funk)
+        send_interval = (Config.SEND_MS_DEGRADED
+                         if link.tx_fail_run >= Config.SEND_FAIL_THRESHOLD
+                         else Config.SEND_MS)
+        if utime.ticks_diff(now, last_send) >= send_interval:
             last_send = now
             speed = gps.speed_kmh
             packet = {
@@ -872,7 +897,9 @@ def main():
                 "lat":      round(gps.lat, 7),
                 "lon":      round(gps.lon, 7),
                 "gps_fix":  1 if gps.fix else 0,
+                "gps_health": gps.health,    # 'ok'|'searching'|'lost'|'disabled'
                 "pulse_hz": round(rpm_counter.pulse_hz, 1),
+                "send_ms":  send_interval,   # Dashboard sieht degraded mode
             }
             tx_ok = link.send(packet)
 

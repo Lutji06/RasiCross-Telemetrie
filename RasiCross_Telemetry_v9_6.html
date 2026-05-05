@@ -76,6 +76,40 @@
   --pr-soft:rgba(220,255,0,.15);
 }
 
+/* Outdoor-Modus: hoher Kontrast, weisser Hintergrund, dicke Linien --
+   bei direkter Sonneneinstrahlung in der Boxengasse. */
+[data-theme=outdoor]{
+  --bg:#ffffff;
+  --bg-grad:#ffffff;
+  --surf:#ffffff;
+  --surf2:#ffffff;
+  --surf3:#f0f0f0;
+  --soft:#f5f5f5;
+  --soft2:#e8e8e8;
+  --tx:#000000;
+  --mut:#222222;
+  --dim:#444444;
+  --bor:rgba(0,0,0,.45);
+  --bor2:rgba(0,0,0,.7);
+  --div:rgba(0,0,0,.35);
+  --pr:#0066cc;
+  --pr-glow:rgba(0,102,204,.25);
+  --pr-soft:rgba(0,102,204,.18);
+  --green:#0a7a2c;
+  --orange:#cc5500;
+  --red:#cc0000;
+  --blue:#0044aa;
+  --shadow-sm:0 0 0 1px rgba(0,0,0,.5);
+  --shadow-md:0 0 0 1px rgba(0,0,0,.5);
+  --shadow-lg:0 0 0 2px rgba(0,0,0,.6);
+}
+[data-theme=outdoor] header,
+[data-theme=outdoor] footer{background:#ffffff;border-color:#000}
+[data-theme=outdoor] .card,
+[data-theme=outdoor] .stat-card,
+[data-theme=outdoor] .panel{border:2px solid #000}
+[data-theme=outdoor] body{font-weight:600}
+
 html,body{
   min-height:100%;
   font-family:var(--sans);
@@ -1622,7 +1656,8 @@ footer span b{color:var(--tx);font-weight:800}
   </nav>
   <div class="hright">
     <div class="badge" id="statusBadge"><span class="dot"></span><span id="statusText">Offline</span></div>
-    <button class="btn ghost" id="themeBtn" title="Theme wechseln" style="padding:8px 11px"><span id="themeIcon">◐</span></button>
+    <button class="btn ghost" id="themeBtn" title="Theme wechseln (dunkel / hell / outdoor)" style="padding:8px 11px"><span id="themeIcon">◐</span></button>
+    <button class="btn ghost" id="audioBtn" title="Audio-Cues an/aus" style="padding:8px 11px"><span id="audioIcon">🔊</span></button>
     <button class="btn ghost" id="pitwallBtn" title="Pit-Wall Vollbild" style="padding:8px 11px;font-size:13px">⛶</button>
     <button class="btn primary" id="connectBtn">USB verbinden</button>
   </div>
@@ -2523,8 +2558,54 @@ function setupTabs() {
 function applyTheme() {
   document.documentElement.dataset.theme = state.theme;
 }
+
+// ============================================================
+//  Audio-Cues: Web Audio API, keine externen Dateien
+// ============================================================
+const rcAudio = (() => {
+  let ctx = null;
+  let enabled = (() => {
+    try { return localStorage.getItem('rc_audio') !== '0'; } catch(e) { return true; }
+  })();
+  function getCtx() {
+    if (!ctx) {
+      try { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e) { return null; }
+    }
+    if (ctx && ctx.state === 'suspended') ctx.resume().catch(()=>{});
+    return ctx;
+  }
+  function beep(freq, durMs, vol) {
+    if (!enabled) return;
+    const c = getCtx(); if (!c) return;
+    try {
+      const osc = c.createOscillator();
+      const g   = c.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      g.gain.value = vol == null ? 0.18 : vol;
+      osc.connect(g).connect(c.destination);
+      const t = c.currentTime;
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + durMs / 1000);
+      osc.start(t);
+      osc.stop(t + durMs / 1000);
+    } catch(e) {}
+  }
+  return {
+    sectorBest: () => beep(880, 120, 0.15),
+    lapBest:    () => { beep(1320, 120, 0.18); setTimeout(() => beep(1760, 180, 0.18), 140); },
+    warning:    () => beep(220, 400, 0.22),
+    pitCall:    () => { beep(660, 200, 0.2); setTimeout(() => beep(880, 200, 0.2), 220); },
+    setEnabled: (v) => { enabled = !!v; try { localStorage.setItem('rc_audio', v ? '1' : '0'); } catch(e){} },
+    isEnabled:  () => enabled,
+  };
+})();
 function toggleTheme() {
-  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  // Cycle: dark -> light -> outdoor -> dark
+  const order = ['dark', 'light', 'outdoor'];
+  const idx = order.indexOf(state.theme);
+  state.theme = order[(idx + 1) % order.length] || 'dark';
   applyTheme();
   saveDataDebounced();
 }
@@ -3444,7 +3525,10 @@ function checkSectorCrossings(lat, lon) {
         s.sectorStart = now;
         s.cur = i + 1;
         // Update best
-        if (s.best[i] == null || sectorMs < s.best[i]) s.best[i] = sectorMs;
+        if (s.best[i] == null || sectorMs < s.best[i]) {
+          s.best[i] = sectorMs;
+          rcAudio.sectorBest();
+        }
         updateSectorPanel();
         break;
       }
@@ -3518,13 +3602,17 @@ function triggerLap() {
       if (s.boundaries[0] && s.boundaries[1] && s.cur === 2 && s.sectorStart) {
         const s3Ms = now - s.sectorStart;
         s.lapSectors[2] = s3Ms;
-        if (s.best[2] == null || s3Ms < s.best[2]) s.best[2] = s3Ms;
+        if (s.best[2] == null || s3Ms < s.best[2]) {
+          s.best[2] = s3Ms;
+          rcAudio.sectorBest();
+        }
       }
       // Update best lap
       if (state.bestLapMs == null || lapMs < state.bestLapMs) {
         state.bestLapMs = lapMs;
         state.bestLapNum = lap.number;
         state.bestLapTrace = [...state.currentLapTrace];
+        rcAudio.lapBest();
       }
       // Save sector times for display
       if (s.lapSectors.some(x => x)) {
@@ -5088,6 +5176,10 @@ function init() {
   window.addEventListener('resize', resizeCanvases);
   // Header buttons
   $('themeBtn').onclick = toggleTheme;
+  // Audio-Toggle
+  const updateAudioIcon = () => { $('audioIcon').textContent = rcAudio.isEnabled() ? '🔊' : '🔇'; };
+  updateAudioIcon();
+  $('audioBtn').onclick = () => { rcAudio.setEnabled(!rcAudio.isEnabled()); updateAudioIcon(); if (rcAudio.isEnabled()) rcAudio.sectorBest(); };
   $('pitwallBtn').onclick = openPitWall;
   // OLED-Seitenauswahl
   if ($('oledPageSelect')) {
