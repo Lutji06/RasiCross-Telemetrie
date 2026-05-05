@@ -2,6 +2,10 @@
 
 Ein Live-Telemetrie-System für Kart-Rennen / Rasenmäher-Rennen ("RasiCross") auf Basis von zwei ESP32-Mikrocontrollern und einem Web-Dashboard.
 
+![Dashboard Screenshot](docs/screenshot.png)
+
+> Lege deinen Dashboard-Screenshot als `docs/screenshot.png` ab — er erscheint dann automatisch hier oben.
+
 ---
 
 ## Inhaltsverzeichnis
@@ -169,6 +173,21 @@ Zwei Wege:
 
 1. **Im Browser** — `RasiCross_Telemetry_v9_6.html` direkt öffnen (Chromium-basierter Browser empfohlen, da Web Serial benötigt wird) und in der UI auf "Connect" klicken.
 2. **Als Desktop-App** (.exe) — siehe Abschnitt [Dashboard als .exe bauen](#dashboard-als-exe-bauen).
+
+### Demo-Modus (ohne Hardware testen)
+
+Im Dashboard gibt es einen eingebauten Demo-Modus, der Telemetrie simuliert — ideal um die UI auszuprobieren, ohne ESP32 anschließen zu müssen. Im Dashboard auf den Demo-Button klicken; das Dashboard läuft dann mit künstlich erzeugten Werten.
+
+### Windows-SmartScreen-Hinweis
+
+Beim ersten Start der `.exe` zeigt Windows einen blauen SmartScreen-Bildschirm
+("Der Computer wurde durch Windows geschützt"). Das ist normal — die EXE ist
+nicht mit einem Code-Signing-Zertifikat signiert (Zertifikate kosten ~80 €/Jahr).
+
+So startest du sie trotzdem:
+1. Auf **"Weitere Informationen"** klicken
+2. Unten erscheint **"Trotzdem ausführen"** — klicken
+3. Beim nächsten Start kommt die Warnung nicht mehr
 
 ---
 

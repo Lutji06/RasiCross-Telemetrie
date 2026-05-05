@@ -91,9 +91,23 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => { app.quit(); });
 
-app.on("before-quit", () => {
-  if (currentPort && currentPort.isOpen) try { currentPort.close(); } catch(e) {}
-  BrowserWindow.getAllWindows().forEach(w => {
-    try { w.webContents.executeJavaScript('if(typeof saveData==="function") saveData();'); } catch(e) {}
-  });
+let isQuitting = false;
+app.on("before-quit", async (event) => {
+  if (isQuitting) return;
+  isQuitting = true;
+  event.preventDefault();
+  try {
+    // Renderer Zeit geben, saveData() durchlaufen zu lassen
+    const saves = BrowserWindow.getAllWindows().map(w =>
+      w.webContents
+        .executeJavaScript('if(typeof saveData==="function") saveData();')
+        .catch(() => {})
+    );
+    await Promise.all(saves);
+    // Erst danach den seriellen Port sauber schliessen
+    if (currentPort && currentPort.isOpen) {
+      await new Promise(r => currentPort.close(() => r()));
+    }
+  } catch(e) { /* still proceed with quit */ }
+  app.exit(0);
 });

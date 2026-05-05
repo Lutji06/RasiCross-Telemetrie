@@ -895,6 +895,9 @@ def main():
             if link.tx_fail_run == 20:
                 log("link", "Achtung — 20 ESP-NOW Fehler in Folge")
 
+        # Kurze Pause -> spart CPU/Strom, IRQs (Hall-Counter) laufen weiter
+        utime.sleep_ms(2)
+
 
 # Direkt starten falls als Hauptprogramm aufgerufen
 if __name__ == "__main__":
