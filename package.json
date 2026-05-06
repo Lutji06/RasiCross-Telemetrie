@@ -67,10 +67,11 @@
       "createStartMenuShortcut": true,
       "include": "installer.nsh",
       "installerIcon": "icon.ico",
-      "uninstallerIcon": "icon.ico"
+      "uninstallerIcon": "icon.ico",
+      "artifactName": "RasiCross-Telemetry-Setup.${ext}"
     },
     "portable": {
-      "artifactName": "RasiCross-Telemetry-Portable.exe",
+      "artifactName": "RasiCross-Telemetry-Portable.${ext}",
       "requestExecutionLevel": "user"
     },
     "mac": {
@@ -80,10 +81,12 @@
       ],
       "category": "public.app-category.utilities",
       "identity": null,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "artifactName": "RasiCross-Telemetry-${arch}.${ext}"
     },
     "dmg": {
-      "title": "RasiCross Telemetry"
+      "title": "RasiCross Telemetry",
+      "artifactName": "RasiCross-Telemetry-${arch}.${ext}"
     },
     "linux": {
       "target": [

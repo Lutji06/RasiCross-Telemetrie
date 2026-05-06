@@ -38,13 +38,13 @@ Mit einem Tool wie **Thonny** (Tools → Manage Packages oder einfach Datei → 
 /ssd1306.py
 /mpu6050.py
 /micropyGPS.py
-/main.py        ← der Inhalt von sender_v9_main.py
+/main.py        ← der Inhalt von sender.py
 ```
 
 **Bridge-ESP (Boxen):**
 ```
 /ssd1306.py
-/main.py        ← der Inhalt von bridge_v9_main.py
+/main.py        ← der Inhalt von bridge.py
 ```
 
 ### 3. Mit mpremote (CLI)
@@ -53,11 +53,11 @@ Mit einem Tool wie **Thonny** (Tools → Manage Packages oder einfach Datei → 
 mpremote connect COM3 cp ssd1306.py :ssd1306.py
 mpremote connect COM3 cp mpu6050.py :mpu6050.py
 mpremote connect COM3 cp micropyGPS.py :micropyGPS.py
-mpremote connect COM3 cp ../sender_v9_main.py :main.py
+mpremote connect COM3 cp ../sender.py :main.py
 
 # Bridge flashen
 mpremote connect COM4 cp ssd1306.py :ssd1306.py
-mpremote connect COM4 cp ../bridge_v9_main.py :main.py
+mpremote connect COM4 cp ../bridge.py :main.py
 ```
 
 ### 4. Mit Thonny (GUI)

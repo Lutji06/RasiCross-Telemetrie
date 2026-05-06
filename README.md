@@ -48,9 +48,9 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 **Du willst nur das Dashboard nutzen, hast bereits Sender + Bridge bekommen?**
 
 1. Auf der Releases-Seite die passende Datei herunterladen:
-   - **Windows:** `RasiCross Telemetry Setup 9.6.0.exe` (Installer) oder `RasiCross-Telemetry-Portable.exe`
-   - **macOS Apple Silicon (M1/M2/M3):** `RasiCross Telemetry-9.6.0-arm64.dmg`
-   - **macOS Intel:** `RasiCross Telemetry-9.6.0.dmg`
+   - **Windows:** `RasiCross-Telemetry-Setup.exe` (Installer) oder `RasiCross-Telemetry-Portable.exe`
+   - **macOS Apple Silicon (M1/M2/M3):** `RasiCross-Telemetry-arm64.dmg`
+   - **macOS Intel:** `RasiCross-Telemetry-x64.dmg`
 
    👉 https://github.com/Lutji06/RasiCross-Telemetrie/releases/latest
 
@@ -106,8 +106,8 @@ Detaillierte Verkabelung mit Schaubild: **[docs/VERKABELUNG.md](docs/VERKABELUNG
 
 | Komponente | Datei | Rolle |
 | ---------- | ----- | ----- |
-| Kart-Sender | `sender_v9_main.py` | Sammelt Sensordaten (12,5 Hz) und sendet via ESP-NOW |
-| Bridge | `bridge_v9_main.py` | Empfängt vom Kart, gibt JSON-Lines auf USB |
+| Kart-Sender | `sender.py` | Sammelt Sensordaten (12,5 Hz) und sendet via ESP-NOW |
+| Bridge | `bridge.py` | Empfängt vom Kart, gibt JSON-Lines auf USB |
 | Dashboard | `RasiCross_Telemetry.html` | Visualisiert die Telemetrie im Browser |
 | Desktop-App | `main.js`, `preload.js`, `package.json` | Verpackt das Dashboard als native Anwendung |
 
@@ -165,14 +165,14 @@ Liegen im Ordner [`esp_libs/`](esp_libs/) — siehe auch [`esp_libs/README.md`](
 mpremote connect /dev/ttyUSB0 cp esp_libs/ssd1306.py :
 mpremote connect /dev/ttyUSB0 cp esp_libs/mpu6050.py :
 mpremote connect /dev/ttyUSB0 cp esp_libs/micropyGPS.py :
-mpremote connect /dev/ttyUSB0 cp sender_v9_main.py :main.py
+mpremote connect /dev/ttyUSB0 cp sender.py :main.py
 ```
 
 **Auf den Bridge-ESP:**
 
 ```bash
 mpremote connect /dev/ttyUSB1 cp esp_libs/ssd1306.py :
-mpremote connect /dev/ttyUSB1 cp bridge_v9_main.py :main.py
+mpremote connect /dev/ttyUSB1 cp bridge.py :main.py
 ```
 
 Bei OLED-Problemen hilft das Diagnose-Skript [`esp_libs/oled_diagnose.py`](esp_libs/oled_diagnose.py): in Thonny laden und in der REPL ausführen — es prüft I²C, OLED-Adresse und schreibt am Ende ein Test-Bild.
@@ -216,7 +216,7 @@ Im Header oben rechts gibt es zwei Knöpfe:
 
 Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohne neu zu flashen. Permanente Werte stehen in der `Config`-Klasse oben in jedem Skript.
 
-### Sender (`sender_v9_main.py`)
+### Sender (`sender.py`)
 
 | Parameter           | Bedeutung                                | Default            |
 | ------------------- | ---------------------------------------- | ------------------ |
@@ -233,7 +233,7 @@ Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohn
 
 Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`.
 
-### Bridge (`bridge_v9_main.py`)
+### Bridge (`bridge.py`)
 
 | Parameter            | Bedeutung                            | Default |
 | -------------------- | ------------------------------------ | ------- |
@@ -400,8 +400,8 @@ Anleitung für kostenloses Windows-Code-Signing via SignPath: **[docs/CODE_SIGNI
 
 ## Versionsstand
 
-- **Sender:** v9.6 (`sender_v9_main.py`)
-- **Bridge:** v9.6 (`bridge_v9_main.py`)
+- **Sender:** v9.6 (`sender.py`)
+- **Bridge:** v9.6 (`bridge.py`)
 - **Dashboard:** v9.6 (`RasiCross_Telemetry.html`)
 - **Desktop-App:** 9.6.0 (`package.json`)
 
