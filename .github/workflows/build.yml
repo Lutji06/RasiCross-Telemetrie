@@ -50,6 +50,14 @@ jobs:
         with:
           node-version: '20'
 
+      # node-gyp braucht distutils. Das wurde aus Python 3.12+ entfernt.
+      # macOS-Runner haben mittlerweile 3.12 standardmaessig -> wir
+      # pinnen Python 3.11 fuer den Native-Module-Build.
+      - name: Setup Python 3.11 (for node-gyp)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Stub icon.ico (falls keines im Repo liegt)
         if: runner.os == 'Windows'
         shell: pwsh
