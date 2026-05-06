@@ -1,241 +1,237 @@
 # RasiCross-Telemetrie
 
-Ein Live-Telemetrie-System für Kart-Rennen / Rasenmäher-Rennen ("RasiCross") auf Basis von zwei ESP32-Mikrocontrollern und einem Web-Dashboard.
+Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Module funken Sensordaten kabellos vom Fahrzeug in die Boxengasse, ein Web-Dashboard visualisiert Geschwindigkeit, Drehzahl, GPS-Position, Beschleunigung, Rundenzeiten und Sektor-Splits in Echtzeit.
 
-![Dashboard Screenshot](docs/screenshot.png)
+![Dashboard](docs/screenshot.png)
 
-> Lege deinen Dashboard-Screenshot als `docs/screenshot.png` ab — er erscheint dann automatisch hier oben.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Build](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/build.yml/badge.svg)](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/Lutji06/RasiCross-Telemetrie)](https://github.com/Lutji06/RasiCross-Telemetrie/releases)
+
+---
+
+## Was kann das?
+
+- **Kabellose Telemetrie** über ESP-NOW im Long-Range-Modus, ~250 kbit/s, mehrere hundert Meter Reichweite
+- **Live-Anzeige** von Speed, RPM, Längs-/Querbeschleunigung, GPS-Track und Funkqualität
+- **Auto-Lap-Detection** über GPS-Geofence — keine externen Lichtschranken nötig
+- **Sektor-Splits** mit Best-Time-Vergleich und Audio-Cues bei neuen Bestzeiten
+- **Pit-Call** vom Dashboard direkt aufs OLED-Display im Cockpit
+- **Live-Konfiguration** (Drehzahllimit, Sendezyklus, etc.) ohne Code-Änderung
+- **Demo-Modus** zum Ausprobieren ohne Hardware
+- **Plattformübergreifend** — Dashboard läuft im Browser oder als Desktop-App für Windows, macOS und Linux
 
 ---
 
 ## Inhaltsverzeichnis
 
-- [Überblick](#überblick)
-- [Systemarchitektur](#systemarchitektur)
-- [Komponenten](#komponenten)
-- [Hardware](#hardware)
-- [Verkabelung & Pinbelegung](#verkabelung--pinbelegung)
-- [Installation](#installation)
-- [Erste Inbetriebnahme](#erste-inbetriebnahme)
-- [Konfiguration](#konfiguration)
-- [Datenprotokoll](#datenprotokoll)
+- [Schnellstart für Endnutzer](#schnellstart-für-endnutzer)
+- [Was du brauchst](#was-du-brauchst)
+- [Komponenten im Überblick](#komponenten-im-überblick)
+- [Hardware aufbauen](#hardware-aufbauen)
+- [ESP32-Module flashen](#esp32-module-flashen)
+- [Dashboard nutzen](#dashboard-nutzen)
+- [Erstes Rennen fahren](#erstes-rennen-fahren)
+- [Konfiguration anpassen](#konfiguration-anpassen)
 - [Display-Seiten am Kart](#display-seiten-am-kart)
 - [Bridge-Display](#bridge-display)
 - [Status-LEDs](#status-leds)
-- [Funk: Long-Range-Modus](#funk-long-range-modus)
+- [Datenprotokoll](#datenprotokoll)
 - [Fehlersuche](#fehlersuche)
-- [Dashboard als .exe bauen](#dashboard-als-exe-bauen)
-- [Versionsstand](#versionsstand)
+- [Selbst bauen / Mitmachen](#selbst-bauen--mitmachen)
 - [Lizenz](#lizenz)
 
 ---
 
-## Überblick
+## Schnellstart für Endnutzer
 
-RasiCross-Telemetrie überträgt Sensordaten vom Fahrzeug live in die Boxengasse und visualisiert sie in einem Browser-Dashboard. Vom Cockpit aus lassen sich gleichzeitig Anzeigeseiten umschalten und Pit-Calls signalisieren.
+**Du willst nur das Dashboard nutzen, hast bereits Sender + Bridge bekommen?**
 
-**Erfasste Daten:**
-- Drehzahl (Hall-Sensor am Antrieb)
-- Geschwindigkeit, Position und GPS-Fix (NMEA via UART)
-- Längs- und Querbeschleunigung (MPU-6050)
-- Verbindungsqualität (Pakete/s, Verlustrate, RSSI)
+1. Auf der Releases-Seite die passende Datei herunterladen:
+   - **Windows:** `RasiCross-Telemetry-Setup.exe` (Installer) oder `RasiCross-Telemetry-Portable.exe`
+   - **macOS:** `RasiCross-Telemetry-9.6.0.dmg`
+   - **Linux:** `RasiCross-Telemetry-9.6.0.AppImage`
 
-**Wichtige Eigenschaften:**
-- Kabellos via ESP-NOW im Long-Range-Modus (~250 kbit/s, max. Reichweite)
-- Bidirektionaler Kanal: Dashboard kann Konfiguration, Display-Seite und Pit-Call zum Kart senden
-- Auto-Pairing: Sender lernt Bridge-MAC automatisch (Hardcoding optional)
-- Robuster Sende-Pfad mit Retry, Heartbeat und Watchdog
-- 5 Display-Seiten am Kart + Override für Shift-Light und Pit-Call
-- Bridge mit eigenem OLED zur Diagnose
+   👉 https://github.com/Lutji06/RasiCross-Telemetrie/releases/latest
+
+2. Bridge-ESP per USB an den Computer stecken.
+
+3. Beim Setup-Installer erscheint einmalig eine Admin-Abfrage (für die USB-Treiber). Bei der portablen Variante musst du den USB-Treiber ggf. selbst installieren — er liegt im Unterordner `drivers/`.
+
+4. Anwendung starten, im Drop-down den COM-Port wählen, **"USB verbinden"** klicken. Sobald der Kart-ESP eingeschaltet ist, sind Live-Daten da.
+
+> **Erste Windows-Warnung:** Windows zeigt beim ersten Start einen blauen SmartScreen-Bildschirm. Auf "Weitere Informationen" → "Trotzdem ausführen" klicken. Beim zweiten Mal kommt die Warnung nicht mehr.
+
+> **Demo-Modus:** Wenn keine Hardware zur Hand ist, einfach im Dashboard auf den Demo-Button klicken — es erscheinen simulierte Telemetrie-Werte.
 
 ---
 
-## Systemarchitektur
+## Was du brauchst
+
+### Software
+
+- Releases-Datei für dein Betriebssystem (siehe oben), **oder**
+- Browser mit Web-Serial-Unterstützung (Chrome, Edge, Brave) — dann das HTML direkt öffnen
+
+### Hardware (zum Selber-Bauen)
+
+**Pro Knoten (Kart und Bridge):**
+- ESP32-Devkit mit MicroPython 1.21+ (z.B. ESP32-WROOM-32)
+- SSD1306 OLED 128 × 64, I²C
+- USB-Kabel zum Flashen / Stromversorgen
+
+**Nur am Kart:**
+- Hall-Sensor (z.B. A3144) am Schwungrad
+- MPU-6050 (Beschleunigung)
+- GPS-Modul mit NMEA (z.B. NEO-6M)
+
+**Empfohlen:**
+- Pufferakku am Kart gegen Spannungsspitzen
+- Externe 2,4-GHz-Antennen für mehr Reichweite
+
+Detaillierte Verkabelung mit Schaubild: **[docs/VERKABELUNG.md](docs/VERKABELUNG.md)**
+
+---
+
+## Komponenten im Überblick
 
 ```
    ┌──────────────────┐                       ┌──────────────────┐
    │   KART  (Sender) │   ESP-NOW (LR-Mode)   │  BRIDGE (Empf.)  │       ┌──────────────┐
    │                  │ ◄────────────────────►│                  │  USB  │  Dashboard   │
    │  ESP32 + OLED    │     2.4 GHz, CH 1     │  ESP32 + OLED    │ ◄───► │  (HTML/JS    │
-   │  Hall · IMU · GPS│                       │                  │ JSON  │   im Browser)│
+   │  Hall · IMU · GPS│                       │                  │ JSON  │ oder Desktop)│
    └──────────────────┘                       └──────────────────┘ Lines └──────────────┘
 ```
 
-**Datenfluss:**
-1. Der Sender liest Sensoren und schickt alle 80 ms (≈ 12,5 Hz) ein JSON-Paket per ESP-NOW.
-2. Die Bridge empfängt, reichert das Paket mit RSSI und Statistik an und schreibt es als JSON-Zeile auf USB-Serial.
-3. Das Dashboard liest die Zeilen über die Web-Serial-Schnittstelle und visualisiert sie live.
-4. Steuerpakete (Display-Seite, Config, Pit-Call) wandern den umgekehrten Weg.
+| Komponente | Datei | Rolle |
+| ---------- | ----- | ----- |
+| Kart-Sender | `sender_v9_main.py` | Sammelt Sensordaten (12,5 Hz) und sendet via ESP-NOW |
+| Bridge | `bridge_v9_main.py` | Empfängt vom Kart, gibt JSON-Lines auf USB |
+| Dashboard | `RasiCross_Telemetry_v9_6.html` | Visualisiert die Telemetrie im Browser |
+| Desktop-App | `main.js`, `preload.js`, `package.json` | Verpackt das Dashboard als native Anwendung |
 
 ---
 
-## Komponenten
+## Hardware aufbauen
 
-| Datei                          | Rolle              | Plattform              |
-| ------------------------------ | ------------------ | ---------------------- |
-| `sender_v9_main.py`            | Kart-Sender        | ESP32 + MicroPython    |
-| `bridge_v9_main.py`            | Bridge / Empfänger | ESP32 + MicroPython    |
-| `RasiCross_Telemetry_v9_6.html`| Web-Dashboard      | Browser (Web Serial)   |
+Komplette Anleitung mit Pinbelegung, ASCII-Schaubild, Stromversorgung und Antennen-Tipps:
 
----
+**👉 [docs/VERKABELUNG.md](docs/VERKABELUNG.md)**
 
-## Hardware
-
-**Pro Knoten (Kart und Bridge):**
-- ESP32-Devkit (z. B. ESP32-WROOM-32) mit MicroPython 1.21+
-- SSD1306 OLED 128 × 64, I²C (Adresse 0x3C)
-- Onboard-LED (typisch GPIO 2)
-
-**Nur am Kart:**
-- Hall-Sensor (z. B. A3144) am Schwungrad / der Antriebswelle
-- MPU-6050 (Beschleunigung & Gyro) auf I²C
-- GPS-Modul mit NMEA-Ausgabe (z. B. NEO-6M / NEO-M8N) via UART
-
-**Empfohlen:**
-- Stabile 5 V-Versorgung am Kart (Pufferakku gegen Lastspitzen)
-- Externe 2,4-GHz-Antenne an beiden ESP32 für maximale Reichweite
-
----
-
-## Verkabelung & Pinbelegung
-
-Detailliertes Schaubild und Hinweise zur Stromversorgung & Antenne:
-**[docs/VERKABELUNG.md](docs/VERKABELUNG.md)**.
-
-Standard-Pins, im `Config`-Block beider Skripte änderbar:
+Kurz-Übersicht der Pins (Standard, im `Config`-Block beider Skripte änderbar):
 
 ### Kart-Sender
 
 | Funktion        | Pin (GPIO) | Bemerkung                      |
 | --------------- | ---------- | ------------------------------ |
 | Hall-Sensor     | 34         | Input mit Pull-Up, Falling-IRQ |
-| GPS UART2 RX    | 16         | 9600 Baud                      |
-| GPS UART2 TX    | 17         |                                |
-| I²C SDA         | 21         | gemeinsam für IMU + OLED       |
-| I²C SCL         | 22         |                                |
-| Status-LED      | 2          | Onboard                        |
+| GPS UART2 RX/TX | 16 / 17    | 9600 Baud                      |
+| I²C SDA / SCL   | 21 / 22    | gemeinsam für IMU + OLED       |
+| Status-LED      | 2          | onboard                        |
 
 ### Bridge
 
-| Funktion   | Pin (GPIO) |
-| ---------- | ---------- |
-| I²C SDA    | 21         |
-| I²C SCL    | 22         |
-| Status-LED | 2          |
+| Funktion       | Pin (GPIO) |
+| -------------- | ---------- |
+| I²C SDA / SCL  | 21 / 22    |
+| Status-LED     | 2          |
 
 ---
 
-## Installation
+## ESP32-Module flashen
 
-### MicroPython auf ESP32 flashen
+> Diesen Schritt nur, wenn du Sender und Bridge selbst aufbauen willst. Wenn dir jemand zwei fertige ESP32-Module übergeben hat, kannst du diesen Abschnitt überspringen.
+
+### 1. MicroPython auf den ESP32
+
+Firmware von [micropython.org/download/ESP32_GENERIC](https://micropython.org/download/ESP32_GENERIC/) laden, dann:
 
 ```bash
-# Beispiel mit esptool (Firmware vorher von micropython.org laden)
 esptool.py --chip esp32 --port /dev/ttyUSB0 erase_flash
 esptool.py --chip esp32 --port /dev/ttyUSB0 --baud 460800 \
-  write_flash -z 0x1000 esp32-20240602-v1.23.0.bin
+  write_flash -z 0x1000 esp32-XXXX.bin
 ```
 
-### Bibliotheken auf den ESP32 spielen
+**Wichtig:** MicroPython 1.21 oder neuer — `espnow` ist erst ab dieser Version dabei.
 
-Die nötigen MicroPython-Treiber liegen im Ordner [`esp_libs/`](esp_libs/) — siehe auch [`esp_libs/README.md`](esp_libs/README.md) für Details.
+### 2. Sensor-Bibliotheken übertragen
 
-Auf den **Kart-ESP32** ins Wurzelverzeichnis des Filesystems:
+Liegen im Ordner [`esp_libs/`](esp_libs/) — siehe auch [`esp_libs/README.md`](esp_libs/README.md).
 
-- `sender_v9_main.py` (Hauptprogramm) — als `main.py`
-- `esp_libs/ssd1306.py`     – OLED-Treiber
-- `esp_libs/mpu6050.py`     – IMU-Treiber
-- `esp_libs/micropyGPS.py`  – NMEA-Parser
-
-Auf den **Bridge-ESP32**:
-
-- `bridge_v9_main.py` (Hauptprogramm) — als `main.py`
-- `esp_libs/ssd1306.py`     – OLED-Treiber
-
-Übertragen z. B. mit [`mpremote`](https://docs.micropython.org/en/latest/reference/mpremote.html) oder [`ampy`](https://github.com/scientifichackers/ampy):
+**Auf den Kart-ESP:**
 
 ```bash
-# Sender flashen
 mpremote connect /dev/ttyUSB0 cp esp_libs/ssd1306.py :
 mpremote connect /dev/ttyUSB0 cp esp_libs/mpu6050.py :
 mpremote connect /dev/ttyUSB0 cp esp_libs/micropyGPS.py :
 mpremote connect /dev/ttyUSB0 cp sender_v9_main.py :main.py
+```
 
-# Bridge flashen
+**Auf den Bridge-ESP:**
+
+```bash
 mpremote connect /dev/ttyUSB1 cp esp_libs/ssd1306.py :
 mpremote connect /dev/ttyUSB1 cp bridge_v9_main.py :main.py
 ```
 
-Bei OLED-Problemen hilft das Diagnose-Skript [`esp_libs/oled_diagnose.py`](esp_libs/oled_diagnose.py): einfach in Thonny laden und in der REPL ausführen — es prüft I²C, OLED-Adresse und schreibt am Ende ein Test-Bild.
+Bei OLED-Problemen hilft das Diagnose-Skript [`esp_libs/oled_diagnose.py`](esp_libs/oled_diagnose.py): in Thonny laden und in der REPL ausführen — es prüft I²C, OLED-Adresse und schreibt am Ende ein Test-Bild.
 
-> **Hinweis:** Beide Skripte starten ihre `main()`/`Bridge().run()` automatisch beim Import. Wenn sie als `main.py` auf dem ESP liegen, läuft das System direkt nach dem Boot.
+---
 
-### Dashboard öffnen
+## Dashboard nutzen
 
-Zwei Wege:
+### Variante A: Desktop-App (empfohlen)
 
-1. **Im Browser** — `RasiCross_Telemetry_v9_6.html` direkt öffnen (Chromium-basierter Browser empfohlen, da Web Serial benötigt wird) und in der UI auf "Connect" klicken.
-2. **Als Desktop-App** (.exe) — siehe Abschnitt [Dashboard als .exe bauen](#dashboard-als-exe-bauen).
+Releases-Seite öffnen, fertige Datei herunterladen, starten — siehe [Schnellstart für Endnutzer](#schnellstart-für-endnutzer).
 
-### Demo-Modus (ohne Hardware testen)
+### Variante B: Im Browser
 
-Im Dashboard gibt es einen eingebauten Demo-Modus, der Telemetrie simuliert — ideal um die UI auszuprobieren, ohne ESP32 anschließen zu müssen. Im Dashboard auf den Demo-Button klicken; das Dashboard läuft dann mit künstlich erzeugten Werten.
+`RasiCross_Telemetry_v9_6.html` direkt öffnen (Chrome, Edge oder Brave). Beim Klick auf "USB verbinden" fragt der Browser nach dem COM-Port.
 
-### Windows-SmartScreen-Hinweis
-
-Beim ersten Start der `.exe` zeigt Windows einen blauen SmartScreen-Bildschirm
-("Der Computer wurde durch Windows geschützt"). Das ist normal — die EXE ist
-nicht mit einem Code-Signing-Zertifikat signiert.
-
-So startest du sie trotzdem:
-1. Auf **"Weitere Informationen"** klicken
-2. Unten erscheint **"Trotzdem ausführen"** — klicken
-3. Beim nächsten Start kommt die Warnung nicht mehr
-
-Wer die Warnung dauerhaft loswerden will, kann das Projekt kostenlos via
-SignPath signieren lassen — siehe **[docs/CODE_SIGNING.md](docs/CODE_SIGNING.md)**.
+> Web Serial funktioniert nur in Chromium-basierten Browsern. Firefox und Safari werden nicht unterstützt.
 
 ### Audio-Cues und Outdoor-Modus
 
-Im Header oben rechts gibt es zwei neue Knöpfe:
-- **Theme-Toggle** (◐) wechselt zwischen *dunkel*, *hell* und *outdoor* (hoher
-  Kontrast für Sonneneinstrahlung in der Boxengasse)
-- **Audio-Toggle** (🔊/🔇) schaltet akustische Hinweise an/aus
-  (Sektor-Best, neue Bestzeit)
+Im Header oben rechts gibt es zwei Knöpfe:
+- **◐** wechselt zwischen *dunkel*, *hell* und *outdoor* (hoher Kontrast bei direkter Sonneneinstrahlung in der Boxengasse)
+- **🔊 / 🔇** schaltet Töne bei neuen Sektor- und Rundenbestzeiten an/aus
 
 ---
 
-## Erste Inbetriebnahme
+## Erstes Rennen fahren
 
 1. Beide ESP32 mit Strom versorgen.
-2. Bridge per USB an den PC stecken und Dashboard mit dem entsprechenden COM-/USB-Port verbinden.
+2. Bridge per USB an den PC stecken, Dashboard öffnen, COM-Port wählen, "USB verbinden".
 3. Auf dem Kart-OLED erscheint kurz das Boot-Bild, danach beginnt die Page-Rotation.
-4. Nach wenigen Sekunden taucht im Dashboard die Bridge-MAC auf.
-5. Der Sender lernt die Bridge-MAC automatisch über das `bridge_hello`-Paket. Alternativ kann sie unter `Config.BRIDGE_MAC` im `sender_v9_main.py` hartkodiert werden.
-6. GPS-Fix dauert beim Kaltstart oft 30–90 Sekunden (Status-LED blinkt solange).
+4. Im Dashboard taucht nach wenigen Sekunden die Bridge-MAC auf, dann die Kart-Daten.
+5. GPS-Fix dauert beim Kaltstart oft 30–90 Sekunden (Status-LED am Kart blinkt solange).
+6. **Strecke einmessen:** Im Dashboard zur Streckenverwaltung, "Track scannen" — eine Runde ruhig fahren, das Dashboard erkennt Start/Ziel automatisch und legt Sektor-Grenzen an. Strecke benennen und speichern.
+7. **Rennen starten** im Dashboard. Sektor-Splits, Rundenzeiten und Live-Delta erscheinen automatisch.
+8. **Pit-Call senden:** Knopf im Dashboard, Nachricht eintippen — sie erscheint blinkend auf dem OLED des Fahrers.
 
 ---
 
-## Konfiguration
+## Konfiguration anpassen
 
-Beide Skripte enthalten oben eine `Config`-Klasse. Die wichtigsten Werte:
+Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohne neu zu flashen. Permanente Werte stehen in der `Config`-Klasse oben in jedem Skript.
 
 ### Sender (`sender_v9_main.py`)
 
-| Parameter         | Bedeutung                                  | Default                |
-| ----------------- | ------------------------------------------ | ---------------------- |
-| `BRIDGE_MAC`      | MAC-Adresse der Bridge (Bytes)             | `00:70:07:24:e6:64`    |
-| `ESPNOW_CHANNEL`  | Funkkanal — bei Sender und Bridge gleich!  | `1`                    |
-| `PULSES_PER_REV`  | Hall-Pulse pro Radumdrehung                | `1`                    |
-| `SEND_MS`         | Telemetrie-Intervall in ms                 | `80`                   |
-| `MAX_RPM`         | Schwelle für Shift-Light                   | `6000`                 |
-| `RPM_WARN`        | Vorwarnung                                 | `5500`                 |
-| `RPM_ALPHA` / `G_ALPHA` | Glättungsfaktoren (0 = aus, 1 = fix) | `0.25` / `0.30`        |
-| `WATCHDOG_MS`     | Hardware-Watchdog (0 = aus)                | `8000`                 |
-| `SEND_RETRY`      | ESP-NOW Sende-Wiederholungen               | `2`                    |
-| `WIFI_TX_POWER_DBM` | Sendeleistung in dBm                     | `20` (EU-Max, 100 mW)  |
+| Parameter           | Bedeutung                                | Default            |
+| ------------------- | ---------------------------------------- | ------------------ |
+| `BRIDGE_MAC`        | MAC-Adresse der Bridge                   | wird auto-gelernt  |
+| `ESPNOW_CHANNEL`    | Funkkanal — Bridge und Sender gleich!    | `1`                |
+| `PULSES_PER_REV`    | Hall-Pulse pro Umdrehung                 | `1`                |
+| `SEND_MS`           | Telemetrie-Intervall (ms)                | `80` (12,5 Hz)     |
+| `SEND_MS_DEGRADED`  | Bei schlechter Funkverbindung            | `200` (5 Hz)       |
+| `MAX_RPM`           | Schwelle für Shift-Light                 | `6000`             |
+| `RPM_WARN`          | Vorwarn-Schwelle                         | `5500`             |
+| `WATCHDOG_MS`       | Hardware-Watchdog (0 = aus)              | `8000`             |
+| `GPS_TIMEOUT_MS`    | Nach so vielen ms ohne Fix → "lost"      | `10000`            |
+| `WIFI_TX_POWER_DBM` | Sendeleistung in dBm                     | `20` (EU-Max)      |
 
-Viele dieser Werte lassen sich **live vom Dashboard** über ein `config`-Paket setzen (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`).
+Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`.
 
 ### Bridge (`bridge_v9_main.py`)
 
@@ -243,16 +239,70 @@ Viele dieser Werte lassen sich **live vom Dashboard** über ein `config`-Paket s
 | -------------------- | ------------------------------------ | ------- |
 | `ESPNOW_CHANNEL`     | siehe oben                           | `1`     |
 | `HEARTBEAT_MS`       | Status an Dashboard alle …           | `2000`  |
-| `HELLO_MS`           | Bridge-Hello an Kart alle …          | `5000`  |
-| `OLED_REFRESH_MS`    | Display-Refresh                      | `250`   |
-| `PIT_MSG_DURATION_MS`| Anzeigedauer "PIT-CALL TX"           | `3000`  |
-| `WIFI_TX_POWER_DBM`  | Sendeleistung in dBm                 | `20`    |
+| `HELLO_MS`           | Hello an Kart alle … (max)           | `5000`  |
+| `HELLO_QUIET_MS`     | Hello nur, wenn Kart so lange schweigt | `5000` |
+| `WATCHDOG_MS`        | Hardware-Watchdog                    | `8000`  |
+
+---
+
+## Display-Seiten am Kart
+
+Das OLED rotiert standardmäßig alle 4 s zwischen den fünf Seiten. Vom Dashboard kann eine Seite fest gewählt werden.
+
+| Name    | Inhalt                                            |
+| ------- | ------------------------------------------------- |
+| `speed` | Geschwindigkeit groß zentriert, RPM-Bar unten     |
+| `race`  | Sektor-Segmente und aktuelle Rundenzeit           |
+| `rpm`   | Drehzahl groß + 8-Segment-Bar + Warnstufe         |
+| `delta` | Live-Delta zur Referenzrunde                      |
+| `diag`  | Diagnose: GPS-, TX-, Speed-, RPM-Status           |
+
+**Overrides** (höchste Priorität zuerst):
+1. **Pit-Call** — blinkende "PIT STOP"-Vollbildanzeige, vom Dashboard ausgelöst
+2. **Shift-Alarm** — invertiertes "RELEASE THROTTLE", sobald `rpm ≥ MAX_RPM`
+
+---
+
+## Bridge-Display
+
+Layout 128 × 64 px, zeigt Funk- und Verbindungszustand:
+
+```
+BRIDGE  CH1     1234   ●
+─────────────────────────
+ 42 km/h   4280 rpm
+ 12 Hz     L:4
+ -68 dBm   GPS:OK
+USB ON     KT ee:ff
+```
+
+Aktivitätspunkt rechts oben: gefüllt = Paket gerade gekommen, leerer Rahmen = vor < 2 s, aus = keine Daten.
+
+---
+
+## Status-LEDs
+
+### Kart
+
+| Zustand               | LED            |
+| --------------------- | -------------- |
+| ESP-NOW sendet nicht  | aus            |
+| TX ok, GPS sucht      | blinkt 500 ms  |
+| TX ok, GPS-Fix        | dauerhaft an   |
+
+### Bridge
+
+| Zustand                          | LED            |
+| -------------------------------- | -------------- |
+| keine Pakete vom Kart            | aus            |
+| Pakete kommen, USB nicht aktiv   | blinkt         |
+| Pakete + USB verbunden           | dauerhaft an   |
 
 ---
 
 ## Datenprotokoll
 
-Sämtliche Pakete sind UTF-8 JSON. Auf der ESP-NOW-Strecke werden sie binär verschickt, auf der USB-Seite zwischen Bridge und Dashboard erscheinen sie als JSON-Lines.
+Sämtliche Pakete sind UTF-8 JSON. Auf der ESP-NOW-Strecke werden sie binär verschickt; auf der USB-Seite zwischen Bridge und Dashboard erscheinen sie als JSON-Lines (eine Zeile pro Paket).
 
 ### Telemetrie-Paket (Kart → Bridge → Dashboard)
 
@@ -265,132 +315,28 @@ Sämtliche Pakete sind UTF-8 JSON. Auf der ESP-NOW-Strecke werden sie binär ver
   "lat": 48.1234567,
   "lon": 11.7654321,
   "gps_fix": 1,
+  "gps_health": "ok",
   "pulse_hz": 71.3,
+  "send_ms": 80,
   "seq": 1234
 }
 ```
 
-Die Bridge ergänzt vor dem USB-Versand:
+Die Bridge ergänzt vor dem USB-Versand `rssi`, `rx_count`, `lost`, `bridge_ms`, `from_mac`.
+
+### Bridge-Status (alle 2 s)
 
 ```json
-{
-  "rssi": -68,
-  "source": "espnow_usb",
-  "rx_count": 9821,
-  "lost": 4,
-  "bridge_ms": 1234567,
-  "from_mac": "aa:bb:cc:dd:ee:ff"
-}
-```
-
-### Bridge-Status (Bridge → Dashboard)
-
-Wird beim Boot und alle 2 s gesendet:
-
-```json
-{
-  "type": "bridge_status",
-  "bridge": "alive",
-  "mac": "11:22:33:44:55:66",
-  "channel": 1,
-  "rx_count": 9821,
-  "lost": 4,
-  "last_seq": 1233,
-  "kart_mac": "aa:bb:cc:dd:ee:ff",
-  "rate_hz": 12,
-  "usb_errors": 0
-}
+{ "type": "bridge_status", "rate_hz": 12, "rx_count": 9821, "lost": 4, "kart_mac": "aa:bb:cc:dd:ee:ff" }
 ```
 
 ### Steuerpakete (Dashboard → Bridge → Kart)
 
-| `type`        | Wirkung am Kart                                                   |
-| ------------- | ----------------------------------------------------------------- |
-| `display`     | setzt Anzeigeseite (`page`: `auto` / `speed` / `race` / `rpm` / `delta` / `diag`) und liefert Renndaten (Lap, Sektoren, Live-Delta) |
-| `config`      | aktualisiert Live-Parameter (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`) |
-| `pit_call`    | löst Pit-Call-Override am OLED aus; `action: "cancel"` bricht ab; `message`, `duration_ms` optional |
-
-Beispiel Pit-Call:
-
-```json
-{ "type": "pit_call", "message": "BOX BOX", "duration_ms": 15000 }
-```
-
-Beispiel Bridge → setzen der Kart-MAC vom Dashboard:
-
-```json
-{ "type": "set_kart_mac", "mac": "aa:bb:cc:dd:ee:ff" }
-```
-
----
-
-## Display-Seiten am Kart
-
-Das OLED rotiert standardmäßig alle 4 s zwischen den fünf Seiten. Vom Dashboard kann eine Seite fest gewählt werden.
-
-| Name    | Inhalt                                                |
-| ------- | ----------------------------------------------------- |
-| `speed` | Geschwindigkeit groß zentriert, RPM-Bar unten        |
-| `race`  | Sektor-Segmente und aktuelle Rundenzeit               |
-| `rpm`   | Drehzahl groß + 8-Segment-Bar + Warnstufe             |
-| `delta` | Live-Delta zur Referenzrunde                          |
-| `diag`  | Diagnose: GPS-, TX-, Speed-, RPM-Status               |
-
-**Overrides** (höchste Priorität zuerst):
-1. **Pit-Call** — blinkende "PIT STOP"-Vollbildanzeige, von außen ausgelöst
-2. **Shift-Alarm** — invertiertes "RELEASE THROTTLE" sobald `rpm ≥ MAX_RPM`
-
----
-
-## Bridge-Display
-
-Layout 128 × 64 px:
-
-```
-BRIDGE  CH1     1234   ●
-─────────────────────────
- 42 km/h   4280 rpm
- 12 Hz     L:4
- -68 dBm   GPS:OK
-USB ON     KT ee:ff
-```
-
-Aktivitätspunkt rechts oben:
-- gefüllt → Paket vor < 500 ms
-- leerer Rahmen → vor < 2 s
-- aus → keine Daten
-
-Beim Pit-Call blendet die Bridge kurz "PIT-CALL TX" ein.
-
----
-
-## Status-LEDs
-
-### Kart
-| Zustand              | LED          |
-| -------------------- | ------------ |
-| ESP-NOW sendet nicht | aus          |
-| TX ok, GPS sucht     | blinkt 500 ms|
-| TX ok, GPS-Fix       | dauerhaft an |
-
-### Bridge
-| Zustand                       | LED          |
-| ----------------------------- | ------------ |
-| keine Pakete vom Kart         | aus          |
-| Pakete kommen, USB nicht aktiv| blinkt       |
-| Pakete + USB verbunden        | dauerhaft an |
-
----
-
-## Funk: Long-Range-Modus
-
-Beide Knoten setzen `WIFI_PROTOCOL_LR` (Wert `8`) und ESP-NOW PHY-Rate `WIFI_PHY_RATE_LORA_500K`. Effekte:
-
-- Bruttorate ~250 kbit/s, dafür sehr robust
-- Reichweite typisch deutlich über klassischem 802.11b/g/n
-- Knoten in normalen WLAN-Modi sind **nicht kompatibel** — beide Seiten müssen LR können
-
-Bei Verbindungsproblemen prüfen, ob ein Knoten unbeabsichtigt im Standardmodus startet (siehe Log-Zeile `Long-Range-Modus aktiv (LR-only)` beim Boot).
+| `type`        | Wirkung                                                          |
+| ------------- | ---------------------------------------------------------------- |
+| `display`     | setzt Anzeigeseite (`speed`/`race`/`rpm`/`delta`/`diag`/`auto`) |
+| `config`      | Live-Parameter (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`) |
+| `pit_call`    | löst Pit-Call-Override aus; `action: "cancel"` bricht ab         |
 
 ---
 
@@ -402,118 +348,54 @@ Bei Verbindungsproblemen prüfen, ob ein Knoten unbeabsichtigt im Standardmodus 
 | `RX-Count` bleibt 0                                  | `ESPNOW_CHANNEL` unterschiedlich? Bridge-MAC falsch? Antennen prüfen |
 | `lost` zählt schnell hoch                            | Funkstörung, Reichweite überschritten, Antennenausrichtung    |
 | Status-LED am Kart blinkt nie                        | LED-Pin korrekt? `LED_PIN` in Config prüfen                   |
-| GPS-LED-Blinken hört nie auf                         | freie Sicht zum Himmel? GPS-Pins korrekt? `_HAS_GPS` true?    |
+| GPS-LED-Blinken hört nie auf                         | Freie Sicht zum Himmel? GPS-Pins korrekt?                     |
+| `gps_health: "lost"` im Dashboard                    | NMEA-Daten kommen, aber kein Fix — Antennenstandort prüfen   |
 | RPM bleibt 0 obwohl Welle dreht                      | Hall-Sensor verdrahtet? Magnet-Abstand? `PULSES_PER_REV`?     |
-| OLED bleibt schwarz                                  | I²C-Adresse 0x3C? SDA/SCL vertauscht? `_HAS_OLED` true?       |
+| OLED bleibt schwarz                                  | Diagnose-Skript `esp_libs/oled_diagnose.py` laufen lassen     |
 | `bridge_error: invalid_json` im Dashboard            | korrumpierte Pakete — meist Funk-/Spannungsproblem            |
-| `bridge_error: no_kart_known`                        | Bridge hat noch nie ein Paket vom Kart bekommen — erst pairen |
 | Sender startet alle 8 s neu                          | Watchdog feuert — Endlosschleife/Hänger; `WATCHDOG_MS=0` zum Debug |
+| SmartScreen-Warnung beim App-Start                   | Normal — auf "Weitere Informationen" → "Trotzdem ausführen"   |
 
-**Strukturierte Logs** sind über die `Config.DEBUG`-Schalter beider Skripte aktivierbar. Die Topics `init`, `config`, `pit_call`, `display`, `recv` werden auch ohne globalen Debug-Flag angezeigt.
+**Strukturierte Logs** sind über die `Config.DEBUG`-Schalter beider Skripte aktivierbar.
 
 ---
 
-## Dashboard als .exe bauen
+## Selbst bauen / Mitmachen
 
-Die HTML-Oberfläche kann als eigenständige Windows-Anwendung verpackt werden — mit **Electron**. Vorteil: Web Serial funktioniert ohne Browser-Setup, das Programm läuft per Doppelklick.
+> Dieser Abschnitt ist für Entwickler, die das Projekt erweitern oder die Desktop-App selbst bauen wollen.
 
-### Voraussetzungen
+### Desktop-App selbst bauen
 
-- [Node.js](https://nodejs.org/) ≥ 18 (LTS empfohlen)
-- npm (kommt mit Node.js)
-- Internetzugang beim ersten `npm install`
-
-### Build-Schritte
-
-**Einfachster Weg unter Windows:** das mitgelieferte PowerShell-Script [`BUILD_EXE.ps1`](BUILD_EXE.ps1) ausführen — es prüft Node.js, lädt fehlende USB-Treiber, ruft `npm install` + `electron-rebuild` und baut beide EXE-Varianten.
-
-```powershell
-# Im Repo-Ordner, Rechtsklick → "In Terminal öffnen"
-.\BUILD_EXE.ps1
-```
-
-Falls Windows blockiert ("Skripte sind deaktiviert"), einmalig:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-**Manueller Weg:**
+**Voraussetzungen:** [Node.js](https://nodejs.org/) ≥ 18 LTS.
 
 ```bash
-# Abhängigkeiten installieren (einmalig, ca. 350 MB)
+git clone https://github.com/Lutji06/RasiCross-Telemetrie.git
+cd RasiCross-Telemetrie
 npm install
-
-# Lokal starten — schnelle Vorschau ohne Build
-npm start
-
-# Windows-Builds (Output landet in dist/)
-npm run build           # NSIS-Installer + portable EXE
-npm run build-portable  # nur die portable EXE
+npm start                # zum Testen
+npm run build:win        # Windows-Installer + portable
+npm run build:mac        # macOS .dmg
+npm run build:linux      # Linux .AppImage / .deb
 ```
 
-Ergebnisse im `dist/`-Ordner:
+Unter Windows steht alternativ das Komfort-Skript [`BUILD_EXE.ps1`](BUILD_EXE.ps1) zur Verfügung — checkt Node.js, lädt fehlende USB-Treiber und ruft die Build-Pipeline auf.
 
-- `RasiCross Telemetry Setup 9.6.0.exe` — NSIS-Installer mit Desktop-Verknüpfung und automatischer USB-Treiber-Installation
-- `RasiCross-Telemetry-Portable.exe` — startet ohne Installation, alles in einer Datei
+### Automatisierte Builds
 
-### Admin-Rechte
-
-- **Installer (Setup.exe):** fragt einmalig beim Installieren nach Admin — nötig für die USB-Treiber (`installer.nsh` ruft `CP210xVCPInstaller_x64.exe` und ggf. CH341)
-- **Installierte App:** läuft als normaler Nutzer, kein UAC-Prompt
-- **Portable EXE:** läuft als normaler Nutzer, USB-Treiber müssen ggf. separat installiert werden
-
-### Wie es funktioniert
-
-| Datei                       | Zweck                                                                   |
-| --------------------------- | ----------------------------------------------------------------------- |
-| `package.json`              | Electron- und SerialPort-Abhängigkeiten, electron-builder-Konfiguration |
-| `main.js`                   | Electron-Hauptprozess: lädt das HTML, verwaltet den seriellen Port      |
-| `preload.js`                | Stellt im Renderer `window.rasiSerial` als sichere IPC-Bridge bereit    |
-| `installer.nsh`             | NSIS-Custom-Hook: installiert die USB-Treiber beim Setup                |
-| `BUILD_EXE.ps1`             | Komfort-Skript für den lokalen Build unter Windows                      |
-| `drivers/`                  | Mitgelieferte USB-Seriell-Treiber (CP210x von Silicon Labs)             |
-
-Datenfluss in der App:
-
-```
-HTML (Renderer) ──IPC──► preload.js ──IPC──► main.js ──node-serialport──► COM-Port
-                ◄─JSON-Lines────────────────────────────────────────────┘
-```
-
-Das Dashboard ruft `window.rasiSerial.list()` auf, um vorhandene COM-Ports im Dropdown anzuzeigen, und `window.rasiSerial.open(path, baud)` zum Verbinden. Empfangene Zeilen werden via Event an die HTML-Logik durchgereicht — exakt wie im Browser, nur über Node `serialport` statt Web Serial.
-
-### Native Module
-
-`serialport` ist ein natives Modul. Beim ersten `npm install` läuft `electron-builder install-app-deps` automatisch und holt sich die zur installierten Electron-Version passende Prebuild-Variante. Auf Windows brauchst du dafür normalerweise nichts extra — falls doch, installiere die [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/).
-
-### Automatischer Windows-Build via GitHub Actions
-
-Im Repo liegt unter `.github/workflows/build-windows.yml` ein Workflow, der die .exe automatisch baut und als GitHub Release veröffentlicht.
-
-**So baust du eine Release-Version:**
+Bei jedem Tag-Push (`v*`) baut [`.github/workflows/build.yml`](.github/workflows/build.yml) Windows, macOS und Linux parallel und legt die Artefakte als GitHub-Release ab.
 
 ```bash
-# Versionsnummer in package.json anpassen, dann:
-git tag v9.6.0
-git push origin v9.6.0
+git tag v9.6.1
+git push origin v9.6.1
 ```
 
-Der Workflow läuft automatisch, baut auf einem Windows-Runner und legt einen Release mit beiden EXE-Varianten an.
+### Beitrag leisten
 
-**Manueller Test ohne Tag:** Auf github.com → Tab `Actions` → `Windows-Build` → `Run workflow`. Die Artefakte landen dann unter dem Workflow-Run und sind 30 Tage abrufbar (kein Release).
+Pull-Requests sind willkommen. Vorgehen, Code-Stil und Tipps in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
-**Bei Pull-Requests:** Der Workflow läuft auch automatisch, lädt aber nur Artefakte hoch, ohne ein Release zu erstellen — so bleibt die Build-Pipeline grün-getestet, bevor etwas gemergt wird.
+### Code-Signing (optional)
 
-### Icon anpassen (optional)
-
-Lege ein `.ico` (256 × 256, Multi-Resolution) als `icon.ico` direkt im Projekt-Wurzelverzeichnis ab. `package.json` referenziert den Pfad bereits — beim nächsten Build wird es automatisch verwendet, sowohl im Fenster, im Installer als auch im Uninstaller.
-
-Konvertierung von PNG zu ICO z.B. via [convertio.co/png-ico](https://convertio.co/png-ico/) oder [icoconvert.com](https://icoconvert.com/).
-
-### Was Electron NICHT braucht
-
-Die ESP-NOW-Funkstrecke und der ESP32-Code sind unabhängig von der Electron-App. Die .exe ersetzt nur den Browser — die Bridge bleibt am USB.
+Anleitung für kostenloses Windows-Code-Signing via SignPath: **[docs/CODE_SIGNING.md](docs/CODE_SIGNING.md)**.
 
 ---
 
@@ -522,25 +404,17 @@ Die ESP-NOW-Funkstrecke und der ESP32-Code sind unabhängig von der Electron-App
 - **Sender:** v9.6 (`sender_v9_main.py`)
 - **Bridge:** v9.6 (`bridge_v9_main.py`)
 - **Dashboard:** v9.6 (`RasiCross_Telemetry_v9_6.html`)
-- **Electron-App:** 9.6.0 (`package.json`)
-
-Neuerungen gegenüber v8 (Sender & Bridge):
-- Saubere Trennung Sensors / Display / Link / App
-- Auto-Pairing über `bridge_hello`
-- Robustes Senden mit Retry und Heartbeat-Counter
-- Live-Konfiguration vom Dashboard
-- Reiner Long-Range-Funkmodus mit max. EU-Sendeleistung
-- Strukturiertes Debug-Logging mit Topic-Filter
+- **Desktop-App:** 9.6.0 (`package.json`)
 
 ---
 
 ## Lizenz
 
-Dieses Projekt steht unter der [MIT-Lizenz](LICENSE) — kostenlose Nutzung, Modifikation und Verbreitung erlaubt, ohne Gewährleistung.
+[MIT-Lizenz](LICENSE) — kostenlose Nutzung, Modifikation und Verbreitung erlaubt, ohne Gewährleistung.
 
 Treiber und Bibliotheken Dritter haben eigene Lizenzen:
 
 - `drivers/CP210xVCPInstaller_x64.exe` — Silicon Labs (proprietär, frei verteilbar)
 - `esp_libs/ssd1306.py` — MicroPython, MIT
-- `esp_libs/mpu6050.py` — MIT (Eigenentwicklung)
+- `esp_libs/mpu6050.py` — MIT
 - `esp_libs/micropyGPS.py` — MIT (kompakter NMEA-Parser, kompatibel zur inmcm/micropyGPS-API)
