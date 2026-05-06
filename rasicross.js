@@ -3043,8 +3043,12 @@ init();
       txt('hzText', hz);
       const tk = $$('totalDistance');
       if (tk) {
-        const m = (tk.textContent||'').match(/[\d.,]+/);
-        if (m) txt('footerKm', m[0]+' km');
+        // Einheit aus dem <small>-Element der Hero-Kachel mitnehmen,
+        // sonst wechselt der Footer flickrig zwischen "750 km" (falsch)
+        // und "750 m" (richtig), weil der Hero in m anzeigt < 1 km.
+        const numMatch = (tk.textContent || '').match(/[\d.,]+/);
+        const unit = tk.querySelector('small')?.textContent?.trim() || 'km';
+        if (numMatch) txt('footerKm', numMatch[0] + ' ' + unit);
       }
       // Speicher-Status spiegeln (sessionText macht das Original)
       const ss = $$('sessionText')?.textContent;
