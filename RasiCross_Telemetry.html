@@ -1,0 +1,2814 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RasiCross · Telemetrie — by Jim Lutgen</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23c8ff3d'/><g fill='%230a0e0a' stroke='%230a0e0a' stroke-linecap='round' stroke-linejoin='round'><path d='M6 19 L8 14 L20 14 L23 19 Z'/><rect x='5' y='19' width='19' height='3.5' rx='.8'/><rect x='10' y='10' width='2.5' height='4'/><path d='M22 17 L27 11 M25 10 L29 10' fill='none' stroke-width='1.8'/><circle cx='9' cy='24' r='3.2'/><circle cx='9' cy='24' r='1.1' fill='%23c8ff3d'/><circle cx='19' cy='24' r='3.2'/><circle cx='19' cy='24' r='1.1' fill='%23c8ff3d'/></g></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   RasiCross Telemetry — Redesign
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  /* Surfaces — deep navy/slate */
+  --bg:#070912;
+  --bg-grad:radial-gradient(ellipse 1200px 800px at 70% -10%, #0e1424 0%, #070912 60%);
+  --surf:#0e1220;
+  --surf2:#141a2c;
+  --surf3:#1b2238;
+  --soft:#161c2e;
+  --soft2:#1d2440;
+  /* Glass */
+  --glass:rgba(20,26,44,.6);
+  --glass-border:rgba(255,255,255,.06);
+  /* Text */
+  --tx:#e8ecf6;
+  --tx-dim:#b6bcd0;
+  --mut:#6f7796;
+  --dim:#444b66;
+  /* Borders */
+  --bor:rgba(255,255,255,.07);
+  --bor2:rgba(255,255,255,.13);
+  --div:rgba(255,255,255,.04);
+  /* Brand — lime accent */
+  --pr:#c8ff3d;
+  --pr-2:#a3e500;
+  --pr-glow:rgba(200,255,61,.35);
+  --pr-soft:rgba(200,255,61,.08);
+  /* Semantic */
+  --green:#3ee08a;
+  --green-glow:rgba(62,224,138,.3);
+  --orange:#ffa336;
+  --orange-glow:rgba(255,163,54,.3);
+  --red:#ff5470;
+  --red-glow:rgba(255,84,112,.3);
+  --blue:#5ab8ff;
+  --blue-glow:rgba(90,184,255,.3);
+  --purple:#b794ff;
+  /* Type */
+  --mono:'JetBrains Mono',ui-monospace,SF Mono,Consolas,monospace;
+  --sans:'DM Sans',-apple-system,system-ui,Segoe UI,sans-serif;
+  /* Radii */
+  --r-sm:8px;
+  --r-md:12px;
+  --r-lg:16px;
+  --r-xl:20px;
+  --r-2xl:28px;
+  /* Shadow */
+  --sh-sm:0 1px 2px rgba(0,0,0,.3);
+  --sh-md:0 8px 28px rgba(0,0,0,.35);
+  --sh-lg:0 24px 60px rgba(0,0,0,.5);
+  --sh-glow:0 0 40px var(--pr-glow);
+  /* Transition */
+  --t:.2s cubic-bezier(.4,0,.2,1);
+  --t-sp:.4s cubic-bezier(.34,1.56,.64,1);
+  /* Sidebar */
+  --side-w:248px;
+}
+
+[data-theme=light]{
+  --bg:#f4f6fb;
+  --bg-grad:radial-gradient(ellipse 1200px 800px at 70% -10%, #ffffff 0%, #eef1f7 60%);
+  --surf:#ffffff;
+  --surf2:#fafbfd;
+  --surf3:#f1f3f9;
+  --soft:#f4f6fb;
+  --soft2:#e9ecf3;
+  --glass:rgba(255,255,255,.7);
+  --glass-border:rgba(0,0,0,.05);
+  --tx:#0c1020;
+  --tx-dim:#3b4256;
+  --mut:#6a7388;
+  --dim:#a6adbf;
+  --bor:rgba(0,0,0,.07);
+  --bor2:rgba(0,0,0,.13);
+  --div:rgba(0,0,0,.05);
+  --pr-soft:rgba(200,255,61,.18);
+  --sh-sm:0 1px 2px rgba(20,30,60,.05);
+  --sh-md:0 8px 28px rgba(20,30,60,.08);
+  --sh-lg:0 24px 60px rgba(20,30,60,.12);
+}
+
+html,body{
+  min-height:100%;
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--tx);
+  font-size:14px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  letter-spacing:-.005em;
+}
+body{
+  background:var(--bg-grad);
+  background-attachment:fixed;
+  min-height:100vh;
+  display:flex;
+}
+body.rpm-warn{box-shadow:inset 0 0 0 2px var(--red),inset 0 0 60px var(--red-glow)}
+body.gps-warn{box-shadow:inset 0 0 0 2px var(--orange),inset 0 0 60px var(--orange-glow)}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;
+  width:var(--side-w);
+  background:var(--surf);
+  border-right:1px solid var(--bor);
+  padding:22px 16px 18px;
+  display:flex;flex-direction:column;gap:6px;
+  z-index:50;
+  overflow-y:auto;
+}
+.brand{
+  display:flex;align-items:center;gap:11px;
+  padding:6px 8px 22px;
+  margin-bottom:10px;
+  border-bottom:1px solid var(--div);
+}
+.brand-mark{
+  width:46px;height:46px;border-radius:13px;
+  background:linear-gradient(135deg,var(--pr) 0%,var(--pr-2) 100%);
+  display:grid;place-items:center;
+  color:#0a0d18;
+  font-family:var(--mono);font-weight:800;
+  font-size:18px;
+  box-shadow:0 6px 18px var(--pr-glow);
+  position:relative;
+}
+.brand-mark svg{width:34px;height:34px;display:block;position:relative;z-index:2}
+.brand-mark::after{
+  content:'';position:absolute;inset:1px;border-radius:11px;
+  background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 50%);
+  pointer-events:none;
+}
+.brand-text{flex:1;min-width:0}
+.brand-name{
+  font-family:var(--sans);font-weight:800;
+  font-size:15px;color:var(--tx);
+  letter-spacing:-.01em;
+}
+.brand-sub{
+  font-family:var(--mono);font-size:10px;
+  color:var(--mut);font-weight:500;
+  margin-top:2px;
+  letter-spacing:.04em;
+}
+
+.nav-group{
+  display:flex;flex-direction:column;gap:2px;
+  margin-bottom:14px;
+}
+.nav-group-title{
+  font-family:var(--mono);font-size:9.5px;
+  text-transform:uppercase;letter-spacing:.14em;
+  font-weight:700;color:var(--mut);
+  padding:8px 10px 6px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:11px;
+  padding:10px 12px;border-radius:10px;
+  background:transparent;border:1px solid transparent;
+  color:var(--tx-dim);font-family:var(--sans);
+  font-size:13.5px;font-weight:500;
+  cursor:pointer;transition:var(--t);
+  text-align:left;width:100%;
+  position:relative;
+}
+.nav-item:hover{background:var(--soft);color:var(--tx)}
+.nav-item.active{
+  background:linear-gradient(180deg,var(--pr-soft),transparent);
+  color:var(--pr);
+  border-color:rgba(200,255,61,.18);
+  font-weight:600;
+}
+.nav-item.active::before{
+  content:'';position:absolute;left:-16px;top:50%;
+  width:3px;height:20px;
+  background:var(--pr);border-radius:0 3px 3px 0;
+  transform:translateY(-50%);
+  box-shadow:0 0 12px var(--pr-glow);
+}
+.nav-icon{
+  width:18px;height:18px;flex-shrink:0;
+  display:grid;place-items:center;
+  color:currentColor;
+}
+.nav-icon svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.side-foot{
+  margin-top:auto;
+  padding-top:14px;
+  border-top:1px solid var(--div);
+  display:flex;flex-direction:column;gap:8px;
+}
+
+.conn-card{
+  padding:12px;border-radius:12px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  display:flex;align-items:center;gap:10px;
+}
+.conn-dot{
+  width:10px;height:10px;border-radius:50%;
+  background:var(--mut);flex-shrink:0;
+}
+.conn-card.connected .conn-dot{
+  background:var(--green);
+  box-shadow:0 0 0 4px rgba(62,224,138,.15),0 0 12px var(--green-glow);
+  animation:pulseDot 2s ease-in-out infinite;
+}
+.conn-card.demo .conn-dot{
+  background:var(--blue);
+  box-shadow:0 0 0 4px rgba(90,184,255,.15),0 0 12px var(--blue-glow);
+}
+@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.5}}
+.conn-info{flex:1;min-width:0}
+.conn-info-l{
+  font-family:var(--mono);font-size:9px;
+  text-transform:uppercase;letter-spacing:.1em;
+  color:var(--mut);font-weight:700;
+}
+.conn-info-v{
+  font-family:var(--mono);font-size:12px;
+  color:var(--tx);font-weight:700;
+  margin-top:1px;
+}
+
+/* ============================================================
+   MAIN
+   ============================================================ */
+.main{
+  margin-left:var(--side-w);
+  flex:1;
+  min-width:0;
+  min-height:100vh;
+  display:flex;flex-direction:column;
+}
+
+.topbar{
+  position:sticky;top:0;z-index:40;
+  padding:18px 32px;
+  background:rgba(7,9,18,.7);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-bottom:1px solid var(--bor);
+  display:flex;align-items:center;gap:14px;
+  flex-wrap:wrap;
+}
+[data-theme=light] .topbar{background:rgba(255,255,255,.7)}
+.topbar-title{
+  font-family:var(--sans);font-weight:700;
+  font-size:20px;letter-spacing:-.02em;
+  color:var(--tx);
+}
+.topbar-sub{
+  font-family:var(--mono);font-size:11px;
+  color:var(--mut);font-weight:500;
+  margin-top:2px;
+}
+.topbar-spacer{flex:1}
+
+.content{
+  padding:24px 32px 40px;
+  flex:1;
+  max-width:1640px;
+  width:100%;
+}
+
+.tab{display:none;animation:fadeUp .35s ease forwards}
+.tab.active{display:block}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn{
+  padding:10px 16px;border-radius:11px;
+  background:var(--soft);border:1px solid var(--bor);
+  color:var(--tx);font-family:var(--sans);
+  font-size:13px;font-weight:600;
+  letter-spacing:-.005em;
+  cursor:pointer;transition:var(--t);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  white-space:nowrap;
+  line-height:1;
+}
+.btn:hover:not(:disabled){
+  background:var(--soft2);border-color:var(--bor2);
+  transform:translateY(-1px);
+  box-shadow:var(--sh-sm);
+}
+.btn:active:not(:disabled){transform:translateY(0)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.btn.primary{
+  background:var(--pr);color:#0a0d18;
+  border-color:var(--pr);
+  font-weight:700;
+  box-shadow:0 4px 18px var(--pr-glow);
+}
+.btn.primary:hover:not(:disabled){
+  background:#d6ff5a;
+  box-shadow:0 6px 24px var(--pr-glow);
+}
+.btn.good{
+  background:var(--green);color:#062818;
+  border-color:var(--green);font-weight:700;
+  box-shadow:0 4px 16px var(--green-glow);
+}
+.btn.danger{
+  background:var(--red);color:#fff;
+  border-color:var(--red);font-weight:700;
+  box-shadow:0 4px 16px var(--red-glow);
+}
+.btn.blue{
+  background:var(--blue);color:#06162a;
+  border-color:var(--blue);font-weight:700;
+  box-shadow:0 4px 16px var(--blue-glow);
+}
+.btn.ghost{
+  background:transparent;
+  border-color:var(--bor);
+  color:var(--tx-dim);
+}
+.btn.ghost:hover:not(:disabled){
+  background:var(--soft);color:var(--tx);
+}
+.btn.icon-only{
+  padding:9px;width:38px;height:38px;
+}
+.btn.lg{padding:13px 22px;font-size:14px;border-radius:13px}
+
+.btn.pitcall{
+  background:linear-gradient(135deg,var(--orange) 0%,#ff7a1a 100%);
+  color:#1a0e00;border-color:var(--orange);
+  font-weight:800;
+  box-shadow:0 4px 18px var(--orange-glow);
+}
+.btn.pitcall.active{
+  background:var(--red);border-color:var(--red);color:#fff;
+  animation:pitPulse 1s ease-in-out infinite;
+}
+@keyframes pitPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,84,112,.7)}
+  50%{box-shadow:0 0 0 14px rgba(255,84,112,0)}
+}
+
+/* ============================================================
+   PILLS / BADGES
+   ============================================================ */
+.pill{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:6px 11px;border-radius:99px;
+  background:var(--soft);border:1px solid var(--bor);
+  font-family:var(--mono);font-size:10.5px;
+  font-weight:600;color:var(--tx-dim);
+  letter-spacing:.02em;
+}
+.pill .dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--mut);
+}
+.pill.green{color:var(--green);border-color:rgba(62,224,138,.3)}
+.pill.green .dot{background:var(--green);box-shadow:0 0 8px var(--green-glow)}
+.pill.blue{color:var(--blue);border-color:rgba(90,184,255,.3)}
+.pill.blue .dot{background:var(--blue);box-shadow:0 0 8px var(--blue-glow)}
+.pill.orange{color:var(--orange);border-color:rgba(255,163,54,.3)}
+.pill.orange .dot{background:var(--orange)}
+.pill.red{color:var(--red);border-color:rgba(255,84,112,.3)}
+.pill.red .dot{background:var(--red);box-shadow:0 0 8px var(--red-glow)}
+
+/* ============================================================
+   GRID
+   ============================================================ */
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g-2-1{grid-template-columns:2fr 1fr}
+.g-1-2{grid-template-columns:1fr 2fr}
+@media(max-width:1100px){.g2,.g3,.g4,.g-2-1,.g-1-2{grid-template-columns:1fr}}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* ============================================================
+   CARD
+   ============================================================ */
+.card{
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-xl);
+  padding:22px;
+  box-shadow:var(--sh-sm);
+  transition:var(--t);
+  position:relative;
+}
+.card-glass{
+  background:var(--glass);
+  backdrop-filter:blur(20px) saturate(160%);
+  -webkit-backdrop-filter:blur(20px) saturate(160%);
+  border:1px solid var(--glass-border);
+}
+.card-head{
+  display:flex;justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:18px;
+}
+.card-title{
+  font-family:var(--sans);font-weight:700;
+  font-size:15px;color:var(--tx);
+  letter-spacing:-.01em;
+  display:flex;align-items:center;gap:9px;
+}
+.card-title::before{
+  content:'';display:block;
+  width:3px;height:14px;
+  background:var(--pr);border-radius:2px;
+  box-shadow:0 0 8px var(--pr-glow);
+}
+.card-sub{
+  font-family:var(--mono);font-size:10.5px;
+  color:var(--mut);font-weight:500;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+}
+
+/* ============================================================
+   FORM
+   ============================================================ */
+input,select,textarea{
+  width:100%;padding:11px 14px;
+  border-radius:11px;
+  border:1px solid var(--bor);
+  background:var(--soft);
+  color:var(--tx);
+  font-family:var(--sans);font-size:13.5px;
+  font-weight:500;
+  outline:none;
+  transition:var(--t);
+}
+input[type=number],.mono-input{font-family:var(--mono)}
+input:hover,select:hover{border-color:var(--bor2);background:var(--soft2)}
+input:focus,select:focus{
+  border-color:var(--pr);
+  box-shadow:0 0 0 3px var(--pr-soft);
+  background:var(--surf);
+}
+input[type=color]{padding:4px;height:44px;cursor:pointer}
+label{
+  display:block;font-family:var(--mono);
+  font-size:10px;font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.1em;color:var(--mut);
+  margin-bottom:7px;
+}
+select{
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236f7796' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+  padding-right:34px;
+}
+
+.fieldset{display:grid;gap:14px}
+.field{display:grid;gap:6px}
+.field-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+
+/* Toggle */
+.toggle{
+  position:relative;display:inline-block;
+  width:42px;height:24px;flex-shrink:0;
+}
+.toggle input{display:none}
+.toggle-knob{
+  position:absolute;inset:0;
+  background:var(--soft2);
+  border:1px solid var(--bor);
+  border-radius:99px;cursor:pointer;
+  transition:var(--t);
+}
+.toggle-knob::after{
+  content:'';position:absolute;
+  top:2px;left:2px;
+  width:18px;height:18px;border-radius:50%;
+  background:var(--mut);
+  transition:var(--t);
+}
+.toggle input:checked + .toggle-knob{
+  background:var(--pr);border-color:var(--pr);
+  box-shadow:0 0 14px var(--pr-glow);
+}
+.toggle input:checked + .toggle-knob::after{
+  transform:translateX(18px);
+  background:#0a0d18;
+}
+.toggle-row{
+  display:flex;justify-content:space-between;
+  align-items:center;padding:10px 0;
+  border-bottom:1px solid var(--div);
+}
+.toggle-row:last-child{border-bottom:none}
+.toggle-row .label-text{
+  font-family:var(--sans);font-size:13.5px;
+  color:var(--tx);font-weight:500;
+}
+
+/* ============================================================
+   STATS
+   ============================================================ */
+.stat{
+  padding:13px 16px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  border-radius:var(--r-md);
+  flex:1 0 auto;
+  min-width:max-content;
+  transition:var(--t);
+}
+.stat:hover{border-color:var(--bor2)}
+.stat .t{
+  font-family:var(--mono);font-size:9.5px;
+  text-transform:uppercase;letter-spacing:.1em;
+  color:var(--mut);margin-bottom:5px;
+  white-space:nowrap;font-weight:700;
+}
+.stat .n{
+  font-family:var(--mono);font-size:21px;
+  font-weight:700;color:var(--tx);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;line-height:1.1;
+  letter-spacing:-.02em;
+}
+.stat-flex{display:flex;flex-wrap:wrap;gap:10px}
+
+/* ============================================================
+   HERO KPI ROW
+   ============================================================ */
+.kpi-row{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+}
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
+
+.kpi{
+  position:relative;overflow:hidden;
+  padding:22px;
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-xl);
+  display:flex;flex-direction:column;
+  gap:8px;
+  min-height:148px;
+  transition:var(--t);
+}
+.kpi:hover{border-color:var(--bor2);transform:translateY(-2px);box-shadow:var(--sh-md)}
+.kpi-head{
+  display:flex;justify-content:space-between;
+  align-items:center;
+}
+.kpi-l{
+  font-family:var(--mono);font-size:10px;
+  font-weight:700;text-transform:uppercase;
+  letter-spacing:.13em;color:var(--mut);
+}
+.kpi-icon{
+  width:28px;height:28px;border-radius:9px;
+  background:var(--pr-soft);
+  color:var(--pr);
+  display:grid;place-items:center;
+}
+.kpi-icon svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.kpi-v{
+  font-family:var(--mono);
+  font-size:clamp(40px,5.4vw,58px);
+  font-weight:700;color:var(--tx);
+  line-height:.95;letter-spacing:-.045em;
+  font-variant-numeric:tabular-nums;
+  margin-top:auto;
+}
+.kpi.accent .kpi-v{color:var(--pr);text-shadow:0 0 24px var(--pr-glow)}
+.kpi-v small{
+  font-size:.32em;color:var(--mut);
+  margin-left:5px;font-weight:500;
+  text-shadow:none;
+  font-family:var(--mono);
+}
+.kpi-sub{
+  font-family:var(--mono);font-size:11.5px;
+  color:var(--mut);font-weight:500;
+  display:flex;align-items:center;gap:6px;
+}
+.kpi-sub b{color:var(--tx-dim);font-weight:700;font-variant-numeric:tabular-nums}
+
+.kpi-spark{
+  position:absolute;right:0;bottom:0;left:0;
+  height:42px;opacity:.35;
+  pointer-events:none;
+}
+
+/* ============================================================
+   RACE CONTROL BAR
+   ============================================================ */
+.race-bar{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  gap:24px;align-items:center;
+  padding:18px 22px;
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-xl);
+  margin-bottom:18px;
+  position:relative;overflow:hidden;
+  box-shadow:var(--sh-sm);
+}
+.race-bar::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--pr),transparent);
+  opacity:.5;
+}
+.race-bar-l{
+  display:flex;flex-direction:column;gap:2px;
+}
+.race-bar-label{
+  font-family:var(--mono);font-size:10px;
+  text-transform:uppercase;letter-spacing:.12em;
+  color:var(--mut);font-weight:700;
+}
+.race-bar-cd{
+  font-family:var(--mono);font-size:42px;
+  font-weight:700;color:var(--pr);
+  line-height:1;letter-spacing:-.04em;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 0 24px var(--pr-glow);
+}
+.race-bar-meta{
+  font-family:var(--sans);font-size:13px;
+  color:var(--tx-dim);font-weight:500;
+  display:flex;flex-wrap:wrap;gap:14px;
+  align-items:center;
+}
+.race-bar-meta b{color:var(--tx);font-weight:700}
+.race-bar-meta .sep{color:var(--dim)}
+.race-bar-actions{
+  display:flex;gap:8px;flex-wrap:wrap;
+  justify-content:flex-end;
+}
+@media(max-width:900px){
+  .race-bar{grid-template-columns:1fr;text-align:center}
+  .race-bar-actions{justify-content:center}
+}
+
+/* ============================================================
+   DELTA BANNER
+   ============================================================ */
+.delta-banner{
+  display:flex;align-items:center;justify-content:center;gap:28px;
+  background:var(--surf);border:1px solid var(--bor);
+  border-radius:var(--r-xl);
+  padding:14px 24px;margin-bottom:18px;
+  position:relative;overflow:hidden;
+  box-shadow:var(--sh-sm);
+}
+.delta-banner.hidden{display:none}
+.delta-label{
+  font-family:var(--mono);font-size:11px;
+  color:var(--mut);font-weight:700;
+  text-transform:uppercase;letter-spacing:.12em;
+}
+.delta-time{
+  font-family:var(--mono);font-size:34px;
+  font-weight:700;font-variant-numeric:tabular-nums;
+  letter-spacing:-.04em;
+}
+.delta-time.faster{color:var(--green);text-shadow:0 0 14px var(--green-glow)}
+.delta-time.slower{color:var(--red);text-shadow:0 0 14px var(--red-glow)}
+.delta-time.same{color:var(--mut)}
+.delta-ref{
+  font-family:var(--mono);font-size:11px;
+  color:var(--mut);font-weight:500;
+}
+
+/* ============================================================
+   SECTORS
+   ============================================================ */
+.sector-panel{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;margin-bottom:18px;
+}
+.sector-card{
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-lg);
+  padding:16px 18px;
+  position:relative;overflow:hidden;
+  transition:var(--t);
+}
+.sector-card.active{
+  border-color:var(--pr);
+  box-shadow:0 0 0 3px var(--pr-soft),0 8px 24px var(--pr-glow);
+}
+.sector-card.active::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--pr);box-shadow:0 0 12px var(--pr-glow);
+}
+.sector-label{
+  font-family:var(--mono);font-size:10px;
+  font-weight:700;color:var(--mut);
+  letter-spacing:.12em;margin-bottom:6px;
+  text-transform:uppercase;
+}
+.sector-time{
+  font-family:var(--mono);font-size:23px;
+  font-weight:700;color:var(--tx);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.03em;line-height:1;
+}
+.sector-delta{
+  font-family:var(--mono);font-size:11px;
+  font-weight:600;margin-top:5px;
+  font-variant-numeric:tabular-nums;
+}
+.sector-delta.faster{color:var(--green)}
+.sector-delta.slower{color:var(--red)}
+.sector-delta.same{color:var(--mut)}
+
+/* ============================================================
+   MAP
+   ============================================================ */
+.map{
+  aspect-ratio:1.55;
+  background:radial-gradient(ellipse at center,var(--surf2) 0%,var(--surf) 100%);
+  border:1px solid var(--bor);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  position:relative;
+}
+.map canvas{width:100%;height:100%;display:block}
+
+/* ============================================================
+   TACHO / RPM / G
+   ============================================================ */
+.tacho-wrap{
+  display:flex;flex-direction:column;
+  align-items:center;gap:14px;
+  padding:6px 0 4px;
+}
+.tacho-svg{
+  width:100%;max-width:300px;
+  display:block;
+  filter:drop-shadow(0 4px 16px rgba(0,0,0,.3));
+}
+.rpm-block{width:100%}
+.rpm-bar{
+  height:14px;border-radius:99px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  overflow:hidden;position:relative;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.3);
+}
+.rpm-fill{
+  height:100%;width:0;
+  background:linear-gradient(90deg,var(--green) 0%,var(--pr) 50%,var(--orange) 75%,var(--red) 100%);
+  transition:width .08s linear;
+  border-radius:99px;
+}
+.rpm-row{
+  display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:11px;
+  color:var(--mut);margin-top:7px;font-weight:600;
+}
+
+#gMeterCanvas{
+  display:block;margin:8px auto 0;
+  width:100%;max-width:200px;aspect-ratio:1;
+  border-radius:50%;
+}
+.g-readout{
+  display:flex;justify-content:center;gap:18px;
+  margin-top:10px;
+  font-family:var(--mono);font-size:12px;
+  color:var(--mut);font-weight:600;
+}
+.g-readout b{color:var(--tx);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ============================================================
+   HEAT BTN
+   ============================================================ */
+.heat-btn{
+  padding:7px 12px;font-family:var(--mono);
+  font-size:10.5px;font-weight:700;
+  border-radius:9px;
+  background:var(--soft);border:1px solid var(--bor);
+  color:var(--mut);cursor:pointer;
+  text-transform:uppercase;letter-spacing:.08em;
+  transition:var(--t);
+}
+.heat-btn:hover{color:var(--tx);border-color:var(--bor2)}
+.heat-btn.active{
+  background:var(--orange);color:#1a0e00;
+  border-color:var(--orange);
+}
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+.tbl-wrap{
+  overflow:auto;max-height:380px;
+  border:1px solid var(--bor);
+  border-radius:var(--r-md);
+  background:var(--surf2);
+}
+table{
+  width:100%;border-collapse:collapse;
+  font-family:var(--mono);font-size:12.5px;
+}
+th,td{
+  padding:11px 14px;text-align:left;
+  border-bottom:1px solid var(--div);
+}
+th{
+  background:var(--surf3);color:var(--mut);
+  font-size:10px;text-transform:uppercase;
+  letter-spacing:.09em;font-weight:700;
+  position:sticky;top:0;z-index:1;
+  border-bottom:1px solid var(--bor);
+}
+tbody tr{transition:var(--t)}
+tbody tr:hover{background:var(--soft)}
+tr.best td{
+  color:var(--pr);font-weight:700;
+}
+tr.invalid td{color:var(--dim);text-decoration:line-through}
+.muted{color:var(--mut);text-align:center;padding:32px;font-style:italic}
+
+/* Scrollbars */
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:var(--bor2);border-radius:99px}
+*::-webkit-scrollbar-thumb:hover{background:var(--mut)}
+
+/* ============================================================
+   PIT-WALL — Track tab redesign v3
+   ============================================================ */
+
+/* HERO */
+.pw-hero{
+  position:relative;overflow:hidden;
+  border-radius:20px;margin-bottom:18px;
+  border:1px solid var(--bor);
+  background:linear-gradient(135deg,#0a1020 0%,#070a14 60%);
+}
+.pw-hero-bg{
+  position:absolute;inset:-40% -10% auto auto;width:75%;height:200%;
+  background:
+    radial-gradient(ellipse 60% 50% at 70% 50%, rgba(200,255,61,.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 30% 30%, rgba(90,184,255,.06) 0%, transparent 60%);
+  pointer-events:none;
+}
+.pw-hero-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size:48px 48px;
+  mask-image:linear-gradient(135deg, black 0%, transparent 80%);
+  -webkit-mask-image:linear-gradient(135deg, black 0%, transparent 80%);
+  pointer-events:none;
+}
+.pw-hero-content{
+  position:relative;z-index:2;
+  display:flex;flex-direction:column;gap:24px;
+  padding:30px 36px;
+}
+@media (max-width:900px){.pw-hero-content{padding:24px}}
+.pw-hero-left{min-width:0}
+.pw-eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:5px 12px;border-radius:99px;
+  background:rgba(200,255,61,.08);border:1px solid rgba(200,255,61,.25);
+  font-family:var(--mono);font-size:10.5px;font-weight:800;
+  color:var(--pr);letter-spacing:.14em;
+  margin-bottom:14px;
+}
+.pw-eyebrow-dot{
+  width:6px;height:6px;border-radius:99px;background:var(--pr);
+  box-shadow:0 0 8px var(--pr-glow);
+  animation:pulse 2s ease-in-out infinite;
+}
+.pw-hero-title{
+  font-family:var(--sans);font-size:42px;font-weight:800;
+  letter-spacing:-.03em;line-height:1;color:var(--tx);
+  margin-bottom:8px;white-space:nowrap;
+}
+.pw-hero-accent{color:var(--pr)}
+.pw-hero-sub{
+  color:var(--mut);font-size:13.5px;
+  font-family:var(--mono);font-weight:600;letter-spacing:.04em;
+}
+.pw-hero-telemetry{
+  display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));
+  gap:12px;
+}
+@media (max-width:900px){.pw-hero-telemetry{grid-template-columns:repeat(2,1fr)}}
+.pw-tel{
+  padding:14px 16px;border-radius:12px;
+  background:rgba(255,255,255,.03);border:1px solid var(--bor);
+  min-width:0;
+}
+.pw-tel-label{
+  font-family:var(--mono);font-size:9.5px;font-weight:800;
+  color:var(--mut);letter-spacing:.12em;text-transform:uppercase;
+  margin-bottom:6px;
+}
+.pw-tel-value{
+  font-family:var(--sans);font-size:17px;font-weight:700;color:var(--tx);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.pw-tel-value.mono{font-family:var(--mono);font-size:20px;font-weight:800}
+.pw-tel-foot{
+  font-family:var(--mono);font-size:10px;color:var(--mut);
+  margin-top:4px;font-weight:600;
+}
+.pw-tel-bar{
+  height:3px;border-radius:99px;background:var(--bor);
+  margin-top:8px;overflow:hidden;
+}
+.pw-tel-bar-fill{
+  display:block;height:100%;width:30%;
+  background:var(--orange);border-radius:99px;
+  transition:width .4s ease, background .3s ease;
+  box-shadow:0 0 8px var(--orange-glow);
+}
+
+/* WORKFLOW STRIP */
+.pw-workflow{
+  display:flex;align-items:center;gap:14px;
+  padding:10px;margin-bottom:18px;
+  background:var(--surf);border:1px solid var(--bor);
+  border-radius:14px;
+  overflow-x:auto;
+}
+.pw-flow-step{
+  display:flex;align-items:center;gap:11px;
+  padding:8px 14px;border-radius:10px;
+  flex-shrink:0;opacity:.5;transition:var(--t);
+}
+.pw-flow-step.active{opacity:1;background:rgba(200,255,61,.06)}
+.pw-flow-step.done{opacity:1}
+.pw-flow-marker{
+  width:32px;height:32px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--soft);color:var(--mut);border:1px solid var(--bor2);
+  flex-shrink:0;
+}
+.pw-flow-step.active .pw-flow-marker{background:var(--pr);color:#0a0e0a;border-color:var(--pr);box-shadow:0 0 0 3px var(--pr-soft)}
+.pw-flow-step.done .pw-flow-marker{background:rgba(62,224,138,.12);color:var(--green);border-color:var(--green)}
+.pw-flow-text{display:flex;flex-direction:column;gap:1px}
+.pw-flow-num{font-family:var(--mono);font-size:9.5px;font-weight:800;color:var(--mut);letter-spacing:.1em}
+.pw-flow-title{font-weight:700;font-size:13px;color:var(--tx)}
+.pw-flow-arrow{color:var(--mut);font-size:18px;font-weight:300;flex-shrink:0}
+
+/* COMMAND DECK */
+.pw-deck{
+  display:grid;grid-template-columns:minmax(0,1fr) 340px;
+  gap:18px;margin-bottom:18px;
+}
+@media (max-width:1100px){.pw-deck{grid-template-columns:1fr}}
+
+.pw-map-card{
+  background:var(--surf);border:1px solid var(--bor);
+  border-radius:18px;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.pw-map-frame{
+  position:relative;aspect-ratio:1.7;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(200,255,61,.05) 0%, transparent 70%),
+    radial-gradient(ellipse at center, #0c1320 0%, #060a14 100%);
+  overflow:hidden;
+}
+.pw-map-frame::before{
+  content:"";position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(200,255,61,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200,255,61,.02) 1px, transparent 1px);
+  background-size:32px 32px;
+  mask-image:radial-gradient(ellipse at center, black 30%, transparent 90%);
+  -webkit-mask-image:radial-gradient(ellipse at center, black 30%, transparent 90%);
+  pointer-events:none;
+}
+.pw-map-frame canvas{position:absolute;inset:0;width:100%;height:100%;z-index:2}
+.pw-corner{
+  position:absolute;width:20px;height:20px;
+  border:1.5px solid rgba(200,255,61,.4);pointer-events:none;z-index:3;
+}
+.pw-corner.tl{top:14px;left:14px;border-right:none;border-bottom:none}
+.pw-corner.tr{top:14px;right:14px;border-left:none;border-bottom:none}
+.pw-corner.bl{bottom:14px;left:14px;border-right:none;border-top:none}
+.pw-corner.br{bottom:14px;right:14px;border-left:none;border-top:none}
+.pw-map-tag{
+  position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:3;
+  font-family:var(--mono);font-size:9.5px;font-weight:800;
+  color:var(--pr);letter-spacing:.18em;
+  padding:4px 12px;background:rgba(0,0,0,.6);
+  border:1px solid rgba(200,255,61,.3);border-radius:99px;
+  backdrop-filter:blur(6px);pointer-events:none;
+}
+.pw-map-coord{
+  position:absolute;bottom:18px;right:18px;z-index:3;
+  font-family:var(--mono);font-size:10px;color:var(--mut);
+  font-weight:700;letter-spacing:.06em;
+  padding:4px 10px;background:rgba(0,0,0,.5);
+  border:1px solid var(--bor);border-radius:6px;
+  pointer-events:none;
+}
+.pw-map-empty{
+  position:absolute;inset:0;z-index:4;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;text-align:center;padding:24px;pointer-events:none;
+}
+.pw-map-empty-icon{
+  width:78px;height:78px;border-radius:22px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(200,255,61,.08);color:var(--pr);
+  border:1px solid rgba(200,255,61,.25);
+  margin-bottom:6px;
+  box-shadow:0 0 30px rgba(200,255,61,.15);
+}
+.pw-map-empty-title{font-weight:800;font-size:18px;color:var(--tx)}
+.pw-map-empty-sub{font-size:13px;color:var(--mut);max-width:330px;line-height:1.55}
+.pw-map-empty-sub kbd{
+  display:inline-block;padding:2px 7px;
+  background:var(--soft);border:1px solid var(--bor2);
+  border-radius:5px;font-family:var(--mono);
+  font-size:11px;color:var(--tx);font-weight:600;
+}
+
+/* Action cluster under map */
+.pw-cluster{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 16px;border-top:1px solid var(--bor);
+  background:linear-gradient(180deg,var(--surf2),var(--surf));
+  flex-wrap:wrap;
+}
+.pw-cluster-divider{
+  width:1px;height:28px;background:var(--bor);margin:0 4px;
+}
+.pw-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 16px;border-radius:10px;
+  font-family:var(--sans);font-weight:700;font-size:13px;
+  cursor:pointer;border:1px solid var(--bor2);
+  background:var(--soft);color:var(--tx);
+  transition:var(--t);
+}
+.pw-btn:hover{background:var(--soft2);border-color:var(--mut)}
+.pw-btn.primary{
+  background:var(--pr);color:#0a0e0a;border-color:var(--pr);
+  box-shadow:0 4px 18px var(--pr-glow);
+}
+.pw-btn.primary:hover{background:var(--pr-2);transform:translateY(-1px);box-shadow:0 6px 22px var(--pr-glow)}
+.pw-btn.ghost{background:transparent}
+.pw-btn.block{width:100%;justify-content:center}
+.pw-inline-input{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 12px;border-radius:9px;
+  background:var(--bg);border:1px solid var(--bor);
+}
+.pw-input-label{font-family:var(--mono);font-size:10px;color:var(--mut);font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.pw-inline-input input{
+  width:48px;background:transparent;border:none;outline:none;
+  color:var(--tx);font-family:var(--mono);font-size:14px;font-weight:800;
+  text-align:center;
+}
+.pw-input-suffix{font-family:var(--mono);font-size:11px;color:var(--mut);font-weight:700}
+
+/* STACK rechts */
+.pw-stack{display:flex;flex-direction:column;gap:14px}
+.pw-module{
+  background:var(--surf);border:1px solid var(--bor);
+  border-radius:16px;padding:18px;
+}
+.pw-module.pw-save{
+  background:linear-gradient(135deg,rgba(200,255,61,.05),var(--surf) 60%);
+  border-color:rgba(200,255,61,.2);
+}
+.pw-mod-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.pw-mod-title{
+  display:flex;align-items:center;gap:10px;
+  font-weight:800;font-size:14.5px;color:var(--tx);
+}
+.pw-mod-tag{
+  width:22px;height:22px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--pr);color:#0a0e0a;
+  font-family:var(--mono);font-weight:900;font-size:11px;
+}
+.pw-mod-action{
+  font-family:var(--mono);font-size:10.5px;font-weight:700;
+  padding:5px 11px;border-radius:7px;
+  background:transparent;border:1px solid var(--bor);
+  color:var(--mut);cursor:pointer;transition:var(--t);
+  letter-spacing:.04em;
+}
+.pw-mod-action:hover{color:var(--red);border-color:var(--red)}
+.pw-mod-hint{
+  font-size:11.5px;color:var(--mut);line-height:1.55;
+  padding:10px 12px;background:var(--bg);
+  border:1px dashed var(--bor);border-radius:9px;
+  margin-top:12px;
+}
+.pw-mod-hint b{color:var(--pr);font-weight:800;font-family:var(--mono)}
+
+/* Sectors */
+.pw-sectors{display:flex;flex-direction:column;gap:8px}
+.pw-sector{
+  position:relative;display:grid;
+  grid-template-columns:42px 1fr auto;gap:12px;align-items:center;
+  padding:10px 12px 10px 14px;
+  background:var(--soft);border:1px solid var(--bor);
+  border-radius:11px;overflow:hidden;
+}
+.pw-sector::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--mut);
+}
+.pw-sector.s1::before{background:var(--pr);box-shadow:0 0 12px var(--pr-glow)}
+.pw-sector.s2::before{background:var(--blue);box-shadow:0 0 12px rgba(90,184,255,.4)}
+.pw-sector.s3::before{background:var(--orange);box-shadow:0 0 12px var(--orange-glow)}
+.pw-sec-num{
+  font-family:var(--mono);font-weight:900;font-size:18px;
+  color:var(--mut);letter-spacing:-.02em;
+}
+.pw-sector.s1 .pw-sec-num{color:var(--pr)}
+.pw-sector.s2 .pw-sec-num{color:var(--blue)}
+.pw-sector.s3 .pw-sec-num{color:var(--orange)}
+.pw-sec-info{min-width:0}
+.pw-sec-label{font-weight:600;font-size:13px;color:var(--tx);margin-bottom:1px}
+.pw-sec-status{font-family:var(--mono);font-size:11px;color:var(--mut);font-weight:600}
+.pw-sector.s2 .pw-sec-status.is-set{color:var(--blue)}
+.pw-sector.s3 .pw-sec-status.is-set{color:var(--orange)}
+.pw-sec-icon{
+  width:30px;height:30px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(200,255,61,.12);color:var(--pr);
+}
+.pw-sec-set{
+  width:30px;height:30px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;border:1px solid var(--bor2);
+  color:var(--tx);font-size:18px;font-weight:600;
+  cursor:pointer;transition:var(--t);font-family:var(--mono);
+}
+.pw-sector.s2 .pw-sec-set:hover{background:rgba(90,184,255,.15);border-color:var(--blue);color:var(--blue)}
+.pw-sector.s3 .pw-sec-set:hover{background:rgba(255,163,54,.15);border-color:var(--orange);color:var(--orange)}
+
+/* Save module */
+.pw-save-stack{display:flex;flex-direction:column;gap:10px}
+.pw-save-input{
+  width:100%;padding:12px 14px;
+  background:var(--bg);border:1px solid var(--bor);
+  border-radius:10px;color:var(--tx);
+  font-family:var(--sans);font-size:14px;font-weight:500;
+  outline:none;transition:var(--t);
+}
+.pw-save-input:focus{border-color:var(--pr);box-shadow:0 0 0 3px var(--pr-soft)}
+
+/* LIBRARY */
+.pw-library{
+  background:var(--surf);border:1px solid var(--bor);
+  border-radius:18px;padding:22px;
+}
+.pw-lib-head{margin-bottom:16px}
+.pw-lib-title{
+  display:flex;align-items:center;gap:14px;
+}
+.pw-lib-bar{
+  width:4px;height:22px;background:var(--pr);border-radius:99px;
+  box-shadow:0 0 12px var(--pr-glow);
+}
+.pw-lib-title>span:nth-child(2){font-weight:800;font-size:18px;color:var(--tx);letter-spacing:-.02em}
+.pw-lib-count{
+  font-family:var(--mono);font-size:11px;color:var(--mut);
+  font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+}
+.pw-lib-empty{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:48px 20px;color:var(--mut);text-align:center;
+}
+.pw-lib-empty-icon{
+  width:54px;height:54px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--soft);color:var(--mut);margin-bottom:6px;
+}
+.pw-lib-empty-title{font-weight:700;font-size:14.5px;color:var(--tx-dim)}
+.pw-lib-empty-sub{font-size:12.5px;max-width:360px;line-height:1.55}
+
+/* ============================================================
+   TRACK LIST
+   ============================================================ */
+.track-list{display:grid;gap:10px}
+.track-item{
+  padding:14px 16px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  border-radius:var(--r-md);
+  display:flex;align-items:center;gap:10px;
+  transition:var(--t);
+}
+.track-item:hover{
+  border-color:var(--bor2);
+  background:var(--soft2);
+}
+.track-item-info{flex:1;min-width:0}
+.track-item-info b{
+  font-family:var(--sans);color:var(--tx);
+  font-size:14px;font-weight:600;display:block;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.track-item-info span{
+  display:block;font-family:var(--mono);
+  font-size:10.5px;color:var(--mut);
+  margin-top:3px;font-weight:500;
+}
+
+/* ============================================================
+   DRIVERS
+   ============================================================ */
+.driver-card{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  gap:14px;align-items:center;
+  padding:14px 16px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  border-radius:var(--r-md);
+  transition:var(--t);
+}
+.driver-card:hover{border-color:var(--bor2);background:var(--soft2)}
+.driver-num{
+  width:48px;height:48px;
+  border-radius:12px;
+  background:var(--driver,var(--pr));
+  color:#0a0d18;
+  display:grid;place-items:center;
+  font-family:var(--mono);font-weight:800;
+  font-size:17px;letter-spacing:-.04em;
+  box-shadow:0 4px 14px rgba(0,0,0,.3);
+}
+.driver-name{
+  font-family:var(--sans);font-size:14.5px;
+  color:var(--tx);font-weight:600;
+}
+.driver-name span{
+  display:block;font-family:var(--mono);
+  font-size:10.5px;color:var(--mut);
+  margin-top:3px;font-weight:500;
+}
+
+.driver-stat-card{
+  padding:18px;
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-xl);
+  border-left:4px solid var(--driver,var(--pr));
+  transition:var(--t);
+}
+.driver-stat-head{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  gap:14px;align-items:center;
+  margin-bottom:14px;
+}
+.driver-stat-name{
+  font-family:var(--sans);font-size:17px;
+  font-weight:700;color:var(--tx);
+  letter-spacing:-.02em;
+}
+.driver-stat-sub{
+  font-family:var(--mono);font-size:10.5px;
+  color:var(--mut);font-weight:600;margin-top:3px;
+}
+.driver-stat-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
+  gap:8px;
+}
+.dstat{
+  padding:10px 12px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  border-radius:var(--r-md);
+}
+.dstat span{
+  display:block;
+  font-family:var(--mono);font-size:9px;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  color:var(--mut);font-weight:700;
+  margin-bottom:5px;
+}
+.dstat b{
+  display:block;
+  font-family:var(--mono);font-size:16px;
+  font-weight:700;color:var(--tx);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.dstat.highlight b{color:var(--driver,var(--pr))}
+
+/* Total hero */
+.total-hero{
+  padding:26px;
+  background:radial-gradient(circle at 100% 0%,var(--pr-soft),transparent 60%),var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-2xl);
+  margin-bottom:18px;
+  position:relative;overflow:hidden;
+}
+.total-hero::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--pr),transparent);
+}
+.total-hero-label{
+  font-family:var(--mono);font-size:10.5px;
+  font-weight:700;text-transform:uppercase;
+  letter-spacing:.12em;color:var(--mut);
+  margin-bottom:8px;
+}
+.total-hero-km{
+  font-family:var(--mono);font-size:clamp(46px,7vw,72px);
+  font-weight:700;color:var(--pr);
+  line-height:.95;letter-spacing:-.05em;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 0 28px var(--pr-glow);
+}
+.total-hero-km small{
+  font-size:.36em;color:var(--mut);
+  margin-left:10px;font-weight:500;text-shadow:none;
+}
+.total-hero-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:10px;margin-top:18px;
+}
+.thero-stat{
+  padding:12px 14px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  border-radius:var(--r-md);
+}
+.thero-stat span{
+  display:block;font-family:var(--mono);
+  font-size:9px;text-transform:uppercase;
+  letter-spacing:.11em;color:var(--mut);
+  font-weight:700;margin-bottom:5px;
+}
+.thero-stat b{
+  display:block;font-family:var(--mono);
+  font-size:19px;font-weight:700;color:var(--tx);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.02em;
+}
+
+/* ============================================================
+   RACE CARDS
+   ============================================================ */
+.race-list{
+  display:grid;gap:12px;
+  max-height:720px;overflow:auto;
+  padding-right:6px;
+}
+.race-card{
+  padding:18px;
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-lg);
+  cursor:pointer;
+  transition:var(--t);
+  position:relative;overflow:hidden;
+}
+.race-card:hover{border-color:var(--bor2);transform:translateY(-1px);box-shadow:var(--sh-sm)}
+.race-card.selected{
+  border-color:var(--pr);
+  box-shadow:0 0 0 2px var(--pr-soft);
+}
+.race-card.selected::before{
+  content:'';position:absolute;
+  top:0;left:0;width:3px;height:100%;
+  background:var(--pr);
+  box-shadow:0 0 12px var(--pr-glow);
+}
+.race-card-top{
+  display:flex;justify-content:space-between;
+  gap:8px;margin-bottom:10px;align-items:flex-start;
+}
+.race-card-top h3{
+  font-family:var(--sans);font-size:15px;
+  font-weight:700;letter-spacing:-.02em;
+}
+.race-status{
+  font-family:var(--mono);font-size:9.5px;
+  font-weight:700;padding:5px 11px;
+  border-radius:99px;
+  background:var(--soft2);color:var(--mut);
+  text-transform:uppercase;letter-spacing:.09em;
+  white-space:nowrap;
+  border:1px solid transparent;
+}
+.race-status.running{
+  background:rgba(62,224,138,.15);
+  color:var(--green);
+  border-color:rgba(62,224,138,.3);
+}
+.race-status.paused{
+  background:rgba(255,163,54,.15);
+  color:var(--orange);
+  border-color:rgba(255,163,54,.3);
+}
+.race-status.finished,.race-status.finished_auto{background:var(--soft2);color:var(--mut)}
+.race-meta{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:8px;font-family:var(--mono);
+  font-size:11.5px;color:var(--mut);
+  font-weight:500;
+}
+.race-meta b{color:var(--tx);font-weight:700}
+.race-card-actions{
+  display:flex;gap:6px;margin-top:12px;
+  flex-wrap:wrap;
+}
+.race-card-actions .btn{font-size:11px;padding:8px 12px;flex:1}
+
+.race-details{
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid var(--div);
+  animation:fadeUp .25s ease;
+  cursor:default;
+}
+.race-detail-stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+  gap:8px;margin-bottom:14px;
+}
+.race-detail-section{margin-top:14px}
+.race-detail-section h4{
+  font-family:var(--mono);font-size:10.5px;
+  font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--mut);
+  margin-bottom:8px;
+}
+.stints-list{display:grid;gap:6px}
+.stint-row{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  gap:10px;
+  padding:9px 12px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  border-radius:var(--r-md);
+  font-family:var(--mono);font-size:12px;
+}
+.stint-num{color:var(--pr);font-weight:700;font-size:11px}
+.stint-name{color:var(--tx);font-weight:600}
+.stint-dur{color:var(--mut);font-size:11px;font-variant-numeric:tabular-nums}
+
+/* ============================================================
+   CONNECTION
+   ============================================================ */
+.mode-tabs{
+  display:flex;gap:4px;margin-bottom:18px;
+  background:var(--soft);
+  padding:4px;border-radius:13px;
+  border:1px solid var(--bor);
+}
+.mode-tab{
+  padding:11px 18px;border-radius:9px;
+  background:transparent;border:0;
+  color:var(--mut);font-family:var(--sans);
+  font-size:13px;font-weight:600;
+  cursor:pointer;flex:1;text-align:center;
+  letter-spacing:-.005em;
+  transition:var(--t);
+}
+.mode-tab:hover{color:var(--tx)}
+.mode-tab.active{
+  background:var(--pr);color:#0a0d18;
+  font-weight:700;
+  box-shadow:0 4px 12px var(--pr-glow);
+}
+
+.conn-overview{
+  display:grid;grid-template-columns:repeat(5,1fr);
+  gap:10px;margin-bottom:16px;
+}
+@media(max-width:1100px){.conn-overview{grid-template-columns:repeat(2,1fr)}}
+
+.serial-form{
+  display:grid;
+  grid-template-columns:2fr 1fr auto auto;
+  gap:10px;align-items:end;
+}
+@media(max-width:900px){
+  .serial-form{grid-template-columns:1fr 1fr}
+}
+
+.mono-box{
+  padding:14px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  border-radius:var(--r-md);
+  font-family:var(--mono);font-size:12px;
+  color:var(--mut);line-height:1.55;
+}
+.mono-box b{color:var(--tx);font-weight:600}
+
+.conn-diagram{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  gap:18px;align-items:stretch;
+  padding:6px 0;
+}
+@media(max-width:900px){
+  .conn-diagram{grid-template-columns:1fr}
+  .conn-diagram .link-column{flex-direction:row!important;height:60px;width:100%}
+  .conn-diagram .link-line{flex:1;width:auto;height:2px}
+}
+.node-card{
+  padding:18px;
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-xl);
+}
+.node-card.kart{border-left:4px solid var(--pr)}
+.node-card.pit{border-left:4px solid var(--blue)}
+.node-title{
+  display:flex;justify-content:space-between;
+  align-items:center;gap:10px;margin-bottom:10px;
+}
+.node-title span:first-child{
+  font-family:var(--sans);font-size:14px;
+  font-weight:700;color:var(--tx);
+}
+.node-main{
+  font-family:var(--mono);font-size:34px;
+  font-weight:700;color:var(--pr);
+  line-height:1;letter-spacing:-.04em;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 0 16px var(--pr-glow);
+  margin:8px 0;
+}
+.node-card.pit .node-main{color:var(--blue);text-shadow:0 0 16px var(--blue-glow)}
+.node-sub{
+  font-family:var(--mono);font-size:11px;
+  color:var(--mut);font-weight:500;
+}
+.node-stats{
+  display:grid;grid-template-columns:repeat(2,1fr);
+  gap:6px;margin-top:12px;
+}
+.node-stats > div{
+  padding:8px 10px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  border-radius:9px;
+}
+.node-stats span{
+  display:block;font-family:var(--mono);
+  font-size:9px;color:var(--mut);
+  text-transform:uppercase;letter-spacing:.09em;
+  margin-bottom:3px;font-weight:700;
+}
+.node-stats b{
+  font-family:var(--mono);font-size:13.5px;
+  font-weight:700;color:var(--tx);
+  font-variant-numeric:tabular-nums;
+}
+
+.link-column{
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:6px;min-width:80px;
+}
+.link-dot{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--soft);border:2px solid var(--bor);
+  display:grid;place-items:center;
+  font-family:var(--mono);font-size:10px;
+  font-weight:700;color:var(--mut);
+}
+.link-line{
+  width:2px;flex:1;
+  background:linear-gradient(180deg,var(--pr) 0%,var(--blue) 100%);
+  border-radius:99px;min-height:40px;
+  animation:linkPulse 2s ease-in-out infinite;
+}
+@keyframes linkPulse{0%,100%{opacity:.6}50%{opacity:1}}
+
+.signal-bars{
+  display:flex;align-items:flex-end;gap:6px;
+  height:54px;
+}
+.signal-bars i{
+  display:block;width:13px;
+  background:var(--soft2);border-radius:4px;
+  border:1px solid var(--bor);
+  transition:var(--t);
+}
+.signal-bars i:nth-child(1){height:25%}
+.signal-bars i:nth-child(2){height:50%}
+.signal-bars i:nth-child(3){height:75%}
+.signal-bars i:nth-child(4){height:100%}
+.signal-bars i.on{background:var(--green);border-color:var(--green);box-shadow:0 0 8px var(--green-glow)}
+.signal-bars i.warn{background:var(--orange);border-color:var(--orange)}
+
+.packet-log{
+  max-height:240px;overflow:auto;
+  padding:8px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  border-radius:var(--r-md);
+  font-family:var(--mono);font-size:11px;
+}
+.packet-log > div{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:10px;padding:6px 8px;
+  border-bottom:1px solid var(--div);
+}
+.packet-log > div:last-child{border-bottom:none}
+.packet-log b{color:var(--mut);font-weight:600;white-space:nowrap}
+.packet-log span{color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.diagnose-only{display:none}
+body.diagnose-on .diagnose-only{display:block}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+.overlay{
+  position:fixed;inset:0;z-index:200;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(5,7,15,.78);
+  padding:20px;
+  backdrop-filter:blur(14px) saturate(180%);
+  -webkit-backdrop-filter:blur(14px) saturate(180%);
+  animation:overlayIn .25s ease;
+}
+.overlay.show{display:flex}
+@keyframes overlayIn{from{opacity:0}to{opacity:1}}
+
+.dialog{
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-2xl);
+  padding:28px;
+  max-width:560px;width:100%;
+  max-height:90vh;overflow:auto;
+  box-shadow:var(--sh-lg);
+  animation:dialogIn .3s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes dialogIn{
+  from{opacity:0;transform:scale(.92) translateY(20px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
+.dialog h3{
+  font-family:var(--sans);font-size:19px;
+  font-weight:700;margin-bottom:8px;
+  letter-spacing:-.02em;
+}
+.dialog p{
+  color:var(--tx-dim);font-size:13.5px;
+  margin-bottom:16px;line-height:1.6;
+}
+.dialog-btns{
+  display:flex;gap:10px;justify-content:flex-end;
+  margin-top:18px;
+}
+
+/* ============================================================
+   PIT WALL OVERLAY
+   ============================================================ */
+#pitwallOverlay{
+  position:fixed;inset:0;z-index:300;
+  background:radial-gradient(ellipse at center,#0d1224 0%,#03050b 80%);
+  display:none;flex-direction:column;
+  padding:18px 24px;
+  font-family:var(--sans);
+  overflow:hidden;
+}
+#pitwallOverlay.show{display:flex}
+.pw-top{
+  display:flex;justify-content:space-between;
+  align-items:center;
+  padding-bottom:14px;
+  border-bottom:1px solid var(--bor);
+  flex-shrink:0;
+}
+.pw-logo{
+  font-size:18px;color:var(--pr);font-weight:800;
+  letter-spacing:-.02em;
+  text-shadow:0 0 16px var(--pr-glow);
+  font-family:var(--mono);
+}
+.pw-top-info{
+  display:flex;gap:24px;
+  font-family:var(--mono);font-size:12px;
+  color:var(--mut);font-weight:500;
+}
+.pw-top-info b{color:var(--tx);font-weight:700}
+.pw-close{
+  background:var(--soft);
+  border:1px solid var(--bor);
+  color:var(--tx);
+  padding:9px 14px;
+  border-radius:11px;
+  cursor:pointer;
+  font-family:var(--sans);font-size:12px;
+  font-weight:600;
+  transition:var(--t);
+}
+.pw-close:hover{background:var(--soft2)}
+.pw-hero{
+  flex:1;display:grid;
+  grid-template-columns:1fr 1.7fr 1fr;
+  gap:18px;padding:20px 0;
+  align-content:center;min-height:0;
+}
+.pw-side,.pw-center{
+  display:flex;flex-direction:column;
+  justify-content:center;align-items:center;
+  padding:22px;
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-2xl);
+  position:relative;overflow:hidden;
+  box-shadow:var(--sh-md);
+}
+.pw-side::before,.pw-center::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--pr),transparent);
+  opacity:.5;
+}
+.pw-label{
+  font-family:var(--mono);font-size:11px;
+  color:var(--mut);text-transform:uppercase;
+  letter-spacing:.13em;font-weight:700;
+  margin-bottom:14px;
+}
+.pw-side-val{
+  font-family:var(--mono);
+  font-size:clamp(56px,8.5vw,96px);
+  font-weight:700;color:var(--pr);
+  line-height:.92;letter-spacing:-.05em;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 0 32px var(--pr-glow);
+  text-align:center;
+}
+.pw-unit{font-family:var(--mono);font-size:13px;color:var(--mut);margin-top:6px;font-weight:500}
+.pw-side-sub{font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:14px;font-weight:500}
+.pw-side-sub b{color:var(--tx);font-weight:700}
+.pw-delta-val{
+  font-family:var(--mono);
+  font-size:clamp(72px,11vw,140px);
+  font-weight:700;line-height:.92;
+  letter-spacing:-.06em;
+  font-variant-numeric:tabular-nums;
+  text-align:center;
+}
+.pw-delta-val.faster{color:var(--green);text-shadow:0 0 40px var(--green-glow)}
+.pw-delta-val.slower{color:var(--red);text-shadow:0 0 40px var(--red-glow)}
+.pw-delta-val.same{color:var(--mut)}
+.pw-delta-sub{font-family:var(--mono);font-size:12px;color:var(--mut);margin-top:14px;font-weight:500}
+.pw-sectors{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:12px;padding:14px 0;
+  border-top:1px solid var(--bor);flex-shrink:0;
+}
+.pw-sector{
+  padding:14px 18px;background:var(--surf);
+  border:1px solid var(--bor);border-radius:var(--r-lg);
+  text-align:center;
+}
+.pw-sector-label{font-family:var(--mono);font-size:11px;color:var(--mut);margin-bottom:6px;letter-spacing:.12em;font-weight:700;text-transform:uppercase}
+.pw-sector-time{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--tx);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.pw-sector-time.best{color:var(--green);text-shadow:0 0 12px var(--green-glow)}
+.pw-sector-time.slower{color:var(--red);text-shadow:0 0 12px var(--red-glow)}
+.pw-footer{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:10px;padding-top:14px;
+  border-top:1px solid var(--bor);flex-shrink:0;
+}
+.pw-foot-cell{
+  display:flex;flex-direction:column;
+  padding:10px 14px;background:var(--surf);
+  border:1px solid var(--bor);border-radius:var(--r-md);
+}
+.pw-foot-l{font-family:var(--mono);font-size:9px;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+.pw-foot-v{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--tx);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:1100px){
+  .pw-hero{grid-template-columns:1fr;gap:12px}
+  .pw-footer{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Track Editor */
+#editorCanvas{
+  width:100%;height:300px;
+  border-radius:var(--r-md);
+  background:radial-gradient(ellipse at center,var(--surf2) 0%,var(--surf) 100%);
+  display:block;cursor:default;
+  border:1px solid var(--bor);
+}
+.editor-row{
+  border-left:4px solid;
+  padding:4px 0 4px 14px;
+  margin-bottom:14px;
+}
+.editor-row .editor-row-label{
+  font-family:var(--mono);font-size:11px;
+  font-weight:700;letter-spacing:.08em;
+  margin-bottom:8px;
+  text-transform:uppercase;
+}
+.editor-row-inputs{display:flex;gap:6px;flex-wrap:wrap}
+.editor-row-inputs input{flex:1;min-width:80px}
+.editor-row-inputs input.heading{flex:0 0 60px;max-width:60px}
+
+/* Toast */
+#rcToast{
+  position:fixed;bottom:32px;
+  left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:13px;
+  padding:14px 22px;
+  font-family:var(--sans);font-size:13.5px;
+  color:var(--tx);font-weight:600;
+  z-index:400;opacity:0;
+  transition:var(--t);
+  box-shadow:var(--sh-lg);
+  pointer-events:none;
+}
+#rcToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Footer status bar */
+.statusbar{
+  margin-top:auto;
+  padding:10px 32px;
+  background:rgba(7,9,18,.5);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-top:1px solid var(--bor);
+  font-family:var(--mono);font-size:10.5px;
+  color:var(--mut);
+  display:flex;gap:18px;
+  font-weight:500;
+  flex-wrap:wrap;
+}
+.statusbar span b{color:var(--tx-dim);font-weight:700}
+
+/* Utilities */
+.hidden{display:none!important}
+.w100{width:100%}
+.muted-text{color:var(--mut)}
+.center{text-align:center}
+.section-title{
+  font-family:var(--sans);font-weight:700;
+  font-size:14px;color:var(--tx-dim);
+  letter-spacing:-.005em;
+  margin-bottom:10px;
+}
+::selection{background:var(--pr-soft);color:var(--pr)}
+
+/* Mobile sidebar */
+.mobile-burger{display:none}
+@media(max-width:900px){
+  :root{--side-w:0px}
+  .sidebar{transform:translateX(-100%);transition:transform .3s ease}
+  .sidebar.open{transform:translateX(0);width:248px}
+  .main{margin-left:0}
+  .mobile-burger{display:inline-flex}
+  .topbar{padding:14px 18px}
+  .content{padding:18px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SIDEBAR
+     ============================================================ -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="brand-mark" aria-label="RasiCross Logo">
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Karo-Flagge oben -->
+        <g>
+          <rect x="6" y="6" width="5" height="5" fill="#0a0e0a"/>
+          <rect x="11" y="11" width="5" height="5" fill="#0a0e0a"/>
+          <rect x="6" y="11" width="5" height="5" fill="#0a0e0a" opacity=".25"/>
+          <rect x="11" y="6" width="5" height="5" fill="#0a0e0a" opacity=".25"/>
+        </g>
+        <!-- "RC" Monogramm groß und mittig -->
+        <g fill="#0a0e0a" font-family="'JetBrains Mono', monospace" font-weight="900" font-style="italic">
+          <text x="22" y="42" font-size="28" letter-spacing="-2">RC</text>
+        </g>
+        <!-- Speed-Lines unten -->
+        <g stroke="#0a0e0a" stroke-linecap="round">
+          <line x1="40" y1="52" x2="58" y2="52" stroke-width="3"/>
+          <line x1="46" y1="57" x2="58" y2="57" stroke-width="2.5" opacity=".55"/>
+        </g>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="brand-name">RasiCross</div>
+      <div class="brand-sub">by Jim Lutgen</div>
+    </div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Cockpit</div>
+    <button class="nav-item active" data-tab="live">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+      Live
+    </button>
+    <button class="nav-item" data-tab="races">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 19V5l14 7-14 7z"/></svg></span>
+      Rennen
+    </button>
+    <button class="nav-item" data-tab="drivers">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg></span>
+      Fahrer
+    </button>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">Setup</div>
+    <button class="nav-item" data-tab="track">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 8c4-6 12-6 16 0M4 16c4 6 12 6 16 0M2 12h20"/></svg></span>
+      Strecke
+    </button>
+    <button class="nav-item" data-tab="connection">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 17l3 3 3-3M12 20V6M5 9l3-3 4 4 4-4 3 3"/></svg></span>
+      Verbindung
+    </button>
+    <button class="nav-item" data-tab="settings">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></span>
+      Einstellungen
+    </button>
+  </div>
+
+  <div class="side-foot">
+    <div class="conn-card" id="sideConnCard">
+      <span class="conn-dot"></span>
+      <div class="conn-info">
+        <div class="conn-info-l">Verbindung</div>
+        <div class="conn-info-v" id="sideConnText">Offline</div>
+      </div>
+    </div>
+    <button class="btn primary w100" id="connectBtn">USB verbinden</button>
+    <div class="row" style="gap:6px">
+      <button class="btn ghost icon-only" id="themeBtn" title="Theme wechseln">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <button class="btn ghost icon-only" id="pitwallBtn" title="Pit-Wall Vollbild">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V3h5M21 8V3h-5M3 16v5h5M21 16v5h-5"/></svg>
+      </button>
+      <button class="btn ghost icon-only mobile-burger" id="closeMobileBtn">×</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ============================================================
+     MAIN
+     ============================================================ -->
+<div class="main">
+
+<header class="topbar">
+  <button class="btn ghost icon-only mobile-burger" id="openMobileBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  <div>
+    <div class="topbar-title" id="topTitle">Live Telemetrie</div>
+    <div class="topbar-sub" id="topSub">Echtzeit-Daten von Mäher & Bridge</div>
+  </div>
+  <div class="topbar-spacer"></div>
+  <div class="pill" id="hzPill"><span class="dot"></span><span id="hzText">0</span> Hz</div>
+  <div class="pill" id="topConnPill"><span class="dot"></span><span id="topConnText">Offline</span></div>
+</header>
+
+<main class="content">
+
+<!-- ============================================================
+     TAB: LIVE
+     ============================================================ -->
+<section class="tab active" id="tab-live">
+
+  <!-- Race control bar -->
+  <div class="race-bar">
+    <div class="race-bar-l">
+      <span class="race-bar-label">Rennen / Countdown</span>
+      <span class="race-bar-cd" id="countdown">--:--</span>
+    </div>
+    <div class="race-bar-meta" id="raceMeta">
+      <span>Bereit</span>
+      <span class="sep">·</span>
+      <span>Erstelle ein Rennen im Tab <b>Rennen</b></span>
+    </div>
+    <div class="race-bar-actions">
+      <button class="btn good" id="startRaceBtn" disabled>
+        <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9z"/></svg>
+        Start
+      </button>
+      <button class="btn blue" id="changeDriverBtn" disabled>
+        <svg viewBox="0 0 24 24"><path d="M16 3l4 4-4 4M20 7H8M8 21l-4-4 4-4M4 17h12"/></svg>
+        Wechsel
+      </button>
+      <button class="btn pitcall" id="pitCallBtn" title="Boxenruf">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-3 18-7-7z"/></svg>
+        BOX
+      </button>
+      <select id="oledPageSelect" title="OLED-Seite">
+        <option value="auto">⟳ Auto</option>
+        <option value="speed">1 · Speed</option>
+        <option value="race">2 · Rennen</option>
+        <option value="rpm">3 · RPM</option>
+        <option value="delta">4 · Delta</option>
+        <option value="diag">5 · Diagnose</option>
+      </select>
+      <button class="btn danger" id="endRaceBtn" disabled>Ende</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row" style="margin-bottom:18px">
+    <div class="kpi accent">
+      <div class="kpi-head">
+        <span class="kpi-l">Speed</span>
+        <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 18 0M12 12l5-3"/></svg></span>
+      </div>
+      <div class="kpi-v" id="kSpeed">0<small>km/h</small></div>
+      <div class="kpi-sub">Max <b id="kSpeedMax">0</b></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-head">
+        <span class="kpi-l">RPM</span>
+        <span class="kpi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg></span>
+      </div>
+      <div class="kpi-v" id="kRpm">0</div>
+      <div class="kpi-sub">Max <b id="kRpmMax">0</b></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-head">
+        <span class="kpi-l">G-Kraft</span>
+        <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>
+      </div>
+      <div class="kpi-v" id="kG">0.0<small>G</small></div>
+      <div class="kpi-sub">Max <b id="kGMax">0.0</b></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-head">
+        <span class="kpi-l">Aktuelle Runde</span>
+        <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3"/></svg></span>
+      </div>
+      <div class="kpi-v" id="kLap" style="font-size:clamp(30px,3.6vw,40px)">--:--.---</div>
+      <div class="kpi-sub">Best <b id="kLapBest">--:--.---</b></div>
+    </div>
+  </div>
+
+  <!-- Live delta -->
+  <div class="delta-banner hidden" id="deltaBanner">
+    <span class="delta-label">Δ Live-Delta</span>
+    <span class="delta-time same" id="deltaTime">+0.000s</span>
+    <span class="delta-ref" id="deltaRef">vs. beste Runde</span>
+  </div>
+
+  <!-- Sectors -->
+  <div class="sector-panel" id="sectorPanel" style="display:none">
+    <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
+    <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
+    <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
+  </div>
+
+  <!-- Map + gauges -->
+  <div class="grid g-2-1" style="margin-bottom:18px">
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Streckenkarte</span>
+        <button class="heat-btn" id="heatmapBtn">Heatmap</button>
+      </div>
+      <div class="map"><canvas id="trackCanvas"></canvas></div>
+      <div class="row" style="margin-top:14px;gap:10px">
+        <div class="stat"><div class="t">GPS</div><div class="n" id="gpsStatus">--</div></div>
+        <div class="stat"><div class="t">Lat</div><div class="n" id="latText">--</div></div>
+        <div class="stat"><div class="t">Lon</div><div class="n" id="lonText">--</div></div>
+        <div class="stat"><div class="t">Punkte</div><div class="n" id="trackPoints">0</div></div>
+        <div class="stat"><div class="t">Pakete</div><div class="n" id="packetsText">0</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <span class="card-title">Tacho</span>
+        <span class="card-sub">Live</span>
+      </div>
+      <div class="tacho-wrap">
+        <svg class="tacho-svg" viewBox="0 0 220 130">
+          <defs>
+            <linearGradient id="speedGrad" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0" stop-color="#3ee08a"/>
+              <stop offset=".5" stop-color="#c8ff3d"/>
+              <stop offset=".75" stop-color="#ffa336"/>
+              <stop offset="1" stop-color="#ff5470"/>
+            </linearGradient>
+          </defs>
+          <path d="M20 110 A90 90 0 0 1 200 110" stroke="rgba(255,255,255,.08)" stroke-width="14" fill="none" stroke-linecap="round"/>
+          <path id="speedArc" d="M20 110 A90 90 0 0 1 200 110" stroke="url(#speedGrad)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314"/>
+          <text x="110" y="92" text-anchor="middle" font-family="JetBrains Mono" font-size="42" font-weight="700" fill="currentColor" id="speedDial">0</text>
+          <text x="110" y="115" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#6f7796" font-weight="600">km/h</text>
+        </svg>
+        <div class="rpm-block">
+          <div class="rpm-bar"><div class="rpm-fill" id="rpmFill"></div></div>
+          <div class="rpm-row">
+            <span>0 rpm</span>
+            <span id="rpmScale">10000</span>
+          </div>
+        </div>
+        <div style="width:100%;text-align:center">
+          <canvas id="gMeterCanvas"></canvas>
+          <div class="g-readout">
+            <span>Gx <b id="gxText">0.0</b></span>
+            <span>Gy <b id="gyText">0.0</b></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="grid g2" style="margin-bottom:18px">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Speed & RPM Verlauf</span><span class="card-sub">Live</span></div>
+      <div style="position:relative;aspect-ratio:2.4;background:var(--soft);border:1px solid var(--bor);border-radius:var(--r-md)">
+        <canvas id="srCanvas" style="width:100%;height:100%;display:block"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">G-Kraft Verlauf</span><span class="card-sub">Live</span></div>
+      <div style="position:relative;aspect-ratio:2.4;background:var(--soft);border:1px solid var(--bor);border-radius:var(--r-md)">
+        <canvas id="gCanvas" style="width:100%;height:100%;display:block"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stints + lap table -->
+  <div class="grid g2">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Stints</span><span class="card-sub" id="currentDriverName">--</span></div>
+      <div id="stintsList"><div class="muted">Noch kein Stint.</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Letzte Runden</span><span class="card-sub">aktives Rennen</span></div>
+      <div class="tbl-wrap">
+        <table id="lapTable">
+          <thead><tr><th>#</th><th>Zeit</th><th>Fahrer</th><th>Max km/h</th><th>Max RPM</th></tr></thead>
+          <tbody id="lapTableBody"><tr><td colspan="5" class="muted">Noch keine Runden</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     TAB: STRECKE — PIT-WALL Redesign v3
+     ============================================================ -->
+<section class="tab" id="tab-track">
+
+  <!-- HERO HEADER -->
+  <div class="pw-hero">
+    <div class="pw-hero-bg"></div>
+    <div class="pw-hero-grid"></div>
+    <div class="pw-hero-content">
+      <div class="pw-hero-left">
+        <div class="pw-eyebrow">
+          <span class="pw-eyebrow-dot"></span>
+          <span>STRECKEN-MANAGEMENT</span>
+        </div>
+        <h1 class="pw-hero-title">Pit Wall<span class="pw-hero-accent">.</span></h1>
+        <p class="pw-hero-sub">GPS-Aufnahme · Sektoren · Bibliothek</p>
+      </div>
+      <div class="pw-hero-telemetry">
+        <div class="pw-tel">
+          <div class="pw-tel-label">GPS</div>
+          <div class="pw-tel-value" id="scanStateValue">Warte auf GPS</div>
+          <div class="pw-tel-bar"><span class="pw-tel-bar-fill" id="statusGpsDot"></span></div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Punkte</div>
+          <div class="pw-tel-value mono" id="scanPointsValue">0</div>
+          <div class="pw-tel-foot">aktuelle Aufnahme</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Modus</div>
+          <div class="pw-tel-value" id="scanModePill">Manuell</div>
+          <div class="pw-tel-foot" id="scanModeDot" style="display:none"></div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Gate</div>
+          <div class="pw-tel-value mono" id="gateSizeText">--</div>
+          <div class="pw-tel-foot">Start-/Ziel-Linie</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKFLOW STRIP -->
+  <div class="pw-workflow">
+    <div class="pw-flow-step active" id="step1">
+      <div class="pw-flow-marker">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+      </div>
+      <div class="pw-flow-text">
+        <div class="pw-flow-num">01</div>
+        <div class="pw-flow-title">Aufnehmen</div>
+      </div>
+    </div>
+    <div class="pw-flow-arrow">→</div>
+    <div class="pw-flow-step" id="step2">
+      <div class="pw-flow-marker">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </div>
+      <div class="pw-flow-text">
+        <div class="pw-flow-num">02</div>
+        <div class="pw-flow-title">Sektoren</div>
+      </div>
+    </div>
+    <div class="pw-flow-arrow">→</div>
+    <div class="pw-flow-step" id="step3">
+      <div class="pw-flow-marker">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+      </div>
+      <div class="pw-flow-text">
+        <div class="pw-flow-num">03</div>
+        <div class="pw-flow-title">Speichern</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMAND DECK: Map (links) + Stack (rechts) -->
+  <div class="pw-deck">
+
+    <!-- MAP HERO -->
+    <div class="pw-map-card">
+      <div class="pw-map-frame">
+        <span class="pw-corner tl"></span><span class="pw-corner tr"></span>
+        <span class="pw-corner bl"></span><span class="pw-corner br"></span>
+        <span class="pw-map-tag">SCAN ARENA</span>
+        <span class="pw-map-coord">52.5074°N · 13.4050°E</span>
+        <canvas id="scanCanvas"></canvas>
+        <div class="pw-map-empty" id="trackEmptyState">
+          <div class="pw-map-empty-icon">
+            <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 00-8 8c0 5 8 12 8 12s8-7 8-12a8 8 0 00-8-8z"/></svg>
+          </div>
+          <div class="pw-map-empty-title">Bereit zum Scannen</div>
+          <div class="pw-map-empty-sub">Drücke <kbd>Scan starten</kbd> und fahre eine vollständige Runde.</div>
+        </div>
+      </div>
+
+      <!-- Action-Cluster -->
+      <div class="pw-cluster">
+        <button class="pw-btn primary" id="scanTrackBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+          <span>Scan starten</span>
+        </button>
+        <button class="pw-btn ghost" id="clearTrackBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+          <span>Verwerfen</span>
+        </button>
+        <div class="pw-cluster-divider"></div>
+        <div class="pw-inline-input">
+          <span class="pw-input-label">Gate</span>
+          <input id="gateWidth" type="number" min="4" max="40" value="14">
+          <span class="pw-input-suffix">m</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STACK rechts -->
+    <div class="pw-stack">
+
+      <!-- Sektoren-Modul -->
+      <div class="pw-module">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">
+            <span class="pw-mod-tag">A</span>
+            Sektoren
+          </div>
+          <button class="pw-mod-action" id="clearSectorsBtn">↻ Reset</button>
+        </div>
+
+        <div class="pw-sectors">
+          <div class="pw-sector s1">
+            <div class="pw-sec-num">S1</div>
+            <div class="pw-sec-info">
+              <div class="pw-sec-label">Start / Ziel</div>
+              <div class="pw-sec-status">automatisch</div>
+            </div>
+            <div class="pw-sec-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 12l2 2 4-4"/></svg>
+            </div>
+          </div>
+
+          <div class="pw-sector s2" id="sectorBox2">
+            <div class="pw-sec-num">S2</div>
+            <div class="pw-sec-info">
+              <div class="pw-sec-label">Sektor 2</div>
+              <div class="pw-sec-status" id="sectorStatus2">nicht gesetzt</div>
+            </div>
+            <button class="pw-sec-set" id="setSector2Btn">+</button>
+          </div>
+
+          <div class="pw-sector s3" id="sectorBox3">
+            <div class="pw-sec-num">S3</div>
+            <div class="pw-sec-info">
+              <div class="pw-sec-label">Sektor 3</div>
+              <div class="pw-sec-status" id="sectorStatus3">nicht gesetzt</div>
+            </div>
+            <button class="pw-sec-set" id="setSector3Btn">+</button>
+          </div>
+        </div>
+
+        <div class="pw-mod-hint">
+          Tippe <b>+</b>, dann auf die Karte — die Linie wird quer zur Fahrtrichtung gelegt.
+        </div>
+      </div>
+
+      <!-- Speichern-Modul -->
+      <div class="pw-module pw-save">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">
+            <span class="pw-mod-tag">B</span>
+            Speichern
+          </div>
+        </div>
+        <div class="pw-save-stack">
+          <input id="trackSaveName" class="pw-save-input" placeholder="z.B. Heimkurs Süd">
+          <button class="pw-btn primary block" id="saveTrackBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>In Bibliothek speichern</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LIBRARY -->
+  <div class="pw-library">
+    <div class="pw-lib-head">
+      <div class="pw-lib-title">
+        <span class="pw-lib-bar"></span>
+        <span>Bibliothek</span>
+        <span class="pw-lib-count"><span id="savedTrackCount">0</span> · Strecken</span>
+      </div>
+    </div>
+    <div class="track-list" id="savedTracksList">
+      <div class="pw-lib-empty">
+        <div class="pw-lib-empty-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <div class="pw-lib-empty-title">Noch keine Strecken</div>
+        <div class="pw-lib-empty-sub">Aufgenommene Strecken erscheinen hier — gespeichert lokal im Browser.</div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ============================================================
+     TAB: RENNEN
+     ============================================================ -->
+<section class="tab" id="tab-races">
+  <div class="grid g-1-2">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Neues Rennen</span><span class="card-sub">erstellen</span></div>
+      <div class="fieldset">
+        <div class="field">
+          <label>Rennname</label>
+          <input id="newRaceName" placeholder="z.B. Sonntag Sprint">
+        </div>
+        <div class="field">
+          <label>Strecke</label>
+          <select id="newRaceTrack"><option value="">Keine Strecken gespeichert</option></select>
+        </div>
+        <div class="field">
+          <label>Format</label>
+          <select id="newRaceLengthType">
+            <option value="time">Zeit (Minuten)</option>
+            <option value="laps">Runden</option>
+            <option value="free">Frei (kein Limit)</option>
+          </select>
+        </div>
+        <div class="field" id="newRaceDurationField">
+          <label>Dauer (min)</label>
+          <input id="newRaceDuration" type="number" min="1" value="20">
+        </div>
+        <div class="field hidden" id="newRaceLapsField">
+          <label>Anzahl Runden</label>
+          <input id="newRaceLaps" type="number" min="1" value="10">
+        </div>
+        <div class="field">
+          <label>Start-Fahrer</label>
+          <select id="newRaceDriver"><option value="">Erst Fahrer anlegen</option></select>
+        </div>
+        <button class="btn primary" id="createRaceBtn">Rennen erstellen</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Alle Rennen</span><span class="card-sub" id="raceListCount">0</span></div>
+      <div class="race-list" id="raceList"><div class="muted">Noch keine Rennen.</div></div>
+      <div id="racesList" style="display:none"></div>
+      <span id="raceCount" style="display:none"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     TAB: FAHRER
+     ============================================================ -->
+<section class="tab" id="tab-drivers">
+  <div class="total-hero">
+    <div class="total-hero-label">Gefahrene Strecke (alle Rennen)</div>
+    <div class="total-hero-km" id="totalDistance">0<small>km</small></div>
+    <span id="totalKm" style="display:none"></span>
+    <div class="total-hero-grid" id="totalStatsGrid"></div>
+  </div>
+
+  <div class="grid g-1-2">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Neuer Fahrer</span><span class="card-sub">hinzufügen</span></div>
+      <div class="fieldset">
+        <div class="field"><label>Name</label><input id="newDriverName" placeholder="z.B. Jim"></div>
+        <div class="field"><label>Startnummer</label><input id="newDriverNumber" placeholder="1"></div>
+        <div class="field"><label>Farbe</label><input id="newDriverColor" type="color" value="#c8ff3d"></div>
+        <button class="btn primary" id="addDriverBtn">Fahrer hinzufügen</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">Fahrer & Statistiken</span><span class="card-sub" id="driverCount">0</span></div>
+      <div id="driverStatsList"><div class="muted">Noch keine Fahrer.</div></div>
+      <div id="driversList" style="display:none"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     TAB: VERBINDUNG
+     ============================================================ -->
+<section class="tab" id="tab-connection">
+  <div class="row" style="margin-bottom:18px;gap:10px;align-items:center">
+    <div>
+      <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em">Verbindung & Diagnose</h2>
+      <p style="color:var(--mut);font-size:13.5px;margin-top:4px">USB-Bridge, Demo-Modus und ESP32-Sender konfigurieren.</p>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+      <span class="pill" id="connModePill"><span class="dot"></span><span id="connModeText">Offline</span></span>
+      <span class="pill" id="connBridgePill"><span class="dot"></span><span id="connBridgeState">Offline</span></span>
+      <span class="pill"><span id="connPacketsMini">0</span> Pakete</span>
+      <button class="btn ghost" id="diagToggleBtn" style="padding:6px 12px;font-size:11px">Diagnose</button>
+    </div>
+  </div>
+
+  <div class="conn-overview">
+    <div class="stat"><div class="t">Status</div><div class="n" id="connOverviewState">Offline</div></div>
+    <div class="stat"><div class="t">Datenrate</div><div class="n" id="connOverviewHz">0 Hz</div></div>
+    <div class="stat"><div class="t">Verloren</div><div class="n" id="connOverviewLost">0</div></div>
+    <div class="stat"><div class="t">GPS</div><div class="n" id="connOverviewGps">--</div></div>
+    <div class="stat"><div class="t">Signal</div><div class="n" id="connOverviewSignal">--</div></div>
+  </div>
+
+  <div class="mode-tabs">
+    <button class="mode-tab active" id="modeSerialBtn">USB Serial</button>
+    <button class="mode-tab" id="modeDemoBtn">Demo-Modus</button>
+  </div>
+
+  <div id="serialPanel">
+    <div class="grid g2" style="margin-bottom:18px">
+      <div class="card">
+        <div class="card-head"><span class="card-title">USB-Verbindung</span><span class="card-sub">COM-Port</span></div>
+        <div class="serial-form" style="margin-bottom:14px">
+          <div class="field"><label>Port</label><select id="serialPortSelect"></select></div>
+          <div class="field"><label>Baudrate</label>
+            <select id="serialBaud">
+              <option value="115200" selected>115200</option>
+              <option value="921600">921600</option>
+              <option value="500000">500000</option>
+              <option value="230400">230400</option>
+              <option value="57600">57600</option>
+            </select>
+          </div>
+          <button class="btn ghost" id="serialRefreshBtn">↻</button>
+          <button class="btn primary" id="serialConnectBtn">Verbinden</button>
+        </div>
+        <div class="toggle-row">
+          <span class="label-text">Auto-Reconnect</span>
+          <label class="toggle"><input type="checkbox" id="autoReconnectToggle" checked><span class="toggle-knob"></span></label>
+        </div>
+        <p id="reconnectStatus" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:10px">Inaktiv</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="card-title">Verbindungsqualität</span><span class="card-sub">RSSI</span></div>
+        <div style="display:flex;gap:18px;align-items:center">
+          <div class="signal-bars" id="signalBars"><i></i><i></i><i></i><i></i></div>
+          <div>
+            <div style="font-family:var(--sans);font-size:18px;font-weight:700" id="connQualityText">Keine Daten</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:3px"><span id="connRssi">--</span> · Latenz <span id="connLatency">--</span>ms</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-head"><span class="card-title">Datenfluss</span><span class="card-sub">Mäher → Bridge → Dashboard</span></div>
+      <div class="conn-diagram">
+        <div class="node-card kart">
+          <div class="node-title"><span>Mäher</span><span class="pill green" id="kartStatePill"><span class="dot"></span>wartet</span></div>
+          <div class="node-main" id="kartMainValue">0 km/h</div>
+          <div class="node-sub">RasiCross-Sender</div>
+          <div class="node-stats">
+            <div><span>Sequenz</span><b id="connSeq">--</b></div>
+            <div><span>Alter</span><b id="connAge">--</b></div>
+            <div><span>Speed</span><b id="connSpeed">0</b></div>
+            <div><span>RPM</span><b id="connRpm">0</b></div>
+          </div>
+        </div>
+        <div class="link-column">
+          <div class="link-dot">USB</div>
+          <div class="link-line"></div>
+          <div class="link-dot">RF</div>
+        </div>
+        <div class="node-card pit">
+          <div class="node-title"><span>Pit / Dashboard</span><span class="pill blue" id="pitStatePill"><span class="dot"></span>offline</span></div>
+          <div class="node-main" id="pitMainValue">OFF</div>
+          <div class="node-sub">Dieser Browser</div>
+          <div class="node-stats">
+            <div><span>USB</span><b id="connUsbState">OFF</b></div>
+            <div><span>Hz</span><b id="connHz">0</b></div>
+            <div><span>Verloren</span><b id="connLost">0</b></div>
+            <div><span>GPS</span><b id="connGpsFix">--</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g2 diagnose-only" style="margin-bottom:18px">
+      <div class="card">
+        <div class="card-head"><span class="card-title">MAC-Adressen</span><span class="card-sub">Diagnose</span></div>
+        <div class="mono-box">
+          Bridge: <b id="connBridgeMac">--</b><br>
+          Kart: <b id="connRasiMac">--</b><br>
+          GPS-Alter: <b id="connGpsAge">--</b>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title">Raw-Werte</span><span class="card-sub">Sensor</span></div>
+        <div class="stat-flex">
+          <div class="stat"><div class="t">RPM Pulse/s</div><div class="n" id="connPulseHz">--</div></div>
+          <div class="stat"><div class="t">Pulse Count</div><div class="n" id="connPulseCount">--</div></div>
+          <div class="stat"><div class="t">Raw G</div><div class="n" id="connRawG">--</div></div>
+          <div class="stat"><div class="t">Errors</div><div class="n" id="connErrCount">0</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card diagnose-only">
+      <div class="card-head"><span class="card-title">Live Paket-Log</span><span class="card-sub">letzte Daten</span></div>
+      <div class="packet-log" id="packetLog">
+        <div><b>--:--:--</b><span>Warte auf Daten…</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="demoPanel" class="hidden">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Demo-Modus</span><span class="card-sub" id="demoModeText">Bereit</span></div>
+      <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
+        Simuliert eine Runde auf einer virtuellen Strecke. Ideal zum Testen aller Funktionen ohne Hardware.
+      </p>
+      <div class="row">
+        <button class="btn primary" id="demoStartBtn">Demo starten</button>
+        <button class="btn danger hidden" id="demoStopBtn">Demo stoppen</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     TAB: EINSTELLUNGEN
+     ============================================================ -->
+<section class="tab" id="tab-settings">
+  <div class="grid g2">
+    <div class="card">
+      <div class="card-head"><span class="card-title">Anzeige & Skalen</span><span class="card-sub">Dashboard-Limits</span></div>
+      <div class="fieldset">
+        <div class="field"><label>Max Speed (km/h)</label><input type="number" id="setMaxSpeed" value="80" min="20" max="200"></div>
+        <div class="field"><label>Max RPM</label><input type="number" id="setMaxRpm" value="10000" min="3000" max="20000" step="500"></div>
+        <div class="field"><label>RPM-Warnung ab</label><input type="number" id="setRpmWarn" value="9000" min="2000" max="20000" step="500"></div>
+        <div class="field"><label>G-Skala (max ±G)</label>
+          <select id="setGScale"><option value="2">±2G</option><option value="3" selected>±3G</option><option value="4">±4G</option><option value="5">±5G</option></select>
+        </div>
+        <div class="field"><label>Mindest-Rundenzeit (s)</label><input type="number" id="setMinLap" value="10" min="3" max="300"></div>
+        <div class="field"><label>OLED-Update Intervall (ms)</label><input type="number" id="setDisplayUpdateMs" value="500" min="100" max="2000" step="50"></div>
+        <button class="btn primary" id="saveSettingsBtn">Übernehmen</button>
+      </div>
+      <p id="settingsHint" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:10px"></p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-title">IMU Kalibrierung</span><span class="card-sub">G-Sensor</span></div>
+      <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
+        Stelle den Mäher auf eine ebene Fläche, dann "Nullpunkt setzen". Achsen-Korrekturen unten.
+      </p>
+      <div class="row" style="margin-bottom:14px">
+        <div class="stat"><div class="t">Gx Offset</div><div class="n" id="gxOffsetText">0.00</div></div>
+        <div class="stat"><div class="t">Gy Offset</div><div class="n" id="gyOffsetText">0.00</div></div>
+      </div>
+      <div class="toggle-row"><span class="label-text">Gx invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGx"><span class="toggle-knob"></span></label></div>
+      <div class="toggle-row"><span class="label-text">Gy invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGy"><span class="toggle-knob"></span></label></div>
+      <div class="toggle-row"><span class="label-text">Gx ↔ Gy tauschen</span><label class="toggle"><input type="checkbox" id="setSwapG"><span class="toggle-knob"></span></label></div>
+      <button class="btn primary" id="zeroImuBtn" style="width:100%;margin-top:14px">Nullpunkt setzen</button>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-title">ESP32 Sender</span><span class="card-sub">Live-Konfig</span></div>
+      <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
+        Sendet Konfiguration über USB → Bridge → Kart-ESP. Wirkt sofort.
+      </p>
+      <div class="fieldset">
+        <div class="field"><label>Max RPM (Sender)</label><input type="number" id="espMaxRpm" value="6000"></div>
+        <div class="field"><label>Warn RPM (Sender)</label><input type="number" id="espWarnRpm" value="5500"></div>
+        <div class="field"><label>Sende-Intervall (ms)</label><input type="number" id="espSendMs" value="80" min="20" max="500"></div>
+        <div class="field"><label>Pulses per Revolution</label><input type="number" id="espPulses" value="1" min="1" max="32"></div>
+        <button class="btn primary" id="espSendBtn">An ESP32 senden</button>
+      </div>
+      <p id="espSendStatus" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:8px;text-align:center;min-height:14px"></p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-title">Daten</span><span class="card-sub">Backup & Reset</span></div>
+      <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
+        Alle Einstellungen, Fahrer, Strecken und Rennen werden im Browser gespeichert.
+      </p>
+      <div class="fieldset">
+        <button class="btn ghost" id="exportAllBtn">📥 Alle Daten exportieren</button>
+        <button class="btn ghost" id="importAllBtn">📤 Daten importieren</button>
+        <input type="file" id="importAllFile" accept=".json" style="display:none">
+        <button class="btn danger" id="resetAllBtn" style="margin-top:8px">🗑 Alle Daten zurücksetzen</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- Status bar -->
+<footer class="statusbar">
+  <span>● Session <b id="sessionText">00:00</b></span>
+  <span>◇ Speicher <b id="storageState">--</b></span>
+  <span>⚐ Gesamt <b id="footerKm">0 km</b></span>
+  <span style="margin-left:auto">RasiCross Telemetrie · v9.6 · <b style="color:var(--tx)">by Jim Lutgen</b></span>
+</footer>
+
+</div><!-- /.main -->
+
+<!-- ============================================================
+     PIT-WALL OVERLAY
+     ============================================================ -->
+<div id="pitwallOverlay">
+  <div class="pw-top">
+    <span class="pw-logo"><svg viewBox="0 0 32 32" width="28" height="28" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-7px;margin-right:8px;display:inline-block"><path d="M6 19 L8 14 L20 14 L23 19 Z" fill="currentColor"/><rect x="5" y="19" width="19" height="3.5" rx=".8" fill="currentColor"/><rect x="10" y="10" width="2.5" height="4" fill="currentColor"/><path d="M22 17 L27 11 M25 10 L29 10" stroke-width="1.8"/><circle cx="9" cy="24" r="3.2" fill="currentColor"/><circle cx="9" cy="24" r="1.1" fill="#0a0e0a" stroke="none"/><circle cx="19" cy="24" r="3.2" fill="currentColor"/><circle cx="19" cy="24" r="1.1" fill="#0a0e0a" stroke="none"/></svg>RasiCross · Pit Wall</span>
+    <div class="pw-top-info">
+      <span><b id="pwSession">00:00</b> Session</span>
+      <span><b id="pwLapCount">0</b> Runden</span>
+    </div>
+    <button class="pw-close" id="pwCloseBtn">ESC · Schließen</button>
+  </div>
+  <div class="pw-hero">
+    <div class="pw-side">
+      <div class="pw-label">Speed</div>
+      <div class="pw-side-val" id="pwSpeed">0</div>
+      <div class="pw-unit">km/h</div>
+      <div class="pw-side-sub">Max <b id="pwSpeedMax">0</b></div>
+    </div>
+    <div class="pw-center">
+      <div class="pw-label">Δ Live-Delta</div>
+      <div class="pw-delta-val same" id="pwDelta">+0.000</div>
+      <div class="pw-delta-sub" id="pwDeltaRef">vs. beste Runde</div>
+    </div>
+    <div class="pw-side">
+      <div class="pw-label">Aktuelle Runde</div>
+      <div class="pw-side-val" id="pwLap" style="font-size:clamp(36px,6vw,64px)">--:--.---</div>
+      <div class="pw-unit">Zeit</div>
+      <div class="pw-side-sub">Best <b id="pwBestLap">--:--.---</b></div>
+    </div>
+  </div>
+  <div class="pw-sectors">
+    <div class="pw-sector"><div class="pw-sector-label">S1</div><div class="pw-sector-time" id="pwS1">--</div></div>
+    <div class="pw-sector"><div class="pw-sector-label">S2</div><div class="pw-sector-time" id="pwS2">--</div></div>
+    <div class="pw-sector"><div class="pw-sector-label">S3</div><div class="pw-sector-time" id="pwS3">--</div></div>
+  </div>
+  <div class="pw-footer">
+    <div class="pw-foot-cell"><span class="pw-foot-l">Fahrer</span><span class="pw-foot-v" id="pwDriver">--</span></div>
+    <div class="pw-foot-cell"><span class="pw-foot-l">RPM</span><span class="pw-foot-v" id="pwRpm">0</span></div>
+    <div class="pw-foot-cell"><span class="pw-foot-l">G-Kraft</span><span class="pw-foot-v" id="pwG">0.0</span></div>
+    <div class="pw-foot-cell"><span class="pw-foot-l">Status</span><span class="pw-foot-v" id="pwStatus">--</span></div>
+  </div>
+</div>
+
+<!-- Track Editor -->
+<div id="editorOverlay" class="overlay">
+  <div class="dialog" style="max-width:680px">
+    <h3 id="editorTitle">Strecke bearbeiten</h3>
+    <p>Klicke einen Bereich-Button, dann auf die Karte um die Linie zu platzieren. Winkel auch manuell editierbar.</p>
+    <canvas id="editorCanvas"></canvas>
+    <div style="margin-top:14px">
+      <div class="editor-row" style="border-color:var(--green)">
+        <div class="editor-row-label" style="color:var(--green)">START / ZIEL</div>
+        <div class="editor-row-inputs">
+          <button class="btn ghost" onclick="window.editorClickTarget('start')">Auf Karte klicken</button>
+          <input id="edStartLat" placeholder="Lat" class="mono-input">
+          <input id="edStartLon" placeholder="Lon" class="mono-input">
+          <input id="edStartHead" type="number" min="0" max="359" step="1" placeholder="°" class="heading mono-input">
+        </div>
+      </div>
+      <div class="editor-row" style="border-color:var(--blue)">
+        <div class="editor-row-label" style="color:var(--blue)">S2 GRENZE</div>
+        <div class="editor-row-inputs">
+          <button class="btn ghost" onclick="window.editorClickTarget('s2')">Auf Karte klicken</button>
+          <input id="edS2Lat" placeholder="Lat" class="mono-input">
+          <input id="edS2Lon" placeholder="Lon" class="mono-input">
+          <input id="edS2Head" type="number" min="0" max="359" step="1" placeholder="°" class="heading mono-input">
+        </div>
+      </div>
+      <div class="editor-row" style="border-color:var(--orange)">
+        <div class="editor-row-label" style="color:var(--orange)">S3 GRENZE</div>
+        <div class="editor-row-inputs">
+          <button class="btn ghost" onclick="window.editorClickTarget('s3')">Auf Karte klicken</button>
+          <input id="edS3Lat" placeholder="Lat" class="mono-input">
+          <input id="edS3Lon" placeholder="Lon" class="mono-input">
+          <input id="edS3Head" type="number" min="0" max="359" step="1" placeholder="°" class="heading mono-input">
+        </div>
+      </div>
+    </div>
+    <div id="edClickHint" style="font-family:var(--mono);font-size:11px;color:var(--pr);text-align:center;min-height:16px"></div>
+    <div class="dialog-btns">
+      <button class="btn ghost" onclick="window.closeEditor()">Abbrechen</button>
+      <button class="btn primary" onclick="window.saveEditor()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Driver Change Modal -->
+<div id="driverModal" class="overlay">
+  <div class="dialog">
+    <h3>Fahrerwechsel</h3>
+    <div class="field"><label>Nächster Fahrer</label><select id="driverModalSelect"></select></div>
+    <div class="dialog-btns">
+      <button class="btn ghost" onclick="window.closeDriverModal()">Abbrechen</button>
+      <button class="btn primary" onclick="window.confirmDriverChange()">Wechseln</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic Alert -->
+<div id="rcAlertOverlay" class="overlay">
+  <div class="dialog">
+    <h3 id="rcAlertTitle">Hinweis</h3>
+    <p id="rcAlertMsg"></p>
+    <div class="dialog-btns" id="rcAlertBtns"></div>
+  </div>
+</div>
+
+<div id="rcToast"></div>
+
+<script src="rasicross.js"></script>
+</body>
+</html>
