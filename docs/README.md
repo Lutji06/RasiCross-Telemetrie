@@ -10,7 +10,7 @@ Hier liegen Screenshots und weiterführende Doku-Dateien, die im Haupt-README re
 
 So legst du den Screenshot ab:
 
-1. Dashboard öffnen (`npm start` oder `RasiCross_Telemetry_v9_6.html` im Browser)
+1. Dashboard öffnen (`npm start` oder `RasiCross_Telemetry.html` im Browser)
 2. Demo-Modus starten (für volle UI ohne Hardware)
 3. Screenshot vom Fenster machen (Windows: `Win + Shift + S`)
 4. Als `docs/screenshot.png` speichern, committen, pushen

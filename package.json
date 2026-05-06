@@ -26,7 +26,8 @@
     "files": [
       "main.js",
       "preload.js",
-      "RasiCross_Telemetry_v9_6.html",
+      "RasiCross_Telemetry.html",
+      "rasicross.js",
       "icon.ico"
     ],
     "extraResources": [

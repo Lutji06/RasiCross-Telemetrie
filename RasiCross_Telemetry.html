@@ -94,6 +94,36 @@
   --sh-lg:0 24px 60px rgba(20,30,60,.12);
 }
 
+/* Outdoor-Modus: hoher Kontrast, weisser Hintergrund, dicke Linien --
+   bei direkter Sonneneinstrahlung in der Boxengasse. */
+[data-theme=outdoor]{
+  --bg:#ffffff;
+  --bg-grad:#ffffff;
+  --surf:#ffffff;
+  --surf2:#ffffff;
+  --surf3:#f0f0f0;
+  --soft:#f5f5f5;
+  --soft2:#e8e8e8;
+  --glass:rgba(255,255,255,.95);
+  --glass-border:rgba(0,0,0,.5);
+  --tx:#000000;
+  --tx-dim:#111111;
+  --mut:#222222;
+  --dim:#444444;
+  --bor:rgba(0,0,0,.5);
+  --bor2:rgba(0,0,0,.75);
+  --div:rgba(0,0,0,.4);
+  --pr:#0066cc;
+  --pr-soft:rgba(0,102,204,.18);
+  --sh-sm:0 0 0 1px rgba(0,0,0,.5);
+  --sh-md:0 0 0 1px rgba(0,0,0,.5);
+  --sh-lg:0 0 0 2px rgba(0,0,0,.6);
+}
+[data-theme=outdoor] body{font-weight:600}
+[data-theme=outdoor] .topbar,
+[data-theme=outdoor] .sidebar,
+[data-theme=outdoor] .card{border:2px solid #000}
+
 html,body{
   min-height:100%;
   font-family:var(--sans);
@@ -1986,8 +2016,11 @@ body.diagnose-on .diagnose-only{display:block}
     </div>
     <button class="btn primary w100" id="connectBtn">USB verbinden</button>
     <div class="row" style="gap:6px">
-      <button class="btn ghost icon-only" id="themeBtn" title="Theme wechseln">
+      <button class="btn ghost icon-only" id="themeBtn" title="Theme wechseln (dunkel / hell / outdoor)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      </button>
+      <button class="btn ghost icon-only" id="audioBtn" title="Audio-Cues an/aus">
+        <span id="audioIcon" style="font-size:16px;line-height:1">🔊</span>
       </button>
       <button class="btn ghost icon-only" id="pitwallBtn" title="Pit-Wall Vollbild">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V3h5M21 8V3h-5M3 16v5h5M21 16v5h-5"/></svg>

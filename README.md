@@ -108,7 +108,7 @@ Detaillierte Verkabelung mit Schaubild: **[docs/VERKABELUNG.md](docs/VERKABELUNG
 | ---------- | ----- | ----- |
 | Kart-Sender | `sender_v9_main.py` | Sammelt Sensordaten (12,5 Hz) und sendet via ESP-NOW |
 | Bridge | `bridge_v9_main.py` | Empfängt vom Kart, gibt JSON-Lines auf USB |
-| Dashboard | `RasiCross_Telemetry_v9_6.html` | Visualisiert die Telemetrie im Browser |
+| Dashboard | `RasiCross_Telemetry.html` | Visualisiert die Telemetrie im Browser |
 | Desktop-App | `main.js`, `preload.js`, `package.json` | Verpackt das Dashboard als native Anwendung |
 
 ---
@@ -187,7 +187,7 @@ Releases-Seite öffnen, fertige Datei herunterladen, starten — siehe [Schnells
 
 ### Variante B: Im Browser
 
-`RasiCross_Telemetry_v9_6.html` direkt öffnen (Chrome, Edge oder Brave). Beim Klick auf "USB verbinden" fragt der Browser nach dem COM-Port.
+`RasiCross_Telemetry.html` direkt öffnen (Chrome, Edge oder Brave). Beim Klick auf "USB verbinden" fragt der Browser nach dem COM-Port.
 
 > Web Serial funktioniert nur in Chromium-basierten Browsern. Firefox und Safari werden nicht unterstützt.
 
@@ -402,7 +402,7 @@ Anleitung für kostenloses Windows-Code-Signing via SignPath: **[docs/CODE_SIGNI
 
 - **Sender:** v9.6 (`sender_v9_main.py`)
 - **Bridge:** v9.6 (`bridge_v9_main.py`)
-- **Dashboard:** v9.6 (`RasiCross_Telemetry_v9_6.html`)
+- **Dashboard:** v9.6 (`RasiCross_Telemetry.html`)
 - **Desktop-App:** 9.6.0 (`package.json`)
 
 ---

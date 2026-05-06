@@ -259,10 +259,56 @@ function applyTheme() {
   document.documentElement.dataset.theme = state.theme;
 }
 function toggleTheme() {
-  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  // Cycle: dark -> light -> outdoor -> dark
+  const order = ['dark', 'light', 'outdoor'];
+  const idx = order.indexOf(state.theme);
+  state.theme = order[(idx + 1) % order.length] || 'dark';
   applyTheme();
   saveDataDebounced();
 }
+
+// ============================================================
+//  Audio-Cues: Web Audio API, keine externen Dateien
+// ============================================================
+const rcAudio = (() => {
+  let ctx = null;
+  let enabled = (() => {
+    try { return localStorage.getItem('rc_audio') !== '0'; } catch(e) { return true; }
+  })();
+  function getCtx() {
+    if (!ctx) {
+      try { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e) { return null; }
+    }
+    if (ctx && ctx.state === 'suspended') ctx.resume().catch(()=>{});
+    return ctx;
+  }
+  function beep(freq, durMs, vol) {
+    if (!enabled) return;
+    const c = getCtx(); if (!c) return;
+    try {
+      const osc = c.createOscillator();
+      const g   = c.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      g.gain.value = vol == null ? 0.18 : vol;
+      osc.connect(g).connect(c.destination);
+      const t = c.currentTime;
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + durMs / 1000);
+      osc.start(t);
+      osc.stop(t + durMs / 1000);
+    } catch(e) {}
+  }
+  return {
+    sectorBest: () => beep(880, 120, 0.15),
+    lapBest:    () => { beep(1320, 120, 0.18); setTimeout(() => beep(1760, 180, 0.18), 140); },
+    warning:    () => beep(220, 400, 0.22),
+    pitCall:    () => { beep(660, 200, 0.2); setTimeout(() => beep(880, 200, 0.2), 220); },
+    setEnabled: (v) => { enabled = !!v; try { localStorage.setItem('rc_audio', v ? '1' : '0'); } catch(e){} },
+    isEnabled:  () => enabled,
+  };
+})();
 
 // ============================================================
 // 6. SETTINGS
@@ -1179,7 +1225,10 @@ function checkSectorCrossings(lat, lon) {
         s.sectorStart = now;
         s.cur = i + 1;
         // Update best
-        if (s.best[i] == null || sectorMs < s.best[i]) s.best[i] = sectorMs;
+        if (s.best[i] == null || sectorMs < s.best[i]) {
+          s.best[i] = sectorMs;
+          rcAudio.sectorBest();
+        }
         updateSectorPanel();
         break;
       }
@@ -1253,13 +1302,17 @@ function triggerLap() {
       if (s.boundaries[0] && s.boundaries[1] && s.cur === 2 && s.sectorStart) {
         const s3Ms = now - s.sectorStart;
         s.lapSectors[2] = s3Ms;
-        if (s.best[2] == null || s3Ms < s.best[2]) s.best[2] = s3Ms;
+        if (s.best[2] == null || s3Ms < s.best[2]) {
+          s.best[2] = s3Ms;
+          rcAudio.sectorBest();
+        }
       }
       // Update best lap
       if (state.bestLapMs == null || lapMs < state.bestLapMs) {
         state.bestLapMs = lapMs;
         state.bestLapNum = lap.number;
         state.bestLapTrace = [...state.currentLapTrace];
+        rcAudio.lapBest();
       }
       // Save sector times for display
       if (s.lapSectors.some(x => x)) {
@@ -3097,12 +3150,24 @@ init();
         $$('sidebar')?.classList.remove('open');
       });
     });
-    // Theme toggle
+    // Theme toggle: dark -> light -> outdoor -> dark
     $$('themeBtn')?.addEventListener('click',()=>{
+      const order = ['dark','light','outdoor'];
       const cur = document.documentElement.getAttribute('data-theme') || 'dark';
-      const next = cur === 'dark' ? 'light' : 'dark';
+      const next = order[(order.indexOf(cur) + 1) % order.length] || 'dark';
       document.documentElement.setAttribute('data-theme', next);
       try{ state.theme = next; saveData(); }catch(e){}
+    });
+    // Audio-Cues toggle
+    const audioIconEl = $$('audioIcon');
+    const updateAudioIcon = () => {
+      if (audioIconEl) audioIconEl.textContent = rcAudio.isEnabled() ? '🔊' : '🔇';
+    };
+    updateAudioIcon();
+    $$('audioBtn')?.addEventListener('click',()=>{
+      rcAudio.setEnabled(!rcAudio.isEnabled());
+      updateAudioIcon();
+      if (rcAudio.isEnabled()) rcAudio.sectorBest();
     });
     // Mobile burger
     $$('openMobileBtn')?.addEventListener('click', ()=>$$('sidebar').classList.add('open'));

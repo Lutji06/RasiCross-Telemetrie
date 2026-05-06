@@ -79,7 +79,7 @@ function createWindow() {
     },
   });
   mainWindow.setMenuBarVisibility(false);
-  mainWindow.loadFile("RasiCross_Telemetry_v9_6.html");
+  mainWindow.loadFile("RasiCross_Telemetry.html");
 }
 
 app.whenReady().then(() => {
