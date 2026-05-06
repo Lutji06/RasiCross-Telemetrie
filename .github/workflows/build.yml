@@ -1,15 +1,15 @@
 # ============================================================
-#  Baut die RasiCross-Telemetrie fuer Windows, macOS und Linux
+#  Baut die RasiCross-Telemetrie als Windows-.exe
 # ============================================================
 #  Loest aus bei:
 #    - Push eines Tags der Form vX.Y.Z (z.B. v9.6.0)
 #    - Pull-Request gegen main
 #    - Manuelle Ausfuehrung ueber den "Actions"-Tab auf GitHub
 #
-#  Ergebnis bei Tag-Push: GitHub Release mit allen Builds:
-#    Windows: RasiCross-Telemetry-Setup.exe + Portable.exe
-#    macOS:   RasiCross-Telemetry-9.6.0.dmg + .zip
-#    Linux:   RasiCross-Telemetry-9.6.0.AppImage
+#  Ergebnis bei Tag-Push:
+#    - dist/RasiCross Telemetry Setup 9.6.0.exe (NSIS-Installer)
+#    - dist/RasiCross-Telemetry-Portable.exe
+#    -> automatisch als GitHub Release mit den .exe-Dateien
 # ============================================================
 
 name: Build
@@ -28,12 +28,8 @@ permissions:
 
 jobs:
   build:
-    name: Build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+    name: Windows-Build
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -43,10 +39,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Stub icon.ico (falls keines im Repo liegt)
-        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           if (-not (Test-Path 'icon.ico')) {
@@ -57,40 +51,21 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Rebuild native modules for Electron
-        run: npx electron-rebuild -f -w serialport
-        continue-on-error: true
-
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
+      - name: Build Windows installers
         run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build (macOS)
-        if: runner.os == 'macOS'
-        run: npm run build:mac
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build (Linux)
-        if: runner.os == 'Linux'
-        run: npm run build:linux
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Kein Code-Signing-Zertifikat - electron-builder soll nicht versuchen zu signieren
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.os }}
+          name: windows-build
           path: |
             dist/*.exe
-            dist/*.dmg
-            dist/*.zip
-            dist/*.AppImage
-            dist/*.deb
             dist/*.blockmap
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
       - name: Create GitHub Release
@@ -99,9 +74,5 @@ jobs:
         with:
           files: |
             dist/*.exe
-            dist/*.dmg
-            dist/*.zip
-            dist/*.AppImage
-            dist/*.deb
           generate_release_notes: true
           fail_on_unmatched_files: false
