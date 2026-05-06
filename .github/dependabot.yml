@@ -1,5 +1,9 @@
 # Dependabot prueft regelmaessig auf Updates und schickt PRs
 # Doku: https://docs.github.com/code-security/dependabot
+#
+# Wichtig: Major-Updates werden ignoriert. Sie brauchen oft manuelle
+# Code-Anpassungen (z.B. Electron 33 -> 42 mit serialport 13 hatte
+# Breaking Changes). Major-Bumps daher manuell pflegen.
 
 version: 2
 updates:
@@ -16,8 +20,18 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
+    ignore:
+      # Keine Major-Bumps automatisch - die brauchen Hand-Tests
+      - dependency-name: "electron"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "electron-builder"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "serialport"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@serialport/parser-readline"
+        update-types: ["version-update:semver-major"]
 
-  # GitHub Actions (actions/checkout, setup-node, action-gh-release, ...)
+  # GitHub Actions (actions/checkout, setup-node, ...)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -27,3 +41,7 @@ updates:
       - "github-actions"
     commit-message:
       prefix: "ci"
+    ignore:
+      # Action-Major-Bumps manuell pruefen (haben oft Breaking Changes)
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
