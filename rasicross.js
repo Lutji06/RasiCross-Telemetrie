@@ -108,6 +108,19 @@ function fmtDelta(ms) {
 }
 function setText(id, val) { const e = $(id); if (e) e.textContent = val; }
 
+// Aufsummierte GPS-Distanz eines Tracks (Polyline-Laenge in Metern)
+function traceDistanceM(trace) {
+  if (!trace || trace.length < 2) return 0;
+  let m = 0;
+  for (let i = 1; i < trace.length; i++) {
+    const a = trace[i - 1], b = trace[i];
+    if (a && b && a.lat != null && b.lat != null) {
+      m += gpsDist(a.lat, a.lon, b.lat, b.lon);
+    }
+  }
+  return m;
+}
+
 function gpsDist(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -1294,6 +1307,7 @@ function triggerLap() {
         driverId: r.currentDriverId,
         maxSpeed: state.currentLapMax.speed,
         maxRpm: state.currentLapMax.rpm,
+        distanceM: traceDistanceM(state.currentLapTrace),
         valid: true
       };
       r.laps.push(lap);
@@ -1322,7 +1336,7 @@ function triggerLap() {
             s.lastLapSectors = null;
             updateSectorPanel();
           }
-        }, 4000);
+        }, 7000);
       }
       // Flash gate
       state.gateFlashUntil = now + 1500;
@@ -1390,9 +1404,9 @@ function getDriverStats(driverId) {
   let lastSeenAt = null;
   state.races.forEach(r => {
     let driverWasInRace = false;
-    // Streckenlaenge bestimmen
+    // Streckenlaenge bestimmen (Fallback fuer alte Runden ohne distanceM)
     const trk = r.trackId ? state.savedTracks.find(t => t.id === r.trackId) : null;
-    const lapDistanceM = trk?.totalDistance || 0;
+    const fallbackLapM = trk?.totalDistance || 0;
     // Laps pro Driver
     r.laps.forEach(l => {
       if (l.driverId !== driverId) return;
@@ -1400,12 +1414,13 @@ function getDriverStats(driverId) {
       driverWasInRace = true;
       lapCount++;
       totalTimeMs += l.timeMs;
-      if (lapDistanceM > 0) {
-        totalDistanceM += lapDistanceM;
+      const lapM = (l.distanceM != null && l.distanceM > 0) ? l.distanceM : fallbackLapM;
+      if (lapM > 0) {
+        totalDistanceM += lapM;
         // Avg-Speed gewichtet nach Distanz
-        const lapSpeed = lapDistanceM / (l.timeMs / 1000) * 3.6; // km/h
-        avgSpeedSum += lapSpeed * lapDistanceM;
-        avgSpeedDist += lapDistanceM;
+        const lapSpeed = lapM / (l.timeMs / 1000) * 3.6; // km/h
+        avgSpeedSum += lapSpeed * lapM;
+        avgSpeedDist += lapM;
       }
       if ((l.maxSpeed || 0) > maxSpeed) maxSpeed = l.maxSpeed;
       if ((l.maxRpm || 0) > totalRpmMax) totalRpmMax = l.maxRpm;
@@ -1439,7 +1454,10 @@ function getDriverStats(driverId) {
 }
 
 function getTotalStats() {
-  // Gesamt-KM ueber alle Rennen aller Fahrer
+  // Gesamt-KM ueber alle Rennen aller Fahrer.
+  // Pro Runde: bevorzugt die tatsaechlich gefahrene GPS-Distanz (lap.distanceM),
+  // sonst Fallback auf die Streckenlaenge (rueckwaertskompatibel zu alten
+  // gespeicherten Rennen, die noch kein distanceM-Feld kannten).
   let totalDistanceM = 0;
   let totalTimeMs = 0;
   let totalLaps = 0;
@@ -1447,12 +1465,13 @@ function getTotalStats() {
   let allTimeBestLap = null;
   state.races.forEach(r => {
     const trk = r.trackId ? state.savedTracks.find(t => t.id === r.trackId) : null;
-    const lapDistanceM = trk?.totalDistance || 0;
+    const fallbackLapM = trk?.totalDistance || 0;
     r.laps.forEach(l => {
       if (!l.valid) return;
       totalLaps++;
       totalTimeMs += l.timeMs;
-      if (lapDistanceM > 0) totalDistanceM += lapDistanceM;
+      const lapM = (l.distanceM != null && l.distanceM > 0) ? l.distanceM : fallbackLapM;
+      if (lapM > 0) totalDistanceM += lapM;
       if ((l.maxSpeed || 0) > allTimeMaxSpeed) allTimeMaxSpeed = l.maxSpeed;
       if (allTimeBestLap == null || l.timeMs < allTimeBestLap) allTimeBestLap = l.timeMs;
     });
