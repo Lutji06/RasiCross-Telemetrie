@@ -9,12 +9,12 @@
     "start": "electron .",
     "build": "electron-builder",
     "build:win": "electron-builder --win --x64",
-    "build:mac": "electron-builder --mac --universal",
+    "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux",
     "build-portable": "electron-builder --win portable --x64"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
+    "electron": "^36.0.0",
     "electron-builder": "^25.1.8"
   },
   "build": {
@@ -74,10 +74,12 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["universal"] },
-        { "target": "zip", "arch": ["universal"] }
+        { "target": "dmg", "arch": ["arm64", "x64"] },
+        { "target": "zip", "arch": ["arm64", "x64"] }
       ],
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "identity": null,
+      "gatekeeperAssess": false
     },
     "dmg": {
       "title": "RasiCross Telemetry"

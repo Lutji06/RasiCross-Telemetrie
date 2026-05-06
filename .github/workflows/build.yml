@@ -1,5 +1,5 @@
 # ============================================================
-#  Baut die RasiCross-Telemetrie als Windows-.exe
+#  Baut die RasiCross-Telemetrie fuer Windows und macOS
 # ============================================================
 #  Loest aus bei:
 #    - Push eines Tags der Form vX.Y.Z (z.B. v9.6.0)
@@ -7,9 +7,9 @@
 #    - Manuelle Ausfuehrung ueber den "Actions"-Tab auf GitHub
 #
 #  Ergebnis bei Tag-Push:
-#    - dist/RasiCross Telemetry Setup 9.6.0.exe (NSIS-Installer)
-#    - dist/RasiCross-Telemetry-Portable.exe
-#    -> automatisch als GitHub Release mit den .exe-Dateien
+#    Windows: NSIS-Installer + Portable EXE
+#    macOS:   .dmg und .zip fuer arm64 (Apple Silicon) und x64 (Intel)
+#    -> automatisch als GitHub Release veroeffentlicht
 # ============================================================
 
 name: Build
@@ -28,8 +28,18 @@ permissions:
 
 jobs:
   build:
-    name: Windows-Build
-    runs-on: windows-latest
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            build_cmd: build:win
+            artifact_name: windows
+          - os: macos-latest
+            build_cmd: build:mac
+            artifact_name: macos
 
     steps:
       - name: Checkout
@@ -41,6 +51,7 @@ jobs:
           node-version: '20'
 
       - name: Stub icon.ico (falls keines im Repo liegt)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           if (-not (Test-Path 'icon.ico')) {
@@ -51,8 +62,8 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build Windows installers
-        run: npm run build:win
+      - name: Build
+        run: npm run ${{ matrix.build_cmd }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Kein Code-Signing-Zertifikat - electron-builder soll nicht versuchen zu signieren
@@ -61,9 +72,11 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build
+          name: build-${{ matrix.artifact_name }}
           path: |
             dist/*.exe
+            dist/*.dmg
+            dist/*.zip
             dist/*.blockmap
           if-no-files-found: error
           retention-days: 30
@@ -74,5 +87,7 @@ jobs:
         with:
           files: |
             dist/*.exe
+            dist/*.dmg
+            dist/*.zip
           generate_release_notes: true
           fail_on_unmatched_files: false
