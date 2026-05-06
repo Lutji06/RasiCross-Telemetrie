@@ -19,7 +19,7 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 - **Pit-Call** vom Dashboard direkt aufs OLED-Display im Cockpit
 - **Live-Konfiguration** (Drehzahllimit, Sendezyklus, etc.) ohne Code-Änderung
 - **Demo-Modus** zum Ausprobieren ohne Hardware
-- **Plattformübergreifend** — Dashboard läuft im Browser oder als Desktop-App für Windows, macOS und Linux
+- **Plattformübergreifend** — Dashboard läuft im Browser oder als Desktop-App für Windows und macOS
 
 ---
 
@@ -48,9 +48,9 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 **Du willst nur das Dashboard nutzen, hast bereits Sender + Bridge bekommen?**
 
 1. Auf der Releases-Seite die passende Datei herunterladen:
-   - **Windows:** `RasiCross-Telemetry-Setup.exe` (Installer) oder `RasiCross-Telemetry-Portable.exe`
-   - **macOS:** `RasiCross-Telemetry-9.6.0.dmg`
-   - **Linux:** `RasiCross-Telemetry-9.6.0.AppImage`
+   - **Windows:** `RasiCross Telemetry Setup 9.6.0.exe` (Installer) oder `RasiCross-Telemetry-Portable.exe`
+   - **macOS Apple Silicon (M1/M2/M3):** `RasiCross Telemetry-9.6.0-arm64.dmg`
+   - **macOS Intel:** `RasiCross Telemetry-9.6.0.dmg`
 
    👉 https://github.com/Lutji06/RasiCross-Telemetrie/releases/latest
 
@@ -374,15 +374,14 @@ cd RasiCross-Telemetrie
 npm install
 npm start                # zum Testen
 npm run build:win        # Windows-Installer + portable
-npm run build:mac        # macOS .dmg
-npm run build:linux      # Linux .AppImage / .deb
+npm run build:mac        # macOS .dmg fuer arm64 + x64
 ```
 
 Unter Windows steht alternativ das Komfort-Skript [`BUILD_EXE.ps1`](BUILD_EXE.ps1) zur Verfügung — checkt Node.js, lädt fehlende USB-Treiber und ruft die Build-Pipeline auf.
 
 ### Automatisierte Builds
 
-Bei jedem Tag-Push (`v*`) baut [`.github/workflows/build.yml`](.github/workflows/build.yml) Windows, macOS und Linux parallel und legt die Artefakte als GitHub-Release ab.
+Bei jedem Tag-Push (`v*`) baut [`.github/workflows/build.yml`](.github/workflows/build.yml) Windows und macOS parallel und legt die Artefakte als GitHub-Release ab.
 
 ```bash
 git tag v9.6.1
