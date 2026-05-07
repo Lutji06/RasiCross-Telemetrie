@@ -65,7 +65,12 @@ class Config:
     ESPNOW_CHANNEL  = 1                              # muss bei beiden gleich
 
     # Pins
-    HALL_PIN        = 34
+    # Wichtig: NICHT GPIO 34/35/36/39 nehmen - das sind Input-only-Pins
+    # OHNE interne Pull-Up-Widerstaende. Der A3144 Hall-Sensor ist
+    # open-collector und braucht zwingend einen Pull-Up. Mit GPIO 4
+    # liefert der ESP32 den Pull-Up intern. Wer GPIO 34 nutzen will,
+    # muss einen externen 10 kOhm-Widerstand von dort nach 3.3 V loeten.
+    HALL_PIN        = 4
     GPS_RX_PIN      = 16
     GPS_TX_PIN      = 17
     I2C_SDA         = 21

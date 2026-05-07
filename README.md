@@ -123,12 +123,16 @@ Kurz-Übersicht der Pins (Standard, im `Config`-Block beider Skripte änderbar):
 
 ### Kart-Sender
 
-| Funktion        | Pin (GPIO) | Bemerkung                      |
-| --------------- | ---------- | ------------------------------ |
-| Hall-Sensor     | 34         | Input mit Pull-Up, Falling-IRQ |
-| GPS UART2 RX/TX | 16 / 17    | 9600 Baud                      |
-| I²C SDA / SCL   | 21 / 22    | gemeinsam für IMU + OLED       |
-| Status-LED      | 2          | onboard                        |
+| Funktion        | Pin (GPIO) | Bemerkung                                 |
+| --------------- | ---------- | ----------------------------------------- |
+| Hall-Sensor     | 4          | Input mit internem Pull-Up, Falling-IRQ   |
+| GPS UART2 RX/TX | 16 / 17    | 9600 Baud, gekreuzt anschließen           |
+| I²C SDA / SCL   | 21 / 22    | gemeinsam für IMU + OLED                  |
+| Status-LED      | 2          | onboard                                   |
+
+> ⚠️ **Nicht** GPIO 34/35/36/39 für den Hall-Sensor verwenden — diese
+> Pins sind Input-only und haben **keine** internen Pull-Up-Widerstände.
+> Der A3144 ist open-collector und braucht zwingend einen Pull-Up.
 
 ### Bridge
 
