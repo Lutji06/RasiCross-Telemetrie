@@ -49,8 +49,13 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 
 1. Auf der Releases-Seite die passende Datei herunterladen:
    - **Windows:** `RasiCross-Telemetry-Setup.exe` (Installer) oder `RasiCross-Telemetry-Portable.exe`
-   - **macOS Apple Silicon (M1/M2/M3):** `RasiCross-Telemetry-arm64.dmg`
-   - **macOS Intel:** `RasiCross-Telemetry-x64.dmg`
+   - **macOS Apple Silicon (M1/M2/M3):** `RasiCross-Telemetry-arm64.zip`
+   - **macOS Intel:** `RasiCross-Telemetry-x64.zip`
+
+   Auf macOS: ZIP entpacken → `RasiCross Telemetry.app` in den Ordner
+   "Programme" ziehen → starten. Beim ersten Start meldet macOS evtl.
+   "Programm aus dem Internet" — über Rechtsklick → "Öffnen" lässt es sich
+   trotzdem starten (oder in den Sicherheits-Einstellungen freigeben).
 
    👉 https://github.com/Lutji06/RasiCross-Telemetrie/releases/latest
 
