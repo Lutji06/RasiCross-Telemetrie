@@ -1829,12 +1829,13 @@ body.diagnose-on .diagnose-only{display:block}
 .pw-delta-val.slower{color:var(--red);text-shadow:0 0 40px var(--red-glow)}
 .pw-delta-val.same{color:var(--mut)}
 .pw-delta-sub{font-family:var(--mono);font-size:12px;color:var(--mut);margin-top:14px;font-weight:500}
-.pw-sectors{
+/* Pit-Wall-Variante: 3 Sektoren nebeneinander (horizontal) */
+#pitwallOverlay .pw-sectors{
   display:grid;grid-template-columns:repeat(3,1fr);
   gap:12px;padding:14px 0;
   border-top:1px solid var(--bor);flex-shrink:0;
 }
-.pw-sector{
+#pitwallOverlay .pw-sector{
   padding:14px 18px;background:var(--surf);
   border:1px solid var(--bor);border-radius:var(--r-lg);
   text-align:center;

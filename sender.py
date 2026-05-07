@@ -58,10 +58,12 @@ except ImportError:
 
 class Config:
     # ESP-NOW
-    # Hier die echte Bridge-MAC eintragen (zu sehen im Dashboard → Verbindung).
-    # Wird in v9 auch automatisch gelernt sobald die Bridge ein Hello sendet,
-    # aber ein hardcodierter Wert verbindet schneller beim Start.
-    BRIDGE_MAC = ubinascii.unhexlify("00700724e664")  # ← anpassen
+    # Bridge-MAC wird zur Laufzeit ueber das bridge_hello-Paket gelernt.
+    # Wer die Pairing-Phase ueberspringen will, kann hier optional die
+    # MAC der eigenen Bridge eintragen, z.B.:
+    #   BRIDGE_MAC = ubinascii.unhexlify("aabbccddeeff")
+    # Default = leer -> immer Auto-Pairing.
+    BRIDGE_MAC = b""
     ESPNOW_CHANNEL  = 1                              # muss bei beiden gleich
 
     # Pins
