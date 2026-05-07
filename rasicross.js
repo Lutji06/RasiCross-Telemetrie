@@ -2961,11 +2961,59 @@ function init() {
   // Settings tab
   $('saveSettingsBtn').onclick = saveSettingsFromUi;
   $('zeroImuBtn').onclick = () => {
-    state.calibration.gxZero = state.raw.gx || 0;
-    state.calibration.gyZero = state.raw.gy || 0;
+    const btn = $('zeroImuBtn');
+    if (btn.disabled) return;
+    const original = btn.textContent;
+    btn.disabled = true;
+    // Sender-seitige Kalibrierung mitstarten (falls Bridge verbunden)
+    try {
+      if (window.rasiSerial && state.serial && state.serial.connected) {
+        window.rasiSerial.writeLine(JSON.stringify({
+          type: 'imu_calibrate', action: 'auto', duration_ms: 2000
+        }));
+      }
+    } catch(e) { console.warn('imu_calibrate send:', e); }
+    // Client-seitig: 2 Sekunden lang Samples mitteln
+    const samples = [];
+    const start = Date.now();
+    const duration = 2000;
+    const tick = setInterval(() => {
+      const elapsed = Date.now() - start;
+      samples.push({ x: state.raw.gx || 0, y: state.raw.gy || 0 });
+      const remain = Math.max(0, duration - elapsed) / 1000;
+      btn.textContent = `Kart still halten… ${remain.toFixed(1)}s`;
+      if (elapsed >= duration) {
+        clearInterval(tick);
+        if (samples.length >= 5) {
+          const avgX = samples.reduce((s,p) => s + p.x, 0) / samples.length;
+          const avgY = samples.reduce((s,p) => s + p.y, 0) / samples.length;
+          state.calibration.gxZero = avgX;
+          state.calibration.gyZero = avgY;
+          loadSettingsToUi();
+          saveData();
+          rcToast(`Nullpunkt gesetzt (${samples.length} Samples)`);
+        } else {
+          rcToast('Zu wenige Samples — kommen Telemetrie-Daten an?');
+        }
+        btn.textContent = original;
+        btn.disabled = false;
+      }
+    }, 50);
+  };
+  $('resetImuBtn').onclick = () => {
+    state.calibration.gxZero = 0;
+    state.calibration.gyZero = 0;
     loadSettingsToUi();
     saveData();
-    rcToast('Nullpunkt gesetzt');
+    // Sender-Offsets ebenfalls zuruecksetzen
+    try {
+      if (window.rasiSerial && state.serial && state.serial.connected) {
+        window.rasiSerial.writeLine(JSON.stringify({
+          type: 'imu_calibrate', action: 'reset'
+        }));
+      }
+    } catch(e) {}
+    rcToast('IMU-Kalibrierung zurückgesetzt');
   };
   $('espSendBtn').onclick = async () => {
     const cfg = {

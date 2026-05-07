@@ -182,7 +182,12 @@ class RPMCounter:
 
 class IMU:
     """MPU-6050 Beschleunigungs-Sensor. Liefert geglättete Gx, Gy.
-    Bei Init-Fehler oder fehlendem Modul werden 0.0 zurückgegeben."""
+    Bei Init-Fehler oder fehlendem Modul werden 0.0 zurückgegeben.
+
+    Kalibrierung: durch start_calibration() werden ueber duration_ms
+    Samples gesammelt und der Mittelwert als Null-Offset gespeichert.
+    Das laeuft non-blocking innerhalb der normalen update()-Aufrufe -
+    waehrend der Kalibrierung muss der Kart still stehen."""
 
     def __init__(self, i2c):
         self._ok  = False
@@ -190,6 +195,15 @@ class IMU:
         self._gy  = 0.0
         self._mpu = None
         self._fail_count = 0
+        # Kalibrier-Offsets (in g)
+        self._off_x = 0.0
+        self._off_y = 0.0
+        # Non-blocking Kalibrierungs-Zustand
+        self._cal_active = False
+        self._cal_until = 0
+        self._cal_sum_x = 0.0
+        self._cal_sum_y = 0.0
+        self._cal_n = 0
         if not _HAS_MPU:
             log("init", "IMU: mpu6050 Modul nicht installiert")
             return
@@ -207,6 +221,23 @@ class IMU:
             return (0.0, 0.0)
         try:
             ax, ay, _az = self._mpu.accel
+            # Kalibrierung: rohe Samples mitteln, bis Zeit abgelaufen
+            if self._cal_active:
+                self._cal_sum_x += ax
+                self._cal_sum_y += ay
+                self._cal_n    += 1
+                if utime.ticks_diff(self._cal_until, utime.ticks_ms()) <= 0:
+                    if self._cal_n > 5:
+                        self._off_x = self._cal_sum_x / self._cal_n
+                        self._off_y = self._cal_sum_y / self._cal_n
+                        log("config", "IMU kalibriert: off_x={:.3f} off_y={:.3f} (n={})".format(
+                            self._off_x, self._off_y, self._cal_n))
+                    else:
+                        log("config", "IMU-Kalibrierung abgebrochen: zu wenige Samples")
+                    self._cal_active = False
+            # Offset abziehen, dann glaetten
+            ax -= self._off_x
+            ay -= self._off_y
             self._gx = alpha * ax + (1 - alpha) * self._gx
             self._gy = alpha * ay + (1 - alpha) * self._gy
             self._fail_count = 0
@@ -215,6 +246,32 @@ class IMU:
             if self._fail_count == 10:
                 log("imu", "wiederholte Lesefehler:", e)
         return (self._gx, self._gy)
+
+    def start_calibration(self, duration_ms=2000):
+        """Startet eine Null-Punkt-Kalibrierung. Kart muss waehrenddessen
+        ruhig stehen. Dauert duration_ms Millisekunden non-blocking."""
+        if not self._ok:
+            return False
+        self._cal_active = True
+        self._cal_until = utime.ticks_add(utime.ticks_ms(), int(duration_ms))
+        self._cal_sum_x = 0.0
+        self._cal_sum_y = 0.0
+        self._cal_n     = 0
+        return True
+
+    def reset_calibration(self):
+        """Setzt die Offsets auf 0 zurueck."""
+        self._off_x = 0.0
+        self._off_y = 0.0
+        self._cal_active = False
+
+    @property
+    def calibrating(self):
+        return self._cal_active
+
+    @property
+    def offsets(self):
+        return (self._off_x, self._off_y)
 
     @property
     def ok(self):  return self._ok
@@ -882,6 +939,14 @@ def main():
                         data.get("message", "PIT STOP"),
                         int(data.get("duration_ms", 15000))
                     )
+            elif kind == "imu_calibrate":
+                action = data.get("action", "auto")
+                if action == "reset":
+                    imu.reset_calibration()
+                    log("config", "IMU-Kalibrierung zurueckgesetzt")
+                else:
+                    if imu.start_calibration(int(data.get("duration_ms", 2000))):
+                        log("config", "IMU-Kalibrierung gestartet")
             elif kind == "bridge_hello":
                 log("config", "Bridge hat sich gemeldet")
 
@@ -905,6 +970,7 @@ def main():
                 "gps_health": gps.health,    # 'ok'|'searching'|'lost'|'disabled'
                 "pulse_hz": round(rpm_counter.pulse_hz, 1),
                 "send_ms":  send_interval,   # Dashboard sieht degraded mode
+                "imu_cal":  1 if imu.calibrating else 0,
             }
             tx_ok = link.send(packet)
 

@@ -2687,7 +2687,15 @@ body.diagnose-on .diagnose-only{display:block}
       <div class="toggle-row"><span class="label-text">Gx invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGx"><span class="toggle-knob"></span></label></div>
       <div class="toggle-row"><span class="label-text">Gy invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGy"><span class="toggle-knob"></span></label></div>
       <div class="toggle-row"><span class="label-text">Gx ↔ Gy tauschen</span><label class="toggle"><input type="checkbox" id="setSwapG"><span class="toggle-knob"></span></label></div>
-      <button class="btn primary" id="zeroImuBtn" style="width:100%;margin-top:14px">Nullpunkt setzen</button>
+      <div class="row" style="gap:8px;margin-top:14px">
+        <button class="btn primary" id="zeroImuBtn" style="flex:1">Nullpunkt setzen</button>
+        <button class="btn ghost" id="resetImuBtn" style="flex:0 0 auto">Zurücksetzen</button>
+      </div>
+      <p style="color:var(--mut);font-size:12px;margin-top:8px">
+        Mäher auf eine ebene Fläche stellen, dann 2 Sekunden lang ruhig halten.
+        Der Knopf misst Gx/Gy und setzt sie als Null-Offset — sowohl im
+        Dashboard als auch im Sender.
+      </p>
     </div>
 
     <div class="card">

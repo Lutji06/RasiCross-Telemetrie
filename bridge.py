@@ -590,7 +590,7 @@ class Bridge:
             return
 
         # Steuer-Pakete an den Kart weiterleiten
-        if t in ("display", "config", "pit_call"):
+        if t in ("display", "config", "pit_call", "imu_calibrate"):
             self._forward_to_kart(t, data)
             return
 
