@@ -3249,8 +3249,6 @@ init();
     document.addEventListener('keydown',(e)=>{
       if(e.key==='Escape') $$('pitwallOverlay')?.classList.remove('show');
     });
-    // Diagnose toggle
-    $$('diagToggleBtn')?.addEventListener('click',()=>document.body.classList.toggle('diagnose-on'));
     // Mode tabs
     const ms=$$('modeSerialBtn'),md=$$('modeDemoBtn');
     if(ms&&md){
