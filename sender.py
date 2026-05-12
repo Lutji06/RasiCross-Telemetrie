@@ -73,8 +73,8 @@ class Config:
     # liefert der ESP32 den Pull-Up intern. Wer GPIO 34 nutzen will,
     # muss einen externen 10 kOhm-Widerstand von dort nach 3.3 V loeten.
     HALL_PIN        = 4
-    GPS_RX_PIN      = 16
-    GPS_TX_PIN      = 17
+    GPS_RX_PIN      = 17
+    GPS_TX_PIN      = 16
     I2C_SDA         = 21
     I2C_SCL         = 22
     LED_PIN         = 2          # onboard Status-LED
