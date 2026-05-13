@@ -355,6 +355,7 @@ function saveSettingsFromUi() {
   state.calibration.invertGx = !!$('setInvertGx')?.checked;
   state.calibration.invertGy = !!$('setInvertGy')?.checked;
   state.calibration.swapG = !!$('setSwapG')?.checked;
+  drawGMeter._trail = [];
   loadSettingsToUi();
   saveData();
   rcToast('Einstellungen gespeichert');
@@ -498,6 +499,18 @@ function drawGMeter() {
   }
   ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r);
   ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.stroke();
+  // Axis labels
+  const lpad = 4 * dpr();
+  ctx.fillStyle = css('--sub');
+  ctx.font = `${Math.round(10 * dpr())}px sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('+Gx', cx, cy - r - lpad);
+  ctx.textBaseline = 'top';
+  ctx.fillText('−Gx', cx, cy + r + lpad);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText('+Gy', cx + r + lpad, cy);
+  ctx.textAlign = 'right';
+  ctx.fillText('−Gy', cx - r - lpad, cy);
   // Border
   ctx.strokeStyle = css('--bor'); ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
