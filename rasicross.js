@@ -565,10 +565,15 @@ function drawTrackOn(c) {
   ctx.fillRect(0, 0, w, h);
   const pts = state.track.points;
   if (!pts || pts.length < 2) {
-    ctx.fillStyle = css('--dim');
-    ctx.font = `${13 * dpr()}px monospace`;
-    ctx.textAlign = 'center';
-    ctx.fillText(state.track.scanning ? 'Scan läuft – fahre die Runde ab' : 'Noch keine Strecke', w/2, h/2);
+    // Wenn der Scan-Canvas (Strecke-Tab) gezeichnet wird, übernimmt die HTML
+    // .pw-map-empty Karte den Empty-State — also keinen Text auf den Canvas malen,
+    // sonst überlappen sich beide Hinweise.
+    if (c.id !== 'scanCanvas') {
+      ctx.fillStyle = css('--dim');
+      ctx.font = `${13 * dpr()}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText(state.track.scanning ? 'Scan läuft – fahre die Runde ab' : 'Noch keine Strecke', w/2, h/2);
+    }
     return;
   }
   // Track outline (yellow glow)
