@@ -47,6 +47,9 @@ test('segmentsCross', () => {
   // touching endpoint (t=1,u=0) is inclusive → true (pinned current behavior)
   assert.equal(geo.segmentsCross({lat:0,lon:0},{lat:0,lon:1},
                                   {lat:0,lon:1},{lat:1,lon:1}), true);
+  // collinear overlapping segments → d≈0 short-circuit → false (pinned)
+  assert.equal(geo.segmentsCross({lat:0,lon:0},{lat:0,lon:2},
+                                  {lat:0,lon:1},{lat:0,lon:3}), false);
 });
 
 test('crossingDirectionOk', () => {
@@ -55,6 +58,7 @@ test('crossingDirectionOk', () => {
   assert.equal(geo.crossingDirectionOk(0,0,1,0,180), false);
   assert.equal(geo.crossingDirectionOk(0,0,1,0,80),  true);
   assert.equal(geo.crossingDirectionOk(0,0,1,0,95),  false);
+  assert.equal(geo.crossingDirectionOk(0,0,1,0,90), false); // exact 90° boundary: diff<90 is false (pinned)
 });
 
 test('lineEndpointsFromGate', () => {
