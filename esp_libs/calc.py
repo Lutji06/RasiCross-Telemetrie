@@ -23,8 +23,8 @@ def wheel_speed_kmh(pulse_hz, ppr, circ_m):
         circ_m = float(circ_m)
     except (TypeError, ValueError):
         return 0.0
-    if pulse_hz <= 0.0 or ppr <= 0.0 or circ_m <= 0.0:
-        return 0.0
+    if not (pulse_hz > 0.0) or not (ppr > 0.0) or not (circ_m > 0.0):
+        return 0.0  # also maps NaN -> 0.0 (NaN comparisons are always False)
     rev_per_s = pulse_hz / ppr
     return rev_per_s * circ_m * 3.6
 

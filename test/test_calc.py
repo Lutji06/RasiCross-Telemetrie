@@ -12,11 +12,15 @@ class WheelSpeedKmh(unittest.TestCase):
         self.assertEqual(calc.wheel_speed_kmh(10, 0, 1.0), 0.0)
         self.assertEqual(calc.wheel_speed_kmh(10, 1, 0.0), 0.0)
         self.assertEqual(calc.wheel_speed_kmh(-5, 1, 1.0), 0.0)
+        self.assertEqual(calc.wheel_speed_kmh(10, -1, 1.0), 0.0)
+        self.assertEqual(calc.wheel_speed_kmh(10, 1, -1.0), 0.0)
+        self.assertEqual(calc.wheel_speed_kmh(float('nan'), 1, 1.0), 0.0)
 
     def test_zero_for_bad_types(self):
         self.assertEqual(calc.wheel_speed_kmh(None, 1, 1.0), 0.0)
         self.assertEqual(calc.wheel_speed_kmh('x', 1, 1.0), 0.0)
         self.assertEqual(calc.wheel_speed_kmh(10, None, 1.0), 0.0)
+        self.assertEqual(calc.wheel_speed_kmh(10, 1, 'abc'), 0.0)
 
     def test_normal(self):
         self.assertAlmostEqual(calc.wheel_speed_kmh(10, 1, 1.0), 36.0, places=6)
