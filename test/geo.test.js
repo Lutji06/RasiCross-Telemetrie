@@ -14,6 +14,9 @@ test('module exports all 9 helpers', () => {
 });
 
 test('gpsDist', () => {
+  // Pins the existing equirectangular ("flat-earth") approximation output,
+  // NOT WGS-84 ground truth. Replacing the formula (e.g. with haversine) will
+  // change these numbers by design — update the expected values if that happens.
   assert.equal(geo.gpsDist(0, 0, 0, 0), 0);
   approx(geo.gpsDist(0, 0, 0, 1), 111194.92664455873, 1e-3);
   approx(geo.gpsDist(0, 0, 1, 0), 111194.92664455873, 1e-3);
@@ -41,6 +44,9 @@ test('segmentsCross', () => {
                                   {lat:1,lon:0},{lat:1,lon:1}), false);
   assert.equal(geo.segmentsCross({lat:0,lon:0},{lat:0,lon:0.4},
                                   {lat:-1,lon:0.6},{lat:1,lon:0.6}), false);
+  // touching endpoint (t=1,u=0) is inclusive → true (pinned current behavior)
+  assert.equal(geo.segmentsCross({lat:0,lon:0},{lat:0,lon:1},
+                                  {lat:0,lon:1},{lat:1,lon:1}), true);
 });
 
 test('crossingDirectionOk', () => {
@@ -53,6 +59,8 @@ test('crossingDirectionOk', () => {
 
 test('lineEndpointsFromGate', () => {
   assert.equal(geo.lineEndpointsFromGate(null), null);
+  // lat:0 is falsy in JS, so the `!gate.lat` guard returns null at the equator.
+  // This pins a pre-existing quirk verbatim from rasicross.js (do not "fix" here).
   assert.equal(geo.lineEndpointsFromGate({lat:0,lon:5}), null);
   const ep = geo.lineEndpointsFromGate({lat:49.6, lon:6.12, width:14, heading:0});
   assert.ok(ep && ep.p1 && ep.p2);
@@ -75,6 +83,7 @@ test('fmtClock', () => {
   assert.equal(geo.fmtClock(0), '00:00');
   assert.equal(geo.fmtClock(61000), '01:01');
   assert.equal(geo.fmtClock(3661000), '1:01:01');
+  assert.equal(geo.fmtClock(-1000), '00:00'); // clamped via Math.max(0,…)
 });
 
 test('fmtDelta', () => {
@@ -82,4 +91,5 @@ test('fmtDelta', () => {
   assert.equal(geo.fmtDelta(0), '+0.000s');
   assert.equal(geo.fmtDelta(1234), '+1.234s');
   assert.equal(geo.fmtDelta(-1234), '-1.234s');
+  assert.equal(geo.fmtDelta(NaN), 'NaNs');    // NaN bypasses the == null guard (pinned)
 });
