@@ -52,6 +52,7 @@ const state = {
   raw: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
   display: { speedLerp: 0, rpmLerp: 0, gxLerp: 0, gyLerp: 0 },
   gps: { fix: false, lastAt: null },
+  spdSrc: 'gps',
   max: { speed: 0, rpm: 0, g: 0 },
   charts: { speed: [], rpm: [], gx: [], gy: [] },
   heatmap: { on: false, lapMaxSpeed: 0 },
@@ -329,6 +330,7 @@ function processTelemetry(d) {
     const hasGps = !!(d.gps_fix ?? d.fix ?? (lat && lon));
     state.gps.fix = hasGps;
     if (lat && lon) state.gps.lastAt = Date.now();
+    if (d.spd_src) state.spdSrc = d.spd_src;
     state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, lat: lat || 0, lon: lon || 0 };
     state.telemetry = { speed, rpm, gx, gy, lat: lat || 0, lon: lon || 0 };
     // Update max
@@ -2021,7 +2023,7 @@ const KPI_SMOOTH = 0.08;     // niedriger = traeger / besser lesbar
 const KPI_UPDATE_MS = 100;   // 10 Updates pro Sekunde
 const _kpiDisplay = { speed: 0, rpm: 0, gx: 0, gy: 0 };
 let _lastKpiUpdate = 0;
-let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '' };
+let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '', spdSrc: '' };
 
 function updateLiveKPIs() {
   const now = Date.now();
@@ -2040,6 +2042,19 @@ function updateLiveKPIs() {
     if (speedText !== _lastKpiText.speed) {
       $('kSpeed').innerHTML = `${speedText}<small>km/h</small>`;
       _lastKpiText.speed = speedText;
+    }
+    // Geschwindigkeitsquelle-Indikator (GPS / WHL-Fallback / keine)
+    const _srcMap = { gps: 'GPS', wheel: 'WHL', none: '—' };
+    const _srcLabel = _srcMap[state.spdSrc] || '—';
+    if (_srcLabel !== _lastKpiText.spdSrc) {
+      const _srcEl = $('spdSrcTag');
+      if (_srcEl) {
+        _srcEl.textContent = _srcLabel;
+        _srcEl.style.color = state.spdSrc === 'wheel' ? '#e8a13a'
+                           : (state.spdSrc === 'none' || !state.spdSrc) ? 'var(--mut)'
+                           : '';
+      }
+      _lastKpiText.spdSrc = _srcLabel;
     }
     // RPM in 50er-Schritten runden damit es nicht so wackelt
     const rpmRounded = Math.round(_kpiDisplay.rpm / 50) * 50;
@@ -2958,7 +2973,8 @@ function init() {
       max_rpm: Number($('espMaxRpm').value) || 6000,
       warn_rpm: Number($('espWarnRpm').value) || 5500,
       send_ms: Number($('espSendMs').value) || 80,
-      pulses_per_rev: Number($('espPulses').value) || 1
+      pulses_per_rev: Number($('espPulses').value) || 1,
+      wheel_circ_m: Number($('espWheelCirc').value) || 0
     };
     if (!state.serial.connected) {
       setText('espSendStatus', 'Nicht verbunden');
