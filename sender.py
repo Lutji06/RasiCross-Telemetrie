@@ -53,6 +53,12 @@ try:
 except ImportError:
     _HAS_GPS = False
 
+try:
+    import calc
+    _HAS_CALC = True
+except ImportError:
+    _HAS_CALC = False
+
 
 # ── Konfiguration ─────────────────────────────────────────────────────────
 
@@ -870,6 +876,11 @@ def apply_config(cfg, rpm_counter):
         Config.SEND_MS = max(20, int(cfg["send_ms"]))
     if "pulses_per_rev" in cfg:
         rpm_counter.set_ppr(cfg["pulses_per_rev"])
+    if "wheel_circ_m" in cfg:
+        try:
+            Config.WHEEL_CIRC_M = max(0.0, float(cfg["wheel_circ_m"]))
+        except (TypeError, ValueError):
+            pass
     log("config", "übernommen:", cfg)
 
 
@@ -968,7 +979,21 @@ def main():
                          else Config.SEND_MS)
         if utime.ticks_diff(now, last_send) >= send_interval:
             last_send = now
-            speed = gps.speed_kmh
+            # Geschwindigkeitsquelle: GPS-Fix hat Vorrang; sonst Rad-
+            # Hochrechnung aus Hall-Pulsen (nur wenn WHEEL_CIRC_M > 0);
+            # sonst 0. Die reine Logik liegt in calc.py (getestet).
+            if _HAS_CALC:
+                spd_src = calc.speed_source(gps.fix, Config.WHEEL_CIRC_M)
+            else:
+                spd_src = "gps" if gps.fix else "none"
+            if spd_src == "gps":
+                speed = gps.speed_kmh
+            elif spd_src == "wheel" and _HAS_CALC:
+                speed = calc.wheel_speed_kmh(rpm_counter.pulse_hz,
+                                             rpm_counter.ppr,
+                                             Config.WHEEL_CIRC_M)
+            else:
+                speed = 0.0
             packet = {
                 "speed":    round(speed, 1),
                 "rpm":      int(rpm),
@@ -980,6 +1005,7 @@ def main():
                 "gps_health": gps.health,    # 'ok'|'searching'|'lost'|'disabled'
                 "pulse_hz": round(rpm_counter.pulse_hz, 1),
                 "send_ms":  send_interval,   # Dashboard sieht degraded mode
+                "spd_src":  spd_src,         # 'gps'|'wheel'|'none'
                 "imu_cal":  1 if imu.calibrating else 0,
             }
             tx_ok = link.send(packet)
