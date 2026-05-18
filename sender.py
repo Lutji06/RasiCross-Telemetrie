@@ -757,11 +757,15 @@ def page_rpm(o, ctx):
 
 
 def page_diag(o, ctx):
-    """Seite 5: Diagnose - GPS / TX / Speed / RPM."""
-    o.text("GPS " + ("OK" if ctx.get("gps_fix") else "--"), 0, 16, 1)
-    o.text("TX  " + ("OK" if ctx.get("tx_ok") else "--"), 0, 28, 1)
-    o.text("SPD {:5.1f}".format(ctx.get("speed", 0)), 0, 40, 1)
-    o.text("RPM {:5d}".format(int(ctx.get("rpm", 0))), 0, 52, 1)
+    """Seite 5: Diagnose - GPS/TX (1 Zeile) / SPD / RPM / BAT."""
+    g = "OK" if ctx.get("gps_fix") else "--"
+    t = "OK" if ctx.get("tx_ok") else "--"
+    o.text("GPS {}  TX {}".format(g, t), 0, 16, 1)
+    o.text("SPD {:5.1f}".format(ctx.get("speed", 0)), 0, 28, 1)
+    o.text("RPM {:5d}".format(int(ctx.get("rpm", 0))), 0, 40, 1)
+    vbat = ctx.get("vbat")
+    if vbat is not None:
+        o.text("BAT {:4.1f}V".format(vbat), 0, 52, 1)
 
 
 def page_delta(o, ctx):
@@ -953,6 +957,11 @@ def apply_config(cfg, rpm_counter):
             Config.WHEEL_CIRC_M = max(0.0, float(cfg["wheel_circ_m"]))
         except (TypeError, ValueError):
             pass
+    if "batt_cells" in cfg:
+        try:
+            Config.BATT_CELLS = max(1, int(cfg["batt_cells"]))
+        except (TypeError, ValueError):
+            pass
     log("config", "übernommen:", cfg)
 
 
@@ -984,6 +993,7 @@ def main():
     display     = Display(i2c)
     led         = StatusLED(Config.LED_PIN)
     link        = ESPNowLink(Config.BRIDGE_MAC)
+    battery     = Battery()
 
     log("init", "Eigene MAC:", link.mac)
 
@@ -998,6 +1008,7 @@ def main():
     # Lokaler Zustand
     last_send = utime.ticks_ms()
     race_data = None
+    pkt_count = 0                 # zaehlt gesendete Pakete (Slow-Field-Kadenz)
 
     while True:
         if wdt:
@@ -1066,6 +1077,12 @@ def main():
                                              Config.WHEEL_CIRC_M)
             else:
                 speed = 0.0
+            # Batterie messen + Slow-Field-Kadenz (vbat/soc nur jedes
+            # SLOW_FIELD_EVERY-te Paket; batt_warn jedes Paket).
+            pkt_count += 1
+            slow = (pkt_count % Config.SLOW_FIELD_EVERY == 0)
+            if battery.active:
+                battery.read()
             packet = {
                 "speed":    round(speed, 1),
                 "rpm":      int(rpm),
@@ -1080,6 +1097,15 @@ def main():
                 "spd_src":  spd_src,         # 'gps'|'wheel'|'none'
                 "imu_cal":  1 if imu.calibrating else 0,
             }
+            if battery.active:
+                packet["batt_warn"] = battery.warn          # 0|1|2, jedes Paket
+                if slow:
+                    packet["vbat"] = round(battery.vbat, 2)  # Pack-V, langsam
+                    packet["soc"]  = battery.soc             # 0..100, langsam
+            if slow:
+                # Byte-Budget-Kontrolle (< 250 B, siehe Spec §4). Nur
+                # bei DEBUG/Topic 'link' sichtbar -> kein Funk-Overhead.
+                log("link", "payload bytes:", len(ujson.dumps(packet)))
             tx_ok = link.send(packet)
 
             # Display-Update
@@ -1092,6 +1118,7 @@ def main():
                 "tx_ok":     tx_ok,
                 "race_data": race_data,
                 "display":   display,
+                "vbat":      battery.vbat if battery.active else None,
             })
 
             # LED
