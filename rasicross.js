@@ -3045,21 +3045,6 @@ function init() {
     const c = $(cid);
     if (c) c.addEventListener('click', handleActionClick);
   });
-  // Window exports for inline onclick handlers
-  window.loadSavedTrack = loadSavedTrack;
-  window.deleteSavedTrack = deleteSavedTrack;
-  window.openTrackEditor = openTrackEditor;
-  window.closeEditor = closeTrackEditor;
-  window.saveEditor = saveEditor;
-  window.editorClickTarget = editorClickTarget;
-  window.deleteDriver = deleteDriver;
-  window.selectRace = selectRace;
-  window.setActiveRace = setActiveRace;
-  window.endRace = endRace;
-  window.closeDriverModal = closeDriverModal;
-  window.confirmDriverChange = confirmDriverChange;
-  window.toggleRaceExpand = toggleRaceExpand;
-  window.deleteRace = deleteRace;
 }
 init();
 
