@@ -32,4 +32,7 @@ jobs:
         run: |
           python -m py_compile sender.py bridge.py \
             esp_libs/micropyGPS.py esp_libs/mpu6050.py \
-            esp_libs/oled_diagnose.py esp_libs/ssd1306.py
+            esp_libs/oled_diagnose.py esp_libs/ssd1306.py \
+            esp_libs/calc.py
+      - name: Pure-logic unit tests
+        run: python -m unittest discover -s test -p "test_*.py" -v
