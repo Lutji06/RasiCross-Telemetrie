@@ -3011,6 +3011,15 @@ function init() {
   listSerialPorts();
   // Start animation loop
   requestAnimationFrame(animLoop);
+  // Statische Modal-Buttons CSP-konform verdrahten (kein inline onclick)
+  const _bind = (elId, fn) => { const el = $(elId); if (el) el.addEventListener('click', fn); };
+  _bind('edPickStart', () => editorClickTarget('start'));
+  _bind('edPickS2',    () => editorClickTarget('s2'));
+  _bind('edPickS3',    () => editorClickTarget('s3'));
+  _bind('edCancelBtn', closeTrackEditor);
+  _bind('edSaveBtn',   saveEditor);
+  _bind('dmCancelBtn', closeDriverModal);
+  _bind('dmConfirmBtn', confirmDriverChange);
   // Window exports for inline onclick handlers
   window.loadSavedTrack = loadSavedTrack;
   window.deleteSavedTrack = deleteSavedTrack;

@@ -2797,7 +2797,7 @@ body.diagnose-on .diagnose-only{display:block}
       <div class="editor-row" style="border-color:var(--green)">
         <div class="editor-row-label" style="color:var(--green)">START / ZIEL</div>
         <div class="editor-row-inputs">
-          <button class="btn ghost" onclick="window.editorClickTarget('start')">Auf Karte klicken</button>
+          <button class="btn ghost" id="edPickStart">Auf Karte klicken</button>
           <input id="edStartLat" placeholder="Lat" class="mono-input">
           <input id="edStartLon" placeholder="Lon" class="mono-input">
           <input id="edStartHead" type="number" min="0" max="359" step="1" placeholder="°" class="heading mono-input">
@@ -2806,7 +2806,7 @@ body.diagnose-on .diagnose-only{display:block}
       <div class="editor-row" style="border-color:var(--blue)">
         <div class="editor-row-label" style="color:var(--blue)">S2 GRENZE</div>
         <div class="editor-row-inputs">
-          <button class="btn ghost" onclick="window.editorClickTarget('s2')">Auf Karte klicken</button>
+          <button class="btn ghost" id="edPickS2">Auf Karte klicken</button>
           <input id="edS2Lat" placeholder="Lat" class="mono-input">
           <input id="edS2Lon" placeholder="Lon" class="mono-input">
           <input id="edS2Head" type="number" min="0" max="359" step="1" placeholder="°" class="heading mono-input">
@@ -2815,7 +2815,7 @@ body.diagnose-on .diagnose-only{display:block}
       <div class="editor-row" style="border-color:var(--orange)">
         <div class="editor-row-label" style="color:var(--orange)">S3 GRENZE</div>
         <div class="editor-row-inputs">
-          <button class="btn ghost" onclick="window.editorClickTarget('s3')">Auf Karte klicken</button>
+          <button class="btn ghost" id="edPickS3">Auf Karte klicken</button>
           <input id="edS3Lat" placeholder="Lat" class="mono-input">
           <input id="edS3Lon" placeholder="Lon" class="mono-input">
           <input id="edS3Head" type="number" min="0" max="359" step="1" placeholder="°" class="heading mono-input">
@@ -2824,8 +2824,8 @@ body.diagnose-on .diagnose-only{display:block}
     </div>
     <div id="edClickHint" style="font-family:var(--mono);font-size:11px;color:var(--pr);text-align:center;min-height:16px"></div>
     <div class="dialog-btns">
-      <button class="btn ghost" onclick="window.closeEditor()">Abbrechen</button>
-      <button class="btn primary" onclick="window.saveEditor()">Speichern</button>
+      <button class="btn ghost" id="edCancelBtn">Abbrechen</button>
+      <button class="btn primary" id="edSaveBtn">Speichern</button>
     </div>
   </div>
 </div>
@@ -2836,8 +2836,8 @@ body.diagnose-on .diagnose-only{display:block}
     <h3>Fahrerwechsel</h3>
     <div class="field"><label>Nächster Fahrer</label><select id="driverModalSelect"></select></div>
     <div class="dialog-btns">
-      <button class="btn ghost" onclick="window.closeDriverModal()">Abbrechen</button>
-      <button class="btn primary" onclick="window.confirmDriverChange()">Wechseln</button>
+      <button class="btn ghost" id="dmCancelBtn">Abbrechen</button>
+      <button class="btn primary" id="dmConfirmBtn">Wechseln</button>
     </div>
   </div>
 </div>
