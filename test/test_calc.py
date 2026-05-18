@@ -44,5 +44,76 @@ class SpeedSource(unittest.TestCase):
         self.assertEqual(calc.speed_source(False, None), 'none')
 
 
+class BatteryPackV(unittest.TestCase):
+    def test_normal(self):
+        self.assertAlmostEqual(calc.battery_pack_v(1.0, 11.0, 1.0), 11.0, places=6)
+        self.assertAlmostEqual(calc.battery_pack_v(0.30, 11.0, 1.05),
+                               0.30 * 11.0 * 1.05, places=6)
+
+    def test_zero_input_is_zero(self):
+        self.assertEqual(calc.battery_pack_v(0.0, 11.0, 1.0), 0.0)
+
+    def test_zero_for_bad_or_negative(self):
+        self.assertEqual(calc.battery_pack_v(-1.0, 11.0, 1.0), 0.0)
+        self.assertEqual(calc.battery_pack_v(1.0, 0.0, 1.0), 0.0)
+        self.assertEqual(calc.battery_pack_v(1.0, 11.0, 0.0), 0.0)
+        self.assertEqual(calc.battery_pack_v(None, 11.0, 1.0), 0.0)
+        self.assertEqual(calc.battery_pack_v('x', 11.0, 1.0), 0.0)
+        self.assertEqual(calc.battery_pack_v(float('nan'), 11.0, 1.0), 0.0)
+
+
+class BatteryCellV(unittest.TestCase):
+    def test_normal(self):
+        self.assertAlmostEqual(calc.battery_cell_v(12.6, 3), 4.2, places=6)
+        self.assertAlmostEqual(calc.battery_cell_v(11.1, 3), 3.7, places=6)
+
+    def test_zero_for_bad(self):
+        self.assertEqual(calc.battery_cell_v(12.0, 0), 0.0)
+        self.assertEqual(calc.battery_cell_v(12.0, -1), 0.0)
+        self.assertEqual(calc.battery_cell_v(None, 3), 0.0)
+        self.assertEqual(calc.battery_cell_v(12.0, None), 0.0)
+        self.assertEqual(calc.battery_cell_v(float('nan'), 3), 0.0)
+
+
+class BatterySoc(unittest.TestCase):
+    def test_curve_points(self):
+        self.assertEqual(calc.battery_soc(4.20), 100)
+        self.assertEqual(calc.battery_soc(3.85), 60)
+        self.assertEqual(calc.battery_soc(3.70), 35)
+        self.assertEqual(calc.battery_soc(3.50), 15)
+        self.assertEqual(calc.battery_soc(3.30), 0)
+
+    def test_clamped(self):
+        self.assertEqual(calc.battery_soc(4.30), 100)
+        self.assertEqual(calc.battery_soc(5.00), 100)
+        self.assertEqual(calc.battery_soc(3.20), 0)
+        self.assertEqual(calc.battery_soc(0.0), 0)
+
+    def test_linear_interpolation(self):
+        # midpoint of 3.85->60 .. 4.20->100  => 80
+        self.assertEqual(calc.battery_soc(4.025), 80)
+        # midpoint of 3.50->15 .. 3.70->35   => 25
+        self.assertEqual(calc.battery_soc(3.60), 25)
+
+    def test_zero_for_bad(self):
+        self.assertEqual(calc.battery_soc(None), 0)
+        self.assertEqual(calc.battery_soc('x'), 0)
+        self.assertEqual(calc.battery_soc(float('nan')), 0)
+
+
+class BatteryWarn(unittest.TestCase):
+    def test_levels(self):
+        self.assertEqual(calc.battery_warn(3.80, 3.5, 3.3), 0)
+        self.assertEqual(calc.battery_warn(3.50, 3.5, 3.3), 1)  # <= warn
+        self.assertEqual(calc.battery_warn(3.40, 3.5, 3.3), 1)
+        self.assertEqual(calc.battery_warn(3.30, 3.5, 3.3), 2)  # <= crit
+        self.assertEqual(calc.battery_warn(3.10, 3.5, 3.3), 2)
+
+    def test_zero_for_bad(self):
+        self.assertEqual(calc.battery_warn(None, 3.5, 3.3), 0)
+        self.assertEqual(calc.battery_warn('x', 3.5, 3.3), 0)
+        self.assertEqual(calc.battery_warn(float('nan'), 3.5, 3.3), 0)
+
+
 if __name__ == '__main__':
     unittest.main()
