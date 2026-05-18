@@ -787,9 +787,9 @@ function renderSavedTracks() {
         <b>${esc(t.name)}</b>
         <span>${t.points.length} Punkte · ${Math.round((t.totalDistance || 0))}m · ${new Date(t.createdAt).toLocaleDateString('de-DE')}</span>
       </div>
-      <button class="btn primary" onclick="window.loadSavedTrack('${t.id}')">Laden</button>
-      <button class="btn ghost" onclick="window.openTrackEditor('${t.id}')">✎</button>
-      <button class="btn danger" onclick="window.deleteSavedTrack('${t.id}')">✕</button>
+      <button class="btn primary" data-action="loadSavedTrack" data-id="${t.id}">Laden</button>
+      <button class="btn ghost" data-action="openTrackEditor" data-id="${t.id}">✎</button>
+      <button class="btn danger" data-action="deleteSavedTrack" data-id="${t.id}">✕</button>
     </div>
   `).join('');
 }
@@ -1495,7 +1495,7 @@ function renderDrivers() {
           <div class="driver-stat-name">${esc(d.name)}</div>
           <div class="driver-stat-sub">${d.number ? '#' + esc(d.number) : 'ohne Nummer'} · ${s.raceCount} Rennen · ${s.lapCount} Runden</div>
         </div>
-        <button class="btn danger" onclick="window.deleteDriver('${d.id}')" title="Fahrer löschen">✕</button>
+        <button class="btn danger" data-action="deleteDriver" data-id="${d.id}" title="Fahrer löschen">✕</button>
       </div>
       ${hasData ? `
       <div class="driver-stat-grid">
@@ -1760,7 +1760,7 @@ function renderRaces() {
     const elapsedMs = raceElapsedMs(r);
     const startDriver = state.drivers.find(d => d.id === r.startDriverId);
     return `
-      <div class="race-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}" onclick="window.selectRace('${r.id}')">
+      <div class="race-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}" data-action="selectRace" data-id="${r.id}">
         <div class="race-card-top">
           <h3>${esc(r.name)}</h3>
           <span class="race-status ${r.status}">${({ created: 'Erstellt', running: 'Läuft', paused: 'Pausiert', finished: 'Beendet', finished_auto: 'Auto-End' }[r.status] || r.status)}</span>
@@ -1772,12 +1772,12 @@ function renderRaces() {
           <div>Erstellt: <b>${new Date(r.createdAt).toLocaleDateString('de-DE')}</b></div>
         </div>
         <div class="race-card-actions">
-          ${!isActive ? `<button class="btn primary" onclick="event.stopPropagation();window.setActiveRace('${r.id}')" ${anotherRunning ? 'disabled title="Anderes Rennen läuft noch"' : ''}>Aktivieren</button>` : ''}
-          ${(r.status === 'running' || r.status === 'paused') && isActive ? `<button class="btn danger" onclick="event.stopPropagation();window.endRace(false)">Beenden</button>` : ''}
-          <button class="btn ghost expand-btn" onclick="event.stopPropagation();window.toggleRaceExpand('${r.id}')">
+          ${!isActive ? `<button class="btn primary" data-action="setActiveRace" data-id="${r.id}" ${anotherRunning ? 'disabled title="Anderes Rennen läuft noch"' : ''}>Aktivieren</button>` : ''}
+          ${(r.status === 'running' || r.status === 'paused') && isActive ? `<button class="btn danger" data-action="endRace">Beenden</button>` : ''}
+          <button class="btn ghost expand-btn" data-action="toggleRaceExpand" data-id="${r.id}">
             ${isExpanded ? '▲ Weniger' : '▼ Details'}
           </button>
-          <button class="btn ghost" onclick="event.stopPropagation();window.deleteRace('${r.id}')" title="Rennen löschen">✕</button>
+          <button class="btn ghost" data-action="deleteRace" data-id="${r.id}" title="Rennen löschen">✕</button>
         </div>
         ${isExpanded ? renderRaceDetails(r, validLaps, best, avgLap, totalSpeed, totalRpm, elapsedMs, startDriver) : ''}
       </div>
@@ -3020,6 +3020,31 @@ function init() {
   _bind('edSaveBtn',   saveEditor);
   _bind('dmCancelBtn', closeDriverModal);
   _bind('dmConfirmBtn', confirmDriverChange);
+  // Dynamische Listen-Buttons per Event-Delegation (CSP-konform):
+  // innerstes [data-action] gewinnt -> Klick auf einen Karten-Button
+  // loest NUR dessen Aktion aus, nie zusaetzlich selectRace (ersetzt
+  // das fruehere event.stopPropagation()).
+  const ACTION_MAP = {
+    loadSavedTrack:   id => loadSavedTrack(id),
+    openTrackEditor:  id => openTrackEditor(id),
+    deleteSavedTrack: id => deleteSavedTrack(id),
+    deleteDriver:     id => deleteDriver(id),
+    selectRace:       id => selectRace(id),
+    setActiveRace:    id => setActiveRace(id),
+    endRace:          () => endRace(false),
+    toggleRaceExpand: id => toggleRaceExpand(id),
+    deleteRace:       id => deleteRace(id),
+  };
+  const handleActionClick = (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const fn = ACTION_MAP[el.dataset.action];
+    if (fn) fn(el.dataset.id);
+  };
+  ['savedTracksList', 'driverStatsList', 'raceList'].forEach((cid) => {
+    const c = $(cid);
+    if (c) c.addEventListener('click', handleActionClick);
+  });
   // Window exports for inline onclick handlers
   window.loadSavedTrack = loadSavedTrack;
   window.deleteSavedTrack = deleteSavedTrack;
