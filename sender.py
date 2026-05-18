@@ -32,7 +32,7 @@ import ujson
 import utime
 import ubinascii
 import framebuf
-from machine import Pin, I2C, UART, WDT, reset
+from machine import Pin, I2C, UART, WDT, reset, disable_irq, enable_irq
 
 # Optionale Module — Programm läuft auch ohne, mit reduzierter Funktion
 try:
@@ -151,8 +151,13 @@ class RPMCounter:
         if dt < 50:
             return self._rpm_smooth
 
+        # Atomarer Read+Reset: ein Hall-IRQ zwischen Lesen und
+        # Nullsetzen wuerde sonst einen Puls verschlucken (RPM
+        # systematisch zu niedrig bei hoher Pulsrate).
+        _irq = disable_irq()
         cnt = self._count
         self._count = 0
+        enable_irq(_irq)
         self._total_pulses += cnt
         self._last_calc_ms = now
 
@@ -175,6 +180,9 @@ class RPMCounter:
 
     @property
     def pulse_hz(self):      return self._pulse_hz_raw
+
+    @property
+    def ppr(self):           return self._ppr
 
     @property
     def total_pulses(self):  return self._total_pulses
