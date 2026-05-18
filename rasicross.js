@@ -53,6 +53,7 @@ const state = {
   display: { speedLerp: 0, rpmLerp: 0, gxLerp: 0, gyLerp: 0 },
   gps: { fix: false, lastAt: null },
   spdSrc: 'gps',
+  batt: { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 },
   max: { speed: 0, rpm: 0, g: 0 },
   charts: { speed: [], rpm: [], gx: [], gy: [] },
   heatmap: { on: false, lapMaxSpeed: 0 },
@@ -251,6 +252,8 @@ const rcAudio = (() => {
     lapBest:    () => { beep(1320, 120, 0.18); setTimeout(() => beep(1760, 180, 0.18), 140); },
     warning:    () => beep(220, 400, 0.22),
     pitCall:    () => { beep(660, 200, 0.2); setTimeout(() => beep(880, 200, 0.2), 220); },
+    battWarn:   () => beep(300, 350, 0.2),
+    battCrit:   () => { beep(200, 300, 0.25); setTimeout(() => beep(200, 300, 0.25), 320); },
     setEnabled: (v) => { enabled = !!v; try { localStorage.setItem('rc_audio', v ? '1' : '0'); } catch(e){} },
     isEnabled:  () => enabled,
   };
@@ -331,6 +334,20 @@ function processTelemetry(d) {
     state.gps.fix = hasGps;
     if (lat && lon) state.gps.lastAt = Date.now();
     if (d.spd_src) state.spdSrc = d.spd_src;
+    // Batterie (A3): vbat/soc langsam -> nur bei Anwesenheit aktualisieren
+    // (sonst letzten Wert behalten); batt_warn jedes Paket wenn aktiv.
+    if (d.vbat != null) { state.batt.vbat = Number(d.vbat) || 0; state.batt.present = true; }
+    if (d.soc != null)  { state.batt.soc = Number(d.soc) || 0;  state.batt.present = true; }
+    if (d.batt_warn != null) {
+      state.batt.present = true;
+      const w = Number(d.batt_warn) || 0;
+      if (w > state.batt._lastWarn) {           // nur Aufwaerts-Transition
+        if (w === 2) { rcToast('⛔ Akku kritisch!', 3500); rcAudio.battCrit(); }
+        else if (w === 1) { rcToast('⚠ Akku schwach', 3000); rcAudio.battWarn(); }
+      }
+      state.batt._lastWarn = w;
+      state.batt.warn = w;
+    }
     state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, lat: lat || 0, lon: lon || 0 };
     state.telemetry = { speed, rpm, gx, gy, lat: lat || 0, lon: lon || 0 };
     // Update max
@@ -2023,7 +2040,7 @@ const KPI_SMOOTH = 0.08;     // niedriger = traeger / besser lesbar
 const KPI_UPDATE_MS = 100;   // 10 Updates pro Sekunde
 const _kpiDisplay = { speed: 0, rpm: 0, gx: 0, gy: 0 };
 let _lastKpiUpdate = 0;
-let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '', spdSrc: '' };
+let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '', spdSrc: '', batt: '' };
 
 function updateLiveKPIs() {
   const now = Date.now();
@@ -2055,6 +2072,23 @@ function updateLiveKPIs() {
                            : '';
       }
       _lastKpiText.spdSrc = _srcLabel;
+    }
+    // Batterie-KPI: erst sichtbar sobald Daten kamen; Farbe nach warn.
+    if (state.batt.present) {
+      const _bEl = $('kpiBatt');
+      if (_bEl && _bEl.classList.contains('hidden')) _bEl.classList.remove('hidden');
+      const _cells = state.batt.cells > 0 ? state.batt.cells : 3;
+      const _vc = state.batt.vbat / _cells;
+      const _battText = `${state.batt.soc}|${state.batt.vbat.toFixed(2)}|${_vc.toFixed(2)}|${state.batt.warn}`;
+      if (_battText !== _lastKpiText.batt) {
+        const _v = $('kBatt'), _s = $('kBattSub');
+        if (_v) _v.innerHTML = `${state.batt.soc}<small>%</small>`;
+        if (_s) _s.innerHTML = `<b>${state.batt.vbat.toFixed(2)}</b> V · Zelle <b>${_vc.toFixed(2)}</b> V`;
+        if (_bEl) _bEl.style.color = state.batt.warn === 2 ? '#e5484d'
+                                   : state.batt.warn === 1 ? '#e8a13a'
+                                   : '';
+        _lastKpiText.batt = _battText;
+      }
     }
     // RPM in 50er-Schritten runden damit es nicht so wackelt
     const rpmRounded = Math.round(_kpiDisplay.rpm / 50) * 50;
@@ -2974,8 +3008,10 @@ function init() {
       warn_rpm: Number($('espWarnRpm').value) || 5500,
       send_ms: Number($('espSendMs').value) || 80,
       pulses_per_rev: Number($('espPulses').value) || 1,
-      wheel_circ_m: Number($('espWheelCirc').value) || 0
+      wheel_circ_m: Number($('espWheelCirc').value) || 0,
+      batt_cells: Number($('espBattCells').value) || 3
     };
+    state.batt.cells = cfg.batt_cells;
     if (!state.serial.connected) {
       setText('espSendStatus', 'Nicht verbunden');
       return;

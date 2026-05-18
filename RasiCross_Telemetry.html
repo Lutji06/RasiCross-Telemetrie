@@ -2126,6 +2126,14 @@ body.diagnose-on .diagnose-only{display:block}
       <div class="kpi-v" id="kLap" style="font-size:clamp(30px,3.6vw,40px)">--:--.---</div>
       <div class="kpi-sub">Best <b id="kLapBest">--:--.---</b></div>
     </div>
+    <div class="kpi hidden" id="kpiBatt">
+      <div class="kpi-head">
+        <span class="kpi-l">Batterie</span>
+        <span class="kpi-icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="16" height="10" rx="2"/><path d="M20 10v4"/></svg></span>
+      </div>
+      <div class="kpi-v" id="kBatt">--<small>%</small></div>
+      <div class="kpi-sub" id="kBattSub"><b>--</b> V · Zelle <b>--</b> V</div>
+    </div>
   </div>
 
   <!-- Live delta -->
@@ -2710,6 +2718,7 @@ body.diagnose-on .diagnose-only{display:block}
         <div class="field"><label>Sende-Intervall (ms)</label><input type="number" id="espSendMs" value="80" min="20" max="500"></div>
         <div class="field"><label>Pulses per Revolution</label><input type="number" id="espPulses" value="1" min="1" max="32"></div>
         <div class="field"><label>Radumfang m (0 = nur GPS)</label><input type="number" id="espWheelCirc" value="0" min="0" step="0.001"></div>
+        <div class="field"><label>Akkuzellen (Battery cells)</label><input type="number" id="espBattCells" value="3" min="1" max="14"></div>
         <button class="btn primary" id="espSendBtn">An ESP32 senden</button>
       </div>
       <p id="espSendStatus" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:8px;text-align:center;min-height:14px"></p>
