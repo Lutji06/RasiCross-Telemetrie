@@ -32,7 +32,7 @@ import ujson
 import utime
 import ubinascii
 import framebuf
-from machine import Pin, I2C, UART, WDT, reset, disable_irq, enable_irq
+from machine import Pin, I2C, UART, WDT, reset, disable_irq, enable_irq, ADC
 
 # Optionale Module — Programm läuft auch ohne, mit reduzierter Funktion
 try:
@@ -88,6 +88,18 @@ class Config:
     # Hall-Sensor
     PULSES_PER_REV  = 1          # Pulse pro Radumdrehung
     WHEEL_CIRC_M    = 0.0        # Radumfang in Meter (0 = GPS-Speed nutzen)
+
+    # Batterie (A3) — None = Feature aus. NUR ADC1-Pins (GPIO 32-39);
+    # ADC2 ist bei aktivem WiFi/ESP-NOW gesperrt!
+    BATT_ADC_PIN    = None       # z.B. 34. None -> Battery-Klasse inert
+    BATT_DIVIDER    = 11.0       # externer Teiler Vin/Vadc (z.B. 100k/10k)
+    BATT_CELLS      = 3          # Zellen in Serie (Per-Cell + SoC)
+    BATT_CAL        = 1.0        # Feinkalibrierung (Multiplikator)
+    BATT_CELL_WARN  = 3.5        # Warn-Schwelle pro Zelle (V)
+    BATT_CELL_CRIT  = 3.3        # Kritisch-Schwelle pro Zelle (V)
+
+    # Langsame Felder (vbat/soc/...) nur jedes N-te Paket senden
+    SLOW_FIELD_EVERY = 8         # ~1 Hz bei 12.5 Hz Basisrate
 
     # Timing (alle Werte in ms)
     SEND_MS         = 80         # Telemetrie-Intervall (12.5 Hz)
@@ -192,6 +204,66 @@ class RPMCounter:
 
     @property
     def total_pulses(self):  return self._total_pulses
+
+
+# ── Batterie (A3) ─────────────────────────────────────────────────────────
+
+class Battery:
+    """Optionale Akku-Telemetrie ueber einen ADC1-Pin.
+
+    Inert, wenn Config.BATT_ADC_PIN None ist ODER calc.py fehlt:
+    .active == False, alle Werte 0/None, sender.py sendet dann keine
+    Batteriefelder. Die reine Umrechnung liegt in calc.py (getestet);
+    diese Klasse macht nur ADC-IO + Mittelung.
+    """
+
+    _SAMPLES = 16
+
+    def __init__(self):
+        self._adc = None
+        self._vbat = 0.0
+        self._soc = 0
+        self._warn = 0
+        pin = Config.BATT_ADC_PIN
+        if pin is None or not _HAS_CALC:
+            return
+        try:
+            self._adc = ADC(Pin(pin))
+            # 11 dB Daempfung -> ~0..3.3 V nutzbar
+            self._adc.atten(ADC.ATTN_11DB)
+        except Exception as e:               # noqa: BLE001
+            log("init", "Battery ADC init fehlgeschlagen:", e)
+            self._adc = None
+
+    @property
+    def active(self):
+        return self._adc is not None
+
+    def read(self):
+        """Misst und aktualisiert vbat/soc/warn. No-op wenn inert."""
+        if self._adc is None:
+            return
+        acc = 0
+        for _ in range(self._SAMPLES):
+            acc += self._adc.read_uv()       # kalibrierte Mikrovolt
+        adc_volts = (acc / self._SAMPLES) / 1_000_000.0
+        self._vbat = calc.battery_pack_v(adc_volts,
+                                         Config.BATT_DIVIDER,
+                                         Config.BATT_CAL)
+        vcell = calc.battery_cell_v(self._vbat, Config.BATT_CELLS)
+        self._soc = calc.battery_soc(vcell)
+        self._warn = calc.battery_warn(vcell,
+                                       Config.BATT_CELL_WARN,
+                                       Config.BATT_CELL_CRIT)
+
+    @property
+    def vbat(self):   return self._vbat
+
+    @property
+    def soc(self):    return self._soc
+
+    @property
+    def warn(self):   return self._warn
 
 
 # ── IMU (MPU-6050) ────────────────────────────────────────────────────────
