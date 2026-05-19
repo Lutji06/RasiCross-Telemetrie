@@ -29,6 +29,34 @@ class WheelSpeedKmh(unittest.TestCase):
                                71.3 * 1.2 * 3.6, places=6)
 
 
+class WheelSpeedGearRatio(unittest.TestCase):
+    def test_default_equals_three_arg(self):
+        # Optional param omitted == explicit 1.0 == pre-change result.
+        self.assertAlmostEqual(calc.wheel_speed_kmh(10, 1, 1.0),
+                               calc.wheel_speed_kmh(10, 1, 1.0, 1.0),
+                               places=6)
+        self.assertAlmostEqual(calc.wheel_speed_kmh(10, 1, 1.0, 1.0),
+                               36.0, places=6)
+
+    def test_reduction_slows_wheel(self):
+        # ratio 2.0 -> wheel turns half as fast -> half the speed.
+        self.assertAlmostEqual(calc.wheel_speed_kmh(10, 1, 1.0, 2.0),
+                               18.0, places=6)
+
+    def test_known_and_fractional_ratio(self):
+        # 63 Hz / ppr1 / 6.3 = 10 wheel rev/s * 1.0 m * 3.6 = 36.0
+        self.assertAlmostEqual(calc.wheel_speed_kmh(63, 1, 1.0, 6.3),
+                               36.0, places=6)
+        self.assertAlmostEqual(calc.wheel_speed_kmh(10, 2, 1.2, 2.5),
+                               (10 / 2) / 2.5 * 1.2 * 3.6, places=6)
+
+    def test_guard_nonpositive_or_bad_acts_as_one(self):
+        base = calc.wheel_speed_kmh(10, 1, 1.0)        # == 36.0
+        for bad in (0, 0.0, -3, float('nan'), 'x', None):
+            self.assertAlmostEqual(calc.wheel_speed_kmh(10, 1, 1.0, bad),
+                                   base, places=6)
+
+
 class SpeedSource(unittest.TestCase):
     def test_gps_wins(self):
         self.assertEqual(calc.speed_source(True, 0.0), 'gps')
