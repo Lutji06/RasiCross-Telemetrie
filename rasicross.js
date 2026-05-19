@@ -55,7 +55,8 @@ const state = {
   spdSrc: 'gps',
   batt: { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 },
   max: { speed: 0, rpm: 0, g: 0 },
-  charts: { speed: [], rpm: [], gx: [], gy: [] },
+  charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [] },
+  imu: { yaw: 0, mtemp: null },
   heatmap: { on: false, lapMaxSpeed: 0 },
   // Track
   track: { points: [], bounds: null, scanning: false, totalDistance: 0, maxDistFromStart: 0, closed: false },
@@ -324,6 +325,10 @@ function processTelemetry(d) {
     const rpm = Math.max(0, Number(d.rpm) || 0);
     let gx = (Number(d.gx) || 0) - state.calibration.gxZero;
     let gy = (Number(d.gy) || 0) - state.calibration.gyZero;
+    const gz = Number(d.gz) || 0;                  // Accel-Z (g), jedes Paket
+    const yawv = Number(d.yaw) || 0;               // Gier (deg/s), jedes Paket
+    state.imu.yaw = yawv;
+    if (d.mtemp != null) state.imu.mtemp = Number(d.mtemp) || 0;  // langsam: letzten Wert halten
     // Apply axis transformations
     if (state.calibration.swapG) { const tmp = gx; gx = gy; gy = tmp; }
     if (state.calibration.invertGx) gx = -gx;
@@ -348,7 +353,7 @@ function processTelemetry(d) {
       state.batt._lastWarn = w;
       state.batt.warn = w;
     }
-    state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, lat: lat || 0, lon: lon || 0 };
+    state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0 };
     state.telemetry = { speed, rpm, gx, gy, lat: lat || 0, lon: lon || 0 };
     // Update max
     state.max.speed = Math.max(state.max.speed, speed);
@@ -364,11 +369,15 @@ function processTelemetry(d) {
       state.charts.rpm.push(rpm);
       state.charts.gx.push(gx);
       state.charts.gy.push(gy);
+      state.charts.gz.push(gz);
+      state.charts.yaw.push(yawv);
       const max = 600;
       while (state.charts.speed.length > max) state.charts.speed.shift();
       while (state.charts.rpm.length > max) state.charts.rpm.shift();
       while (state.charts.gx.length > max) state.charts.gx.shift();
       while (state.charts.gy.length > max) state.charts.gy.shift();
+      while (state.charts.gz.length > max) state.charts.gz.shift();
+      while (state.charts.yaw.length > max) state.charts.yaw.shift();
     }
     // Track current lap trace
     if (state.lapStart && lat && lon) {
@@ -1992,13 +2001,17 @@ function drawLiveCharts() {
       0, state.settings.maxSpeed,
       { unit: 'km/h', right: 'rpm', maxRight: state.settings.maxRpm }
     );
+    const _yawDps = 250;  // Gyro +-250 deg/s -> auf die G-Achse skaliert
     drawChart(_gCtx, _gCanvas,
       [
         { data: state.charts.gx, color: css('--blue'), label: 'Gx' },
-        { data: state.charts.gy, color: css('--green'), label: 'Gy' }
+        { data: state.charts.gy, color: css('--green'), label: 'Gy' },
+        { data: state.charts.gz, color: '#e8a13a', label: 'Gz' },
+        { data: state.charts.yaw.map(v => v / _yawDps * state.settings.gScale),
+          raw: state.charts.yaw, color: css('--mut'), label: 'Yaw', dash: true }
       ],
       -state.settings.gScale, state.settings.gScale,
-      { unit: 'G', zero: true }
+      { unit: 'G', zero: true, right: '°/s', maxRight: _yawDps }
     );
   } catch (e) { console.warn('drawLiveCharts:', e); }
 }
@@ -2107,6 +2120,8 @@ function updateLiveKPIs() {
     setText('kSpeedMax', state.max.speed.toFixed(0));
     setText('kRpmMax', Math.round(state.max.rpm / 50) * 50);
     setText('kGMax', state.max.g.toFixed(1));
+    setText('kYaw', Math.round(state.imu.yaw));
+    setText('kMtemp', state.imu.mtemp == null ? '--' : Math.round(state.imu.mtemp));
     // Rundenzeit: nur alle 100ms aktualisieren ist ok
     const lapText = state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
