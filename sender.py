@@ -281,6 +281,8 @@ class IMU:
         self._ok  = False
         self._gx  = 0.0
         self._gy  = 0.0
+        self._az  = 0.0          # geglaettetes Accel-Z (g)
+        self._yaw = 0.0          # geglaettete Gier-Rate = Gyro-Z (deg/s)
         self._mpu = None
         self._fail_count = 0
         # Kalibrier-Offsets (in g)
@@ -308,7 +310,12 @@ class IMU:
         if not self._ok:
             return (0.0, 0.0)
         try:
-            ax, ay, _az = self._mpu.accel
+            ax, ay, az = self._mpu.accel
+            _gxr, _gyr, gzr = self._mpu.gyro      # nur Z (= Gier) genutzt
+            # Accel-Z + Gier mit demselben EMA wie gx/gy glaetten
+            # (keine Kalibrier-Offsets: nur die Lehne-Achsen werden genullt).
+            self._az  = alpha * az  + (1 - alpha) * self._az
+            self._yaw = alpha * gzr + (1 - alpha) * self._yaw
             # Kalibrierung: rohe Samples mitteln, bis Zeit abgelaufen
             if self._cal_active:
                 self._cal_sum_x += ax
@@ -363,6 +370,23 @@ class IMU:
 
     @property
     def ok(self):  return self._ok
+
+    @property
+    def az(self):   return self._az
+
+    @property
+    def yaw(self):  return self._yaw
+
+    @property
+    def mpu_temp(self):
+        """Chip-Temperatur in ganzen Grad C, oder None wenn nicht
+        verfuegbar. Wird nur auf Slow-Paketen abgefragt."""
+        if not self._ok:
+            return None
+        try:
+            return int(round(self._mpu.temperature_c))
+        except Exception:
+            return None
 
 
 # ── GPS ───────────────────────────────────────────────────────────────────
