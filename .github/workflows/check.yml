@@ -15,6 +15,7 @@ jobs:
       - name: Syntax-check JS
         run: |
           node --check geo.js
+          node --check replay.js
           node --check rasicross.js
           node --check main.js
           node --check preload.js
