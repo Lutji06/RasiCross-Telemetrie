@@ -44,7 +44,7 @@ const state = {
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
-  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto' },
+  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true },
   calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false },
   theme: 'dark',
   // Telemetry
@@ -82,6 +82,10 @@ const state = {
   expandedRaceIds: {},
   // UI
   gateFlashUntil: 0,
+  // Recording / Replay (NEVER persisted — see saveData guard)
+  recording: { armed: false, buf: [], startWall: null, overflowed: false },
+  replay: { active: false, packets: [], idx: 0, virtualMs: 0, durationMs: 0,
+            speed: 1, playing: false, raf: null, lastWall: null, snapshot: null },
 };
 
 // ============================================================
@@ -100,6 +104,7 @@ function logTime(ts = Date.now()) { return new Date(ts).toLocaleTimeString('de-D
 // ============================================================
 let _saveTimer = null;
 function saveData() {
+  if (state.replay && state.replay.active) return;  // replay uses disposable state — never persist
   try {
     const payload = {
       version: '9.6', savedAt: new Date().toISOString(),
@@ -277,6 +282,7 @@ function loadSettingsToUi() {
   if ($('setInvertGx')) $('setInvertGx').checked = !!state.calibration.invertGx;
   if ($('setInvertGy')) $('setInvertGy').checked = !!state.calibration.invertGy;
   if ($('setSwapG')) $('setSwapG').checked = !!state.calibration.swapG;
+  if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
 }
 function saveSettingsFromUi() {
   state.settings.maxSpeed = Math.max(20, Math.min(200, Number($('setMaxSpeed').value) || 80));
@@ -300,9 +306,27 @@ function saveSettingsFromUi() {
 // ============================================================
 // 7. TELEMETRY PIPELINE
 // ============================================================
+function armRecording() {
+  // Frische Aufnahme starten (auto bei Connect/Demo, wenn aktiviert).
+  state.recording.buf = [];
+  state.recording.startWall = null;
+  state.recording.overflowed = false;
+  state.recording.armed = true;
+}
+function recordPacket(d) {
+  const now = Date.now();
+  if (state.recording.startWall == null) state.recording.startWall = now;
+  const rec = Object.assign({}, d, { t_rel: now - state.recording.startWall, _wall: now });
+  const dropped = RasiReplay.pushCapped(state.recording.buf, rec, RasiReplay.REC_MAX);
+  if (dropped && !state.recording.overflowed) {
+    state.recording.overflowed = true;
+    rcToast('⚠ Aufnahme-Puffer voll — älteste Pakete werden verworfen', 4000);
+  }
+}
 function processTelemetry(d) {
   try {
     if (!d) return;
+    if (state.recording.armed && !state.replay.active) recordPacket(d);
     if (d.type === 'bridge_status') {
       if (d.mac) state.connection.bridgeMac = d.mac;
       if (d.kart_mac) state.connection.kartMac = d.kart_mac;
@@ -2603,6 +2627,7 @@ async function connectSerial() {
       window.rasiSerial.onClose(() => onSerialClose());
       window.rasiSerial.onError?.(msg => onSerialError(msg));
       state.serial.connected = true;
+      if (state.settings.recordAutoArm) armRecording();
       state.serial.portName = path;
       state.serial.lastPath = path;
       state.connection.source = 'serial';
@@ -2721,6 +2746,7 @@ function startDemo() {
   if (state.demo.running) return;
   if (state.serial.connected) disconnectSerial();
   state.demo.running = true;
+  if (state.settings.recordAutoArm) armRecording();
   state.demo.t = 0;
   state.demo.angle = -Math.PI / 2;
   state.demo.lapsDone = 0;
@@ -2957,6 +2983,7 @@ function init() {
   $('serialRefreshBtn').onclick = listSerialPorts;
   $('serialConnectBtn').onclick = () => state.serial.connected ? disconnectSerial() : connectSerial();
   $('autoReconnectToggle').onchange = () => { state.serial.autoReconnect = $('autoReconnectToggle').checked; };
+  if ($('recAutoArmToggle')) $('recAutoArmToggle').onchange = () => { state.settings.recordAutoArm = $('recAutoArmToggle').checked; saveData(); };
   $('demoStartBtn').onclick = startDemo;
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab
