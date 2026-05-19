@@ -14,11 +14,14 @@ class MPU6050:
     SMPLRT_DIV   = 0x19
     CONFIG       = 0x1A
     ACCEL_XOUT_H = 0x3B
+    GYRO_XOUT_H  = 0x43
     WHO_AM_I     = 0x75
     DEFAULT_ADDR = 0x68
 
     # Skalierung fuer Beschleunigung +-2g (Standard-Range)
     ACCEL_SCALE_2G = 16384.0
+    # Skalierung fuer Gyro +-250 deg/s (Standard-Range, GYRO_CONFIG=0)
+    GYRO_SCALE_250 = 131.0
 
     def __init__(self, i2c, addr=DEFAULT_ADDR):
         self._i2c = i2c
@@ -62,6 +65,16 @@ class MPU6050:
         ay = ustruct.unpack(">h", data[2:4])[0] / self._scale
         az = ustruct.unpack(">h", data[4:6])[0] / self._scale
         return (ax, ay, az)
+
+    @property
+    def gyro(self):
+        """Liefert (gx, gy, gz) in Grad/Sekunde (Range +-250 deg/s)."""
+        # Identisches Schema wie accel: 6 Bytes, big-endian signed.
+        data = self._i2c.readfrom_mem(self._addr, self.GYRO_XOUT_H, 6)
+        gx = ustruct.unpack(">h", data[0:2])[0] / self.GYRO_SCALE_250
+        gy = ustruct.unpack(">h", data[2:4])[0] / self.GYRO_SCALE_250
+        gz = ustruct.unpack(">h", data[4:6])[0] / self.GYRO_SCALE_250
+        return (gx, gy, gz)
 
     @property
     def temperature_c(self):

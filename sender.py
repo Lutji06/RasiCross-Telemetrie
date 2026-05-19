@@ -32,7 +32,7 @@ import ujson
 import utime
 import ubinascii
 import framebuf
-from machine import Pin, I2C, UART, WDT, reset
+from machine import Pin, I2C, UART, WDT, reset, disable_irq, enable_irq, ADC
 
 # Optionale Module — Programm läuft auch ohne, mit reduzierter Funktion
 try:
@@ -52,6 +52,12 @@ try:
     _HAS_GPS = True
 except ImportError:
     _HAS_GPS = False
+
+try:
+    import calc
+    _HAS_CALC = True
+except ImportError:
+    _HAS_CALC = False
 
 
 # ── Konfiguration ─────────────────────────────────────────────────────────
@@ -82,6 +88,18 @@ class Config:
     # Hall-Sensor
     PULSES_PER_REV  = 1          # Pulse pro Radumdrehung
     WHEEL_CIRC_M    = 0.0        # Radumfang in Meter (0 = GPS-Speed nutzen)
+
+    # Batterie (A3) — None = Feature aus. NUR ADC1-Pins (GPIO 32-39);
+    # ADC2 ist bei aktivem WiFi/ESP-NOW gesperrt!
+    BATT_ADC_PIN    = None       # z.B. 34. None -> Battery-Klasse inert
+    BATT_DIVIDER    = 11.0       # externer Teiler Vin/Vadc (z.B. 100k/10k)
+    BATT_CELLS      = 3          # Zellen in Serie (Per-Cell + SoC)
+    BATT_CAL        = 1.0        # Feinkalibrierung (Multiplikator)
+    BATT_CELL_WARN  = 3.5        # Warn-Schwelle pro Zelle (V)
+    BATT_CELL_CRIT  = 3.3        # Kritisch-Schwelle pro Zelle (V)
+
+    # Langsame Felder (vbat/soc/...) nur jedes N-te Paket senden
+    SLOW_FIELD_EVERY = 8         # ~1 Hz bei 12.5 Hz Basisrate
 
     # Timing (alle Werte in ms)
     SEND_MS         = 80         # Telemetrie-Intervall (12.5 Hz)
@@ -151,8 +169,13 @@ class RPMCounter:
         if dt < 50:
             return self._rpm_smooth
 
+        # Atomarer Read+Reset: ein Hall-IRQ zwischen Lesen und
+        # Nullsetzen wuerde sonst einen Puls verschlucken (RPM
+        # systematisch zu niedrig bei hoher Pulsrate).
+        _irq = disable_irq()
         cnt = self._count
         self._count = 0
+        enable_irq(_irq)
         self._total_pulses += cnt
         self._last_calc_ms = now
 
@@ -177,7 +200,70 @@ class RPMCounter:
     def pulse_hz(self):      return self._pulse_hz_raw
 
     @property
+    def ppr(self):           return self._ppr
+
+    @property
     def total_pulses(self):  return self._total_pulses
+
+
+# ── Batterie (A3) ─────────────────────────────────────────────────────────
+
+class Battery:
+    """Optionale Akku-Telemetrie ueber einen ADC1-Pin.
+
+    Inert, wenn Config.BATT_ADC_PIN None ist ODER calc.py fehlt:
+    .active == False, alle Werte 0/None, sender.py sendet dann keine
+    Batteriefelder. Die reine Umrechnung liegt in calc.py (getestet);
+    diese Klasse macht nur ADC-IO + Mittelung.
+    """
+
+    _SAMPLES = 16
+
+    def __init__(self):
+        self._adc = None
+        self._vbat = 0.0
+        self._soc = 0
+        self._warn = 0
+        pin = Config.BATT_ADC_PIN
+        if pin is None or not _HAS_CALC:
+            return
+        try:
+            self._adc = ADC(Pin(pin))
+            # 11 dB Daempfung -> ~0..3.3 V nutzbar
+            self._adc.atten(ADC.ATTN_11DB)
+        except Exception as e:               # noqa: BLE001
+            log("init", "Battery ADC init fehlgeschlagen:", e)
+            self._adc = None
+
+    @property
+    def active(self):
+        return self._adc is not None
+
+    def read(self):
+        """Misst und aktualisiert vbat/soc/warn. No-op wenn inert."""
+        if self._adc is None:
+            return
+        acc = 0
+        for _ in range(self._SAMPLES):
+            acc += self._adc.read_uv()       # kalibrierte Mikrovolt
+        adc_volts = (acc / self._SAMPLES) / 1_000_000.0
+        self._vbat = calc.battery_pack_v(adc_volts,
+                                         Config.BATT_DIVIDER,
+                                         Config.BATT_CAL)
+        vcell = calc.battery_cell_v(self._vbat, Config.BATT_CELLS)
+        self._soc = calc.battery_soc(vcell)
+        self._warn = calc.battery_warn(vcell,
+                                       Config.BATT_CELL_WARN,
+                                       Config.BATT_CELL_CRIT)
+
+    @property
+    def vbat(self):   return self._vbat
+
+    @property
+    def soc(self):    return self._soc
+
+    @property
+    def warn(self):   return self._warn
 
 
 # ── IMU (MPU-6050) ────────────────────────────────────────────────────────
@@ -195,6 +281,8 @@ class IMU:
         self._ok  = False
         self._gx  = 0.0
         self._gy  = 0.0
+        self._az  = 0.0          # geglaettetes Accel-Z (g)
+        self._yaw = 0.0          # geglaettete Gier-Rate = Gyro-Z (deg/s)
         self._mpu = None
         self._fail_count = 0
         # Kalibrier-Offsets (in g)
@@ -222,7 +310,12 @@ class IMU:
         if not self._ok:
             return (0.0, 0.0)
         try:
-            ax, ay, _az = self._mpu.accel
+            ax, ay, az = self._mpu.accel
+            _gxr, _gyr, gzr = self._mpu.gyro      # nur Z (= Gier) genutzt
+            # Accel-Z + Gier mit demselben EMA wie gx/gy glaetten
+            # (keine Kalibrier-Offsets: nur die Lehne-Achsen werden genullt).
+            self._az  = alpha * az  + (1 - alpha) * self._az
+            self._yaw = alpha * gzr + (1 - alpha) * self._yaw
             # Kalibrierung: rohe Samples mitteln, bis Zeit abgelaufen
             if self._cal_active:
                 self._cal_sum_x += ax
@@ -277,6 +370,23 @@ class IMU:
 
     @property
     def ok(self):  return self._ok
+
+    @property
+    def az(self):   return self._az
+
+    @property
+    def yaw(self):  return self._yaw
+
+    @property
+    def mpu_temp(self):
+        """Chip-Temperatur in ganzen Grad C, oder None wenn nicht
+        verfuegbar. Wird nur auf Slow-Paketen abgefragt."""
+        if not self._ok:
+            return None
+        try:
+            return int(round(self._mpu.temperature_c))
+        except Exception:
+            return None
 
 
 # ── GPS ───────────────────────────────────────────────────────────────────
@@ -671,11 +781,15 @@ def page_rpm(o, ctx):
 
 
 def page_diag(o, ctx):
-    """Seite 5: Diagnose - GPS / TX / Speed / RPM."""
-    o.text("GPS " + ("OK" if ctx.get("gps_fix") else "--"), 0, 16, 1)
-    o.text("TX  " + ("OK" if ctx.get("tx_ok") else "--"), 0, 28, 1)
-    o.text("SPD {:5.1f}".format(ctx.get("speed", 0)), 0, 40, 1)
-    o.text("RPM {:5d}".format(int(ctx.get("rpm", 0))), 0, 52, 1)
+    """Seite 5: Diagnose - GPS/TX (1 Zeile) / SPD / RPM / BAT."""
+    g = "OK" if ctx.get("gps_fix") else "--"
+    t = "OK" if ctx.get("tx_ok") else "--"
+    o.text("GPS {}  TX {}".format(g, t), 0, 16, 1)
+    o.text("SPD {:5.1f}".format(ctx.get("speed", 0)), 0, 28, 1)
+    o.text("RPM {:5d}".format(int(ctx.get("rpm", 0))), 0, 40, 1)
+    vbat = ctx.get("vbat")
+    if vbat is not None:
+        o.text("BAT {:4.1f}V".format(vbat), 0, 52, 1)
 
 
 def page_delta(o, ctx):
@@ -862,6 +976,16 @@ def apply_config(cfg, rpm_counter):
         Config.SEND_MS = max(20, int(cfg["send_ms"]))
     if "pulses_per_rev" in cfg:
         rpm_counter.set_ppr(cfg["pulses_per_rev"])
+    if "wheel_circ_m" in cfg:
+        try:
+            Config.WHEEL_CIRC_M = max(0.0, float(cfg["wheel_circ_m"]))
+        except (TypeError, ValueError):
+            pass
+    if "batt_cells" in cfg:
+        try:
+            Config.BATT_CELLS = max(1, int(cfg["batt_cells"]))
+        except (TypeError, ValueError):
+            pass
     log("config", "übernommen:", cfg)
 
 
@@ -893,6 +1017,7 @@ def main():
     display     = Display(i2c)
     led         = StatusLED(Config.LED_PIN)
     link        = ESPNowLink(Config.BRIDGE_MAC)
+    battery     = Battery()
 
     log("init", "Eigene MAC:", link.mac)
 
@@ -907,6 +1032,7 @@ def main():
     # Lokaler Zustand
     last_send = utime.ticks_ms()
     race_data = None
+    pkt_count = 0                 # zaehlt gesendete Pakete (Slow-Field-Kadenz)
 
     while True:
         if wdt:
@@ -960,20 +1086,55 @@ def main():
                          else Config.SEND_MS)
         if utime.ticks_diff(now, last_send) >= send_interval:
             last_send = now
-            speed = gps.speed_kmh
+            # Geschwindigkeitsquelle: GPS-Fix hat Vorrang; sonst Rad-
+            # Hochrechnung aus Hall-Pulsen (nur wenn WHEEL_CIRC_M > 0);
+            # sonst 0. Die reine Logik liegt in calc.py (getestet).
+            if _HAS_CALC:
+                spd_src = calc.speed_source(gps.fix, Config.WHEEL_CIRC_M)
+            else:
+                spd_src = "gps" if gps.fix else "none"
+            if spd_src == "gps":
+                speed = gps.speed_kmh
+            elif spd_src == "wheel" and _HAS_CALC:
+                speed = calc.wheel_speed_kmh(rpm_counter.pulse_hz,
+                                             rpm_counter.ppr,
+                                             Config.WHEEL_CIRC_M)
+            else:
+                speed = 0.0
+            # Batterie messen + Slow-Field-Kadenz (vbat/soc nur jedes
+            # SLOW_FIELD_EVERY-te Paket; batt_warn jedes Paket).
+            pkt_count += 1
+            slow = (pkt_count % Config.SLOW_FIELD_EVERY == 0)
+            if battery.active:
+                battery.read()
             packet = {
                 "speed":    round(speed, 1),
                 "rpm":      int(rpm),
                 "gx":       round(gx, 3),
                 "gy":       round(gy, 3),
+                "gz":       round(imu.az, 2),    # Accel-Z (g), jedes Paket
+                "yaw":      round(imu.yaw, 1),   # Gier-Rate (deg/s), jedes Paket
                 "lat":      round(gps.lat, 7),
                 "lon":      round(gps.lon, 7),
                 "gps_fix":  1 if gps.fix else 0,
                 "gps_health": gps.health,    # 'ok'|'searching'|'lost'|'disabled'
                 "pulse_hz": round(rpm_counter.pulse_hz, 1),
                 "send_ms":  send_interval,   # Dashboard sieht degraded mode
+                "spd_src":  spd_src,         # 'gps'|'wheel'|'none'
                 "imu_cal":  1 if imu.calibrating else 0,
             }
+            if battery.active:
+                packet["batt_warn"] = battery.warn          # 0|1|2, jedes Paket
+                if slow:
+                    packet["vbat"] = round(battery.vbat, 2)  # Pack-V, langsam
+                    packet["soc"]  = battery.soc             # 0..100, langsam
+            if slow:
+                mt = imu.mpu_temp
+                if mt is not None:
+                    packet["mtemp"] = mt          # MPU-Chip-Temp (deg C), langsam
+                # Byte-Budget-Kontrolle (< 250 B, siehe Spec §4). Nur
+                # bei DEBUG/Topic 'link' sichtbar -> kein Funk-Overhead.
+                log("link", "payload bytes:", len(ujson.dumps(packet)))
             tx_ok = link.send(packet)
 
             # Display-Update
@@ -986,6 +1147,7 @@ def main():
                 "tx_ok":     tx_ok,
                 "race_data": race_data,
                 "display":   display,
+                "vbat":      battery.vbat if battery.active else None,
             })
 
             # LED

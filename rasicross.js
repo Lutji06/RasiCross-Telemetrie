@@ -44,7 +44,7 @@ const state = {
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
-  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto' },
+  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true },
   calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false },
   theme: 'dark',
   // Telemetry
@@ -52,8 +52,11 @@ const state = {
   raw: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
   display: { speedLerp: 0, rpmLerp: 0, gxLerp: 0, gyLerp: 0 },
   gps: { fix: false, lastAt: null },
+  spdSrc: 'gps',
+  batt: { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 },
   max: { speed: 0, rpm: 0, g: 0 },
-  charts: { speed: [], rpm: [], gx: [], gy: [] },
+  charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [] },
+  imu: { yaw: 0, mtemp: null },
   heatmap: { on: false, lapMaxSpeed: 0 },
   // Track
   track: { points: [], bounds: null, scanning: false, totalDistance: 0, maxDistFromStart: 0, closed: false },
@@ -79,6 +82,10 @@ const state = {
   expandedRaceIds: {},
   // UI
   gateFlashUntil: 0,
+  // Recording / Replay (NEVER persisted — see saveData guard)
+  recording: { armed: false, buf: [], startWall: null, overflowed: false },
+  replay: { active: false, packets: [], idx: 0, virtualMs: 0, durationMs: 0,
+            speed: 1, playing: false, raf: null, lastWall: null, snapshot: null },
 };
 
 // ============================================================
@@ -97,6 +104,7 @@ function logTime(ts = Date.now()) { return new Date(ts).toLocaleTimeString('de-D
 // ============================================================
 let _saveTimer = null;
 function saveData() {
+  if (state.replay && state.replay.active) return;  // replay uses disposable state — never persist
   try {
     const payload = {
       version: '9.6', savedAt: new Date().toISOString(),
@@ -250,6 +258,8 @@ const rcAudio = (() => {
     lapBest:    () => { beep(1320, 120, 0.18); setTimeout(() => beep(1760, 180, 0.18), 140); },
     warning:    () => beep(220, 400, 0.22),
     pitCall:    () => { beep(660, 200, 0.2); setTimeout(() => beep(880, 200, 0.2), 220); },
+    battWarn:   () => beep(300, 350, 0.2),
+    battCrit:   () => { beep(200, 300, 0.25); setTimeout(() => beep(200, 300, 0.25), 320); },
     setEnabled: (v) => { enabled = !!v; try { localStorage.setItem('rc_audio', v ? '1' : '0'); } catch(e){} },
     isEnabled:  () => enabled,
   };
@@ -272,6 +282,7 @@ function loadSettingsToUi() {
   if ($('setInvertGx')) $('setInvertGx').checked = !!state.calibration.invertGx;
   if ($('setInvertGy')) $('setInvertGy').checked = !!state.calibration.invertGy;
   if ($('setSwapG')) $('setSwapG').checked = !!state.calibration.swapG;
+  if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
 }
 function saveSettingsFromUi() {
   state.settings.maxSpeed = Math.max(20, Math.min(200, Number($('setMaxSpeed').value) || 80));
@@ -295,9 +306,27 @@ function saveSettingsFromUi() {
 // ============================================================
 // 7. TELEMETRY PIPELINE
 // ============================================================
+function armRecording() {
+  // Frische Aufnahme starten (auto bei Connect/Demo, wenn aktiviert).
+  state.recording.buf = [];
+  state.recording.startWall = null;
+  state.recording.overflowed = false;
+  state.recording.armed = true;
+}
+function recordPacket(d) {
+  const now = Date.now();
+  if (state.recording.startWall == null) state.recording.startWall = now;
+  const rec = Object.assign({}, d, { t_rel: now - state.recording.startWall, _wall: now });
+  const dropped = RasiReplay.pushCapped(state.recording.buf, rec, RasiReplay.REC_MAX);
+  if (dropped && !state.recording.overflowed) {
+    state.recording.overflowed = true;
+    rcToast('⚠ Aufnahme-Puffer voll — älteste Pakete werden verworfen', 4000);
+  }
+}
 function processTelemetry(d) {
   try {
     if (!d) return;
+    if (state.recording.armed && !state.replay.active) recordPacket(d);
     if (d.type === 'bridge_status') {
       if (d.mac) state.connection.bridgeMac = d.mac;
       if (d.kart_mac) state.connection.kartMac = d.kart_mac;
@@ -320,6 +349,10 @@ function processTelemetry(d) {
     const rpm = Math.max(0, Number(d.rpm) || 0);
     let gx = (Number(d.gx) || 0) - state.calibration.gxZero;
     let gy = (Number(d.gy) || 0) - state.calibration.gyZero;
+    const gz = Number(d.gz) || 0;                  // Accel-Z (g), jedes Paket
+    const yawv = Number(d.yaw) || 0;               // Gier (deg/s), jedes Paket
+    state.imu.yaw = yawv;
+    if (d.mtemp != null) state.imu.mtemp = Number(d.mtemp) || 0;  // langsam: letzten Wert halten
     // Apply axis transformations
     if (state.calibration.swapG) { const tmp = gx; gx = gy; gy = tmp; }
     if (state.calibration.invertGx) gx = -gx;
@@ -329,7 +362,22 @@ function processTelemetry(d) {
     const hasGps = !!(d.gps_fix ?? d.fix ?? (lat && lon));
     state.gps.fix = hasGps;
     if (lat && lon) state.gps.lastAt = Date.now();
-    state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, lat: lat || 0, lon: lon || 0 };
+    if (d.spd_src) state.spdSrc = d.spd_src;
+    // Batterie (A3): vbat/soc langsam -> nur bei Anwesenheit aktualisieren
+    // (sonst letzten Wert behalten); batt_warn jedes Paket wenn aktiv.
+    if (d.vbat != null) { state.batt.vbat = Number(d.vbat) || 0; state.batt.present = true; }
+    if (d.soc != null)  { state.batt.soc = Number(d.soc) || 0;  state.batt.present = true; }
+    if (d.batt_warn != null) {
+      state.batt.present = true;
+      const w = Number(d.batt_warn) || 0;
+      if (w > state.batt._lastWarn) {           // nur Aufwaerts-Transition
+        if (w === 2) { rcToast('⛔ Akku kritisch!', 3500); rcAudio.battCrit(); }
+        else if (w === 1) { rcToast('⚠ Akku schwach', 3000); rcAudio.battWarn(); }
+      }
+      state.batt._lastWarn = w;
+      state.batt.warn = w;
+    }
+    state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0 };
     state.telemetry = { speed, rpm, gx, gy, lat: lat || 0, lon: lon || 0 };
     // Update max
     state.max.speed = Math.max(state.max.speed, speed);
@@ -345,11 +393,15 @@ function processTelemetry(d) {
       state.charts.rpm.push(rpm);
       state.charts.gx.push(gx);
       state.charts.gy.push(gy);
+      state.charts.gz.push(gz);
+      state.charts.yaw.push(yawv);
       const max = 600;
       while (state.charts.speed.length > max) state.charts.speed.shift();
       while (state.charts.rpm.length > max) state.charts.rpm.shift();
       while (state.charts.gx.length > max) state.charts.gx.shift();
       while (state.charts.gy.length > max) state.charts.gy.shift();
+      while (state.charts.gz.length > max) state.charts.gz.shift();
+      while (state.charts.yaw.length > max) state.charts.yaw.shift();
     }
     // Track current lap trace
     if (state.lapStart && lat && lon) {
@@ -785,9 +837,9 @@ function renderSavedTracks() {
         <b>${esc(t.name)}</b>
         <span>${t.points.length} Punkte · ${Math.round((t.totalDistance || 0))}m · ${new Date(t.createdAt).toLocaleDateString('de-DE')}</span>
       </div>
-      <button class="btn primary" onclick="window.loadSavedTrack('${t.id}')">Laden</button>
-      <button class="btn ghost" onclick="window.openTrackEditor('${t.id}')">✎</button>
-      <button class="btn danger" onclick="window.deleteSavedTrack('${t.id}')">✕</button>
+      <button class="btn primary" data-action="loadSavedTrack" data-id="${t.id}">Laden</button>
+      <button class="btn ghost" data-action="openTrackEditor" data-id="${t.id}">✎</button>
+      <button class="btn danger" data-action="deleteSavedTrack" data-id="${t.id}">✕</button>
     </div>
   `).join('');
 }
@@ -1493,7 +1545,7 @@ function renderDrivers() {
           <div class="driver-stat-name">${esc(d.name)}</div>
           <div class="driver-stat-sub">${d.number ? '#' + esc(d.number) : 'ohne Nummer'} · ${s.raceCount} Rennen · ${s.lapCount} Runden</div>
         </div>
-        <button class="btn danger" onclick="window.deleteDriver('${d.id}')" title="Fahrer löschen">✕</button>
+        <button class="btn danger" data-action="deleteDriver" data-id="${d.id}" title="Fahrer löschen">✕</button>
       </div>
       ${hasData ? `
       <div class="driver-stat-grid">
@@ -1758,7 +1810,7 @@ function renderRaces() {
     const elapsedMs = raceElapsedMs(r);
     const startDriver = state.drivers.find(d => d.id === r.startDriverId);
     return `
-      <div class="race-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}" onclick="window.selectRace('${r.id}')">
+      <div class="race-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}" data-action="selectRace" data-id="${r.id}">
         <div class="race-card-top">
           <h3>${esc(r.name)}</h3>
           <span class="race-status ${r.status}">${({ created: 'Erstellt', running: 'Läuft', paused: 'Pausiert', finished: 'Beendet', finished_auto: 'Auto-End' }[r.status] || r.status)}</span>
@@ -1770,12 +1822,12 @@ function renderRaces() {
           <div>Erstellt: <b>${new Date(r.createdAt).toLocaleDateString('de-DE')}</b></div>
         </div>
         <div class="race-card-actions">
-          ${!isActive ? `<button class="btn primary" onclick="event.stopPropagation();window.setActiveRace('${r.id}')" ${anotherRunning ? 'disabled title="Anderes Rennen läuft noch"' : ''}>Aktivieren</button>` : ''}
-          ${(r.status === 'running' || r.status === 'paused') && isActive ? `<button class="btn danger" onclick="event.stopPropagation();window.endRace(false)">Beenden</button>` : ''}
-          <button class="btn ghost expand-btn" onclick="event.stopPropagation();window.toggleRaceExpand('${r.id}')">
+          ${!isActive ? `<button class="btn primary" data-action="setActiveRace" data-id="${r.id}" ${anotherRunning ? 'disabled title="Anderes Rennen läuft noch"' : ''}>Aktivieren</button>` : ''}
+          ${(r.status === 'running' || r.status === 'paused') && isActive ? `<button class="btn danger" data-action="endRace">Beenden</button>` : ''}
+          <button class="btn ghost expand-btn" data-action="toggleRaceExpand" data-id="${r.id}">
             ${isExpanded ? '▲ Weniger' : '▼ Details'}
           </button>
-          <button class="btn ghost" onclick="event.stopPropagation();window.deleteRace('${r.id}')" title="Rennen löschen">✕</button>
+          <button class="btn ghost" data-action="deleteRace" data-id="${r.id}" title="Rennen löschen">✕</button>
         </div>
         ${isExpanded ? renderRaceDetails(r, validLaps, best, avgLap, totalSpeed, totalRpm, elapsedMs, startDriver) : ''}
       </div>
@@ -1973,13 +2025,17 @@ function drawLiveCharts() {
       0, state.settings.maxSpeed,
       { unit: 'km/h', right: 'rpm', maxRight: state.settings.maxRpm }
     );
+    const _yawDps = 250;  // Gyro +-250 deg/s -> auf die G-Achse skaliert
     drawChart(_gCtx, _gCanvas,
       [
         { data: state.charts.gx, color: css('--blue'), label: 'Gx' },
-        { data: state.charts.gy, color: css('--green'), label: 'Gy' }
+        { data: state.charts.gy, color: css('--green'), label: 'Gy' },
+        { data: state.charts.gz, color: '#e8a13a', label: 'Gz' },
+        { data: state.charts.yaw.map(v => v / _yawDps * state.settings.gScale),
+          raw: state.charts.yaw, color: css('--mut'), label: 'Yaw', dash: true }
       ],
       -state.settings.gScale, state.settings.gScale,
-      { unit: 'G', zero: true }
+      { unit: 'G', zero: true, right: '°/s', maxRight: _yawDps }
     );
   } catch (e) { console.warn('drawLiveCharts:', e); }
 }
@@ -2021,7 +2077,7 @@ const KPI_SMOOTH = 0.08;     // niedriger = traeger / besser lesbar
 const KPI_UPDATE_MS = 100;   // 10 Updates pro Sekunde
 const _kpiDisplay = { speed: 0, rpm: 0, gx: 0, gy: 0 };
 let _lastKpiUpdate = 0;
-let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '' };
+let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '', spdSrc: '', batt: '' };
 
 function updateLiveKPIs() {
   const now = Date.now();
@@ -2041,6 +2097,36 @@ function updateLiveKPIs() {
       $('kSpeed').innerHTML = `${speedText}<small>km/h</small>`;
       _lastKpiText.speed = speedText;
     }
+    // Geschwindigkeitsquelle-Indikator (GPS / WHL-Fallback / keine)
+    const _srcMap = { gps: 'GPS', wheel: 'WHL', none: '—' };
+    const _srcLabel = _srcMap[state.spdSrc] || '—';
+    if (_srcLabel !== _lastKpiText.spdSrc) {
+      const _srcEl = $('spdSrcTag');
+      if (_srcEl) {
+        _srcEl.textContent = _srcLabel;
+        _srcEl.style.color = state.spdSrc === 'wheel' ? '#e8a13a'
+                           : (state.spdSrc === 'none' || !state.spdSrc) ? 'var(--mut)'
+                           : '';
+      }
+      _lastKpiText.spdSrc = _srcLabel;
+    }
+    // Batterie-KPI: erst sichtbar sobald Daten kamen; Farbe nach warn.
+    if (state.batt.present) {
+      const _bEl = $('kpiBatt');
+      if (_bEl && _bEl.classList.contains('hidden')) _bEl.classList.remove('hidden');
+      const _cells = state.batt.cells > 0 ? state.batt.cells : 3;
+      const _vc = state.batt.vbat / _cells;
+      const _battText = `${state.batt.soc}|${state.batt.vbat.toFixed(2)}|${_vc.toFixed(2)}|${state.batt.warn}`;
+      if (_battText !== _lastKpiText.batt) {
+        const _v = $('kBatt'), _s = $('kBattSub');
+        if (_v) _v.innerHTML = `${state.batt.soc}<small>%</small>`;
+        if (_s) _s.innerHTML = `<b>${state.batt.vbat.toFixed(2)}</b> V · Zelle <b>${_vc.toFixed(2)}</b> V`;
+        if (_bEl) _bEl.style.color = state.batt.warn === 2 ? '#e5484d'
+                                   : state.batt.warn === 1 ? '#e8a13a'
+                                   : '';
+        _lastKpiText.batt = _battText;
+      }
+    }
     // RPM in 50er-Schritten runden damit es nicht so wackelt
     const rpmRounded = Math.round(_kpiDisplay.rpm / 50) * 50;
     const rpmText = rpmRounded.toLocaleString('de-DE');
@@ -2058,6 +2144,8 @@ function updateLiveKPIs() {
     setText('kSpeedMax', state.max.speed.toFixed(0));
     setText('kRpmMax', Math.round(state.max.rpm / 50) * 50);
     setText('kGMax', state.max.g.toFixed(1));
+    setText('kYaw', Math.round(state.imu.yaw));
+    setText('kMtemp', state.imu.mtemp == null ? '--' : Math.round(state.imu.mtemp));
     // Rundenzeit: nur alle 100ms aktualisieren ist ok
     const lapText = state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
@@ -2525,6 +2613,7 @@ async function listSerialPorts() {
   } catch (e) { console.warn('listSerialPorts:', e); sel.innerHTML = '<option value="">Fehler</option>'; }
 }
 async function connectSerial() {
+  if (state.replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
   if (state.demo.running) stopDemo();
   stopReconnect();
   state.serial.autoReconnect = $('autoReconnectToggle').checked;
@@ -2539,6 +2628,7 @@ async function connectSerial() {
       window.rasiSerial.onClose(() => onSerialClose());
       window.rasiSerial.onError?.(msg => onSerialError(msg));
       state.serial.connected = true;
+      if (state.settings.recordAutoArm) armRecording();
       state.serial.portName = path;
       state.serial.lastPath = path;
       state.connection.source = 'serial';
@@ -2654,9 +2744,11 @@ function stopReconnect() {
 
 // Demo
 function startDemo() {
+  if (state.replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
   if (state.demo.running) return;
   if (state.serial.connected) disconnectSerial();
   state.demo.running = true;
+  if (state.settings.recordAutoArm) armRecording();
   state.demo.t = 0;
   state.demo.angle = -Math.PI / 2;
   state.demo.lapsDone = 0;
@@ -2819,6 +2911,206 @@ async function resetAll() {
 }
 
 // ============================================================
+// 19b. RECORDING SAVE / LOAD / REPLAY
+// ============================================================
+function updateRecStatus() {
+  const el = $('recStatusText');
+  if (!el) return;
+  if (state.replay.active) { el.textContent = 'Replay aktiv'; return; }
+  const n = state.recording.buf.length;
+  el.textContent = state.recording.armed ? (n + ' Pakete aufgenommen') : 'Bereit';
+}
+function saveRecording() {
+  const buf = state.recording.buf;
+  if (!buf.length) { rcToast('Keine Aufnahme vorhanden'); return; }
+  const text = RasiReplay.serializeRecording(buf, { created: new Date().toISOString() });
+  const blob = new Blob([text], { type: 'application/x-ndjson' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rasicross_rec_${Date.now()}.ndjson`;
+  a.click();
+  URL.revokeObjectURL(url);
+  rcToast('Aufnahme gespeichert (' + buf.length + ' Pakete)');
+}
+
+// Slices that processTelemetry / onGpsUpdate / lap-sector-race
+// detection mutate. Snapshot on enter, restore verbatim on exit.
+const REPLAY_KEYS = ['connection','hz','telemetry','raw','display','gps','spdSrc',
+  'batt','max','charts','imu','heatmap','sectors','lapStart','currentLapMax',
+  'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap',
+  'drivers','races','activeRaceId','selectedRaceId','gateFlashUntil'];
+
+function snapshotReplayState() {
+  const s = {};
+  for (const k of REPLAY_KEYS) s[k] = state[k];
+  try { return structuredClone(s); } catch (e) { return JSON.parse(JSON.stringify(s)); }
+}
+function restoreReplayState(snap) {
+  for (const k of REPLAY_KEYS) state[k] = snap[k];
+}
+// Fresh accumulators + a disposable running race/driver so detected
+// laps/sectors stay isolated. track/startGate are intentionally kept.
+function resetReplayDerived() {
+  state.connection = { source: 'replay', packets: 0, lost: 0, rssi: null,
+    bridgeMac: 'RE:PL:AY:00:00:01', kartMac: 'RE:PL:AY:00:00:02',
+    lastPacketAt: null, seq: null, errors: 0 };
+  state.hz = 0;
+  state.telemetry = { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 };
+  state.raw = { speed: 0, rpm: 0, gx: 0, gy: 0, gz: 0, yaw: 0, lat: 0, lon: 0 };
+  state.display = { speedLerp: 0, rpmLerp: 0, gxLerp: 0, gyLerp: 0 };
+  state.gps = { fix: false, lastAt: null };
+  state.spdSrc = 'gps';
+  state.batt = { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 };
+  state.max = { speed: 0, rpm: 0, g: 0 };
+  state.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [] };
+  state.imu = { yaw: 0, mtemp: null };
+  state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
+  state.sectors = { boundaries: state.sectors.boundaries, cur: 0, sectorStart: null,
+    lapSectors: [null, null, null], best: [null, null, null], lastLapSectors: null,
+    manual: state.sectors.manual, clickTarget: null };
+  state.lapStart = null;
+  state.currentLapMax = { speed: 0, rpm: 0 };
+  state.currentLapTrace = [];
+  state.bestLapTrace = null;
+  state.bestLapMs = null;
+  state.bestLapNum = null;
+  state.liveDelta = null;
+  state.autoLap = { prevLat: null, prevLon: null, lastTriggerAt: 0 };
+  state.gateFlashUntil = 0;
+  const drv = { id: uid(), name: 'Replay', number: 'R', color: '#7aa2f7' };
+  const race = { id: uid(), name: 'Replay', trackId: state.activeTrackId,
+    lengthType: 'free', durationMs: 0, targetLaps: 0,
+    startDriverId: drv.id, currentDriverId: drv.id,
+    status: 'running', createdAt: Date.now(), startedAt: Date.now(),
+    endedAt: null, totalPausedMs: 0, laps: [],
+    stints: [{ driverId: drv.id, startAt: Date.now(), endAt: null, laps: [] }],
+    speedTrace: [] };
+  state.drivers = [drv];
+  state.races = [race];
+  state.activeRaceId = race.id;
+  state.selectedRaceId = race.id;
+}
+function feedReplayPacket(p) {
+  processTelemetry(p);
+  if (p.lat && p.lon) onGpsUpdate(p.lat, p.lon);
+}
+function fastForwardTo(targetMs) {
+  const pk = state.replay.packets;
+  const end = RasiReplay.nextIndexFor(pk, targetMs, state.replay.idx);
+  for (let i = state.replay.idx; i < end; i++) feedReplayPacket(pk[i]);
+  state.replay.idx = end;
+  state.replay.virtualMs = targetMs;
+}
+function loadRecordingFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const parsed = RasiReplay.parseRecording(reader.result);
+    if (!parsed.ok) { rcAlert('Keine gültige Aufnahme:\n' + parsed.error); return; }
+    if (parsed.packets.length < 2) { rcAlert('Aufnahme zu kurz (keine abspielbaren Pakete).'); return; }
+    if (parsed.skipped) rcToast(parsed.skipped + ' fehlerhafte Zeilen übersprungen', 3000);
+    enterReplay(parsed);
+  };
+  reader.onerror = () => rcAlert('Datei konnte nicht gelesen werden.');
+  reader.readAsText(file);
+}
+function enterReplay(parsed) {
+  if (state.serial.connected) disconnectSerial();
+  if (state.demo.running) stopDemo();
+  state.recording.armed = false;                 // do not record the replay
+  state.replay.snapshot = snapshotReplayState();
+  resetReplayDerived();
+  state.replay.active = true;
+  state.replay.packets = parsed.packets;
+  state.replay.idx = 0;
+  state.replay.virtualMs = 0;
+  state.replay.durationMs = parsed.durationMs;
+  state.replay.speed = 1;
+  state.replay.playing = true;
+  state.replay.lastWall = null;
+  $('replayBar')?.classList.remove('hidden');
+  $('connectBtn').textContent = 'Replay aktiv';
+  $('connectBtn').className = 'btn blue w100';
+  renderRaces();
+  drawTrack();
+  updateRecStatus();
+  rcToast('Replay gestartet (' + parsed.packets.length + ' Pakete, '
+    + fmtClock(parsed.durationMs) + ')', 3000);
+  state.replay.raf = requestAnimationFrame(replayTick);
+}
+function replayTick() {
+  if (!state.replay.active) return;
+  const now = performance.now();
+  if (state.replay.playing) {
+    if (state.replay.lastWall != null) {
+      const dt = (now - state.replay.lastWall) * state.replay.speed;
+      let v = state.replay.virtualMs + dt;
+      if (v >= state.replay.durationMs) { v = state.replay.durationMs; state.replay.playing = false; }
+      const end = RasiReplay.nextIndexFor(state.replay.packets, v, state.replay.idx);
+      for (let i = state.replay.idx; i < end; i++) feedReplayPacket(state.replay.packets[i]);
+      state.replay.idx = end;
+      state.replay.virtualMs = v;
+    }
+  }
+  state.replay.lastWall = now;
+  renderReplayBar();
+  state.replay.raf = requestAnimationFrame(replayTick);
+}
+function replaySeek(ratio) {
+  if (!state.replay.active) return;
+  const target = RasiReplay.seekTargetMs(state.replay.durationMs, ratio);
+  if (target < state.replay.virtualMs) {       // backward -> deterministic rebuild
+    resetReplayDerived();
+    state.replay.idx = 0;
+    state.replay.virtualMs = 0;
+  }
+  fastForwardTo(target);
+  state.replay.lastWall = null;
+  renderRaces();
+  drawTrack();
+  renderReplayBar();
+}
+function setReplaySpeed(mult) {
+  state.replay.speed = Number(mult) || 1;
+}
+function toggleReplayPlay() {
+  if (!state.replay.active) return;
+  if (state.replay.virtualMs >= state.replay.durationMs && !state.replay.playing) {
+    replaySeek(0);                              // restart from the beginning
+  }
+  state.replay.playing = !state.replay.playing;
+  state.replay.lastWall = null;
+  renderReplayBar();
+}
+function exitReplay() {
+  if (!state.replay.active) return;
+  if (state.replay.raf) cancelAnimationFrame(state.replay.raf);
+  state.replay.raf = null;
+  state.replay.active = false;
+  if (state.replay.snapshot) restoreReplayState(state.replay.snapshot);
+  state.replay.snapshot = null;
+  state.replay.packets = [];
+  $('replayBar')?.classList.add('hidden');
+  $('connectBtn').textContent = 'USB verbinden';
+  $('connectBtn').className = 'btn primary w100';
+  renderRaces();
+  drawTrack();
+  updateRecStatus();
+  rcToast('Replay beendet');
+}
+function renderReplayBar() {
+  const playBtn = $('rpPlayBtn');
+  if (playBtn) playBtn.textContent = state.replay.playing ? '⏸' : '▶';
+  setText('rpElapsed', fmtClock(state.replay.virtualMs));
+  setText('rpTotal', fmtClock(state.replay.durationMs));
+  const sk = $('rpSeek');
+  if (sk && document.activeElement !== sk) {
+    const r = state.replay.durationMs ? state.replay.virtualMs / state.replay.durationMs : 0;
+    sk.value = String(Math.round(r * 1000));
+  }
+}
+
+// ============================================================
 // 20. INIT
 // ============================================================
 function init() {
@@ -2893,6 +3185,7 @@ function init() {
   $('serialRefreshBtn').onclick = listSerialPorts;
   $('serialConnectBtn').onclick = () => state.serial.connected ? disconnectSerial() : connectSerial();
   $('autoReconnectToggle').onchange = () => { state.serial.autoReconnect = $('autoReconnectToggle').checked; };
+  if ($('recAutoArmToggle')) $('recAutoArmToggle').onchange = () => { state.settings.recordAutoArm = $('recAutoArmToggle').checked; saveData(); };
   $('demoStartBtn').onclick = startDemo;
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab
@@ -2958,8 +3251,11 @@ function init() {
       max_rpm: Number($('espMaxRpm').value) || 6000,
       warn_rpm: Number($('espWarnRpm').value) || 5500,
       send_ms: Number($('espSendMs').value) || 80,
-      pulses_per_rev: Number($('espPulses').value) || 1
+      pulses_per_rev: Number($('espPulses').value) || 1,
+      wheel_circ_m: Number($('espWheelCirc').value) || 0,
+      batt_cells: Number($('espBattCells').value) || 3
     };
+    state.batt.cells = cfg.batt_cells;
     if (!state.serial.connected) {
       setText('espSendStatus', 'Nicht verbunden');
       return;
@@ -2995,21 +3291,51 @@ function init() {
   listSerialPorts();
   // Start animation loop
   requestAnimationFrame(animLoop);
-  // Window exports for inline onclick handlers
-  window.loadSavedTrack = loadSavedTrack;
-  window.deleteSavedTrack = deleteSavedTrack;
-  window.openTrackEditor = openTrackEditor;
-  window.closeEditor = closeTrackEditor;
-  window.saveEditor = saveEditor;
-  window.editorClickTarget = editorClickTarget;
-  window.deleteDriver = deleteDriver;
-  window.selectRace = selectRace;
-  window.setActiveRace = setActiveRace;
-  window.endRace = endRace;
-  window.closeDriverModal = closeDriverModal;
-  window.confirmDriverChange = confirmDriverChange;
-  window.toggleRaceExpand = toggleRaceExpand;
-  window.deleteRace = deleteRace;
+  // Statische Modal-Buttons CSP-konform verdrahten (kein inline onclick)
+  const _bind = (elId, fn) => { const el = $(elId); if (el) el.addEventListener('click', fn); };
+  _bind('edPickStart', () => editorClickTarget('start'));
+  _bind('edPickS2',    () => editorClickTarget('s2'));
+  _bind('edPickS3',    () => editorClickTarget('s3'));
+  _bind('edCancelBtn', closeTrackEditor);
+  _bind('edSaveBtn',   saveEditor);
+  _bind('dmCancelBtn', closeDriverModal);
+  _bind('dmConfirmBtn', confirmDriverChange);
+  _bind('recSaveBtn', saveRecording);
+  _bind('recLoadBtn', () => $('recLoadFile')?.click());
+  const _rlf = $('recLoadFile');
+  if (_rlf) _rlf.onchange = (e) => { if (e.target.files[0]) loadRecordingFile(e.target.files[0]); e.target.value = ''; };
+  _bind('rpPlayBtn', toggleReplayPlay);
+  _bind('rpExitBtn', exitReplay);
+  const _rps = $('rpSeek');
+  if (_rps) _rps.addEventListener('input', () => replaySeek((Number(_rps.value) || 0) / 1000));
+  const _rsp = $('rpSpeed');
+  if (_rsp) _rsp.addEventListener('change', () => setReplaySpeed(_rsp.value));
+  updateRecStatus();
+  // Dynamische Listen-Buttons per Event-Delegation (CSP-konform):
+  // innerstes [data-action] gewinnt -> Klick auf einen Karten-Button
+  // loest NUR dessen Aktion aus, nie zusaetzlich selectRace (ersetzt
+  // das fruehere event.stopPropagation()).
+  const ACTION_MAP = {
+    loadSavedTrack:   id => loadSavedTrack(id),
+    openTrackEditor:  id => openTrackEditor(id),
+    deleteSavedTrack: id => deleteSavedTrack(id),
+    deleteDriver:     id => deleteDriver(id),
+    selectRace:       id => selectRace(id),
+    setActiveRace:    id => setActiveRace(id),
+    endRace:          () => endRace(false),
+    toggleRaceExpand: id => toggleRaceExpand(id),
+    deleteRace:       id => deleteRace(id),
+  };
+  const handleActionClick = (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const fn = ACTION_MAP[el.dataset.action];
+    if (fn) fn(el.dataset.id);
+  };
+  ['savedTracksList', 'driverStatsList', 'raceList'].forEach((cid) => {
+    const c = $(cid);
+    if (c) c.addEventListener('click', handleActionClick);
+  });
 }
 init();
 
