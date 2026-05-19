@@ -2613,6 +2613,7 @@ async function listSerialPorts() {
   } catch (e) { console.warn('listSerialPorts:', e); sel.innerHTML = '<option value="">Fehler</option>'; }
 }
 async function connectSerial() {
+  if (state.replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
   if (state.demo.running) stopDemo();
   stopReconnect();
   state.serial.autoReconnect = $('autoReconnectToggle').checked;
@@ -2743,6 +2744,7 @@ function stopReconnect() {
 
 // Demo
 function startDemo() {
+  if (state.replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
   if (state.demo.running) return;
   if (state.serial.connected) disconnectSerial();
   state.demo.running = true;
@@ -2930,6 +2932,182 @@ function saveRecording() {
   a.click();
   URL.revokeObjectURL(url);
   rcToast('Aufnahme gespeichert (' + buf.length + ' Pakete)');
+}
+
+// Slices that processTelemetry / onGpsUpdate / lap-sector-race
+// detection mutate. Snapshot on enter, restore verbatim on exit.
+const REPLAY_KEYS = ['connection','hz','telemetry','raw','display','gps','spdSrc',
+  'batt','max','charts','imu','heatmap','sectors','lapStart','currentLapMax',
+  'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap',
+  'drivers','races','activeRaceId','selectedRaceId','gateFlashUntil'];
+
+function snapshotReplayState() {
+  const s = {};
+  for (const k of REPLAY_KEYS) s[k] = state[k];
+  try { return structuredClone(s); } catch (e) { return JSON.parse(JSON.stringify(s)); }
+}
+function restoreReplayState(snap) {
+  for (const k of REPLAY_KEYS) state[k] = snap[k];
+}
+// Fresh accumulators + a disposable running race/driver so detected
+// laps/sectors stay isolated. track/startGate are intentionally kept.
+function resetReplayDerived() {
+  state.connection = { source: 'replay', packets: 0, lost: 0, rssi: null,
+    bridgeMac: 'RE:PL:AY:00:00:01', kartMac: 'RE:PL:AY:00:00:02',
+    lastPacketAt: null, seq: null, errors: 0 };
+  state.hz = 0;
+  state.telemetry = { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 };
+  state.raw = { speed: 0, rpm: 0, gx: 0, gy: 0, gz: 0, yaw: 0, lat: 0, lon: 0 };
+  state.display = { speedLerp: 0, rpmLerp: 0, gxLerp: 0, gyLerp: 0 };
+  state.gps = { fix: false, lastAt: null };
+  state.spdSrc = 'gps';
+  state.batt = { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 };
+  state.max = { speed: 0, rpm: 0, g: 0 };
+  state.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [] };
+  state.imu = { yaw: 0, mtemp: null };
+  state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
+  state.sectors = { boundaries: state.sectors.boundaries, cur: 0, sectorStart: null,
+    lapSectors: [null, null, null], best: [null, null, null], lastLapSectors: null,
+    manual: state.sectors.manual, clickTarget: null };
+  state.lapStart = null;
+  state.currentLapMax = { speed: 0, rpm: 0 };
+  state.currentLapTrace = [];
+  state.bestLapTrace = null;
+  state.bestLapMs = null;
+  state.bestLapNum = null;
+  state.liveDelta = null;
+  state.autoLap = { prevLat: null, prevLon: null, lastTriggerAt: 0 };
+  state.gateFlashUntil = 0;
+  const drv = { id: uid(), name: 'Replay', number: 'R', color: '#7aa2f7' };
+  const race = { id: uid(), name: 'Replay', trackId: state.activeTrackId,
+    lengthType: 'free', durationMs: 0, targetLaps: 0,
+    startDriverId: drv.id, currentDriverId: drv.id,
+    status: 'running', createdAt: Date.now(), startedAt: Date.now(),
+    endedAt: null, totalPausedMs: 0, laps: [],
+    stints: [{ driverId: drv.id, startAt: Date.now(), endAt: null, laps: [] }],
+    speedTrace: [] };
+  state.drivers = [drv];
+  state.races = [race];
+  state.activeRaceId = race.id;
+  state.selectedRaceId = race.id;
+}
+function feedReplayPacket(p) {
+  processTelemetry(p);
+  if (p.lat && p.lon) onGpsUpdate(p.lat, p.lon);
+}
+function fastForwardTo(targetMs) {
+  const pk = state.replay.packets;
+  const end = RasiReplay.nextIndexFor(pk, targetMs, state.replay.idx);
+  for (let i = state.replay.idx; i < end; i++) feedReplayPacket(pk[i]);
+  state.replay.idx = end;
+  state.replay.virtualMs = targetMs;
+}
+function loadRecordingFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const parsed = RasiReplay.parseRecording(reader.result);
+    if (!parsed.ok) { rcAlert('Keine gültige Aufnahme:\n' + parsed.error); return; }
+    if (parsed.packets.length < 2) { rcAlert('Aufnahme zu kurz (keine abspielbaren Pakete).'); return; }
+    if (parsed.skipped) rcToast(parsed.skipped + ' fehlerhafte Zeilen übersprungen', 3000);
+    enterReplay(parsed);
+  };
+  reader.onerror = () => rcAlert('Datei konnte nicht gelesen werden.');
+  reader.readAsText(file);
+}
+function enterReplay(parsed) {
+  if (state.serial.connected) disconnectSerial();
+  if (state.demo.running) stopDemo();
+  state.recording.armed = false;                 // do not record the replay
+  state.replay.snapshot = snapshotReplayState();
+  resetReplayDerived();
+  state.replay.active = true;
+  state.replay.packets = parsed.packets;
+  state.replay.idx = 0;
+  state.replay.virtualMs = 0;
+  state.replay.durationMs = parsed.durationMs;
+  state.replay.speed = 1;
+  state.replay.playing = true;
+  state.replay.lastWall = null;
+  $('replayBar')?.classList.remove('hidden');
+  $('connectBtn').textContent = 'Replay aktiv';
+  $('connectBtn').className = 'btn blue w100';
+  renderRaces();
+  drawTrack();
+  updateRecStatus();
+  rcToast('Replay gestartet (' + parsed.packets.length + ' Pakete, '
+    + fmtClock(parsed.durationMs) + ')', 3000);
+  state.replay.raf = requestAnimationFrame(replayTick);
+}
+function replayTick() {
+  if (!state.replay.active) return;
+  const now = performance.now();
+  if (state.replay.playing) {
+    if (state.replay.lastWall != null) {
+      const dt = (now - state.replay.lastWall) * state.replay.speed;
+      let v = state.replay.virtualMs + dt;
+      if (v >= state.replay.durationMs) { v = state.replay.durationMs; state.replay.playing = false; }
+      const end = RasiReplay.nextIndexFor(state.replay.packets, v, state.replay.idx);
+      for (let i = state.replay.idx; i < end; i++) feedReplayPacket(state.replay.packets[i]);
+      state.replay.idx = end;
+      state.replay.virtualMs = v;
+    }
+  }
+  state.replay.lastWall = now;
+  renderReplayBar();
+  state.replay.raf = requestAnimationFrame(replayTick);
+}
+function replaySeek(ratio) {
+  if (!state.replay.active) return;
+  const target = RasiReplay.seekTargetMs(state.replay.durationMs, ratio);
+  if (target < state.replay.virtualMs) {       // backward -> deterministic rebuild
+    resetReplayDerived();
+    state.replay.idx = 0;
+    state.replay.virtualMs = 0;
+  }
+  fastForwardTo(target);
+  state.replay.lastWall = null;
+  renderRaces();
+  drawTrack();
+  renderReplayBar();
+}
+function setReplaySpeed(mult) {
+  state.replay.speed = Number(mult) || 1;
+}
+function toggleReplayPlay() {
+  if (!state.replay.active) return;
+  if (state.replay.virtualMs >= state.replay.durationMs && !state.replay.playing) {
+    replaySeek(0);                              // restart from the beginning
+  }
+  state.replay.playing = !state.replay.playing;
+  state.replay.lastWall = null;
+  renderReplayBar();
+}
+function exitReplay() {
+  if (!state.replay.active) return;
+  if (state.replay.raf) cancelAnimationFrame(state.replay.raf);
+  state.replay.raf = null;
+  state.replay.active = false;
+  if (state.replay.snapshot) restoreReplayState(state.replay.snapshot);
+  state.replay.snapshot = null;
+  state.replay.packets = [];
+  $('replayBar')?.classList.add('hidden');
+  $('connectBtn').textContent = 'USB verbinden';
+  $('connectBtn').className = 'btn primary w100';
+  renderRaces();
+  drawTrack();
+  updateRecStatus();
+  rcToast('Replay beendet');
+}
+function renderReplayBar() {
+  const playBtn = $('rpPlayBtn');
+  if (playBtn) playBtn.textContent = state.replay.playing ? '⏸' : '▶';
+  setText('rpElapsed', fmtClock(state.replay.virtualMs));
+  setText('rpTotal', fmtClock(state.replay.durationMs));
+  const sk = $('rpSeek');
+  if (sk && document.activeElement !== sk) {
+    const r = state.replay.durationMs ? state.replay.virtualMs / state.replay.durationMs : 0;
+    sk.value = String(Math.round(r * 1000));
+  }
 }
 
 // ============================================================
@@ -3123,6 +3301,15 @@ function init() {
   _bind('dmCancelBtn', closeDriverModal);
   _bind('dmConfirmBtn', confirmDriverChange);
   _bind('recSaveBtn', saveRecording);
+  _bind('recLoadBtn', () => $('recLoadFile')?.click());
+  const _rlf = $('recLoadFile');
+  if (_rlf) _rlf.onchange = (e) => { if (e.target.files[0]) loadRecordingFile(e.target.files[0]); e.target.value = ''; };
+  _bind('rpPlayBtn', toggleReplayPlay);
+  _bind('rpExitBtn', exitReplay);
+  const _rps = $('rpSeek');
+  if (_rps) _rps.addEventListener('input', () => replaySeek((Number(_rps.value) || 0) / 1000));
+  const _rsp = $('rpSpeed');
+  if (_rsp) _rsp.addEventListener('change', () => setReplaySpeed(_rsp.value));
   updateRecStatus();
   // Dynamische Listen-Buttons per Event-Delegation (CSP-konform):
   // innerstes [data-action] gewinnt -> Klick auf einen Karten-Button
