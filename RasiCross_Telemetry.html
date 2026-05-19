@@ -2661,6 +2661,18 @@ body.diagnose-on .diagnose-only{display:block}
       </div>
     </div>
   </div>
+
+  <div class="card" style="margin-top:18px">
+    <div class="card-head"><span class="card-title">Aufnahme &amp; Replay</span><span class="card-sub" id="recStatusText">Bereit</span></div>
+    <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
+      Telemetrie wird im Speicher mitgeschnitten (max. 150 000 Pakete). Speichern als <code>.ndjson</code>; geladene Aufnahmen werden im Replay-Modus abgespielt.
+    </p>
+    <div class="row">
+      <button class="btn ghost" id="recSaveBtn">💾 Aufnahme speichern</button>
+      <button class="btn primary" id="recLoadBtn">📂 Aufnahme laden &amp; abspielen</button>
+      <input type="file" id="recLoadFile" accept=".ndjson,.jsonl,application/x-ndjson" style="display:none">
+    </div>
+  </div>
 </section>
 
 <!-- ============================================================

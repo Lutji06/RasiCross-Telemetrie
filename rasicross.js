@@ -2909,6 +2909,30 @@ async function resetAll() {
 }
 
 // ============================================================
+// 19b. RECORDING SAVE / LOAD / REPLAY
+// ============================================================
+function updateRecStatus() {
+  const el = $('recStatusText');
+  if (!el) return;
+  if (state.replay.active) { el.textContent = 'Replay aktiv'; return; }
+  const n = state.recording.buf.length;
+  el.textContent = state.recording.armed ? (n + ' Pakete aufgenommen') : 'Bereit';
+}
+function saveRecording() {
+  const buf = state.recording.buf;
+  if (!buf.length) { rcToast('Keine Aufnahme vorhanden'); return; }
+  const text = RasiReplay.serializeRecording(buf, { created: new Date().toISOString() });
+  const blob = new Blob([text], { type: 'application/x-ndjson' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rasicross_rec_${Date.now()}.ndjson`;
+  a.click();
+  URL.revokeObjectURL(url);
+  rcToast('Aufnahme gespeichert (' + buf.length + ' Pakete)');
+}
+
+// ============================================================
 // 20. INIT
 // ============================================================
 function init() {
@@ -3098,6 +3122,8 @@ function init() {
   _bind('edSaveBtn',   saveEditor);
   _bind('dmCancelBtn', closeDriverModal);
   _bind('dmConfirmBtn', confirmDriverChange);
+  _bind('recSaveBtn', saveRecording);
+  updateRecStatus();
   // Dynamische Listen-Buttons per Event-Delegation (CSP-konform):
   // innerstes [data-action] gewinnt -> Klick auf einen Karten-Button
   // loest NUR dessen Aktion aus, nie zusaetzlich selectRace (ersetzt
