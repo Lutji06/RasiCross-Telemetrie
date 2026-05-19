@@ -1112,6 +1112,8 @@ def main():
                 "rpm":      int(rpm),
                 "gx":       round(gx, 3),
                 "gy":       round(gy, 3),
+                "gz":       round(imu.az, 2),    # Accel-Z (g), jedes Paket
+                "yaw":      round(imu.yaw, 1),   # Gier-Rate (deg/s), jedes Paket
                 "lat":      round(gps.lat, 7),
                 "lon":      round(gps.lon, 7),
                 "gps_fix":  1 if gps.fix else 0,
@@ -1127,6 +1129,9 @@ def main():
                     packet["vbat"] = round(battery.vbat, 2)  # Pack-V, langsam
                     packet["soc"]  = battery.soc             # 0..100, langsam
             if slow:
+                mt = imu.mpu_temp
+                if mt is not None:
+                    packet["mtemp"] = mt          # MPU-Chip-Temp (deg C), langsam
                 # Byte-Budget-Kontrolle (< 250 B, siehe Spec §4). Nur
                 # bei DEBUG/Topic 'link' sichtbar -> kein Funk-Overhead.
                 log("link", "payload bytes:", len(ujson.dumps(packet)))
