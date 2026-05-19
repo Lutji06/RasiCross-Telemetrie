@@ -86,8 +86,9 @@ class Config:
     LED_PIN         = 2          # onboard Status-LED
 
     # Hall-Sensor
-    PULSES_PER_REV  = 1          # Pulse pro Radumdrehung
+    PULSES_PER_REV  = 1          # Pulse pro Wellenumdrehung
     WHEEL_CIRC_M    = 0.0        # Radumfang in Meter (0 = GPS-Speed nutzen)
+    GEAR_RATIO      = 1.0        # Wellenumdrehungen je Radumdrehung (1.0 = 1:1)
 
     # Batterie (A3) — None = Feature aus. NUR ADC1-Pins (GPIO 32-39);
     # ADC2 ist bei aktivem WiFi/ESP-NOW gesperrt!
@@ -981,6 +982,11 @@ def apply_config(cfg, rpm_counter):
             Config.WHEEL_CIRC_M = max(0.0, float(cfg["wheel_circ_m"]))
         except (TypeError, ValueError):
             pass
+    if "gear_ratio" in cfg:
+        try:
+            Config.GEAR_RATIO = max(0.0, float(cfg["gear_ratio"]))
+        except (TypeError, ValueError):
+            pass
     if "batt_cells" in cfg:
         try:
             Config.BATT_CELLS = max(1, int(cfg["batt_cells"]))
@@ -1098,7 +1104,8 @@ def main():
             elif spd_src == "wheel" and _HAS_CALC:
                 speed = calc.wheel_speed_kmh(rpm_counter.pulse_hz,
                                              rpm_counter.ppr,
-                                             Config.WHEEL_CIRC_M)
+                                             Config.WHEEL_CIRC_M,
+                                             Config.GEAR_RATIO)
             else:
                 speed = 0.0
             # Batterie messen + Slow-Field-Kadenz (vbat/soc nur jedes

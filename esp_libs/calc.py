@@ -8,14 +8,18 @@
 # ============================================================
 
 
-def wheel_speed_kmh(pulse_hz, ppr, circ_m):
+def wheel_speed_kmh(pulse_hz, ppr, circ_m, gear_ratio=1.0):
     """Fahrzeuggeschwindigkeit in km/h aus der Hall-Pulsfrequenz.
 
-    pulse_hz : Hall-Pulse pro Sekunde
-    ppr      : Hall-Pulse pro Radumdrehung (>= 1)
-    circ_m   : Radumfang in Metern (> 0 aktiviert die Funktion)
+    pulse_hz   : Hall-Pulse pro Sekunde
+    ppr        : Hall-Pulse pro Wellenumdrehung (>= 1)
+    circ_m     : Radumfang in Metern (> 0 aktiviert die Funktion)
+    gear_ratio : Wellenumdrehungen je Radumdrehung (Untersetzung,
+                 z. B. 6.3). <= 0 / nicht-numerisch -> 1.0 (keine
+                 Untersetzung). Default 1.0 = bisheriges Verhalten.
 
-    Liefert 0.0 bei nicht-positiven oder nicht-numerischen Eingaben.
+    Liefert 0.0 bei nicht-positiven oder nicht-numerischen
+    pulse_hz/ppr/circ_m.
     """
     try:
         pulse_hz = float(pulse_hz)
@@ -25,7 +29,13 @@ def wheel_speed_kmh(pulse_hz, ppr, circ_m):
         return 0.0
     if not (pulse_hz > 0.0) or not (ppr > 0.0) or not (circ_m > 0.0):
         return 0.0  # also maps NaN -> 0.0 (NaN comparisons are always False)
-    rev_per_s = pulse_hz / ppr
+    try:
+        g = float(gear_ratio)
+    except (TypeError, ValueError):
+        g = 1.0
+    if not (g > 0.0):          # <=0, negativ oder NaN -> keine Untersetzung
+        g = 1.0
+    rev_per_s = (pulse_hz / ppr) / g
     return rev_per_s * circ_m * 3.6
 
 

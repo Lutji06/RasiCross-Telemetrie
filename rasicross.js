@@ -3266,6 +3266,7 @@ function init() {
       send_ms: Number($('espSendMs').value) || 80,
       pulses_per_rev: Number($('espPulses').value) || 1,
       wheel_circ_m: Number($('espWheelCirc').value) || 0,
+      gear_ratio: Number($('espGearRatio').value) || 1,
       batt_cells: Number($('espBattCells').value) || 3
     };
     state.batt.cells = cfg.batt_cells;
