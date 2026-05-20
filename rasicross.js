@@ -3141,7 +3141,7 @@ function initGViewToggle() {
   } catch (e) { _kart3dReady = false; }
   if (!_kart3dReady) {
     const btn3d = wrap.querySelector('button[data-view="3d"]');
-    if (btn3d) btn3d.classList.add('disabled');
+    if (btn3d) { btn3d.classList.add('disabled'); btn3d.disabled = true; }
     // Force a known-good state if persisted gView was '3d' but 3D failed.
     if (state.settings.gView === '3d') {
       state.settings.gView = '2d';
@@ -3180,7 +3180,12 @@ function applyGView(view) {
     b.classList.toggle('active', b.getAttribute('data-view') === (is3d ? '3d' : '2d'));
   });
   if (window.RasiKart3D) {
-    if (is3d) window.RasiKart3D.start(); else window.RasiKart3D.stop();
+    if (is3d) {
+      _kart3dLastTick = 0;  // reset dispatch clock so first frame uses the 16ms fallback
+      window.RasiKart3D.start();
+    } else {
+      window.RasiKart3D.stop();
+    }
   }
 }
 
