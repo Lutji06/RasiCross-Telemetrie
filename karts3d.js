@@ -56,6 +56,32 @@ function gViewReducer(current, action) {
   return cur;
 }
 
+// computeAutoFitScale: returns the uniform scale factor that fits a
+// bounding box of (sx,sy,sz) into a target diagonal. Degenerate inputs
+// (NaN, zero, negative) -> 1 (no scaling).
+function computeAutoFitScale(sx, sy, sz, targetDiagonal) {
+  var x = Number(sx), y = Number(sy), z = Number(sz), t = Number(targetDiagonal);
+  if (!isFinite(x) || !isFinite(y) || !isFinite(z) || !isFinite(t)) return 1;
+  if (x <= 0 || y <= 0 || z <= 0 || t <= 0) return 1;
+  var diag = Math.sqrt(x * x + y * y + z * z);
+  if (diag <= 0) return 1;
+  return t / diag;
+}
+
+// kartModelYawReducer: clamp current to one of {0,90,180,270}, then apply
+// action ('next' / 'prev' / 'set:0' / 'set:90' / 'set:180' / 'set:270').
+// Invalid current -> 0. Unknown action -> identity (post-clamp).
+function kartModelYawReducer(current, action) {
+  var c = (current === 90 || current === 180 || current === 270) ? current : 0;
+  if (action === 'next') return (c + 90) % 360;
+  if (action === 'prev') return (c + 270) % 360;
+  if (action === 'set:0')   return 0;
+  if (action === 'set:90')  return 90;
+  if (action === 'set:180') return 180;
+  if (action === 'set:270') return 270;
+  return c;
+}
+
 // ── DOM/WebGL wrapper (gated by typeof THREE) ──────────────
 // All fields prefixed with `_` to mark module-internal state.
 var _scene = null;
@@ -76,6 +102,7 @@ var _disposed = false;
 var _failed = false;        // true after init failure (no THREE / no WebGL)
 
 var _EMA_ALPHA = 0.2;
+var _customModelHeading = 0;  // degrees, applied as Y-Euler offset; from kartModelYawReducer
 
 // Zone color helper — mirrors the 2D G-meter's green/orange/red bands.
 // Thresholds are absolute (1G / 2G), matching the 2D meter's behaviour;
@@ -215,7 +242,9 @@ function update(imu) {
   _yaw    = yawIntegrate(_yaw, Number(imu.yaw) || 0, dt);
 
   // YXZ Euler: yaw around Y, pitch around X, roll around Z.
-  var euler = new THREE.Euler(_pitch, _yaw, _roll, 'YXZ');
+  // Static heading offset (Phase 12) is added on top of the integrated yaw.
+  var headingRad = _customModelHeading * Math.PI / 180;
+  var euler = new THREE.Euler(_pitch, _yaw + headingRad, _roll, 'YXZ');
   _kartGroup.quaternion.setFromEuler(euler);
 
   // G-vector on the floor: longitudinal Gx -> -Z (forward), lateral Gy -> +X (left).
@@ -307,6 +336,102 @@ function dispose() {
 
 function isFailed() { return _failed; }
 
+// ── Custom-model API (Phase 12) ────────────────────────────
+//
+// loadCustomModel(arrayBuffer, headingDeg) -> Promise<{ok, error?}>
+// Parses a glTF/GLB binary, auto-fits the result to the primitive kart's
+// bounding-box diagonal (~2.37), centers X/Z on origin + lifts Y so the
+// model's lowest point sits on the floor plane (y=0), wraps any non-
+// MeshStandardMaterial meshes with a default standard material so they
+// render under our lighting, then replaces the existing _kartGroup.
+// Disposes the previous group's geometry/materials before swapping.
+function loadCustomModel(arrayBuffer, headingDeg) {
+  return new Promise(function (resolve) {
+    if (typeof THREE === 'undefined' || typeof THREE.GLTFLoader === 'undefined') {
+      return resolve({ ok: false, error: 'no-loader' });
+    }
+    if (_failed || _disposed || !_scene) {
+      return resolve({ ok: false, error: 'not-initialised' });
+    }
+    var loader = new THREE.GLTFLoader();
+    try {
+      loader.parse(arrayBuffer, '', function (gltf) {
+        try {
+          var scene = gltf && gltf.scene ? gltf.scene : null;
+          if (!scene) return resolve({ ok: false, error: 'parse-failed' });
+
+          // Bounding box (pre-scale).
+          var bbox = new THREE.Box3().setFromObject(scene);
+          var size = bbox.getSize(new THREE.Vector3());
+          var center = bbox.getCenter(new THREE.Vector3());
+          var s = computeAutoFitScale(size.x, size.y, size.z, Math.sqrt(4 + 0.16 + 1.44));
+          scene.scale.setScalar(s);
+          // Centre X/Z, anchor bottom on floor (y=0).
+          scene.position.set(-center.x * s, -bbox.min.y * s, -center.z * s);
+
+          // Material fallback: any Mesh without a proper colored material
+          // gets wrapped with a default MeshStandardMaterial so it remains
+          // visible under our AmbientLight + DirectionalLight.
+          scene.traverse(function (obj) {
+            if (obj.isMesh && (!obj.material || !obj.material.color)) {
+              if (obj.material && obj.material.dispose) obj.material.dispose();
+              obj.material = new THREE.MeshStandardMaterial({ color: 0x4cc2ff, roughness: 0.6 });
+            }
+          });
+
+          // Dispose old group, swap in the new one.
+          _disposeGroup(_kartGroup);
+          _scene.remove(_kartGroup);
+          _kartGroup = scene;
+          _scene.add(_kartGroup);
+          _customModelHeading = kartModelYawReducer(headingDeg, 'set:' + headingDeg);
+          resolve({ ok: true });
+        } catch (e) {
+          resolve({ ok: false, error: 'apply-failed' });
+        }
+      }, function (_err) {
+        resolve({ ok: false, error: 'parse-failed' });
+      });
+    } catch (e) {
+      resolve({ ok: false, error: 'parse-failed' });
+    }
+  });
+}
+
+// resetToPrimitive: dispose the current _kartGroup, rebuild the primitive.
+// Heading offset is reset to 0.
+function resetToPrimitive() {
+  if (_failed || _disposed || !_scene) return;
+  _disposeGroup(_kartGroup);
+  _scene.remove(_kartGroup);
+  _kartGroup = _buildKart();
+  _scene.add(_kartGroup);
+  _customModelHeading = 0;
+}
+
+// setHeadingOffset: clamp via kartModelYawReducer and store. Effective on
+// the next update() frame (no immediate re-render — the rAF tick handles it).
+function setHeadingOffset(headingDeg) {
+  _customModelHeading = kartModelYawReducer(headingDeg, 'set:' + headingDeg);
+}
+
+// Dispose helper: walk a group and free geometry/material GPU resources.
+function _disposeGroup(group) {
+  if (!group || !group.traverse) return;
+  try {
+    group.traverse(function (obj) {
+      if (obj.geometry && obj.geometry.dispose) obj.geometry.dispose();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(function (m) { m.dispose && m.dispose(); });
+        } else if (obj.material.dispose) {
+          obj.material.dispose();
+        }
+      }
+    });
+  } catch (e) { /* ignore */ }
+}
+
 // ── UMD-style export ───────────────────────────────────────
 (function () {
   var api = {
@@ -314,13 +439,18 @@ function isFailed() { return _failed; }
     rollFromG: rollFromG,
     yawIntegrate: yawIntegrate,
     gViewReducer: gViewReducer,
+    computeAutoFitScale: computeAutoFitScale,
+    kartModelYawReducer: kartModelYawReducer,
     init: init,
     update: update,
     start: start,
     stop: stop,
     resetYaw: resetYaw,
     dispose: dispose,
-    isFailed: isFailed
+    isFailed: isFailed,
+    loadCustomModel: loadCustomModel,
+    resetToPrimitive: resetToPrimitive,
+    setHeadingOffset: setHeadingOffset
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
   if (typeof window !== 'undefined') { window.RasiKart3D = api; }

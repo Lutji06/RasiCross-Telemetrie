@@ -17,3 +17,9 @@ contextBridge.exposeInMainWorld("rasiSerial", {
   onClose: (cb) => { closeCb = typeof cb === "function" ? cb : null; },
   onError: (cb) => { errorCb = typeof cb === "function" ? cb : null; },
 });
+
+contextBridge.exposeInMainWorld("rasiKart", {
+  saveKartModel:  (uint8) => ipcRenderer.invoke("rasi-kart:save", uint8),
+  loadKartModel:  ()      => ipcRenderer.invoke("rasi-kart:load"),
+  clearKartModel: ()      => ipcRenderer.invoke("rasi-kart:clear"),
+});

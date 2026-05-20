@@ -1,5 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
+const fs = require("fs");
+const fsp = fs.promises;
 
 let SerialPort, ReadlineParser;
 try {
@@ -61,6 +63,47 @@ ipcMain.handle("serial:close", async () => {
 
 ipcMain.handle("serial:write", async (event, line) => {
   if (currentPort && currentPort.isOpen) currentPort.write(line + "\n");
+});
+
+// ──────────────────────────────────────────────────────────────
+// 3D-Kart-Modell file I/O (Phase 12)
+// ──────────────────────────────────────────────────────────────
+function kartPaths() {
+  var dir = path.join(app.getPath("userData"), "karts");
+  return { dir: dir, file: path.join(dir, "active.glb"), tmp: path.join(dir, "active.glb.tmp") };
+}
+
+ipcMain.handle("rasi-kart:save", async (event, uint8) => {
+  try {
+    var p = kartPaths();
+    await fsp.mkdir(p.dir, { recursive: true });
+    await fsp.writeFile(p.tmp, Buffer.from(uint8.buffer || uint8));
+    await fsp.rename(p.tmp, p.file);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle("rasi-kart:load", async () => {
+  try {
+    var p = kartPaths();
+    if (!fs.existsSync(p.file)) return { ok: false, error: "not-found" };
+    var buf = await fsp.readFile(p.file);
+    return { ok: true, buffer: new Uint8Array(buf) };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle("rasi-kart:clear", async () => {
+  try {
+    var p = kartPaths();
+    if (fs.existsSync(p.file)) await fsp.unlink(p.file);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
 });
 
 function createWindow() {

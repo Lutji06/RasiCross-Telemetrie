@@ -2752,6 +2752,32 @@ body.diagnose-on .diagnose-only{display:block}
       </p>
     </div>
 
+    <div class="card" id="kartModelCard">
+      <div class="card-head"><span class="card-title">Kart-Modell</span><span class="card-sub">3D-Viewer</span></div>
+      <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
+        Lade ein eigenes 3D-Modell (.glb / .gltf, max 10 MB) für den 3D-Kart-Viewer hoch.
+        Vorderachse sollte in +X zeigen, oben = +Y. Modell wird automatisch in die
+        Anzeige eingepasst.
+      </p>
+      <div class="row" style="margin-bottom:14px">
+        <div class="stat"><div class="t">Aktuell</div><div class="n" id="kartModelName">Standard (Primitive)</div></div>
+      </div>
+      <div class="row" style="gap:8px;margin-bottom:14px">
+        <label class="btn primary" style="flex:1;cursor:pointer;text-align:center">
+          📂 Datei wählen…
+          <input type="file" id="kartModelFile" accept=".glb,.gltf" style="display:none">
+        </label>
+        <button class="btn ghost" id="kartModelResetBtn" style="flex:0 0 auto">Zurücksetzen</button>
+      </div>
+      <div class="stat" style="margin-bottom:8px"><div class="t">Ausrichtung (Heading)</div></div>
+      <div class="g-view-toggle" id="kartModelYawToggle" style="display:flex;width:100%">
+        <button type="button" data-yaw="0" class="active" style="flex:1">0°</button>
+        <button type="button" data-yaw="90" style="flex:1">90°</button>
+        <button type="button" data-yaw="180" style="flex:1">180°</button>
+        <button type="button" data-yaw="270" style="flex:1">270°</button>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-head"><span class="card-title">ESP32 Sender</span><span class="card-sub">Live-Konfig</span></div>
       <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
@@ -2925,6 +2951,7 @@ body.diagnose-on .diagnose-only{display:block}
 <script src="geo.js"></script>
 <script src="replay.js"></script>
 <script src="vendor/three.min.js"></script>
+<script src="vendor/three.gltf-loader.min.js"></script>
 <script src="karts3d.js"></script>
 <script src="rasicross.js"></script>
 </body>
