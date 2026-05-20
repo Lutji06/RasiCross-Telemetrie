@@ -451,7 +451,20 @@ function renderGauges() {
   const fill = $('rpmFill');
   if (fill) fill.style.width = (rpmRatio * 100).toFixed(1) + '%';
   // G-Meter
-  drawGMeter();
+  if (state.settings.gView === '3d' && _kart3dReady && window.RasiKart3D) {
+    const now = performance.now();
+    const dtMs = _kart3dLastTick ? (now - _kart3dLastTick) : 16;
+    _kart3dLastTick = now;
+    window.RasiKart3D.update({
+      gx: state.display.gxLerp,
+      gy: state.display.gyLerp,
+      gz: state.telemetry.gz || 0,
+      yaw: state.imu.yaw || 0,
+      dtMs: dtMs
+    });
+  } else {
+    drawGMeter();
+  }
 }
 function drawGMeter() {
   const c = $('gMeterCanvas');
@@ -2078,6 +2091,9 @@ const KPI_UPDATE_MS = 100;   // 10 Updates pro Sekunde
 const _kpiDisplay = { speed: 0, rpm: 0, gx: 0, gy: 0 };
 let _lastKpiUpdate = 0;
 let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '', spdSrc: '', batt: '' };
+// 3D-Viewer instance state (single global; rAF lifecycle managed by start/stop).
+let _kart3dReady = false;
+let _kart3dLastTick = 0;
 
 function updateLiveKPIs() {
   const now = Date.now();
@@ -3020,6 +3036,7 @@ function enterReplay(parsed) {
   state.recording.armed = false;                 // do not record the replay
   state.replay.snapshot = snapshotReplayState();
   resetReplayDerived();
+  if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
   state.replay.active = true;
   state.replay.packets = parsed.packets;
   state.replay.idx = 0;
@@ -3089,6 +3106,7 @@ function exitReplay() {
   state.replay.active = false;
   if (state.replay.snapshot) restoreReplayState(state.replay.snapshot);
   state.replay.snapshot = null;
+  if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
   state.replay.packets = [];
   $('replayBar')?.classList.add('hidden');
   $('connectBtn').textContent = 'USB verbinden';
@@ -3110,6 +3128,61 @@ function renderReplayBar() {
   }
 }
 
+function initGViewToggle() {
+  const wrap = $('gViewToggle');
+  const c2d = $('gMeterCanvas');
+  const c3d = $('gMeter3dCanvas');
+  if (!wrap || !c2d || !c3d) return;
+
+  // Try to bring up the 3D backend exactly once.
+  try {
+    _kart3dReady = !!(window.RasiKart3D && window.RasiKart3D.init &&
+                       window.RasiKart3D.init(c3d, { gScale: state.settings.gScale }));
+  } catch (e) { _kart3dReady = false; }
+  if (!_kart3dReady) {
+    const btn3d = wrap.querySelector('button[data-view="3d"]');
+    if (btn3d) btn3d.classList.add('disabled');
+    // Force a known-good state if persisted gView was '3d' but 3D failed.
+    if (state.settings.gView === '3d') {
+      state.settings.gView = '2d';
+      saveData();
+    }
+  }
+
+  applyGView(state.settings.gView || '2d');
+
+  wrap.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-view');
+      if (target === '3d' && !_kart3dReady) {
+        rcToast('3D nicht verfügbar — WebGL fehlt oder vendor/three.min.js fehlt');
+        return;
+      }
+      const next = window.RasiKart3D.gViewReducer(state.settings.gView, 'set:' + target);
+      if (next === state.settings.gView) return;
+      state.settings.gView = next;
+      saveData();
+      applyGView(next);
+    });
+  });
+}
+
+function applyGView(view) {
+  const c2d = $('gMeterCanvas');
+  const c3d = $('gMeter3dCanvas');
+  const wrap = $('gViewToggle');
+  if (!c2d || !c3d || !wrap) return;
+  const is3d = (view === '3d') && _kart3dReady;
+  c2d.classList.toggle('hidden', is3d);
+  c3d.classList.toggle('hidden', !is3d);
+  wrap.querySelectorAll('button').forEach((b) => {
+    b.classList.toggle('active', b.getAttribute('data-view') === (is3d ? '3d' : '2d'));
+  });
+  if (window.RasiKart3D) {
+    if (is3d) window.RasiKart3D.start(); else window.RasiKart3D.stop();
+  }
+}
+
 // ============================================================
 // 20. INIT
 // ============================================================
@@ -3123,6 +3196,7 @@ function init() {
   _scanCanvas = $('scanCanvas');
   resizeCanvases();
   initLiveCharts();
+  initGViewToggle();
   // Display-Update an den Kart-ESP (Intervall in Settings konfigurierbar)
   restartDisplayUpdateInterval();
   window.addEventListener('resize', resizeCanvases);
