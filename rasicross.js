@@ -3235,7 +3235,11 @@ function initKartModelUploader() {
   // Try to auto-load a previously uploaded model.
   window.rasiKart.loadKartModel().then((res) => {
     if (!res || !res.ok || !res.buffer) return;
-    if (!window.RasiKart3D || !window.RasiKart3D.loadCustomModel) return;
+    // If the 3D backend failed init (WebGL missing / not ready), keep the file
+    // on disk so a future working start can pick it up. Do NOT call
+    // loadCustomModel here — it would return {ok:false, error:'not-initialised'}
+    // and the failure branch below would delete the user's valid file.
+    if (!_kart3dReady || !window.RasiKart3D || !window.RasiKart3D.loadCustomModel) return;
     return window.RasiKart3D.loadCustomModel(res.buffer.buffer, persistedYaw).then((r) => {
       if (r && r.ok) {
         name.textContent = 'Eigenes Modell (geladen aus Speicher)';
@@ -3260,7 +3264,7 @@ function initKartModelUploader() {
     const u8 = new Uint8Array(buf);
     const saveRes = await window.rasiKart.saveKartModel(u8);
     if (!saveRes || !saveRes.ok) { rcToast('Speichern fehlgeschlagen: ' + (saveRes && saveRes.error || 'unknown')); return; }
-    if (!window.RasiKart3D || !window.RasiKart3D.loadCustomModel) {
+    if (!_kart3dReady || !window.RasiKart3D || !window.RasiKart3D.loadCustomModel) {
       // File is on disk but 3D backend is unavailable (e.g. no WebGL). Reflect
       // that the upload succeeded so the user knows the next start will pick it up.
       name.textContent = f.name + ' (gespeichert — WebGL nicht verfügbar)';
@@ -3270,7 +3274,7 @@ function initKartModelUploader() {
     const loadRes = await window.RasiKart3D.loadCustomModel(buf, Number(state.settings.kartModelYaw) || 0);
     if (!loadRes || !loadRes.ok) {
       rcToast('Modell-Datei beschädigt — Standard bleibt aktiv');
-      window.rasiKart.clearKartModel();
+      window.rasiKart.clearKartModel().catch(() => { /* best-effort cleanup */ });
       return;
     }
     name.textContent = f.name;
