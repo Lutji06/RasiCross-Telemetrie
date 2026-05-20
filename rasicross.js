@@ -3238,10 +3238,12 @@ function initKartModelUploader() {
     if (!window.RasiKart3D || !window.RasiKart3D.loadCustomModel) return;
     return window.RasiKart3D.loadCustomModel(res.buffer.buffer, persistedYaw).then((r) => {
       if (r && r.ok) {
-        name.textContent = 'Eigenes Modell (gespeichert)';
+        name.textContent = 'Eigenes Modell (geladen aus Speicher)';
       } else {
         // File on disk is unloadable -> clear it so we don't re-fail next start.
-        window.rasiKart.clearKartModel();
+        window.rasiKart.clearKartModel().catch(() => {
+          rcToast('Gespeichertes Modell konnte nicht gelöscht werden');
+        });
       }
     });
   }).catch(() => { /* IPC not ready, leave primitive */ });
@@ -3258,7 +3260,13 @@ function initKartModelUploader() {
     const u8 = new Uint8Array(buf);
     const saveRes = await window.rasiKart.saveKartModel(u8);
     if (!saveRes || !saveRes.ok) { rcToast('Speichern fehlgeschlagen: ' + (saveRes && saveRes.error || 'unknown')); return; }
-    if (!window.RasiKart3D || !window.RasiKart3D.loadCustomModel) { rcToast('3D-Viewer nicht verfügbar'); return; }
+    if (!window.RasiKart3D || !window.RasiKart3D.loadCustomModel) {
+      // File is on disk but 3D backend is unavailable (e.g. no WebGL). Reflect
+      // that the upload succeeded so the user knows the next start will pick it up.
+      name.textContent = f.name + ' (gespeichert — WebGL nicht verfügbar)';
+      rcToast('Gespeichert — Modell wird beim nächsten Start geladen');
+      return;
+    }
     const loadRes = await window.RasiKart3D.loadCustomModel(buf, Number(state.settings.kartModelYaw) || 0);
     if (!loadRes || !loadRes.ok) {
       rcToast('Modell-Datei beschädigt — Standard bleibt aktiv');
