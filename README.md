@@ -13,13 +13,19 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 ## Was kann das?
 
 - **Kabellose Telemetrie** über ESP-NOW im Long-Range-Modus, ~250 kbit/s, mehrere hundert Meter Reichweite
-- **Live-Anzeige** von Speed, RPM, Längs-/Querbeschleunigung, GPS-Track und Funkqualität
+- **Live-Anzeige** von Speed, RPM, Beschleunigung (Gx/Gy/**Gz**), **Gier-Rate**, GPS-Track und Funkqualität
 - **Auto-Lap-Detection** über GPS-Geofence — keine externen Lichtschranken nötig
 - **Sektor-Splits** mit Best-Time-Vergleich und Audio-Cues bei neuen Bestzeiten
 - **Pit-Call** vom Dashboard direkt aufs OLED-Display im Cockpit
 - **Live-Konfiguration** (Drehzahllimit, Sendezyklus, etc.) ohne Code-Änderung
 - **Demo-Modus** zum Ausprobieren ohne Hardware
 - **Plattformübergreifend** — Dashboard läuft im Browser oder als Desktop-App für Windows und macOS
+- **In-App-Replay** — Telemetrie als NDJSON aufzeichnen und im Dashboard mit virtueller Uhr abspielen (Scrubber, 0,25×–4× Speed, Pause/Resume)
+- **3D-Kart-Viewer** — Toggle zwischen 2D-G-Kreis und WebGL-3D-Kart, der sich live aus der IMU neigt (mit G-Vektor-Pfeil und Gz-Glow)
+- **Eigenes 3D-Modell** — `.glb`/`.gltf` für den 3D-Viewer hochladen (Settings-Tab), ersetzt das Standard-Kart, persistent gespeichert
+- **Batterie-Monitoring** — Live-Spannung/SOC/Zellenspannung, akustische Warnung bei niedrigem Stand
+- **GPS-Ausfall-Fallback** — bei GPS-Verlust automatisch auf Radumfang-basierte Geschwindigkeit umschalten
+- **Test-Suite** — 32 JS- und 17 Python-Unit-Tests laufen automatisch in CI bei jedem Push
 
 ---
 
@@ -31,6 +37,7 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 - [Hardware aufbauen](#hardware-aufbauen)
 - [ESP32-Module flashen](#esp32-module-flashen)
 - [Dashboard nutzen](#dashboard-nutzen)
+- [Erweiterte Dashboard-Features](#erweiterte-dashboard-features)
 - [Erstes Rennen fahren](#erstes-rennen-fahren)
 - [Konfiguration anpassen](#konfiguration-anpassen)
 - [Display-Seiten am Kart](#display-seiten-am-kart)
@@ -208,6 +215,49 @@ Im Header oben rechts gibt es zwei Knöpfe:
 
 ---
 
+## Erweiterte Dashboard-Features
+
+### Aufnahme und Replay
+
+Jede Session lässt sich verlustfrei als NDJSON-Datei aufzeichnen und später im Dashboard erneut abspielen.
+
+- **Auto-Arm:** Sobald die Bridge verbunden ist, beginnt die Aufnahme automatisch (in den Einstellungen abschaltbar).
+- **Speichern:** Im Connection-Tab → *"Aufnahme speichern"* lädt eine `.ndjson`-Datei herunter (eine Telemetrie-Zeile pro Paket, Header in Zeile 1).
+- **Laden:** Im selben Tab eine `.ndjson` auswählen → das Dashboard schaltet in den Replay-Modus.
+- **Transport-Leiste:** Unten am Bildschirm erscheint eine fixierte Leiste mit ⏵/⏸, Scrubber, Geschwindigkeitswahl (0,25× / 0,5× / 1× / 2× / 4×) und Beenden-Knopf. Live-Daten werden während Replay nicht aufgezeichnet (Session-State wird auf Replay-Enter sauber gesnapshotet und auf Exit restauriert).
+
+### 3D-Kart-Viewer
+
+In der G-Kraft-Karte gibt es einen kleinen **2D / 3D**-Toggle.
+
+- **2D (Default):** der bekannte G-Kreis mit Trail.
+- **3D:** ein WebGL-Kart-Modell, das sich live aus den IMU-Daten neigt. Pitch/Roll werden aus den Accel-Werten berechnet, Yaw aus der Gier-Rate integriert. Ein farbiger G-Vektor-Pfeil zeigt auf der Bodenplatte die Resultierende, ein vertikaler Balken neben dem Kart signalisiert Gz (vertikale Beschleunigung). Farbzonen: grün < 1 G, orange < 2 G, rot ≥ 2 G — wie beim 2D-Kreis.
+
+Der Toggle-Zustand wird persistiert. Falls WebGL nicht verfügbar ist, fällt der Viewer transparent auf 2D zurück.
+
+### Eigenes 3D-Modell hochladen
+
+Im Settings-Tab → Karte *"Kart-Modell"* kann eine eigene `.glb` oder `.gltf` (max 10 MB) als Kart-Mesh hochgeladen werden.
+
+- Modell wird automatisch in den passenden Maßstab skaliert und auf der Bodenplatte angeordnet.
+- **Ausrichtung** lässt sich in 90°-Schritten (0° / 90° / 180° / 270°) nachjustieren, falls die Vorderachse nicht in +X zeigt.
+- Persistent gespeichert (Electron `userData/karts/active.glb`) — wird beim nächsten Start automatisch geladen.
+- *Zurücksetzen* stellt das Standard-Primitive-Kart wieder her.
+
+### Live-Charts
+
+Drei Verläufe synchronisiert über das Renn-Fenster:
+
+- **Speed + RPM** (gemeinsame X-Achse, RPM rechte Y-Achse).
+- **G-Kraft** mit drei Spuren: Gx (blau, längs), Gy (grün, lateral), Gz (orange, vertikal).
+- **Yaw-Sparkline** als separater schmaler Verlauf direkt unter dem KPI für die Gier-Rate.
+
+### Batterie
+
+Wenn der Sender mit `BATT_CELLS > 0` konfiguriert ist (3S/4S/etc.), erscheint im Header eine **Batterie**-Kachel mit Volt, Prozent (SOC) und einem Farb-Indikator (grün → orange → rot). Akustische Warnung bei niedrigem Stand, einmaliger kritischer Cue bei Unterspannung.
+
+---
+
 ## Erstes Rennen fahren
 
 1. Beide ESP32 mit Strom versorgen.
@@ -239,8 +289,10 @@ Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohn
 | `WATCHDOG_MS`       | Hardware-Watchdog (0 = aus)              | `8000`             |
 | `GPS_TIMEOUT_MS`    | Nach so vielen ms ohne Fix → "lost"      | `10000`            |
 | `WIFI_TX_POWER_DBM` | Sendeleistung in dBm                     | `20` (EU-Max)      |
+| `WHEEL_CIRC_M`      | Radumfang in m (0 = nur GPS-Speed)       | `0`                |
+| `BATT_CELLS`        | Anzahl LiPo-Zellen (0 = kein Monitoring) | `3`                |
 
-Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`.
+Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `batt_cells`.
 
 ### Bridge (`bridge.py`)
 
@@ -318,18 +370,28 @@ Sämtliche Pakete sind UTF-8 JSON. Auf der ESP-NOW-Strecke werden sie binär ver
 ```json
 {
   "speed": 42.3,
+  "spd_src": "gps",
   "rpm": 4280,
   "gx": 0.12,
   "gy": -0.05,
+  "gz": 0.98,
+  "yaw": -12.4,
+  "mtemp": 28.6,
   "lat": 48.1234567,
   "lon": 11.7654321,
   "gps_fix": 1,
   "gps_health": "ok",
   "pulse_hz": 71.3,
   "send_ms": 80,
-  "seq": 1234
+  "seq": 1234,
+  "vbat": 12.42,
+  "soc": 78,
+  "batt_warn": 0
 }
 ```
+
+`spd_src` ist `"gps"` oder `"wheel"` (Fallback bei GPS-Verlust, wenn `wheel_circ_m > 0`).
+`gz`/`yaw`/`mtemp` sind die zusätzlichen IMU-Werte (Beschleunigung Z-Achse in G, Gier-Rate °/s, MPU-Temperatur °C). `vbat`/`soc`/`batt_warn` kommen nur bei aktivem Batterie-Monitoring (`batt_cells > 0`); `batt_warn` ist `0` (ok), `1` (low) oder `2` (kritisch).
 
 Die Bridge ergänzt vor dem USB-Versand `rssi`, `rx_count`, `lost`, `bridge_ms`, `from_mac`.
 
@@ -341,11 +403,12 @@ Die Bridge ergänzt vor dem USB-Versand `rssi`, `rx_count`, `lost`, `bridge_ms`,
 
 ### Steuerpakete (Dashboard → Bridge → Kart)
 
-| `type`        | Wirkung                                                          |
-| ------------- | ---------------------------------------------------------------- |
-| `display`     | setzt Anzeigeseite (`speed`/`race`/`rpm`/`delta`/`diag`/`auto`) |
-| `config`      | Live-Parameter (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`) |
-| `pit_call`    | löst Pit-Call-Override aus; `action: "cancel"` bricht ab         |
+| `type`            | Wirkung                                                          |
+| ----------------- | ---------------------------------------------------------------- |
+| `display`         | setzt Anzeigeseite (`speed`/`race`/`rpm`/`delta`/`diag`/`auto`)  |
+| `config`          | Live-Parameter (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `batt_cells`) |
+| `pit_call`        | löst Pit-Call-Override aus; `action: "cancel"` bricht ab         |
+| `imu_calibrate`   | misst Gx/Gy-Nullpunkt (`action: "auto"`, `duration_ms`) und speichert die Offsets im Sender |
 
 ---
 
@@ -396,6 +459,19 @@ Bei jedem Tag-Push (`v*`) baut [`.github/workflows/build.yml`](.github/workflows
 git tag v9.6.1
 git push origin v9.6.1
 ```
+
+### Tests + CI
+
+Der pure Kern der App (Lap-/Sektor-Math in `geo.js`, Recording/Replay in `replay.js`, 3D-Helper in `karts3d.js`, Akku-Math in `esp_libs/calc.py`) ist mit `node:test` und `unittest` abgedeckt. Pre-Commit:
+
+```bash
+npm test                                                      # 32 Tests (geo + replay + karts3d)
+python -m unittest discover -s test -p "test_*.py"            # 17 Tests (calc)
+node --check geo.js replay.js karts3d.js rasicross.js main.js preload.js
+python -m py_compile sender.py bridge.py esp_libs/*.py
+```
+
+[`.github/workflows/check.yml`](.github/workflows/check.yml) fährt dieselbe Pipeline bei jedem Push und PR.
 
 ### Beitrag leisten
 
