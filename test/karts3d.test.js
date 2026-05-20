@@ -3,7 +3,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const K = require('../karts3d.js');
 
-const RAD = Math.PI / 180;
 const close = (a, b, eps) => Math.abs(a - b) <= (eps == null ? 1e-9 : eps);
 
 test('exports the pure-helper api', () => {
