@@ -78,7 +78,9 @@ var _failed = false;        // true after init failure (no THREE / no WebGL)
 var _EMA_ALPHA = 0.2;
 
 // Zone color helper — mirrors the 2D G-meter's green/orange/red bands.
-function _zoneColor(magnitude, gScale) {
+// Thresholds are absolute (1G / 2G), matching the 2D meter's behaviour;
+// they intentionally do NOT scale with gScale.
+function _zoneColor(magnitude) {
   if (magnitude < 1) return 0x3ee08a;          // --green
   if (magnitude < 2) return 0xffa336;          // --orange
   return 0xff5470;                              // --red
@@ -180,9 +182,14 @@ function init(canvasEl, opts) {
   _scene.add(_gzBar);
 
   _disposed = false;
-  _failed = false;
   _lastTickMs = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-  _renderer.render(_scene, _camera);  // one initial frame so the canvas isn't empty
+  try {
+    _renderer.render(_scene, _camera);  // one initial frame so the canvas isn't empty
+  } catch (e) {
+    _failed = true;
+    return false;
+  }
+  _failed = false;
   return true;
 }
 
@@ -222,7 +229,7 @@ function update(imu) {
     if (arrowDir.lengthSq() > 0) arrowDir.normalize(); else arrowDir.set(1, 0, 0);
     _arrow.setDirection(arrowDir);
     _arrow.setLength(lenNorm, 0.2, 0.12);
-    _arrow.setColor(new THREE.Color(_zoneColor(lateralMag, _gScale)));
+    _arrow.setColor(_zoneColor(lateralMag));
   }
 
   // Gz-glow: signed bar.
@@ -230,7 +237,7 @@ function update(imu) {
   var scaleY = Math.max(0.001, Math.min(1, gzMag / _gScale));
   _gzBar.scale.y = scaleY;
   _gzBar.position.y = (gz >= 0 ? 0.5 * scaleY : -0.5 * scaleY) + 0.001;
-  _gzBar.material.color.setHex(_zoneColor(gzMag, _gScale));
+  _gzBar.material.color.setHex(_zoneColor(gzMag));
   _gzBar.material.opacity = 0.3 + 0.6 * scaleY;
 
   // Re-fit if the canvas client size changed (cheap check, no listeners).
@@ -247,9 +254,10 @@ function update(imu) {
 
 function _loop() {
   if (!_running || _failed) return;
-  // Driven by RasiKart3D consumers via update(); the rAF loop only
-  // keeps the canvas live for camera/window resize beats.
-  if (_renderer) _renderer.render(_scene, _camera);
+  // The rAF loop is a no-op heartbeat; rendering is driven entirely by
+  // consumer-side update() calls (one per telemetry frame). Keeping the
+  // chain alive lets future logic hook here (e.g., autonomous pose drift)
+  // without churning GPU cycles in the meantime.
   _rafId = (typeof requestAnimationFrame !== 'undefined')
     ? requestAnimationFrame(_loop) : 0;
 }
