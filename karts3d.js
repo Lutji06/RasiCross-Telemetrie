@@ -56,6 +56,33 @@ function gViewReducer(current, action) {
   return cur;
 }
 
+
+// computeAutoFitScale: returns the uniform scale factor that fits a
+// bounding box of (sx,sy,sz) into a target diagonal. Degenerate inputs
+// (NaN, zero, negative) -> 1 (no scaling).
+function computeAutoFitScale(sx, sy, sz, targetDiagonal) {
+  var x = Number(sx), y = Number(sy), z = Number(sz), t = Number(targetDiagonal);
+  if (!isFinite(x) || !isFinite(y) || !isFinite(z) || !isFinite(t)) return 1;
+  if (x <= 0 || y <= 0 || z <= 0 || t <= 0) return 1;
+  var diag = Math.sqrt(x * x + y * y + z * z);
+  if (diag <= 0) return 1;
+  return t / diag;
+}
+
+// kartModelYawReducer: clamp current to one of {0,90,180,270}, then apply
+// action ('next' / 'prev' / 'set:0' / 'set:90' / 'set:180' / 'set:270').
+// Invalid current -> 0. Unknown action -> identity (post-clamp).
+function kartModelYawReducer(current, action) {
+  var c = (current === 90 || current === 180 || current === 270) ? current : 0;
+  if (action === 'next') return (c + 90) % 360;
+  if (action === 'prev') return (c + 270) % 360;
+  if (action === 'set:0')   return 0;
+  if (action === 'set:90')  return 90;
+  if (action === 'set:180') return 180;
+  if (action === 'set:270') return 270;
+  return c;
+}
+
 // ── DOM/WebGL wrapper (gated by typeof THREE) ──────────────
 // All fields prefixed with `_` to mark module-internal state.
 var _scene = null;
@@ -314,6 +341,8 @@ function isFailed() { return _failed; }
     rollFromG: rollFromG,
     yawIntegrate: yawIntegrate,
     gViewReducer: gViewReducer,
+    computeAutoFitScale: computeAutoFitScale,
+    kartModelYawReducer: kartModelYawReducer,
     init: init,
     update: update,
     start: start,

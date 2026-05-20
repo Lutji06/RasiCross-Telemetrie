@@ -56,3 +56,48 @@ test('gViewReducer: toggle, set, invalid fallback -> 2d', () => {
   assert.equal(K.gViewReducer('3d', 'noop'), '3d');
   assert.equal(K.gViewReducer(undefined, 'noop'), '2d');
 });
+
+test('computeAutoFitScale: normal case scales bbox diagonal to target', () => {
+  // bbox 2x2x2 -> diagonal sqrt(12) ≈ 3.4641; target = 4 -> scale ≈ 1.1547
+  const s = K.computeAutoFitScale(2, 2, 2, 4);
+  assert.ok(close(s, 4 / Math.sqrt(12), 1e-9), `expected ~${4 / Math.sqrt(12)}, got ${s}`);
+  // 1x1x1 diagonal sqrt(3); target = sqrt(3) -> scale = 1
+  assert.ok(close(K.computeAutoFitScale(1, 1, 1, Math.sqrt(3)), 1, 1e-9));
+  // Primitive default target = sqrt(2² + 0.4² + 1.2²) ≈ 2.4166
+  const target = Math.sqrt(4 + 0.16 + 1.44);
+  // bbox 1x1x1 -> scale = target / sqrt(3)
+  assert.ok(close(K.computeAutoFitScale(1, 1, 1, target), target / Math.sqrt(3), 1e-9));
+});
+
+test('computeAutoFitScale: degenerate (zero) and NaN inputs -> 1', () => {
+  assert.equal(K.computeAutoFitScale(0, 0, 0, 4), 1);
+  assert.equal(K.computeAutoFitScale(NaN, 2, 2, 4), 1);
+  assert.equal(K.computeAutoFitScale(2, 2, 2, NaN), 1);
+  assert.equal(K.computeAutoFitScale(-1, 2, 2, 4), 1);  // negative -> degenerate
+  assert.equal(K.computeAutoFitScale(2, 2, 2, 0), 1);    // zero target -> degenerate
+});
+
+test('kartModelYawReducer: next / prev with wrap', () => {
+  assert.equal(K.kartModelYawReducer(0,   'next'), 90);
+  assert.equal(K.kartModelYawReducer(90,  'next'), 180);
+  assert.equal(K.kartModelYawReducer(180, 'next'), 270);
+  assert.equal(K.kartModelYawReducer(270, 'next'), 0);   // wrap
+  assert.equal(K.kartModelYawReducer(0,   'prev'), 270); // wrap
+  assert.equal(K.kartModelYawReducer(90,  'prev'), 0);
+  assert.equal(K.kartModelYawReducer(180, 'prev'), 90);
+  assert.equal(K.kartModelYawReducer(270, 'prev'), 180);
+});
+
+test('kartModelYawReducer: set:N actions, clamp invalid current, unknown action -> identity', () => {
+  assert.equal(K.kartModelYawReducer(0,   'set:90'),  90);
+  assert.equal(K.kartModelYawReducer(0,   'set:180'), 180);
+  assert.equal(K.kartModelYawReducer(0,   'set:270'), 270);
+  assert.equal(K.kartModelYawReducer(180, 'set:0'),   0);
+  // invalid current clamps to 0 before action
+  assert.equal(K.kartModelYawReducer(45,  'next'),    90);
+  assert.equal(K.kartModelYawReducer(45,  'set:180'), 180);
+  // unknown action returns clamped current
+  assert.equal(K.kartModelYawReducer(90,  'noop'),    90);
+  assert.equal(K.kartModelYawReducer('xx', 'noop'),   0);
+  assert.equal(K.kartModelYawReducer(undefined, 'next'), 90);
+});
