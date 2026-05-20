@@ -44,7 +44,7 @@ const state = {
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
-  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true },
+  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d' },
   calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false },
   theme: 'dark',
   // Telemetry
@@ -379,7 +379,7 @@ function processTelemetry(d) {
       state.batt.warn = w;
     }
     state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0 };
-    state.telemetry = { speed, rpm, gx, gy, lat: lat || 0, lon: lon || 0 };
+    state.telemetry = { speed, rpm, gx, gy, gz, lat: lat || 0, lon: lon || 0 };
     // Update max
     state.max.speed = Math.max(state.max.speed, speed);
     state.max.rpm = Math.max(state.max.rpm, rpm);
@@ -452,7 +452,20 @@ function renderGauges() {
   const fill = $('rpmFill');
   if (fill) fill.style.width = (rpmRatio * 100).toFixed(1) + '%';
   // G-Meter
-  drawGMeter();
+  if (state.settings.gView === '3d' && _kart3dReady && window.RasiKart3D) {
+    const now = performance.now();
+    const dtMs = _kart3dLastTick ? (now - _kart3dLastTick) : 16;
+    _kart3dLastTick = now;
+    window.RasiKart3D.update({
+      gx: state.display.gxLerp,
+      gy: state.display.gyLerp,
+      gz: state.telemetry.gz || 0,
+      yaw: state.imu.yaw || 0,
+      dtMs: dtMs
+    });
+  } else {
+    drawGMeter();
+  }
 }
 function drawGMeter() {
   const c = $('gMeterCanvas');
@@ -2038,19 +2051,43 @@ function drawLiveCharts() {
       0, state.settings.maxSpeed,
       { unit: 'km/h', right: 'rpm', maxRight: state.settings.maxRpm }
     );
-    const _yawDps = 250;  // Gyro +-250 deg/s -> auf die G-Achse skaliert
     drawChart(_gCtx, _gCanvas,
       [
-        { data: state.charts.gx, color: css('--blue'), label: 'Gx' },
+        { data: state.charts.gx, color: css('--blue'),  label: 'Gx' },
         { data: state.charts.gy, color: css('--green'), label: 'Gy' },
-        { data: state.charts.gz, color: '#e8a13a', label: 'Gz' },
-        { data: state.charts.yaw.map(v => v / _yawDps * state.settings.gScale),
-          raw: state.charts.yaw, color: css('--mut'), label: 'Yaw', dash: true }
+        { data: state.charts.gz, color: '#e8a13a',      label: 'Gz' }
       ],
       -state.settings.gScale, state.settings.gScale,
-      { unit: 'G', zero: true, right: '°/s', maxRight: _yawDps }
+      { unit: 'G', zero: true }
     );
+    drawYawSparkline();
   } catch (e) { console.warn('drawLiveCharts:', e); }
+}
+
+function drawYawSparkline() {
+  const cv = $('yawSparkCanvas');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  if (!ctx) return;
+  const w = cv.width, h = cv.height;
+  ctx.clearRect(0, 0, w, h);
+  const data = state.charts.yaw || [];
+  if (data.length < 2) return;
+  const maxAbs = 250;  // gyro +-250 deg/s
+  const midY = h / 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(w, midY); ctx.stroke();
+  ctx.strokeStyle = css('--mut') || '#888';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = (i / (data.length - 1)) * w;
+    const v = Math.max(-maxAbs, Math.min(maxAbs, Number(data[i]) || 0));
+    const y = midY - (v / maxAbs) * (midY - 1);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
 }
 
 // 17. LIVE UI
@@ -2091,6 +2128,9 @@ const KPI_UPDATE_MS = 100;   // 10 Updates pro Sekunde
 const _kpiDisplay = { speed: 0, rpm: 0, gx: 0, gy: 0 };
 let _lastKpiUpdate = 0;
 let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '', spdSrc: '', batt: '' };
+// 3D-Viewer instance state (single global; rAF lifecycle managed by start/stop).
+let _kart3dReady = false;
+let _kart3dLastTick = 0;
 
 function updateLiveKPIs() {
   const now = Date.now();
@@ -3033,6 +3073,7 @@ function enterReplay(parsed) {
   state.recording.armed = false;                 // do not record the replay
   state.replay.snapshot = snapshotReplayState();
   resetReplayDerived();
+  if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
   state.replay.active = true;
   state.replay.packets = parsed.packets;
   state.replay.idx = 0;
@@ -3076,6 +3117,7 @@ function replaySeek(ratio) {
     resetReplayDerived();
     state.replay.idx = 0;
     state.replay.virtualMs = 0;
+    if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
   }
   fastForwardTo(target);
   state.replay.lastWall = null;
@@ -3102,6 +3144,7 @@ function exitReplay() {
   state.replay.active = false;
   if (state.replay.snapshot) restoreReplayState(state.replay.snapshot);
   state.replay.snapshot = null;
+  if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
   state.replay.packets = [];
   $('replayBar')?.classList.add('hidden');
   $('connectBtn').textContent = 'USB verbinden';
@@ -3123,6 +3166,67 @@ function renderReplayBar() {
   }
 }
 
+function initGViewToggle() {
+  const wrap = $('gViewToggle');
+  const c2d = $('gMeterCanvas');
+  const c3d = $('gMeter3dCanvas');
+  if (!wrap || !c2d || !c3d) return;
+
+  // Try to bring up the 3D backend exactly once.
+  try {
+    _kart3dReady = !!(window.RasiKart3D && window.RasiKart3D.init &&
+                       window.RasiKart3D.init(c3d, { gScale: state.settings.gScale }));
+  } catch (e) { _kart3dReady = false; }
+  if (!_kart3dReady) {
+    const btn3d = wrap.querySelector('button[data-view="3d"]');
+    if (btn3d) { btn3d.classList.add('disabled'); btn3d.disabled = true; }
+    // Force a known-good state if persisted gView was '3d' but 3D failed.
+    if (state.settings.gView === '3d') {
+      state.settings.gView = '2d';
+      saveData();
+    }
+  }
+
+  applyGView(state.settings.gView || '2d');
+
+  wrap.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-view');
+      if (target === '3d' && !_kart3dReady) {
+        rcToast('3D nicht verfügbar — WebGL fehlt oder vendor/three.min.js fehlt');
+        return;
+      }
+      if (!window.RasiKart3D || !window.RasiKart3D.gViewReducer) return;
+      const next = window.RasiKart3D.gViewReducer(state.settings.gView, 'set:' + target);
+      if (next === state.settings.gView) return;
+      state.settings.gView = next;
+      saveData();
+      applyGView(next);
+    });
+  });
+}
+
+function applyGView(view) {
+  const c2d = $('gMeterCanvas');
+  const c3d = $('gMeter3dCanvas');
+  const wrap = $('gViewToggle');
+  if (!c2d || !c3d || !wrap) return;
+  const is3d = (view === '3d') && _kart3dReady;
+  c2d.classList.toggle('hidden', is3d);
+  c3d.classList.toggle('hidden', !is3d);
+  wrap.querySelectorAll('button').forEach((b) => {
+    b.classList.toggle('active', b.getAttribute('data-view') === (is3d ? '3d' : '2d'));
+  });
+  if (window.RasiKart3D) {
+    if (is3d) {
+      _kart3dLastTick = 0;  // reset dispatch clock so first frame uses the 16ms fallback
+      window.RasiKart3D.start();
+    } else {
+      window.RasiKart3D.stop();
+    }
+  }
+}
+
 // ============================================================
 // 20. INIT
 // ============================================================
@@ -3136,6 +3240,7 @@ function init() {
   _scanCanvas = $('scanCanvas');
   resizeCanvases();
   initLiveCharts();
+  initGViewToggle();
   // Display-Update an den Kart-ESP (Intervall in Settings konfigurierbar)
   restartDisplayUpdateInterval();
   window.addEventListener('resize', resizeCanvases);

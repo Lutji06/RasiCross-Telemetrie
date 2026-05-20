@@ -817,10 +817,29 @@ select{
   color:var(--mut);margin-top:7px;font-weight:600;
 }
 
-#gMeterCanvas{
+#gMeterCanvas, #gMeter3dCanvas{
   display:block;margin:8px auto 0;
   width:100%;max-width:200px;aspect-ratio:1;
   border-radius:50%;
+}
+#gMeter3dCanvas.hidden, #gMeterCanvas.hidden{ display:none; }
+.g-view-toggle{
+  display:inline-flex;gap:4px;margin:0 auto 4px;
+  padding:3px;border-radius:999px;
+  background:var(--soft);border:1px solid var(--bor);
+}
+.g-view-toggle button{
+  padding:4px 12px;border:0;background:transparent;
+  font-family:var(--mono);font-size:10.5px;font-weight:700;
+  color:var(--mut);border-radius:999px;cursor:pointer;
+  text-transform:uppercase;letter-spacing:.08em;
+  transition:var(--t);
+}
+.g-view-toggle button.active{
+  background:var(--pr);color:#0d1117;
+}
+.g-view-toggle button.disabled{
+  opacity:0.4;cursor:not-allowed;
 }
 .g-readout{
   display:flex;justify-content:center;gap:18px;
@@ -2125,6 +2144,7 @@ body.diagnose-on .diagnose-only{display:block}
       </div>
       <div class="kpi-v" id="kG">0.0<small>G</small></div>
       <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s · MPU <b id="kMtemp">--</b>°C</div>
+      <canvas id="yawSparkCanvas" width="240" height="28" style="width:100%;height:28px;margin-top:6px;display:block"></canvas>
     </div>
     <div class="kpi">
       <div class="kpi-head">
@@ -2202,7 +2222,12 @@ body.diagnose-on .diagnose-only{display:block}
           </div>
         </div>
         <div style="width:100%;text-align:center">
+          <div class="g-view-toggle" id="gViewToggle">
+            <button type="button" data-view="2d" class="active">2D</button>
+            <button type="button" data-view="3d">3D</button>
+          </div>
           <canvas id="gMeterCanvas"></canvas>
+          <canvas id="gMeter3dCanvas" class="hidden"></canvas>
           <div class="g-readout">
             <span>Gx <b id="gxText">0.0</b></span>
             <span>Gy <b id="gyText">0.0</b></span>
@@ -2899,6 +2924,8 @@ body.diagnose-on .diagnose-only{display:block}
 
 <script src="geo.js"></script>
 <script src="replay.js"></script>
+<script src="vendor/three.min.js"></script>
+<script src="karts3d.js"></script>
 <script src="rasicross.js"></script>
 </body>
 </html>

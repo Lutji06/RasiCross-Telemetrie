@@ -29,6 +29,10 @@
       "preload.js",
       "RasiCross_Telemetry.html",
       "rasicross.js",
+      "geo.js",
+      "replay.js",
+      "karts3d.js",
+      "vendor/**",
       "icon.ico"
     ],
     "extraResources": [
