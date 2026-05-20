@@ -350,7 +350,7 @@ function loadCustomModel(arrayBuffer, headingDeg) {
     if (typeof THREE === 'undefined' || typeof THREE.GLTFLoader === 'undefined') {
       return resolve({ ok: false, error: 'no-loader' });
     }
-    if (_failed || !_scene) {
+    if (_failed || _disposed || !_scene) {
       return resolve({ ok: false, error: 'not-initialised' });
     }
     var loader = new THREE.GLTFLoader();
@@ -374,6 +374,7 @@ function loadCustomModel(arrayBuffer, headingDeg) {
           // visible under our AmbientLight + DirectionalLight.
           scene.traverse(function (obj) {
             if (obj.isMesh && (!obj.material || !obj.material.color)) {
+              if (obj.material && obj.material.dispose) obj.material.dispose();
               obj.material = new THREE.MeshStandardMaterial({ color: 0x4cc2ff, roughness: 0.6 });
             }
           });
@@ -400,7 +401,7 @@ function loadCustomModel(arrayBuffer, headingDeg) {
 // resetToPrimitive: dispose the current _kartGroup, rebuild the primitive.
 // Heading offset is reset to 0.
 function resetToPrimitive() {
-  if (_failed || !_scene) return;
+  if (_failed || _disposed || !_scene) return;
   _disposeGroup(_kartGroup);
   _scene.remove(_kartGroup);
   _kartGroup = _buildKart();
