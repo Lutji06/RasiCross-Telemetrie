@@ -3158,6 +3158,7 @@ function initGViewToggle() {
         rcToast('3D nicht verfügbar — WebGL fehlt oder vendor/three.min.js fehlt');
         return;
       }
+      if (!window.RasiKart3D || !window.RasiKart3D.gViewReducer) return;
       const next = window.RasiKart3D.gViewReducer(state.settings.gView, 'set:' + target);
       if (next === state.settings.gView) return;
       state.settings.gView = next;
