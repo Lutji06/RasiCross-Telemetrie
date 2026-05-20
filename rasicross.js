@@ -378,7 +378,7 @@ function processTelemetry(d) {
       state.batt.warn = w;
     }
     state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0 };
-    state.telemetry = { speed, rpm, gx, gy, lat: lat || 0, lon: lon || 0 };
+    state.telemetry = { speed, rpm, gx, gy, gz, lat: lat || 0, lon: lon || 0 };
     // Update max
     state.max.speed = Math.max(state.max.speed, speed);
     state.max.rpm = Math.max(state.max.rpm, rpm);
@@ -3104,6 +3104,7 @@ function replaySeek(ratio) {
     resetReplayDerived();
     state.replay.idx = 0;
     state.replay.virtualMs = 0;
+    if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
   }
   fastForwardTo(target);
   state.replay.lastWall = null;
