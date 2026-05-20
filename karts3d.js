@@ -56,7 +56,6 @@ function gViewReducer(current, action) {
   return cur;
 }
 
-
 // computeAutoFitScale: returns the uniform scale factor that fits a
 // bounding box of (sx,sy,sz) into a target diagonal. Degenerate inputs
 // (NaN, zero, negative) -> 1 (no scaling).

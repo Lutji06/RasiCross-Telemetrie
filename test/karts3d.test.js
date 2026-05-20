@@ -6,7 +6,8 @@ const K = require('../karts3d.js');
 const close = (a, b, eps) => Math.abs(a - b) <= (eps == null ? 1e-9 : eps);
 
 test('exports the pure-helper api', () => {
-  for (const n of ['pitchFromG', 'rollFromG', 'yawIntegrate', 'gViewReducer']) {
+  for (const n of ['pitchFromG', 'rollFromG', 'yawIntegrate', 'gViewReducer',
+                   'computeAutoFitScale', 'kartModelYawReducer']) {
     assert.equal(typeof K[n], 'function', `missing ${n}`);
   }
 });
@@ -63,7 +64,7 @@ test('computeAutoFitScale: normal case scales bbox diagonal to target', () => {
   assert.ok(close(s, 4 / Math.sqrt(12), 1e-9), `expected ~${4 / Math.sqrt(12)}, got ${s}`);
   // 1x1x1 diagonal sqrt(3); target = sqrt(3) -> scale = 1
   assert.ok(close(K.computeAutoFitScale(1, 1, 1, Math.sqrt(3)), 1, 1e-9));
-  // Primitive default target = sqrt(2² + 0.4² + 1.2²) ≈ 2.4166
+  // Primitive default target = sqrt(2² + 0.4² + 1.2²) = sqrt(5.6) ≈ 2.37
   const target = Math.sqrt(4 + 0.16 + 1.44);
   // bbox 1x1x1 -> scale = target / sqrt(3)
   assert.ok(close(K.computeAutoFitScale(1, 1, 1, target), target / Math.sqrt(3), 1e-9));
