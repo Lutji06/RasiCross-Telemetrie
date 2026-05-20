@@ -2038,19 +2038,43 @@ function drawLiveCharts() {
       0, state.settings.maxSpeed,
       { unit: 'km/h', right: 'rpm', maxRight: state.settings.maxRpm }
     );
-    const _yawDps = 250;  // Gyro +-250 deg/s -> auf die G-Achse skaliert
     drawChart(_gCtx, _gCanvas,
       [
-        { data: state.charts.gx, color: css('--blue'), label: 'Gx' },
+        { data: state.charts.gx, color: css('--blue'),  label: 'Gx' },
         { data: state.charts.gy, color: css('--green'), label: 'Gy' },
-        { data: state.charts.gz, color: '#e8a13a', label: 'Gz' },
-        { data: state.charts.yaw.map(v => v / _yawDps * state.settings.gScale),
-          raw: state.charts.yaw, color: css('--mut'), label: 'Yaw', dash: true }
+        { data: state.charts.gz, color: '#e8a13a',      label: 'Gz' }
       ],
       -state.settings.gScale, state.settings.gScale,
-      { unit: 'G', zero: true, right: '°/s', maxRight: _yawDps }
+      { unit: 'G', zero: true }
     );
+    drawYawSparkline();
   } catch (e) { console.warn('drawLiveCharts:', e); }
+}
+
+function drawYawSparkline() {
+  const cv = $('yawSparkCanvas');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  if (!ctx) return;
+  const w = cv.width, h = cv.height;
+  ctx.clearRect(0, 0, w, h);
+  const data = state.charts.yaw || [];
+  if (data.length < 2) return;
+  const maxAbs = 250;  // gyro +-250 deg/s
+  const midY = h / 2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(w, midY); ctx.stroke();
+  ctx.strokeStyle = css('--mut') || '#888';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  for (let i = 0; i < data.length; i++) {
+    const x = (i / (data.length - 1)) * w;
+    const v = Math.max(-maxAbs, Math.min(maxAbs, Number(data[i]) || 0));
+    const y = midY - (v / maxAbs) * (midY - 1);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
 }
 
 // 17. LIVE UI
