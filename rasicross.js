@@ -44,7 +44,7 @@ const state = {
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
-  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d' },
+  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0 },
   calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false },
   theme: 'dark',
   // Telemetry
@@ -3214,6 +3214,94 @@ function applyGView(view) {
   }
 }
 
+function initKartModelUploader() {
+  const wrap   = $('kartModelCard');
+  const file   = $('kartModelFile');
+  const name   = $('kartModelName');
+  const resetB = $('kartModelResetBtn');
+  const yawWrap = $('kartModelYawToggle');
+  if (!wrap || !file || !name || !resetB || !yawWrap) return;
+
+  // No Electron IPC bridge (e.g. WebApp / dev mode without preload):
+  // hide the whole card and bail.
+  if (!window.rasiKart) { wrap.classList.add('hidden'); return; }
+
+  // Sync the heading toggle UI to the persisted setting.
+  const persistedYaw = Number(state.settings.kartModelYaw) || 0;
+  yawWrap.querySelectorAll('button').forEach((b) => {
+    b.classList.toggle('active', Number(b.getAttribute('data-yaw')) === persistedYaw);
+  });
+
+  // Try to auto-load a previously uploaded model.
+  window.rasiKart.loadKartModel().then((res) => {
+    if (!res || !res.ok || !res.buffer) return;
+    if (!window.RasiKart3D || !window.RasiKart3D.loadCustomModel) return;
+    return window.RasiKart3D.loadCustomModel(res.buffer.buffer, persistedYaw).then((r) => {
+      if (r && r.ok) {
+        name.textContent = 'Eigenes Modell (gespeichert)';
+      } else {
+        // File on disk is unloadable -> clear it so we don't re-fail next start.
+        window.rasiKart.clearKartModel();
+      }
+    });
+  }).catch(() => { /* IPC not ready, leave primitive */ });
+
+  // File-input change handler.
+  file.addEventListener('change', async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (f.size > 10 * 1024 * 1024) { rcToast('Datei zu groß (max 10 MB)'); return; }
+    let buf;
+    try { buf = await f.arrayBuffer(); }
+    catch (err) { rcToast('Datei konnte nicht gelesen werden'); return; }
+    const u8 = new Uint8Array(buf);
+    const saveRes = await window.rasiKart.saveKartModel(u8);
+    if (!saveRes || !saveRes.ok) { rcToast('Speichern fehlgeschlagen: ' + (saveRes && saveRes.error || 'unknown')); return; }
+    if (!window.RasiKart3D || !window.RasiKart3D.loadCustomModel) { rcToast('3D-Viewer nicht verfügbar'); return; }
+    const loadRes = await window.RasiKart3D.loadCustomModel(buf, Number(state.settings.kartModelYaw) || 0);
+    if (!loadRes || !loadRes.ok) {
+      rcToast('Modell-Datei beschädigt — Standard bleibt aktiv');
+      window.rasiKart.clearKartModel();
+      return;
+    }
+    name.textContent = f.name;
+    rcToast('Eigenes Modell geladen');
+  });
+
+  // Heading-button handlers.
+  yawWrap.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = Number(btn.getAttribute('data-yaw')) || 0;
+      state.settings.kartModelYaw = next;
+      saveData();
+      yawWrap.querySelectorAll('button').forEach((b) => {
+        b.classList.toggle('active', Number(b.getAttribute('data-yaw')) === next);
+      });
+      if (window.RasiKart3D && window.RasiKart3D.setHeadingOffset) {
+        window.RasiKart3D.setHeadingOffset(next);
+      }
+    });
+  });
+
+  // Reset-button handler.
+  resetB.addEventListener('click', async () => {
+    const yes = await rcConfirm('Eigenes Modell auf Standard zurücksetzen?', 'Zurücksetzen', 'Zurücksetzen', true);
+    if (!yes) return;
+    await window.rasiKart.clearKartModel();
+    if (window.RasiKart3D && window.RasiKart3D.resetToPrimitive) {
+      window.RasiKart3D.resetToPrimitive();
+    }
+    state.settings.kartModelYaw = 0;
+    saveData();
+    name.textContent = 'Standard (Primitive)';
+    yawWrap.querySelectorAll('button').forEach((b) => {
+      b.classList.toggle('active', Number(b.getAttribute('data-yaw')) === 0);
+    });
+    rcToast('Auf Standard zurückgesetzt');
+  });
+}
+
 // ============================================================
 // 20. INIT
 // ============================================================
@@ -3228,6 +3316,7 @@ function init() {
   resizeCanvases();
   initLiveCharts();
   initGViewToggle();
+  initKartModelUploader();
   // Display-Update an den Kart-ESP (Intervall in Settings konfigurierbar)
   restartDisplayUpdateInterval();
   window.addEventListener('resize', resizeCanvases);
