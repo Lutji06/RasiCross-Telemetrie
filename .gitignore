@@ -20,3 +20,6 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Claude Code — lokale, nutzerspezifische Agent-Einstellungen
+.claude/settings.local.json

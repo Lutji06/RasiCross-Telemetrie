@@ -378,7 +378,7 @@ function processTelemetry(d) {
       state.batt._lastWarn = w;
       state.batt.warn = w;
     }
-    state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0 };
+    state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0, pulseHz: Number(d.pulse_hz) || 0 };
     state.telemetry = { speed, rpm, gx, gy, gz, lat: lat || 0, lon: lon || 0 };
     // Update max
     state.max.speed = Math.max(state.max.speed, speed);
@@ -3503,7 +3503,7 @@ function init() {
   };
   $('exportAllBtn').onclick = exportAll;
   $('importAllBtn').onclick = () => $('importAllFile').click();
-  $('importAllFile').onchange = e => { if (e.target.files[0]) importAll(e.target.files[0]); };
+  $('importAllFile').onchange = e => { if (e.target.files[0]) importAll(e.target.files[0]); e.target.value = ''; };
   $('resetAllBtn').onclick = resetAll;
   $('gateWidth').onchange = () => {
     state.startGate.width = Number($('gateWidth').value) || 14;
@@ -3718,14 +3718,9 @@ init();
         $$('sidebar')?.classList.remove('open');
       });
     });
-    // Theme toggle: dark -> light -> outdoor -> dark
-    $$('themeBtn')?.addEventListener('click',()=>{
-      const order = ['dark','light','outdoor'];
-      const cur = document.documentElement.getAttribute('data-theme') || 'dark';
-      const next = order[(order.indexOf(cur) + 1) % order.length] || 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      try{ state.theme = next; saveData(); }catch(e){}
-    });
+    // Theme-Toggle wird bereits in init() via $('themeBtn').onclick = toggleTheme
+    // verdrahtet. KEIN zweiter Listener hier — sonst zaehlt ein Klick doppelt
+    // und ueberspringt jedes zweite Theme.
     // Audio-Cues toggle
     const audioIconEl = $$('audioIcon');
     const updateAudioIcon = () => {
@@ -3740,19 +3735,9 @@ init();
     // Mobile burger
     $$('openMobileBtn')?.addEventListener('click', ()=>$$('sidebar').classList.add('open'));
     $$('closeMobileBtn')?.addEventListener('click', ()=>$$('sidebar').classList.remove('open'));
-    // Pit-wall btn
-    $$('pitwallBtn')?.addEventListener('click', ()=>$$('pitwallOverlay').classList.add('show'));
-    $$('pwCloseBtn')?.addEventListener('click', ()=>$$('pitwallOverlay').classList.remove('show'));
-    document.addEventListener('keydown',(e)=>{
-      if(e.key==='Escape') $$('pitwallOverlay')?.classList.remove('show');
-    });
-    // Mode tabs
-    const ms=$$('modeSerialBtn'),md=$$('modeDemoBtn');
-    if(ms&&md){
-      ms.addEventListener('click',()=>{ms.classList.add('active');md.classList.remove('active');$$('serialPanel').classList.remove('hidden');$$('demoPanel').classList.add('hidden');});
-      md.addEventListener('click',()=>{md.classList.add('active');ms.classList.remove('active');$$('demoPanel').classList.remove('hidden');$$('serialPanel').classList.add('hidden');});
-    }
-    // Theme init
-    try{ if(state && state.theme) document.documentElement.setAttribute('data-theme', state.theme);}catch(e){}
+    // pitwallBtn / pwCloseBtn / modeSerialBtn / modeDemoBtn sowie das Theme
+    // werden bereits in init() verdrahtet: openPitWall/closePitWall verwalten
+    // dort zusaetzlich den Escape-Listener, applyTheme() setzt data-theme.
+    // Daher hier KEINE zweiten Listener — sonst feuern Klicks doppelt.
   });
 })();
