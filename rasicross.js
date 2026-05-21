@@ -1637,6 +1637,7 @@ function createRace() {
   renderRaces();
   updateRaceControls();
   saveData();
+  $('newRaceModal').classList.remove('show');
   rcToast(`Rennen "${name}" erstellt — jetzt aktivieren um zu starten`);
 }
 function startRace() {
@@ -1848,6 +1849,11 @@ function drawRaceHistoryChart(raceId) {
 function renderRaces() {
   const list = $('raceList');
   setText('raceListCount', state.races.length);
+  const _ar = activeRace();
+  setText('raceHeroActive', _ar ? _ar.name : '--');
+  setText('raceHeroStatus', _ar
+    ? ({ created: 'Bereit', running: 'Läuft', paused: 'Pausiert', finished: 'Beendet', finished_auto: 'Auto-Ende' }[_ar.status] || _ar.status)
+    : 'Bereit');
   if (!state.races.length) {
     list.innerHTML = '<div class="muted">Noch keine Rennen.</div>';
     return;
@@ -3416,6 +3422,9 @@ function init() {
     else document.querySelector('[data-tab=connection]').click();
   };
   $('pwCloseBtn').onclick = closePitWall;
+  $('openNewRaceBtn').onclick = () => $('newRaceModal').classList.add('show');
+  $('cancelNewRaceBtn').onclick = () => $('newRaceModal').classList.remove('show');
+  $('newRaceModal').onclick = (e) => { if (e.target.id === 'newRaceModal') $('newRaceModal').classList.remove('show'); };
   // Live tab buttons
   $('startRaceBtn').onclick = toggleRaceRun;
   $('endRaceBtn').onclick = () => endRace(false);
