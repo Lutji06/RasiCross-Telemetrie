@@ -1647,10 +1647,35 @@ function startRace() {
     if (r.status === 'finished' || r.status === 'finished_auto') return rcAlert('Rennen ist beendet.');
     const now = Date.now();
     if (r.status === 'paused') {
-      r.totalPausedMs = (r.totalPausedMs || 0) + (now - (r.pausedAt || now));
+      // Fortsetzen: Pausendauer ermitteln, Rennuhr korrigieren.
+      const pausedMs = now - (r.pausedAt || now);
+      r.totalPausedMs = (r.totalPausedMs || 0) + pausedMs;
       r.pausedAt = null;
       r.status = 'running';
+      if (typeof state.lapStart === 'number') {
+        // Live-Renndaten noch im Speicher -> Lauf- und Sektor-Uhr um
+        // die Pause vorruecken, damit die Zeit nahtlos weiterlaeuft.
+        state.lapStart += pausedMs;
+        if (typeof state.sectors.sectorStart === 'number') {
+          state.sectors.sectorStart += pausedMs;
+        }
+      } else {
+        // Nach App-Neustart sind die Live-Lap-Daten weg -> aktuelle
+        // Runde frisch beginnen (gefahrene Runden bleiben erhalten).
+        state.lapStart = now;
+        state.currentLapMax = { speed: 0, rpm: 0 };
+        state.currentLapTrace = [];
+        state.heatmap.lapMaxSpeed = 0;
+        state.sectors.cur = 0;
+        state.sectors.sectorStart = now;
+        state.sectors.lapSectors = [null, null, null];
+        state.sectors.lastLapSectors = null;
+      }
+      // Stale GPS-Punkt verwerfen, sonst Geister-Durchfahrt moeglich.
+      state.autoLap.prevLat = null;
+      state.autoLap.prevLon = null;
     } else {
+      // Frischer Start: kompletter Reset wie bisher.
       r.status = 'running';
       r.startedAt = now;
       r.endedAt = null;
@@ -1658,20 +1683,20 @@ function startRace() {
       r.stints = [{ id: uid(), driverId: r.currentDriverId, startAt: now, endAt: null }];
       r.laps = [];
       r.speedTrace = [];
+      state.lapStart = now;
+      state.currentLapMax = { speed: 0, rpm: 0 };
+      state.currentLapTrace = [];
+      state.bestLapMs = null;
+      state.bestLapNum = null;
+      state.bestLapTrace = null;
+      state.heatmap.lapMaxSpeed = 0;
+      state.sectors.cur = 0;
+      state.sectors.sectorStart = now;
+      state.sectors.lapSectors = [null, null, null];
+      state.sectors.lastLapSectors = null;
+      state.autoLap.prevLat = null;
+      state.autoLap.prevLon = null;
     }
-    state.lapStart = now;
-    state.currentLapMax = { speed: 0, rpm: 0 };
-    state.currentLapTrace = [];
-    state.bestLapMs = null;
-    state.bestLapNum = null;
-    state.bestLapTrace = null;
-    state.heatmap.lapMaxSpeed = 0;
-    state.sectors.cur = 0;
-    state.sectors.sectorStart = now;
-    state.sectors.lapSectors = [null, null, null];
-    state.sectors.lastLapSectors = null;
-    state.autoLap.prevLat = null;
-    state.autoLap.prevLon = null;
     renderRaces();
     updateRaceControls();
     updateSectorPanel();
