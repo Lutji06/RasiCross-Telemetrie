@@ -6,6 +6,7 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Build](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/build.yml/badge.svg)](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/build.yml)
+[![Tests](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/check.yml/badge.svg)](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/check.yml)
 [![Release](https://img.shields.io/github/v/release/Lutji06/RasiCross-Telemetrie)](https://github.com/Lutji06/RasiCross-Telemetrie/releases)
 
 ---
@@ -25,7 +26,7 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 - **Eigenes 3D-Modell** — `.glb`/`.gltf` für den 3D-Viewer hochladen (Settings-Tab), ersetzt das Standard-Kart, persistent gespeichert
 - **Batterie-Monitoring** — Live-Spannung/SOC/Zellenspannung, akustische Warnung bei niedrigem Stand
 - **GPS-Ausfall-Fallback** — bei GPS-Verlust automatisch auf Radumfang-basierte Geschwindigkeit umschalten
-- **Test-Suite** — 32 JS- und 17 Python-Unit-Tests laufen automatisch in CI bei jedem Push
+- **Test-Suite** — 70 Unit-Tests (36 JS, 34 Python) laufen automatisch in CI bei jedem Push
 
 ---
 
@@ -290,9 +291,11 @@ Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohn
 | `GPS_TIMEOUT_MS`    | Nach so vielen ms ohne Fix → "lost"      | `10000`            |
 | `WIFI_TX_POWER_DBM` | Sendeleistung in dBm                     | `20` (EU-Max)      |
 | `WHEEL_CIRC_M`      | Radumfang in m (0 = nur GPS-Speed)       | `0`                |
-| `BATT_CELLS`        | Anzahl LiPo-Zellen (0 = kein Monitoring) | `3`                |
+| `GEAR_RATIO`        | Wellenumdrehungen je Radumdrehung        | `1.0`              |
+| `BATT_ADC_PIN`      | ADC1-Pin fürs Batterie-Monitoring (`None` = aus) | `None`     |
+| `BATT_CELLS`        | LiPo-Zellen in Serie (Per-Cell + SOC)    | `3`                |
 
-Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `batt_cells`.
+Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`.
 
 ### Bridge (`bridge.py`)
 
@@ -376,7 +379,7 @@ Sämtliche Pakete sind UTF-8 JSON. Auf der ESP-NOW-Strecke werden sie binär ver
   "gy": -0.05,
   "gz": 0.98,
   "yaw": -12.4,
-  "mtemp": 28.6,
+  "mtemp": 29,
   "lat": 48.1234567,
   "lon": 11.7654321,
   "gps_fix": 1,
@@ -406,7 +409,7 @@ Die Bridge ergänzt vor dem USB-Versand `rssi`, `rx_count`, `lost`, `bridge_ms`,
 | `type`            | Wirkung                                                          |
 | ----------------- | ---------------------------------------------------------------- |
 | `display`         | setzt Anzeigeseite (`speed`/`race`/`rpm`/`delta`/`diag`/`auto`)  |
-| `config`          | Live-Parameter (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `batt_cells`) |
+| `config`          | Live-Parameter (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`) |
 | `pit_call`        | löst Pit-Call-Override aus; `action: "cancel"` bricht ab         |
 | `imu_calibrate`   | misst Gx/Gy-Nullpunkt (`action: "auto"`, `duration_ms`) und speichert die Offsets im Sender |
 
@@ -462,11 +465,11 @@ git push origin v9.6.1
 
 ### Tests + CI
 
-Der pure Kern der App (Lap-/Sektor-Math in `geo.js`, Recording/Replay in `replay.js`, 3D-Helper in `karts3d.js`, Akku-Math in `esp_libs/calc.py`) ist mit `node:test` und `unittest` abgedeckt. Pre-Commit:
+Der pure Kern der App (Lap-/Sektor-Math in `geo.js`, Recording/Replay in `replay.js`, 3D-Helper in `karts3d.js`, Akku-Math in `esp_libs/calc.py`, Binär-Protokoll-Codec in `esp_libs/frame.py`) ist mit `node:test` und `unittest` abgedeckt. Pre-Commit:
 
 ```bash
-npm test                                                      # 32 Tests (geo + replay + karts3d)
-python -m unittest discover -s test -p "test_*.py"            # 17 Tests (calc)
+npm test                                                      # 36 Tests (geo + replay + karts3d)
+python -m unittest discover -s test -p "test_*.py"            # 34 Tests (calc + frame)
 node --check geo.js replay.js karts3d.js rasicross.js main.js preload.js
 python -m py_compile sender.py bridge.py esp_libs/*.py
 ```
