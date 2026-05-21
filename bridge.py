@@ -25,6 +25,7 @@
 import network
 import espnow
 import ujson
+import frame
 import utime
 import ubinascii
 import sys
@@ -496,16 +497,26 @@ class Bridge:
                 self.kart_host = host
                 self.peer_store.save(host)
 
-        # JSON parsen
-        try:
-            data = ujson.loads(msg)
-        except Exception:
-            jprint({
-                "type": "bridge_error",
-                "error": "invalid_json",
-                "raw": str(msg)[:40],
-            })
-            return
+        # Binaer-Frame (D1)? Erstes Byte == FRAME_VER und exakte Laenge.
+        # JSON beginnt immer mit '{' (0x7B != 1) -> keine Kollision.
+        # Alter Sender / Steuer-Echo (JSON) bleibt weiter lesbar
+        # (Flash-Fenster / Rollback-Gnade).
+        if msg and msg[0] == frame.FRAME_VER and len(msg) == frame.SIZE:
+            data = frame.unpack(msg)
+            if "_err" in data:
+                jprint({"type": "bridge_error",
+                        "error": "frame_" + data["_err"]})
+                return
+        else:
+            try:
+                data = ujson.loads(msg)
+            except Exception:
+                jprint({
+                    "type": "bridge_error",
+                    "error": "invalid_json",
+                    "raw": str(msg)[:40],
+                })
+                return
 
         # RSSI aus ESP-NOW peers_table holen (Empfangsstaerke des Pakets).
         # peers_table ist ein dict {mac_bytes: [rssi_int, time_ms]}.

@@ -59,6 +59,12 @@ try:
 except ImportError:
     _HAS_CALC = False
 
+try:
+    import frame
+    _HAS_FRAME = True
+except ImportError:
+    _HAS_FRAME = False
+
 
 # ── Konfiguration ─────────────────────────────────────────────────────────
 
@@ -881,10 +887,14 @@ class ESPNowLink:
         """Schickt data als JSON an die Bridge. Mit Retry."""
         if not self._bridge_mac:
             return False
-        # Sequenznummer einbauen damit Bridge Paket-Verlust messen kann
-        data["seq"] = self._seq
+        # Sequenznummer kommt in den Binaer-Frame (Bridge misst Verlust)
+        seq = self._seq
         self._seq = (self._seq + 1) & 0xFFFF
-        payload = ujson.dumps(data)
+        if not _HAS_FRAME:
+            log("link", "FATAL: frame.py fehlt auf dem Kart -- bitte flashen")
+            self.tx_fail_run += 1
+            return False
+        payload = frame.pack(data, seq)
 
         for attempt in range(Config.SEND_RETRY + 1):
             try:
@@ -1108,10 +1118,9 @@ def main():
                                              Config.GEAR_RATIO)
             else:
                 speed = 0.0
-            # Batterie messen + Slow-Field-Kadenz (vbat/soc nur jedes
-            # SLOW_FIELD_EVERY-te Paket; batt_warn jedes Paket).
-            pkt_count += 1
-            slow = (pkt_count % Config.SLOW_FIELD_EVERY == 0)
+            # Binaer-Frame ist winzig (~33 B) -> keine Slow-Kadenz mehr:
+            # alle Felder in jedem Paket (D1-Spec 4.3). pkt_count nicht
+            # mehr noetig.
             if battery.active:
                 battery.read()
             packet = {
@@ -1131,17 +1140,12 @@ def main():
                 "imu_cal":  1 if imu.calibrating else 0,
             }
             if battery.active:
-                packet["batt_warn"] = battery.warn          # 0|1|2, jedes Paket
-                if slow:
-                    packet["vbat"] = round(battery.vbat, 2)  # Pack-V, langsam
-                    packet["soc"]  = battery.soc             # 0..100, langsam
-            if slow:
-                mt = imu.mpu_temp
-                if mt is not None:
-                    packet["mtemp"] = mt          # MPU-Chip-Temp (deg C), langsam
-                # Byte-Budget-Kontrolle (< 250 B, siehe Spec §4). Nur
-                # bei DEBUG/Topic 'link' sichtbar -> kein Funk-Overhead.
-                log("link", "payload bytes:", len(ujson.dumps(packet)))
+                packet["batt_warn"] = battery.warn          # 0|1|2
+                packet["vbat"]      = round(battery.vbat, 2) # Pack-V
+                packet["soc"]       = battery.soc            # 0..100
+            mt = imu.mpu_temp
+            if mt is not None:
+                packet["mtemp"] = mt                          # MPU-Temp degC
             tx_ok = link.send(packet)
 
             # Display-Update
