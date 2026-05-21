@@ -97,3 +97,53 @@ test('fmtDelta', () => {
   assert.equal(geo.fmtDelta(-1234), '-1.234s');
   assert.equal(geo.fmtDelta(NaN), 'NaNs');    // NaN bypasses the == null guard (pinned)
 });
+
+test('structuralRaceKey: stable when only the running clock ticks', () => {
+  const base = {
+    type: 'display', driver: 'Alex', num: '7', lapn: 4, target: 10,
+    sectors: ['done', 'current', 'open'], best_lap: '1:23.456',
+    live_delta_ref: 3, length_type: 'laps', page: 'auto',
+    running: true, lap: '0:42.123', lap_ms: 42123,
+    elapsed_ms: 200000, remaining_ms: null, live_delta: -250,
+  };
+  const k1 = geo.structuralRaceKey(base);
+  const k2 = geo.structuralRaceKey({
+    ...base, lap: '0:42.456', lap_ms: 42456,
+    elapsed_ms: 200333, live_delta: -240,
+  });
+  assert.equal(k1, k2);
+});
+
+test('structuralRaceKey: changes on each structural field', () => {
+  const base = {
+    driver: 'A', num: '1', lapn: 1, target: 5, sectors: ['open','open','open'],
+    best_lap: '--', live_delta_ref: null, length_type: 'free',
+    page: 'auto', running: false, pit: false,
+  };
+  const k0 = geo.structuralRaceKey(base);
+  const tweaks = [
+    { driver: 'B' }, { num: '2' }, { lapn: 2 }, { target: 6 },
+    { sectors: ['done','open','open'] }, { best_lap: '1:00.000' },
+    { live_delta_ref: 4 }, { length_type: 'time' }, { page: 'race' },
+    { running: true }, { pit: true },
+  ];
+  for (const t of tweaks) {
+    assert.notEqual(geo.structuralRaceKey({ ...base, ...t }), k0,
+      'expected change for ' + Object.keys(t)[0]);
+  }
+});
+
+test('structuralRaceKey: null/undefined/empty are stable', () => {
+  assert.equal(geo.structuralRaceKey(null), geo.structuralRaceKey(undefined));
+  assert.equal(geo.structuralRaceKey({}), geo.structuralRaceKey(null));
+});
+
+test('structuralRaceKey: excludes live-ticking + delta fields', () => {
+  const base = { driver: 'A', sectors: ['open','open','open'] };
+  const k0 = geo.structuralRaceKey(base);
+  for (const f of ['lap', 'lap_ms', 'elapsed_ms', 'remaining_ms',
+                   'live_delta', 'live_delta_ms']) {
+    assert.equal(geo.structuralRaceKey({ ...base, [f]: 12345 }), k0,
+      'expected stable across ' + f);
+  }
+});

@@ -83,13 +83,29 @@ function lineEndpointsFromGate(gate) {
   return { p1: { lat: gate.lat + dLat, lon: gate.lon + dLon }, p2: { lat: gate.lat - dLat, lon: gate.lon - dLon } };
 }
 
+// Stabiler Schluessel ueber die *strukturellen* Felder einer Display-
+// Nachricht (alles ausser den staendig tickenden Live-Werten). Wird
+// vom Dashboard genutzt, um nur bei echten Aenderungen ein display-
+// Paket per USB an die Bridge zu schicken.
+function structuralRaceKey(d) {
+  d = d || {};
+  return JSON.stringify([
+    d.driver || '', d.num || '', d.lapn || 0, d.target || '',
+    Array.isArray(d.sectors) ? d.sectors.join('|') : '',
+    d.best_lap || '', d.live_delta_ref == null ? null : d.live_delta_ref,
+    d.length_type || '', d.page || '',
+    d.running ? 1 : 0, d.pit ? 1 : 0
+  ]);
+}
+
 // ── UMD-style export ────────────────────────────────────────
 (function () {
   var api = {
     fmtMs: fmtMs, fmtClock: fmtClock, fmtDelta: fmtDelta,
     gpsDist: gpsDist, traceDistanceM: traceDistanceM,
     headingFromPoints: headingFromPoints, segmentsCross: segmentsCross,
-    crossingDirectionOk: crossingDirectionOk, lineEndpointsFromGate: lineEndpointsFromGate
+    crossingDirectionOk: crossingDirectionOk, lineEndpointsFromGate: lineEndpointsFromGate,
+    structuralRaceKey: structuralRaceKey
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
   if (typeof window !== 'undefined') {
