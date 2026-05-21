@@ -517,6 +517,16 @@ class Bridge:
                     "raw": str(msg)[:40],
                 })
                 return
+            if not isinstance(data, dict):
+                # Gueltiges JSON, aber kein Objekt (Zahl/Liste/String) -> nicht
+                # weiterverarbeiten, sonst crasht der dict-Zugriff in on_packet
+                # die ganze Empfangsschleife.
+                jprint({
+                    "type": "bridge_error",
+                    "error": "invalid_json",
+                    "raw": str(msg)[:40],
+                })
+                return
 
         # RSSI aus ESP-NOW peers_table holen (Empfangsstaerke des Pakets).
         # peers_table ist ein dict {mac_bytes: [rssi_int, time_ms]}.
@@ -572,6 +582,11 @@ class Bridge:
             jprint({"type": "bridge_error", "error": "usb_invalid_json",
                     "raw": line[:40]})
             return
+        if not isinstance(data, dict):
+            self.usb_errors += 1
+            jprint({"type": "bridge_error", "error": "usb_invalid_json",
+                    "raw": line[:40]})
+            return
 
         t = data.get("type")
 
@@ -604,8 +619,6 @@ class Bridge:
         if t in ("display", "config", "pit_call", "imu_calibrate"):
             self._forward_to_kart(t, data)
             return
-
-        # Debug: ack damit das Dashboard weiss dass wir die Daten gesehen haben
 
         # Unbekannter Typ
         jprint({"type": "bridge_error", "error": "unknown_type",
@@ -690,7 +703,5 @@ class Bridge:
 
 # ── Start ─────────────────────────────────────────────────────────────────
 
-if __name__ == "__main__":
-    Bridge().run()
-else:
-    Bridge().run()
+# Laeuft los, egal ob als Hauptprogramm gestartet oder aus boot.py importiert.
+Bridge().run()

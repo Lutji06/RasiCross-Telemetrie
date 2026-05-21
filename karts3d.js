@@ -100,6 +100,11 @@ var _rafId = 0;
 var _running = false;
 var _disposed = false;
 var _failed = false;        // true after init failure (no THREE / no WebGL)
+var _curW = 0;              // last-applied canvas size (logical CSS px) + DPR;
+var _curH = 0;              // resize is keyed off these, never off the floored
+var _curDpr = 1;            // backing-buffer size (see update()).
+var _tmpEuler = null;       // reused each update() to avoid hot-path allocation
+var _tmpArrowDir = null;    // reused each update() to avoid hot-path allocation
 
 var _EMA_ALPHA = 0.2;
 var _customModelHeading = 0;  // degrees, applied as Y-Euler offset; from kartModelYawReducer
@@ -162,14 +167,21 @@ function init(canvasEl, opts) {
     return false;
   }
   _canvas = canvasEl;
-  _renderer.setPixelRatio(window.devicePixelRatio || 1);
-  _renderer.setSize(canvasEl.clientWidth || 200, canvasEl.clientHeight || 200, false);
+  _curW = canvasEl.clientWidth || 200;
+  _curH = canvasEl.clientHeight || 200;
+  _curDpr = window.devicePixelRatio || 1;
+  _renderer.setPixelRatio(_curDpr);
+  _renderer.setSize(_curW, _curH, false);
   _renderer.setClearColor(0x000000, 0);
 
   _scene = new THREE.Scene();
-  _camera = new THREE.PerspectiveCamera(45, 1, 0.1, 50);
+  _camera = new THREE.PerspectiveCamera(45, _curW / _curH, 0.1, 50);
   _camera.position.set(3, 2.5, 3);
   _camera.lookAt(0, 0.4, 0);
+
+  // Per-frame scratch objects, created here so THREE is guaranteed present.
+  _tmpEuler = new THREE.Euler();
+  _tmpArrowDir = new THREE.Vector3();
 
   // Lighting
   _scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -214,6 +226,7 @@ function init(canvasEl, opts) {
     _renderer.render(_scene, _camera);  // one initial frame so the canvas isn't empty
   } catch (e) {
     _failed = true;
+    dispose();                 // free the scene/renderer built above
     return false;
   }
   _failed = false;
@@ -244,8 +257,8 @@ function update(imu) {
   // YXZ Euler: yaw around Y, pitch around X, roll around Z.
   // Static heading offset (Phase 12) is added on top of the integrated yaw.
   var headingRad = _customModelHeading * Math.PI / 180;
-  var euler = new THREE.Euler(_pitch, _yaw + headingRad, _roll, 'YXZ');
-  _kartGroup.quaternion.setFromEuler(euler);
+  _tmpEuler.set(_pitch, _yaw + headingRad, _roll, 'YXZ');
+  _kartGroup.quaternion.setFromEuler(_tmpEuler);
 
   // G-vector on the floor: longitudinal Gx -> -Z (forward), lateral Gy -> +X (left).
   var lateralMag = Math.sqrt(gx * gx + gy * gy);
@@ -254,9 +267,9 @@ function update(imu) {
     _arrow.visible = false;
   } else {
     _arrow.visible = true;
-    var arrowDir = new THREE.Vector3(gy, 0, -gx);
-    if (arrowDir.lengthSq() > 0) arrowDir.normalize(); else arrowDir.set(1, 0, 0);
-    _arrow.setDirection(arrowDir);
+    _tmpArrowDir.set(gy, 0, -gx);
+    if (_tmpArrowDir.lengthSq() > 0) _tmpArrowDir.normalize(); else _tmpArrowDir.set(1, 0, 0);
+    _arrow.setDirection(_tmpArrowDir);
     _arrow.setLength(lenNorm, 0.2, 0.12);
     _arrow.setColor(_zoneColor(lateralMag));
   }
@@ -269,12 +282,18 @@ function update(imu) {
   _gzBar.material.color.setHex(_zoneColor(gzMag));
   _gzBar.material.opacity = 0.3 + 0.6 * scaleY;
 
-  // Re-fit if the canvas client size changed (cheap check, no listeners).
+  // Re-fit if the canvas client size or device pixel ratio changed (cheap
+  // check, no listeners). Comparison is against our own last-applied logical
+  // size — never the floored backing-buffer size — so a fractional
+  // devicePixelRatio (Windows display scaling) cannot trigger a resize on
+  // every frame.
   var w = _canvas.clientWidth | 0, h = _canvas.clientHeight | 0;
-  if (w && h && (_renderer.domElement.width !== w * (window.devicePixelRatio || 1)
-              || _renderer.domElement.height !== h * (window.devicePixelRatio || 1))) {
-    _camera.aspect = w / Math.max(1, h);
+  var dpr = window.devicePixelRatio || 1;
+  if (w && h && (w !== _curW || h !== _curH || dpr !== _curDpr)) {
+    _curW = w; _curH = h; _curDpr = dpr;
+    _camera.aspect = w / h;
     _camera.updateProjectionMatrix();
+    _renderer.setPixelRatio(dpr);
     _renderer.setSize(w, h, false);
   }
 
@@ -332,6 +351,7 @@ function dispose() {
   } catch (e) { /* ignore */ }
   _scene = _camera = _renderer = _canvas = null;
   _kartGroup = _arrow = _gzBar = null;
+  _tmpEuler = _tmpArrowDir = null;
 }
 
 function isFailed() { return _failed; }

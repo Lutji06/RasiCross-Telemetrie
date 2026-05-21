@@ -189,8 +189,13 @@ class RPMCounter:
         if dt > 0 and cnt > 0:
             self._pulse_hz_raw = cnt / (dt / 1000.0)
             self._rpm_raw = (self._pulse_hz_raw / self._ppr) * 60.0
-        elif dt > 500:
-            # Lange kein Puls → Stillstand
+        else:
+            # Kein Puls in diesem Mess-Intervall -> Rohwert 0. dt ist hier im
+            # Normalbetrieb immer ~50 ms (Aufruf-Takt), nie >500 ms; die
+            # fruehere `elif dt > 500`-Bedingung griff darum praktisch nie,
+            # wodurch die RPM beim Anhalten auf dem letzten Wert einfror. Die
+            # EMA-Glaettung in update() laesst die Anzeige jetzt sauber gegen
+            # 0 abklingen.
             self._rpm_raw = 0.0
             self._pulse_hz_raw = 0.0
 
@@ -964,6 +969,8 @@ class ESPNowLink:
             data = ujson.loads(msg)
         except Exception:
             return None
+        if not isinstance(data, dict):
+            return None      # Nicht-Objekt-JSON (Zahl/Liste/String) -> ignorieren
         # Wenn die Bridge sich meldet und wir noch keine MAC kannten -> lernen
         kind = data.get("type", "unknown")
         log("recv", "Paket:", kind)
@@ -1022,13 +1029,25 @@ class StatusLED:
 def apply_config(cfg, rpm_counter):
     """Übernimmt eine Config-Nachricht vom Dashboard."""
     if "max_rpm" in cfg:
-        Config.MAX_RPM = max(500, int(cfg["max_rpm"]))
+        try:
+            Config.MAX_RPM = max(500, int(cfg["max_rpm"]))
+        except (TypeError, ValueError):
+            pass
     if "warn_rpm" in cfg:
-        Config.RPM_WARN = max(500, int(cfg["warn_rpm"]))
+        try:
+            Config.RPM_WARN = max(500, int(cfg["warn_rpm"]))
+        except (TypeError, ValueError):
+            pass
     if "send_ms" in cfg:
-        Config.SEND_MS = max(20, int(cfg["send_ms"]))
+        try:
+            Config.SEND_MS = max(20, int(cfg["send_ms"]))
+        except (TypeError, ValueError):
+            pass
     if "pulses_per_rev" in cfg:
-        rpm_counter.set_ppr(cfg["pulses_per_rev"])
+        try:
+            rpm_counter.set_ppr(cfg["pulses_per_rev"])
+        except (TypeError, ValueError):
+            pass
     if "wheel_circ_m" in cfg:
         try:
             Config.WHEEL_CIRC_M = max(0.0, float(cfg["wheel_circ_m"]))
@@ -1215,9 +1234,5 @@ def main():
         utime.sleep_ms(2)
 
 
-# Direkt starten falls als Hauptprogramm aufgerufen
-if __name__ == "__main__":
-    main()
-else:
-    # Wird aus boot.py o.ä. importiert
-    main()
+# Laeuft los, egal ob als Hauptprogramm gestartet oder aus boot.py importiert.
+main()
