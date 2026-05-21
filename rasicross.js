@@ -1709,9 +1709,6 @@ function endRace(auto = false) {
     rcAlert('Fehler beim Beenden:\n' + (e?.message || e));
   }
 }
-// pauseRace ist vollstaendig implementiert, aber (noch) an keinen
-// Button gebunden -- "Fortsetzen" laeuft ueber den Start-Button.
-// eslint-disable-next-line no-unused-vars
 function pauseRace() {
   const r = activeRace();
   if (!r || r.status !== 'running') return;
@@ -1720,6 +1717,12 @@ function pauseRace() {
   renderRaces();
   updateRaceControls();
   saveDataDebounced();
+}
+function toggleRaceRun() {
+  // Start-Button-Toggle: laeuft -> pausieren, sonst -> starten/fortsetzen
+  const r = activeRace();
+  if (r && r.status === 'running') pauseRace();
+  else startRace();
 }
 function openDriverChange() {
   const r = activeRace();
@@ -1933,13 +1936,21 @@ function updateRaceControls() {
   const r = activeRace();
   const running = r && r.status === 'running';
   const paused = r && r.status === 'paused';
-  const canStart = r && (r.status === 'created' || r.status === 'paused');
   const startBtn = $('startRaceBtn');
   const changeBtn = $('changeDriverBtn');
   const endBtn = $('endRaceBtn');
   if (startBtn) {
-    startBtn.disabled = !canStart;
-    startBtn.textContent = paused ? 'Fortsetzen' : 'Start';
+    // Start-Button ist ein Toggle: Start -> Pause -> Fortsetzen
+    if (running) {
+      startBtn.disabled = false;
+      startBtn.textContent = 'Pause';
+    } else if (paused) {
+      startBtn.disabled = false;
+      startBtn.textContent = 'Fortsetzen';
+    } else {
+      startBtn.disabled = !(r && r.status === 'created');
+      startBtn.textContent = 'Start';
+    }
   }
   if (changeBtn) changeBtn.disabled = !running;
   if (endBtn) endBtn.disabled = !(running || paused);
@@ -3381,7 +3392,7 @@ function init() {
   };
   $('pwCloseBtn').onclick = closePitWall;
   // Live tab buttons
-  $('startRaceBtn').onclick = startRace;
+  $('startRaceBtn').onclick = toggleRaceRun;
   $('endRaceBtn').onclick = () => endRace(false);
   $('changeDriverBtn').onclick = openDriverChange;
   $('pitCallBtn').onclick = togglePitCall;
