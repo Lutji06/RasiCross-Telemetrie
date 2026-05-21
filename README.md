@@ -459,17 +459,19 @@ Unter Windows steht alternativ das Komfort-Skript [`BUILD_EXE.ps1`](BUILD_EXE.ps
 Bei jedem Tag-Push (`v*`) baut [`.github/workflows/build.yml`](.github/workflows/build.yml) Windows und macOS parallel und legt die Artefakte als GitHub-Release ab.
 
 ```bash
-git tag v9.6.1
-git push origin v9.6.1
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 ### Tests + CI
 
-Der pure Kern der App (Lap-/Sektor-Math in `geo.js`, Recording/Replay in `replay.js`, 3D-Helper in `karts3d.js`, Akku-Math in `esp_libs/calc.py`, Binär-Protokoll-Codec in `esp_libs/frame.py`) ist mit `node:test` und `unittest` abgedeckt. Pre-Commit:
+Der pure Kern der App (Lap-/Sektor-Math in `geo.js`, Recording/Replay in `replay.js`, 3D-Helper in `karts3d.js`, Akku-Math in `esp_libs/calc.py`, Binär-Protokoll-Codec in `esp_libs/frame.py`) ist mit `node:test` und `unittest` abgedeckt; ESLint und Ruff prüfen zusätzlich auf toten Code und Fehler. Pre-Commit:
 
 ```bash
-npm test                                                      # 36 Tests (geo + replay + karts3d)
-python -m unittest discover -s test -p "test_*.py"            # 34 Tests (calc + frame)
+npm test                                                      # Unit-Tests (geo + replay + karts3d)
+npm run lint                                                  # ESLint (JS-Quellen)
+python -m unittest discover -s test -p "test_*.py"            # Unit-Tests (calc + frame)
+ruff check                                                     # Ruff (sender/bridge/esp_libs/test)
 node --check geo.js replay.js karts3d.js rasicross.js main.js preload.js
 python -m py_compile sender.py bridge.py esp_libs/*.py
 ```
@@ -483,15 +485,6 @@ Pull-Requests sind willkommen. Vorgehen, Code-Stil und Tipps in **[CONTRIBUTING.
 ### Code-Signing (optional)
 
 Anleitung für kostenloses Windows-Code-Signing via SignPath: **[docs/CODE_SIGNING.md](docs/CODE_SIGNING.md)**.
-
----
-
-## Versionsstand
-
-- **Sender:** v9.6 (`sender.py`)
-- **Bridge:** v9.6 (`bridge.py`)
-- **Dashboard:** v9.6 (`RasiCross_Telemetry.html`)
-- **Desktop-App:** 9.6.0 (`package.json`)
 
 ---
 

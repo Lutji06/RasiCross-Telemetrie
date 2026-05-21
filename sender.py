@@ -1,5 +1,5 @@
 # ============================================================
-#  RasiCross  --  KART ESP32 SENDER  v9.6
+#  RasiCross  --  KART ESP32 SENDER
 # ============================================================
 #  Rolle:    Mäher-seitiger ESP. Sammelt Sensordaten und sendet
 #            sie via ESP-NOW an die Bridge (Boxengasse).
@@ -662,7 +662,7 @@ class Display:
     def _show_boot(self):
         o = self._oled
         o.fill(0)
-        o.text("RasiCross v9", 16, 8, 1)
+        o.text("RasiCross", 28, 8, 1)
         o.text("Kart-Sender", 20, 24, 1)
         o.text("Init...", 36, 44, 1)
         o.show()
@@ -1067,7 +1067,7 @@ def apply_config(cfg, rpm_counter):
 
 
 def main():
-    log("init", "RasiCross Sender v9.6 startet")
+    log("init", "RasiCross Sender startet")
 
     # Watchdog
     wdt = None
@@ -1109,7 +1109,6 @@ def main():
     # Lokaler Zustand
     last_send = utime.ticks_ms()
     race_data = None
-    pkt_count = 0                 # zaehlt gesendete Pakete (Slow-Field-Kadenz)
 
     while True:
         if wdt:
@@ -1181,8 +1180,7 @@ def main():
             else:
                 speed = 0.0
             # Binaer-Frame ist winzig (~33 B) -> keine Slow-Kadenz mehr:
-            # alle Felder in jedem Paket (D1-Spec 4.3). pkt_count nicht
-            # mehr noetig.
+            # alle Felder in jedem Paket (D1-Spec 4.3).
             if battery.active:
                 battery.read()
             packet = {

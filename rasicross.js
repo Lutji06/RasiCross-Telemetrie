@@ -1,6 +1,6 @@
 'use strict';
 /* ============================================================
-   RASICROSS TELEMETRY v9.6 — Clean Implementation
+   RASICROSS TELEMETRY — Clean Implementation
    Sections:
      1. Constants & State
      2. Utilities
@@ -1605,7 +1605,6 @@ function renderDriverOptions() {
 // 16. RACES
 // ============================================================
 function activeRace() { return state.races.find(r => r.id === state.activeRaceId); }
-function selectedRace() { return state.races.find(r => r.id === state.selectedRaceId); }
 function currentStint(r) { return r && r.stints && r.stints.length ? r.stints[r.stints.length - 1] : null; }
 function raceValidLaps(r) { return r ? r.laps.filter(l => l.valid) : []; }
 function raceElapsedMs(r) {
@@ -1710,6 +1709,9 @@ function endRace(auto = false) {
     rcAlert('Fehler beim Beenden:\n' + (e?.message || e));
   }
 }
+// pauseRace ist vollstaendig implementiert, aber (noch) an keinen
+// Button gebunden -- "Fortsetzen" laeuft ueber den Start-Button.
+// eslint-disable-next-line no-unused-vars
 function pauseRace() {
   const r = activeRace();
   if (!r || r.status !== 'running') return;
@@ -3595,8 +3597,6 @@ init();
         const unit = tk.querySelector('small')?.textContent?.trim() || 'km';
         if (numMatch) txt('footerKm', numMatch[0] + ' ' + unit);
       }
-      // Speicher-Status spiegeln (sessionText macht das Original)
-      const ss = $$('sessionText')?.textContent;
       // Pit-Wall braucht zusätzliche Mappings (driver name)
       try {
         if (typeof activeRace === 'function') {

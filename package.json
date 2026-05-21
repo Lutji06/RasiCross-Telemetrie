@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
+    "lint": "eslint .",
     "build": "electron-builder",
     "build:win": "electron-builder --win --x64",
     "build:mac": "electron-builder --mac",
@@ -15,8 +16,11 @@
     "build-portable": "electron-builder --win portable --x64"
   },
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "electron": "^36.0.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0"
   },
   "build": {
     "appId": "com.rasicross.telemetry",

@@ -2,7 +2,7 @@
 #  Baut die RasiCross-Telemetrie fuer Windows und macOS
 # ============================================================
 #  Loest aus bei:
-#    - Push eines Tags der Form vX.Y.Z (z.B. v9.6.0)
+#    - Push eines Tags der Form vX.Y.Z (z.B. v1.0.0)
 #    - Pull-Request gegen main
 #    - Manuelle Ausfuehrung ueber den "Actions"-Tab auf GitHub
 #
@@ -51,6 +51,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       # node-gyp braucht distutils. Das wurde aus Python 3.12+ entfernt.
       # macOS-Runner haben mittlerweile 3.12 standardmaessig -> wir
@@ -70,7 +71,7 @@ jobs:
           }
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build
         run: npm run ${{ matrix.build_cmd }}

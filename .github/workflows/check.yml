@@ -7,11 +7,17 @@ on:
 jobs:
   js:
     runs-on: ubuntu-latest
+    env:
+      # check-Job startet Electron nicht -> grossen Binary-Download sparen
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
       - name: Syntax-check JS
         run: |
           node --check geo.js
@@ -20,6 +26,8 @@ jobs:
           node --check rasicross.js
           node --check main.js
           node --check preload.js
+      - name: Lint JS
+        run: npm run lint
       - name: Unit tests
         run: npm test
 
@@ -31,10 +39,10 @@ jobs:
         with:
           python-version: '3.12'
       - name: Byte-compile ESP scripts (syntax only)
-        run: |
-          python -m py_compile sender.py bridge.py \
-            esp_libs/micropyGPS.py esp_libs/mpu6050.py \
-            esp_libs/oled_diagnose.py esp_libs/ssd1306.py \
-            esp_libs/calc.py
+        run: python -m py_compile sender.py bridge.py esp_libs/*.py
+      - name: Install Ruff
+        run: pip install ruff
+      - name: Lint Python
+        run: ruff check
       - name: Pure-logic unit tests
         run: python -m unittest discover -s test -p "test_*.py" -v
