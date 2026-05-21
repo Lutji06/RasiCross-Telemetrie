@@ -1,0 +1,4 @@
+# Ruff: nur fehler-orientierte Regeln (Pyflakes "F" + Syntax "E9"),
+# kein Style-Nitpicking auf der bestehenden MicroPython-Codebasis.
+[lint]
+select = ["F", "E9"]

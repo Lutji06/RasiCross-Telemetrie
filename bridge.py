@@ -1,5 +1,5 @@
 # ============================================================
-#  RasiCross  --  BRIDGE ESP32  ESP-NOW ⇆ USB SERIAL  v9.6
+#  RasiCross  --  BRIDGE ESP32  ESP-NOW ⇆ USB SERIAL
 # ============================================================
 #  Rolle:    Boxen-seitiger ESP. Empfängt Telemetrie vom Kart
 #            per ESP-NOW und gibt sie als JSON-Lines per USB-Serial
@@ -238,7 +238,7 @@ class BridgeDisplay:
     def _show_boot(self):
         o = self._oled
         o.fill(0)
-        o.text("RasiCross v9", 16, 8, 1)
+        o.text("RasiCross", 28, 8, 1)
         o.text("Bridge ESP32", 16, 24, 1)
         o.text("CH:{}  Init...".format(Config.ESPNOW_CHANNEL), 0, 44, 1)
         o.show()
@@ -438,7 +438,6 @@ class Bridge:
         jprint({
             "type":           "bridge_status",
             "bridge":         "ready",
-            "version":        "9.6",
             "mac":            mac,
             "channel":        Config.ESPNOW_CHANNEL,
             "return_channel": self.poll is not None,

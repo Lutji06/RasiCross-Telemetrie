@@ -24,7 +24,7 @@ assignees: ''
 
 - **Komponente:** [ ] Sender / [ ] Bridge / [ ] Dashboard (Browser) / [ ] Dashboard (Electron-App)
 - **OS:** Windows 11 / macOS / Linux / ...
-- **Version (siehe README → Versionsstand):** v9.6.0
+- **Release / Build:** z.B. Installer-Dateiname, Release-Tag oder Git-Commit
 - **ESP32-Board:** z.B. ESP32-WROOM-32
 - **MicroPython-Version:** z.B. 1.23.0
 

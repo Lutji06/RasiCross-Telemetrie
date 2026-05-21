@@ -2,7 +2,6 @@
 # Vereinfachte Version, gibt accel als (gx, gy, gz) in g-Einheiten zurueck.
 # Auf den Sender-ESP in das Root-Verzeichnis flashen.
 
-from machine import I2C
 import ustruct
 
 

@@ -1,6 +1,6 @@
 'use strict';
 /* ============================================================
-   RASICROSS TELEMETRY v9.6 — Clean Implementation
+   RASICROSS TELEMETRY — Clean Implementation
    Sections:
      1. Constants & State
      2. Utilities
@@ -1605,7 +1605,6 @@ function renderDriverOptions() {
 // 16. RACES
 // ============================================================
 function activeRace() { return state.races.find(r => r.id === state.activeRaceId); }
-function selectedRace() { return state.races.find(r => r.id === state.selectedRaceId); }
 function currentStint(r) { return r && r.stints && r.stints.length ? r.stints[r.stints.length - 1] : null; }
 function raceValidLaps(r) { return r ? r.laps.filter(l => l.valid) : []; }
 function raceElapsedMs(r) {
@@ -1648,10 +1647,35 @@ function startRace() {
     if (r.status === 'finished' || r.status === 'finished_auto') return rcAlert('Rennen ist beendet.');
     const now = Date.now();
     if (r.status === 'paused') {
-      r.totalPausedMs = (r.totalPausedMs || 0) + (now - (r.pausedAt || now));
+      // Fortsetzen: Pausendauer ermitteln, Rennuhr korrigieren.
+      const pausedMs = now - (r.pausedAt || now);
+      r.totalPausedMs = (r.totalPausedMs || 0) + pausedMs;
       r.pausedAt = null;
       r.status = 'running';
+      if (typeof state.lapStart === 'number') {
+        // Live-Renndaten noch im Speicher -> Lauf- und Sektor-Uhr um
+        // die Pause vorruecken, damit die Zeit nahtlos weiterlaeuft.
+        state.lapStart += pausedMs;
+        if (typeof state.sectors.sectorStart === 'number') {
+          state.sectors.sectorStart += pausedMs;
+        }
+      } else {
+        // Nach App-Neustart sind die Live-Lap-Daten weg -> aktuelle
+        // Runde frisch beginnen (gefahrene Runden bleiben erhalten).
+        state.lapStart = now;
+        state.currentLapMax = { speed: 0, rpm: 0 };
+        state.currentLapTrace = [];
+        state.heatmap.lapMaxSpeed = 0;
+        state.sectors.cur = 0;
+        state.sectors.sectorStart = now;
+        state.sectors.lapSectors = [null, null, null];
+        state.sectors.lastLapSectors = null;
+      }
+      // Stale GPS-Punkt verwerfen, sonst Geister-Durchfahrt moeglich.
+      state.autoLap.prevLat = null;
+      state.autoLap.prevLon = null;
     } else {
+      // Frischer Start: kompletter Reset wie bisher.
       r.status = 'running';
       r.startedAt = now;
       r.endedAt = null;
@@ -1659,20 +1683,20 @@ function startRace() {
       r.stints = [{ id: uid(), driverId: r.currentDriverId, startAt: now, endAt: null }];
       r.laps = [];
       r.speedTrace = [];
+      state.lapStart = now;
+      state.currentLapMax = { speed: 0, rpm: 0 };
+      state.currentLapTrace = [];
+      state.bestLapMs = null;
+      state.bestLapNum = null;
+      state.bestLapTrace = null;
+      state.heatmap.lapMaxSpeed = 0;
+      state.sectors.cur = 0;
+      state.sectors.sectorStart = now;
+      state.sectors.lapSectors = [null, null, null];
+      state.sectors.lastLapSectors = null;
+      state.autoLap.prevLat = null;
+      state.autoLap.prevLon = null;
     }
-    state.lapStart = now;
-    state.currentLapMax = { speed: 0, rpm: 0 };
-    state.currentLapTrace = [];
-    state.bestLapMs = null;
-    state.bestLapNum = null;
-    state.bestLapTrace = null;
-    state.heatmap.lapMaxSpeed = 0;
-    state.sectors.cur = 0;
-    state.sectors.sectorStart = now;
-    state.sectors.lapSectors = [null, null, null];
-    state.sectors.lastLapSectors = null;
-    state.autoLap.prevLat = null;
-    state.autoLap.prevLon = null;
     renderRaces();
     updateRaceControls();
     updateSectorPanel();
@@ -1718,6 +1742,12 @@ function pauseRace() {
   renderRaces();
   updateRaceControls();
   saveDataDebounced();
+}
+function toggleRaceRun() {
+  // Start-Button-Toggle: laeuft -> pausieren, sonst -> starten/fortsetzen
+  const r = activeRace();
+  if (r && r.status === 'running') pauseRace();
+  else startRace();
 }
 function openDriverChange() {
   const r = activeRace();
@@ -1931,13 +1961,21 @@ function updateRaceControls() {
   const r = activeRace();
   const running = r && r.status === 'running';
   const paused = r && r.status === 'paused';
-  const canStart = r && (r.status === 'created' || r.status === 'paused');
   const startBtn = $('startRaceBtn');
   const changeBtn = $('changeDriverBtn');
   const endBtn = $('endRaceBtn');
   if (startBtn) {
-    startBtn.disabled = !canStart;
-    startBtn.textContent = paused ? 'Fortsetzen' : 'Start';
+    // Start-Button ist ein Toggle: Start -> Pause -> Fortsetzen
+    if (running) {
+      startBtn.disabled = false;
+      startBtn.textContent = 'Pause';
+    } else if (paused) {
+      startBtn.disabled = false;
+      startBtn.textContent = 'Fortsetzen';
+    } else {
+      startBtn.disabled = !(r && r.status === 'created');
+      startBtn.textContent = 'Start';
+    }
   }
   if (changeBtn) changeBtn.disabled = !running;
   if (endBtn) endBtn.disabled = !(running || paused);
@@ -3379,7 +3417,7 @@ function init() {
   };
   $('pwCloseBtn').onclick = closePitWall;
   // Live tab buttons
-  $('startRaceBtn').onclick = startRace;
+  $('startRaceBtn').onclick = toggleRaceRun;
   $('endRaceBtn').onclick = () => endRace(false);
   $('changeDriverBtn').onclick = openDriverChange;
   $('pitCallBtn').onclick = togglePitCall;
@@ -3595,8 +3633,6 @@ init();
         const unit = tk.querySelector('small')?.textContent?.trim() || 'km';
         if (numMatch) txt('footerKm', numMatch[0] + ' ' + unit);
       }
-      // Speicher-Status spiegeln (sessionText macht das Original)
-      const ss = $$('sessionText')?.textContent;
       // Pit-Wall braucht zusätzliche Mappings (driver name)
       try {
         if (typeof activeRace === 'function') {
