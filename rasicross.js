@@ -1524,6 +1524,7 @@ function addDriver() {
   renderDrivers();
   renderDriverOptions();
   saveData();
+  $('newDriverModal').classList.remove('show');
   rcToast(`Fahrer "${name}" hinzugefügt`);
 }
 async function deleteDriver(id) {
@@ -3425,6 +3426,9 @@ function init() {
   $('openNewRaceBtn').onclick = () => $('newRaceModal').classList.add('show');
   $('cancelNewRaceBtn').onclick = () => $('newRaceModal').classList.remove('show');
   $('newRaceModal').onclick = (e) => { if (e.target.id === 'newRaceModal') $('newRaceModal').classList.remove('show'); };
+  $('openNewDriverBtn').onclick = () => $('newDriverModal').classList.add('show');
+  $('cancelNewDriverBtn').onclick = () => $('newDriverModal').classList.remove('show');
+  $('newDriverModal').onclick = (e) => { if (e.target.id === 'newDriverModal') $('newDriverModal').classList.remove('show'); };
   // Live tab buttons
   $('startRaceBtn').onclick = toggleRaceRun;
   $('endRaceBtn').onclick = () => endRace(false);

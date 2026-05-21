@@ -1388,44 +1388,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 }
 .dstat.highlight b{color:var(--driver,var(--pr))}
 
-/* Total hero */
-.total-hero{
-  padding:28px 32px 30px;
-  background:radial-gradient(circle at 100% 0%,var(--pr-soft),transparent 60%),var(--surf);
-  border:1px solid var(--bor);
-  border-radius:var(--r-2xl);
-  margin-bottom:18px;
-  position:relative;overflow:visible;
-}
-.total-hero::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:linear-gradient(90deg,transparent,var(--pr),transparent);
-}
-.total-hero-label{
-  font-family:var(--mono);font-size:10.5px;
-  font-weight:700;text-transform:uppercase;
-  letter-spacing:.12em;color:var(--mut);
-  margin-bottom:8px;
-}
-.total-hero-km{
-  display:block;
-  font-family:var(--mono);font-size:clamp(46px,7vw,72px);
-  font-weight:700;color:var(--pr);
-  line-height:1.05;letter-spacing:-.05em;
-  font-variant-numeric:tabular-nums;
-  text-shadow:0 0 28px var(--pr-glow);
-  padding-block:4px;
-  overflow:visible;
-}
-.total-hero-km small{
-  font-size:.36em;color:var(--mut);
-  margin-left:10px;font-weight:500;text-shadow:none;
-}
-.total-hero-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
-  gap:10px;margin-top:18px;
-}
+
 .thero-stat{
   padding:12px 14px;
   background:var(--soft);
@@ -2540,29 +2503,56 @@ body.diagnose-on .diagnose-only{display:block}
      TAB: FAHRER
      ============================================================ -->
 <section class="tab" id="tab-drivers">
-  <div class="total-hero">
-    <div class="total-hero-label">Gefahrene Strecke (alle Rennen)</div>
-    <div class="total-hero-km" id="totalDistance">0<small>km</small></div>
-    <span id="totalKm" style="display:none"></span>
-    <div class="total-hero-grid" id="totalStatsGrid"></div>
-  </div>
 
-  <div class="grid g-1-2">
-    <div class="card">
-      <div class="card-head"><span class="card-title">Neuer Fahrer</span><span class="card-sub">hinzufügen</span></div>
-      <div class="fieldset">
-        <div class="field"><label>Name</label><input id="newDriverName" placeholder="z.B. Jim"></div>
-        <div class="field"><label>Startnummer</label><input id="newDriverNumber" placeholder="1"></div>
-        <div class="field"><label>Farbe</label><input id="newDriverColor" type="color" value="#c8ff3d"></div>
-        <button class="btn primary" id="addDriverBtn">Fahrer hinzufügen</button>
+  <div class="pw-hero">
+    <div class="pw-hero-bg"></div>
+    <div class="pw-hero-grid"></div>
+    <div class="pw-hero-content">
+      <div class="pw-hero-left">
+        <div class="pw-eyebrow">
+          <span class="pw-eyebrow-dot"></span>
+          <span>FAHRER &amp; STATISTIK</span>
+        </div>
+        <h1 class="pw-hero-title">Fahrer<span class="pw-hero-accent">.</span></h1>
+        <p class="pw-hero-sub">Gefahrene Strecke aller Rennen</p>
+      </div>
+      <div class="pw-hero-telemetry">
+        <div class="pw-tel">
+          <div class="pw-tel-label">Strecke gesamt</div>
+          <div class="pw-tel-value" id="totalDistance">0<small>km</small></div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Runden</div>
+          <div class="pw-tel-value mono" id="totalLaps">0</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Rennen</div>
+          <div class="pw-tel-value mono" id="totalRaces">0</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Beste Runde</div>
+          <div class="pw-tel-value" id="totalBestLap">--</div>
+        </div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-head"><span class="card-title">Fahrer & Statistiken</span><span class="card-sub" id="driverCount">0</span></div>
-      <div id="driverStatsList"><div class="muted">Noch keine Fahrer.</div></div>
-      <div id="driversList" style="display:none"></div>
-    </div>
   </div>
+
+  <div class="pw-library">
+    <div class="pw-lib-head pw-lib-head-row">
+      <div class="pw-lib-title">
+        <span class="pw-lib-bar"></span>
+        <span>Bibliothek</span>
+        <span class="pw-lib-count"><span id="driverCount">0</span> · Fahrer</span>
+      </div>
+      <button class="pw-btn primary" id="openNewDriverBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Neuer Fahrer</span>
+      </button>
+    </div>
+    <div id="driverStatsList"><div class="muted">Noch keine Fahrer.</div></div>
+    <div id="driversList" style="display:none"></div>
+  </div>
+
 </section>
 
 <!-- ============================================================
@@ -2957,6 +2947,20 @@ body.diagnose-on .diagnose-only{display:block}
     <div class="dialog-btns">
       <button class="btn ghost" id="cancelNewRaceBtn">Abbrechen</button>
       <button class="btn primary" id="createRaceBtn">Rennen erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Driver Modal -->
+<div id="newDriverModal" class="overlay">
+  <div class="dialog" style="max-width:400px">
+    <h3>Neuer Fahrer</h3>
+    <div class="field"><label>Name</label><input id="newDriverName" placeholder="z.B. Jim"></div>
+    <div class="field"><label>Startnummer</label><input id="newDriverNumber" placeholder="1"></div>
+    <div class="field"><label>Farbe</label><input id="newDriverColor" type="color" value="#c8ff3d"></div>
+    <div class="dialog-btns">
+      <button class="btn ghost" id="cancelNewDriverBtn">Abbrechen</button>
+      <button class="btn primary" id="addDriverBtn">Fahrer hinzufügen</button>
     </div>
   </div>
 </div>
