@@ -518,6 +518,13 @@ class Display:
         self._pit_until   = 0
         self._pit_message = "PIT STOP"
 
+        # Race-Anker fuer kart-seitige OLED-Uhr (D1-gamma).
+        # set_race_data(d) speichert d + den Empfangs-Tick; live_lap_ms()
+        # rechnet die laufende Rundenzeit lokal aus utime weiter, solange
+        # 'running' im d ist und 'lap_ms' geliefert wurde.
+        self._race          = None
+        self._race_recv_tick = 0
+
         if not _HAS_OLED:
             log("init", "OLED: ssd1306 Modul nicht installiert")
             return
@@ -537,6 +544,23 @@ class Display:
         self._pages.append((name, draw_fn))
         self._page_names.append(name)
         self._page_count = len(self._pages)
+
+    def set_race_data(self, d):
+        """Race-Display-Nachricht + Empfangs-Tick speichern (D1-gamma)."""
+        self._race = d or None
+        self._race_recv_tick = utime.ticks_ms()
+
+    def live_lap_ms(self):
+        """Lokal hochgerechnete Rundenzeit in ms, oder None wenn kein
+        Anker geliefert wurde / nicht 'running'. Bei Pause/Stop friert
+        die Uhr ein."""
+        d = self._race
+        if not d or not d.get("running"):
+            return None
+        base = d.get("lap_ms")
+        if base is None:
+            return None
+        return base + utime.ticks_diff(utime.ticks_ms(), self._race_recv_tick)
 
     def set_forced_page(self, name):
         """Setzt die fest angezeigte Seite. None oder 'auto' = Auto-Wechsel."""
@@ -750,6 +774,17 @@ def page_speed(o, ctx):
         o.fill_rect(2, 56, fill - 4, 4, 1)
 
 
+def _fmt_ms(ms):
+    """Millisekunden -> 'M:SS.mmm' (Kart-seitige Live-Uhr, D1-gamma)."""
+    if ms is None or ms < 0:
+        ms = 0
+    ms = int(ms)
+    m = ms // 60000
+    s = (ms % 60000) // 1000
+    r = ms % 1000
+    return "{}:{:02d}.{:03d}".format(m, s, r)
+
+
 def page_race(o, ctx):
     """Seite 2: Sektor-Segmente oben + Rundenzeit gross."""
     race = ctx.get("race_data")
@@ -758,8 +793,15 @@ def page_race(o, ctx):
         return
     # Sektor-Segmente oben
     _draw_sector_bar(o, race, y=12, h=6)
-    # Rundenzeit gross zentriert (2x skaliert)
-    lap = str(race.get("lap", "--:--.---"))[:9]
+    # Rundenzeit gross zentriert (2x skaliert).
+    # Wenn das Dashboard einen Anker geliefert hat (running + lap_ms),
+    # rechnen wir hier kart-seitig live weiter (D1-gamma). Sonst
+    # Fallback auf den vorformatierten String vom Dashboard.
+    live_ms = ctx["display"].live_lap_ms()
+    if live_ms is not None:
+        lap = _fmt_ms(live_ms)[:9]
+    else:
+        lap = str(race.get("lap", "--:--.---"))[:9]
     ctx["display"].big_text(lap, 0, 30, 2)
     # Runden-Counter klein unten
     rnd = "R{}/{}".format(race.get("lapn", "?"), race.get("target", "?"))
@@ -1067,6 +1109,7 @@ def main():
             kind, data = pkt
             if kind == "display":
                 race_data = data
+                display.set_race_data(data)
                 log("recv", "display:", data.get("driver", "?"),
                     "lap=", data.get("lap", "?"))
                 # Page-Auswahl vom Dashboard uebernehmen

@@ -2544,6 +2544,7 @@ function buildRaceDataForKart() {
     driver:         driverName,
     num:            driverNum,
     lap:            lapStr,
+    lap_ms:         state.lapStart ? lapMs : null,    // Kart-seitiger Anker
     lapn:           validLaps + 1,
     target:         target,
     delta:          deltaStr,
@@ -2556,15 +2557,28 @@ function buildRaceDataForKart() {
     remaining_ms:   remainingMs,
     length_type:    r.lengthType,
     page:           state.settings.oledPage || 'auto',
+    running:        r.status === 'running' && !!state.lapStart,
+    pit:            !!_pitCallActive,
   };
 }
+// Sendekriterium (D1-gamma): nur bei struktureller Aenderung oder
+// alle 5 s als Keepalive. Spart RF-Traffic; OLED-Uhr laeuft kart-
+// seitig per utime weiter.
+let _lastDisplayKey = '';
+let _lastDisplayAt = 0;
+const RC_DISPLAY_KEEPALIVE_MS = 5000;
 function sendDisplayUpdate() {
   if (state.connection.source !== 'serial' || !state.serial.connected) return;
   if (!window.rasiSerial?.writeLine) return;
   const payload = buildRaceDataForKart();
   if (!payload) return;
+  const key = structuralRaceKey(payload);
+  const now = Date.now();
+  if (key === _lastDisplayKey && (now - _lastDisplayAt) < RC_DISPLAY_KEEPALIVE_MS) return;
   try {
     window.rasiSerial.writeLine(JSON.stringify(payload));
+    _lastDisplayKey = key;
+    _lastDisplayAt = now;
   } catch (e) {
     // stumm - keine Hupe wenn der Sender mal nicht erreichbar ist
   }
