@@ -1966,6 +1966,7 @@ function renderTrackOptions() {
 
 function updateRaceControls() {
   const r = activeRace();
+  setText('liveHeroTitle', r ? r.name : 'Live');
   const running = r && r.status === 'running';
   const paused = r && r.status === 'paused';
   const startBtn = $('startRaceBtn');
