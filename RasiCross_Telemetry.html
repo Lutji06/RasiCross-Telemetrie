@@ -2023,6 +2023,10 @@ body.diagnose-on .diagnose-only{display:block}
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
       Live
     </button>
+    <button class="nav-item" data-tab="detail">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></span>
+      Detail
+    </button>
     <button class="nav-item" data-tab="races">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 19V5l14 7-14 7z"/></svg></span>
       Rennen
@@ -2301,6 +2305,61 @@ body.diagnose-on .diagnose-only{display:block}
         </table>
       </div>
     </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     TAB: DETAIL
+     ============================================================ -->
+<section class="tab" id="tab-detail">
+
+  <!-- Hero -->
+  <div class="pw-hero">
+    <div class="pw-hero-bg"></div>
+    <div class="pw-hero-grid"></div>
+    <div class="pw-hero-content">
+      <div class="pw-hero-left">
+        <div class="pw-eyebrow">
+          <span class="pw-eyebrow-dot"></span>
+          <span>LIVE-DETAIL</span>
+        </div>
+        <h1 class="pw-hero-title">Detail<span class="pw-hero-accent">.</span></h1>
+        <p class="pw-hero-sub">Verlauf, Stints und Rundentabelle des aktiven Rennens</p>
+      </div>
+      <div class="pw-hero-telemetry">
+        <div class="pw-tel">
+          <div class="pw-tel-label">Aktive Runde</div>
+          <div class="pw-tel-value mono" id="detailHeroLapCurrent">--:--.---</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Beste Runde</div>
+          <div class="pw-tel-value mono" id="detailHeroLapBest">--:--.---</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Stints</div>
+          <div class="pw-tel-value mono" id="detailHeroStintCount">0</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Pakete</div>
+          <div class="pw-tel-value mono" id="detailHeroPackets">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verlauf (Speed/RPM + G-Kraft) -->
+  <div class="grid g2" id="detailVerlaufSlot" style="margin-bottom:18px">
+    <!-- Task 3 moves the srCanvas + gCanvas pw-modules here -->
+  </div>
+
+  <!-- Stints -->
+  <div id="detailStintsSlot" style="margin-bottom:18px">
+    <!-- Task 3 moves the Stints pw-module here -->
+  </div>
+
+  <!-- Letzte Runden -->
+  <div id="detailLapsSlot">
+    <!-- Task 3 moves the lapTable pw-module here -->
   </div>
 </section>
 
