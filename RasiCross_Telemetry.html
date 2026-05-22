@@ -2274,38 +2274,6 @@ body.diagnose-on .diagnose-only{display:block}
     </div>
   </div>
 
-  <!-- Charts -->
-  <div class="grid g2" style="margin-bottom:18px">
-    <div class="pw-module">
-      <div class="pw-mod-head"><div class="pw-mod-title">Speed & RPM Verlauf</div><span class="card-sub">Live</span></div>
-      <div style="position:relative;aspect-ratio:2.4;background:var(--soft);border:1px solid var(--bor);border-radius:var(--r-md)">
-        <canvas id="srCanvas" style="width:100%;height:100%;display:block"></canvas>
-      </div>
-    </div>
-    <div class="pw-module">
-      <div class="pw-mod-head"><div class="pw-mod-title">G-Kraft Verlauf</div><span class="card-sub">Live</span></div>
-      <div style="position:relative;aspect-ratio:2.4;background:var(--soft);border:1px solid var(--bor);border-radius:var(--r-md)">
-        <canvas id="gCanvas" style="width:100%;height:100%;display:block"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- Stints + lap table -->
-  <div class="grid g2">
-    <div class="pw-module">
-      <div class="pw-mod-head"><div class="pw-mod-title">Stints</div><span class="card-sub" id="currentDriverName">--</span></div>
-      <div id="stintsList"><div class="muted">Noch kein Stint.</div></div>
-    </div>
-    <div class="pw-module">
-      <div class="pw-mod-head"><div class="pw-mod-title">Letzte Runden</div><span class="card-sub">aktives Rennen</span></div>
-      <div class="tbl-wrap">
-        <table id="lapTable">
-          <thead><tr><th>#</th><th>Zeit</th><th>Fahrer</th><th>Max km/h</th><th>Max RPM</th></tr></thead>
-          <tbody id="lapTableBody"><tr><td colspan="5" class="muted">Noch keine Runden</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
 </section>
 
 <!-- ============================================================
@@ -2349,17 +2317,39 @@ body.diagnose-on .diagnose-only{display:block}
 
   <!-- Verlauf (Speed/RPM + G-Kraft) -->
   <div class="grid g2" id="detailVerlaufSlot" style="margin-bottom:18px">
-    <!-- Task 3 moves the srCanvas + gCanvas pw-modules here -->
+    <div class="pw-module">
+      <div class="pw-mod-head"><div class="pw-mod-title">Speed & RPM Verlauf</div><span class="card-sub">Live</span></div>
+      <div style="position:relative;aspect-ratio:2.4;background:var(--soft);border:1px solid var(--bor);border-radius:var(--r-md)">
+        <canvas id="srCanvas" style="width:100%;height:100%;display:block"></canvas>
+      </div>
+    </div>
+    <div class="pw-module">
+      <div class="pw-mod-head"><div class="pw-mod-title">G-Kraft Verlauf</div><span class="card-sub">Live</span></div>
+      <div style="position:relative;aspect-ratio:2.4;background:var(--soft);border:1px solid var(--bor);border-radius:var(--r-md)">
+        <canvas id="gCanvas" style="width:100%;height:100%;display:block"></canvas>
+      </div>
+    </div>
   </div>
 
   <!-- Stints -->
   <div id="detailStintsSlot" style="margin-bottom:18px">
-    <!-- Task 3 moves the Stints pw-module here -->
+    <div class="pw-module">
+      <div class="pw-mod-head"><div class="pw-mod-title">Stints</div><span class="card-sub" id="currentDriverName">--</span></div>
+      <div id="stintsList"><div class="muted">Noch kein Stint.</div></div>
+    </div>
   </div>
 
   <!-- Letzte Runden -->
   <div id="detailLapsSlot">
-    <!-- Task 3 moves the lapTable pw-module here -->
+    <div class="pw-module">
+      <div class="pw-mod-head"><div class="pw-mod-title">Letzte Runden</div><span class="card-sub">aktives Rennen</span></div>
+      <div class="tbl-wrap">
+        <table id="lapTable">
+          <thead><tr><th>#</th><th>Zeit</th><th>Fahrer</th><th>Max km/h</th><th>Max RPM</th></tr></thead>
+          <tbody id="lapTableBody"><tr><td colspan="5" class="muted">Noch keine Runden</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </section>
 
