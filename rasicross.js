@@ -2249,9 +2249,11 @@ function updateLiveKPIs() {
     const lapText = state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
       setText('kLap', lapText);
+      setText('detailHeroLapCurrent', lapText);
       _lastKpiText.lap = lapText;
     }
     setText('kLapBest', state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---');
+    setText('detailHeroLapBest', state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---');
     setText('gxText', _kpiDisplay.gx.toFixed(1));
     setText('gyText', _kpiDisplay.gy.toFixed(1));
     // Race-Countdown
@@ -2310,9 +2312,11 @@ function updateLiveUi() {
     }
     // Stints
     renderStints(r);
+    setText('detailHeroStintCount', String(r && r.stints ? r.stints.length : 0));
     // Status badge
     setText('hzText', state.hz);
     setText('packetsText', state.connection.packets);
+    setText('detailHeroPackets', state.connection.packets);
     // Live delta
     updateLiveDelta();
     // Pit-wall
