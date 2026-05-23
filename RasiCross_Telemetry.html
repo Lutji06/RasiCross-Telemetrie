@@ -2102,8 +2102,8 @@ body.diagnose-on .diagnose-only{display:block}
      ============================================================ -->
 <section class="tab active" id="tab-live">
 
-  <!-- Hero -->
-  <div class="pw-hero">
+  <!-- Hero (compact) -->
+  <div class="pw-hero pw-hero--compact">
     <div class="pw-hero-bg"></div>
     <div class="pw-hero-grid"></div>
     <div class="pw-hero-content">
@@ -2113,7 +2113,6 @@ body.diagnose-on .diagnose-only{display:block}
           <span>LIVE-TELEMETRIE</span>
         </div>
         <h1 class="pw-hero-title"><span id="liveHeroTitle">Live</span><span class="pw-hero-accent">.</span></h1>
-        <p class="pw-hero-sub">Echtzeit-Telemetrie vom Kart</p>
       </div>
       <div class="pw-hero-telemetry">
         <div class="pw-tel">
@@ -2202,18 +2201,18 @@ body.diagnose-on .diagnose-only{display:block}
     </div>
   </div>
 
-  <!-- Live delta -->
-  <div class="delta-banner hidden" id="deltaBanner">
-    <span class="delta-label">Δ Live-Delta</span>
-    <span class="delta-time same" id="deltaTime">+0.000s</span>
-    <span class="delta-ref" id="deltaRef">vs. beste Runde</span>
-  </div>
-
-  <!-- Sectors -->
-  <div class="sector-panel" id="sectorPanel" style="display:none">
-    <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
-    <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
-    <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
+  <!-- Delta + Sektor strip -->
+  <div class="pw-strip-delta-sectors">
+    <div class="delta-banner hidden" id="deltaBanner">
+      <span class="delta-label">Δ Live-Delta</span>
+      <span class="delta-time same" id="deltaTime">+0.000s</span>
+      <span class="delta-ref" id="deltaRef">vs. beste Runde</span>
+    </div>
+    <div class="sector-panel" id="sectorPanel" style="display:none">
+      <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
+      <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
+      <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
+    </div>
   </div>
 
   <!-- Map + gauges -->
