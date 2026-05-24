@@ -904,9 +904,10 @@ class ESPNowLink:
         self._esp = espnow.ESPNow()
         self._esp.active(True)
 
-        # ESP-NOW PHY-Rate auf Long-Range stellen
+        # ESP-NOW PHY-Rate auf Long-Range stellen — 250 kbit/s,
+        # Sensitivitaet ~-129 dBm = maximale Reichweite.
         try:
-            self._esp.config(rate=8)  # WIFI_PHY_RATE_LORA_500K
+            self._esp.config(rate=41)  # WIFI_PHY_RATE_LORA_250K (0x29)
         except Exception:
             pass
 

@@ -34,7 +34,8 @@ radio leg only, dashboard unaffected"). D2 (multi-kart) remains out of scope.
   retries; `tx_fail_run` counts consecutive failures. ~12.5 Hz. `bridge.py`
   `self.esp.recv()` → `ujson.loads` → adds `source` (+ sets `from_mac`/`rssi`
   from ESP-NOW recv metadata) → `print(ujson.dumps(...))` as a USB JSON line.
-  Long-Range mode (`protocol=8`, `esp.config(rate=8)`), configurable channel,
+  Long-Range mode (`protocol=8` = `WIFI_PROTOCOL_LR`, `esp.config(rate=41)` =
+  `WIFI_PHY_RATE_LORA_250K`, 250 kbit/s, ~-129 dBm sensitivity), configurable channel,
   max TX power. The 250 B ESP-NOW cap forced the P4/P5 slow-cadence + rounding.
 - **Telemetry fields today** (every packet): `speed`(1dp), `rpm`(int),
   `gx`/`gy`(3dp), `gz`(2dp), `yaw`(1dp), `lat`/`lon`(7dp), `gps_fix`(0/1),
