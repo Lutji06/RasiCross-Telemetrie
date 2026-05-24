@@ -1524,6 +1524,7 @@ function addDriver() {
   renderDrivers();
   renderDriverOptions();
   saveData();
+  $('newDriverModal').classList.remove('show');
   rcToast(`Fahrer "${name}" hinzugefügt`);
 }
 async function deleteDriver(id) {
@@ -1637,6 +1638,7 @@ function createRace() {
   renderRaces();
   updateRaceControls();
   saveData();
+  $('newRaceModal').classList.remove('show');
   rcToast(`Rennen "${name}" erstellt — jetzt aktivieren um zu starten`);
 }
 function startRace() {
@@ -1848,6 +1850,11 @@ function drawRaceHistoryChart(raceId) {
 function renderRaces() {
   const list = $('raceList');
   setText('raceListCount', state.races.length);
+  const _ar = activeRace();
+  setText('raceHeroActive', _ar ? _ar.name : '--');
+  setText('raceHeroStatus', _ar
+    ? ({ created: 'Bereit', running: 'Läuft', paused: 'Pausiert', finished: 'Beendet', finished_auto: 'Auto-Ende' }[_ar.status] || _ar.status)
+    : 'Bereit');
   if (!state.races.length) {
     list.innerHTML = '<div class="muted">Noch keine Rennen.</div>';
     return;
@@ -1959,6 +1966,7 @@ function renderTrackOptions() {
 
 function updateRaceControls() {
   const r = activeRace();
+  setText('liveHeroTitle', r ? r.name : 'Live');
   const running = r && r.status === 'running';
   const paused = r && r.status === 'paused';
   const startBtn = $('startRaceBtn');
@@ -2241,9 +2249,12 @@ function updateLiveKPIs() {
     const lapText = state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
       setText('kLap', lapText);
+      setText('detailHeroLapCurrent', lapText);
       _lastKpiText.lap = lapText;
     }
-    setText('kLapBest', state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---');
+    const lapBestText = state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---';
+    setText('kLapBest', lapBestText);
+    setText('detailHeroLapBest', lapBestText);
     setText('gxText', _kpiDisplay.gx.toFixed(1));
     setText('gyText', _kpiDisplay.gy.toFixed(1));
     // Race-Countdown
@@ -2302,9 +2313,11 @@ function updateLiveUi() {
     }
     // Stints
     renderStints(r);
+    setText('detailHeroStintCount', r && r.stints ? r.stints.length : 0);
     // Status badge
     setText('hzText', state.hz);
     setText('packetsText', state.connection.packets);
+    setText('detailHeroPackets', state.connection.packets);
     // Live delta
     updateLiveDelta();
     // Pit-wall
@@ -3416,6 +3429,12 @@ function init() {
     else document.querySelector('[data-tab=connection]').click();
   };
   $('pwCloseBtn').onclick = closePitWall;
+  $('openNewRaceBtn').onclick = () => $('newRaceModal').classList.add('show');
+  $('cancelNewRaceBtn').onclick = () => $('newRaceModal').classList.remove('show');
+  $('newRaceModal').onclick = (e) => { if (e.target.id === 'newRaceModal') $('newRaceModal').classList.remove('show'); };
+  $('openNewDriverBtn').onclick = () => $('newDriverModal').classList.add('show');
+  $('cancelNewDriverBtn').onclick = () => $('newDriverModal').classList.remove('show');
+  $('newDriverModal').onclick = (e) => { if (e.target.id === 'newDriverModal') $('newDriverModal').classList.remove('show'); };
   // Live tab buttons
   $('startRaceBtn').onclick = toggleRaceRun;
   $('endRaceBtn').onclick = () => endRace(false);

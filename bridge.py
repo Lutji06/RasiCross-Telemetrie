@@ -387,9 +387,10 @@ class Bridge:
         self.esp = espnow.ESPNow()
         self.esp.active(True)
 
-        # PHY-Rate auf Long-Range
+        # PHY-Rate auf Long-Range — 250 kbit/s, Sensitivitaet ~-129 dBm
+        # (max Reichweite). Muss zum Sender passen.
         try:
-            self.esp.config(rate=8)  # WIFI_PHY_RATE_LORA_500K
+            self.esp.config(rate=41)  # WIFI_PHY_RATE_LORA_250K (0x29)
         except Exception:
             pass
 

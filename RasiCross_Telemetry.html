@@ -1268,6 +1268,58 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 }
 .pw-lib-empty-title{font-weight:700;font-size:14.5px;color:var(--tx-dim)}
 .pw-lib-empty-sub{font-size:12.5px;max-width:360px;line-height:1.55}
+/* Redesign: library header as a row (title left, action right) */
+.pw-lib-head-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+/* Redesign: create-forms hosted in a .dialog */
+.dialog .field{margin-bottom:12px}
+.dialog .field:last-of-type{margin-bottom:0}
+
+/* Redesign: Live race-control cluster */
+.pw-livebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--surf);border:1px solid var(--bor);border-radius:var(--r-md);padding:10px 12px;margin-bottom:18px}
+.pw-livebar select{margin-left:auto}
+.pw-livebar select+.btn{margin-left:0}
+
+/* ============================================================
+   LIVE-TAB COMPACT VARIANTS  (no-scroll on 1440x900)
+   ============================================================ */
+.pw-hero--compact{margin-bottom:12px}
+.pw-hero--compact .pw-hero-content{
+  flex-direction:row;align-items:center;justify-content:space-between;
+  gap:18px;padding:14px 22px;
+}
+.pw-hero--compact .pw-eyebrow{margin-bottom:6px}
+.pw-hero--compact .pw-hero-title{font-size:26px;margin-bottom:0;line-height:1}
+.pw-hero--compact .pw-hero-sub{display:none}
+.pw-hero--compact .pw-hero-telemetry{
+  grid-template-columns:repeat(3,minmax(120px,auto));gap:10px;
+}
+.pw-hero--compact .pw-tel{padding:8px 12px}
+.pw-hero--compact .pw-tel-label{margin-bottom:3px}
+.pw-hero--compact .pw-tel-value{font-size:15px}
+.pw-hero--compact .pw-tel-value.mono{font-size:17px}
+@media (max-width:900px){
+  .pw-hero--compact .pw-hero-content{flex-direction:column;align-items:stretch}
+}
+
+.pw-strip-delta-sectors{
+  display:grid;grid-template-columns:minmax(220px,1fr) 3fr;
+  gap:12px;margin-bottom:14px;align-items:stretch;
+}
+.pw-strip-delta-sectors > .delta-banner{margin-bottom:0;padding:10px 18px}
+.pw-strip-delta-sectors > .delta-banner .delta-time{font-size:24px}
+.pw-strip-delta-sectors > .sector-panel{margin-bottom:0}
+.pw-strip-delta-sectors > .sector-panel .sector-card{padding:10px 14px}
+.pw-strip-delta-sectors > .sector-panel .sector-time{font-size:18px}
+@media (max-width:900px){
+  .pw-strip-delta-sectors{grid-template-columns:1fr}
+}
+
+/* Live-only KPI tightening — keeps other tabs' KPI sizing intact */
+#tab-live .kpi{padding:12px 14px}
+#tab-live .kpi-v{font-size:clamp(24px,3vw,32px);margin-top:2px}
+#tab-live .kpi-sub{font-size:10.5px;margin-top:4px}
+#tab-live #yawSparkCanvas{height:22px}
+#tab-live .kpi-row{margin-bottom:12px}
 
 /* ============================================================
    TRACK LIST
@@ -1383,44 +1435,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 }
 .dstat.highlight b{color:var(--driver,var(--pr))}
 
-/* Total hero */
-.total-hero{
-  padding:28px 32px 30px;
-  background:radial-gradient(circle at 100% 0%,var(--pr-soft),transparent 60%),var(--surf);
-  border:1px solid var(--bor);
-  border-radius:var(--r-2xl);
-  margin-bottom:18px;
-  position:relative;overflow:visible;
-}
-.total-hero::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:linear-gradient(90deg,transparent,var(--pr),transparent);
-}
-.total-hero-label{
-  font-family:var(--mono);font-size:10.5px;
-  font-weight:700;text-transform:uppercase;
-  letter-spacing:.12em;color:var(--mut);
-  margin-bottom:8px;
-}
-.total-hero-km{
-  display:block;
-  font-family:var(--mono);font-size:clamp(46px,7vw,72px);
-  font-weight:700;color:var(--pr);
-  line-height:1.05;letter-spacing:-.05em;
-  font-variant-numeric:tabular-nums;
-  text-shadow:0 0 28px var(--pr-glow);
-  padding-block:4px;
-  overflow:visible;
-}
-.total-hero-km small{
-  font-size:.36em;color:var(--mut);
-  margin-left:10px;font-weight:500;text-shadow:none;
-}
-.total-hero-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
-  gap:10px;margin-top:18px;
-}
+
 .thero-stat{
   padding:12px 14px;
   background:var(--soft);
@@ -2008,6 +2023,10 @@ body.diagnose-on .diagnose-only{display:block}
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
       Live
     </button>
+    <button class="nav-item" data-tab="detail">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></span>
+      Detail
+    </button>
     <button class="nav-item" data-tab="races">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M5 19V5l14 7-14 7z"/></svg></span>
       Rennen
@@ -2083,44 +2102,62 @@ body.diagnose-on .diagnose-only{display:block}
      ============================================================ -->
 <section class="tab active" id="tab-live">
 
-  <!-- Race control bar -->
-  <div class="race-bar">
-    <div class="race-bar-l">
-      <span class="race-bar-label">Rennen / Countdown</span>
-      <span class="race-bar-cd" id="countdown">--:--</span>
-    </div>
-    <div class="race-bar-meta" id="raceMeta">
-      <span>Bereit</span>
-      <span class="sep">·</span>
-      <span>Erstelle ein Rennen im Tab <b>Rennen</b></span>
-    </div>
-    <div class="race-bar-actions">
-      <button class="btn good" id="startRaceBtn" disabled>
-        <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9z"/></svg>
-        Start
-      </button>
-      <button class="btn blue" id="changeDriverBtn" disabled>
-        <svg viewBox="0 0 24 24"><path d="M16 3l4 4-4 4M20 7H8M8 21l-4-4 4-4M4 17h12"/></svg>
-        Wechsel
-      </button>
-      <button class="btn pitcall" id="pitCallBtn" title="Boxenruf">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-3 18-7-7z"/></svg>
-        BOX
-      </button>
-      <select id="oledPageSelect" title="OLED-Seite">
-        <option value="auto">⟳ Auto</option>
-        <option value="speed">1 · Speed</option>
-        <option value="race">2 · Rennen</option>
-        <option value="rpm">3 · RPM</option>
-        <option value="delta">4 · Delta</option>
-        <option value="diag">5 · Diagnose</option>
-      </select>
-      <button class="btn danger" id="endRaceBtn" disabled>Ende</button>
+  <!-- Hero (compact) -->
+  <div class="pw-hero pw-hero--compact">
+    <div class="pw-hero-bg"></div>
+    <div class="pw-hero-grid"></div>
+    <div class="pw-hero-content">
+      <div class="pw-hero-left">
+        <div class="pw-eyebrow">
+          <span class="pw-eyebrow-dot"></span>
+          <span>LIVE-TELEMETRIE</span>
+        </div>
+        <h1 class="pw-hero-title"><span id="liveHeroTitle">Live</span><span class="pw-hero-accent">.</span></h1>
+      </div>
+      <div class="pw-hero-telemetry">
+        <div class="pw-tel">
+          <div class="pw-tel-label">Countdown</div>
+          <div class="pw-tel-value mono" id="countdown">--:--</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Status</div>
+          <div class="pw-tel-value" id="raceMeta">Bereit</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">GPS</div>
+          <div class="pw-tel-value" id="gpsStatus">--</div>
+        </div>
+      </div>
     </div>
   </div>
 
+  <!-- Race-control cluster -->
+  <div class="pw-livebar">
+    <button class="btn good" id="startRaceBtn" disabled>
+      <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9z"/></svg>
+      Start
+    </button>
+    <button class="btn blue" id="changeDriverBtn" disabled>
+      <svg viewBox="0 0 24 24"><path d="M16 3l4 4-4 4M20 7H8M8 21l-4-4 4-4M4 17h12"/></svg>
+      Wechsel
+    </button>
+    <button class="btn pitcall" id="pitCallBtn" title="Boxenruf">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-3 18-7-7z"/></svg>
+      BOX
+    </button>
+    <select id="oledPageSelect" title="OLED-Seite">
+      <option value="auto">⟳ Auto</option>
+      <option value="speed">1 · Speed</option>
+      <option value="race">2 · Rennen</option>
+      <option value="rpm">3 · RPM</option>
+      <option value="delta">4 · Delta</option>
+      <option value="diag">5 · Diagnose</option>
+    </select>
+    <button class="btn danger" id="endRaceBtn" disabled>Ende</button>
+  </div>
+
   <!-- KPIs -->
-  <div class="kpi-row" style="margin-bottom:18px">
+  <div class="kpi-row">
     <div class="kpi accent">
       <div class="kpi-head">
         <span class="kpi-l">Speed</span>
@@ -2144,7 +2181,7 @@ body.diagnose-on .diagnose-only{display:block}
       </div>
       <div class="kpi-v" id="kG">0.0<small>G</small></div>
       <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s · MPU <b id="kMtemp">--</b>°C</div>
-      <canvas id="yawSparkCanvas" width="240" height="28" style="width:100%;height:28px;margin-top:6px;display:block"></canvas>
+      <canvas id="yawSparkCanvas" width="240" height="28" style="width:100%;margin-top:6px;display:block"></canvas>
     </div>
     <div class="kpi">
       <div class="kpi-head">
@@ -2164,39 +2201,38 @@ body.diagnose-on .diagnose-only{display:block}
     </div>
   </div>
 
-  <!-- Live delta -->
-  <div class="delta-banner hidden" id="deltaBanner">
-    <span class="delta-label">Δ Live-Delta</span>
-    <span class="delta-time same" id="deltaTime">+0.000s</span>
-    <span class="delta-ref" id="deltaRef">vs. beste Runde</span>
-  </div>
-
-  <!-- Sectors -->
-  <div class="sector-panel" id="sectorPanel" style="display:none">
-    <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
-    <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
-    <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
+  <!-- Delta + Sektor strip -->
+  <div class="pw-strip-delta-sectors">
+    <div class="delta-banner hidden" id="deltaBanner">
+      <span class="delta-label">Δ Live-Delta</span>
+      <span class="delta-time same" id="deltaTime">+0.000s</span>
+      <span class="delta-ref" id="deltaRef">vs. beste Runde</span>
+    </div>
+    <div class="sector-panel" id="sectorPanel" style="display:none">
+      <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
+      <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
+      <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
+    </div>
   </div>
 
   <!-- Map + gauges -->
   <div class="grid g-2-1" style="margin-bottom:18px">
-    <div class="card">
-      <div class="card-head">
-        <span class="card-title">Streckenkarte</span>
+    <div class="pw-module">
+      <div class="pw-mod-head">
+        <div class="pw-mod-title">Streckenkarte</div>
         <button class="heat-btn" id="heatmapBtn">Heatmap</button>
       </div>
       <div class="map"><canvas id="trackCanvas"></canvas></div>
       <div class="row" style="margin-top:14px;gap:10px">
-        <div class="stat"><div class="t">GPS</div><div class="n" id="gpsStatus">--</div></div>
         <div class="stat"><div class="t">Lat</div><div class="n" id="latText">--</div></div>
         <div class="stat"><div class="t">Lon</div><div class="n" id="lonText">--</div></div>
         <div class="stat"><div class="t">Punkte</div><div class="n" id="trackPoints">0</div></div>
         <div class="stat"><div class="t">Pakete</div><div class="n" id="packetsText">0</div></div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-head">
-        <span class="card-title">Tacho</span>
+    <div class="pw-module">
+      <div class="pw-mod-head">
+        <div class="pw-mod-title">Tacho</div>
         <span class="card-sub">Live</span>
       </div>
       <div class="tacho-wrap">
@@ -2237,30 +2273,75 @@ body.diagnose-on .diagnose-only{display:block}
     </div>
   </div>
 
-  <!-- Charts -->
-  <div class="grid g2" style="margin-bottom:18px">
-    <div class="card">
-      <div class="card-head"><span class="card-title">Speed & RPM Verlauf</span><span class="card-sub">Live</span></div>
+</section>
+
+<!-- ============================================================
+     TAB: DETAIL
+     ============================================================ -->
+<section class="tab" id="tab-detail">
+
+  <!-- Hero -->
+  <div class="pw-hero">
+    <div class="pw-hero-bg"></div>
+    <div class="pw-hero-grid"></div>
+    <div class="pw-hero-content">
+      <div class="pw-hero-left">
+        <div class="pw-eyebrow">
+          <span class="pw-eyebrow-dot"></span>
+          <span>LIVE-DETAIL</span>
+        </div>
+        <h1 class="pw-hero-title">Detail<span class="pw-hero-accent">.</span></h1>
+        <p class="pw-hero-sub">Verlauf, Stints und Rundentabelle des aktiven Rennens</p>
+      </div>
+      <div class="pw-hero-telemetry">
+        <div class="pw-tel">
+          <div class="pw-tel-label">Aktive Runde</div>
+          <div class="pw-tel-value mono" id="detailHeroLapCurrent">--:--.---</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Beste Runde</div>
+          <div class="pw-tel-value mono" id="detailHeroLapBest">--:--.---</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Stints</div>
+          <div class="pw-tel-value mono" id="detailHeroStintCount">0</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Pakete</div>
+          <div class="pw-tel-value mono" id="detailHeroPackets">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Verlauf (Speed/RPM + G-Kraft) -->
+  <div class="grid g2" id="detailVerlaufSlot" style="margin-bottom:18px">
+    <div class="pw-module">
+      <div class="pw-mod-head"><div class="pw-mod-title">Speed & RPM Verlauf</div><span class="card-sub">Live</span></div>
       <div style="position:relative;aspect-ratio:2.4;background:var(--soft);border:1px solid var(--bor);border-radius:var(--r-md)">
         <canvas id="srCanvas" style="width:100%;height:100%;display:block"></canvas>
       </div>
     </div>
-    <div class="card">
-      <div class="card-head"><span class="card-title">G-Kraft Verlauf</span><span class="card-sub">Live</span></div>
+    <div class="pw-module">
+      <div class="pw-mod-head"><div class="pw-mod-title">G-Kraft Verlauf</div><span class="card-sub">Live</span></div>
       <div style="position:relative;aspect-ratio:2.4;background:var(--soft);border:1px solid var(--bor);border-radius:var(--r-md)">
         <canvas id="gCanvas" style="width:100%;height:100%;display:block"></canvas>
       </div>
     </div>
   </div>
 
-  <!-- Stints + lap table -->
-  <div class="grid g2">
-    <div class="card">
-      <div class="card-head"><span class="card-title">Stints</span><span class="card-sub" id="currentDriverName">--</span></div>
+  <!-- Stints -->
+  <div id="detailStintsSlot" style="margin-bottom:18px">
+    <div class="pw-module">
+      <div class="pw-mod-head"><div class="pw-mod-title">Stints</div><span class="card-sub" id="currentDriverName">--</span></div>
       <div id="stintsList"><div class="muted">Noch kein Stint.</div></div>
     </div>
-    <div class="card">
-      <div class="card-head"><span class="card-title">Letzte Runden</span><span class="card-sub">aktives Rennen</span></div>
+  </div>
+
+  <!-- Letzte Runden -->
+  <div id="detailLapsSlot">
+    <div class="pw-module">
+      <div class="pw-mod-head"><div class="pw-mod-title">Letzte Runden</div><span class="card-sub">aktives Rennen</span></div>
       <div class="tbl-wrap">
         <table id="lapTable">
           <thead><tr><th>#</th><th>Zeit</th><th>Fahrer</th><th>Max km/h</th><th>Max RPM</th></tr></thead>
@@ -2481,77 +2562,110 @@ body.diagnose-on .diagnose-only{display:block}
      TAB: RENNEN
      ============================================================ -->
 <section class="tab" id="tab-races">
-  <div class="grid g-1-2">
-    <div class="card">
-      <div class="card-head"><span class="card-title">Neues Rennen</span><span class="card-sub">erstellen</span></div>
-      <div class="fieldset">
-        <div class="field">
-          <label>Rennname</label>
-          <input id="newRaceName" placeholder="z.B. Sonntag Sprint">
+
+  <div class="pw-hero">
+    <div class="pw-hero-bg"></div>
+    <div class="pw-hero-grid"></div>
+    <div class="pw-hero-content">
+      <div class="pw-hero-left">
+        <div class="pw-eyebrow">
+          <span class="pw-eyebrow-dot"></span>
+          <span>RENNVERWALTUNG</span>
         </div>
-        <div class="field">
-          <label>Strecke</label>
-          <select id="newRaceTrack"><option value="">Keine Strecken gespeichert</option></select>
+        <h1 class="pw-hero-title">Rennen<span class="pw-hero-accent">.</span></h1>
+        <p class="pw-hero-sub">Anlegen · verwalten · auswählen</p>
+      </div>
+      <div class="pw-hero-telemetry">
+        <div class="pw-tel">
+          <div class="pw-tel-label">Aktives Rennen</div>
+          <div class="pw-tel-value" id="raceHeroActive">--</div>
+          <div class="pw-tel-foot">aktuell geladen</div>
         </div>
-        <div class="field">
-          <label>Format</label>
-          <select id="newRaceLengthType">
-            <option value="time">Zeit (Minuten)</option>
-            <option value="laps">Runden</option>
-            <option value="free">Frei (kein Limit)</option>
-          </select>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Status</div>
+          <div class="pw-tel-value" id="raceHeroStatus">Bereit</div>
         </div>
-        <div class="field" id="newRaceDurationField">
-          <label>Dauer (min)</label>
-          <input id="newRaceDuration" type="number" min="1" value="20">
+        <div class="pw-tel">
+          <div class="pw-tel-label">Rennen gesamt</div>
+          <div class="pw-tel-value mono" id="raceListCount">0</div>
+          <div class="pw-tel-foot">in der Bibliothek</div>
         </div>
-        <div class="field hidden" id="newRaceLapsField">
-          <label>Anzahl Runden</label>
-          <input id="newRaceLaps" type="number" min="1" value="10">
-        </div>
-        <div class="field">
-          <label>Start-Fahrer</label>
-          <select id="newRaceDriver"><option value="">Erst Fahrer anlegen</option></select>
-        </div>
-        <button class="btn primary" id="createRaceBtn">Rennen erstellen</button>
       </div>
     </div>
-    <div class="card">
-      <div class="card-head"><span class="card-title">Alle Rennen</span><span class="card-sub" id="raceListCount">0</span></div>
-      <div class="race-list" id="raceList"><div class="muted">Noch keine Rennen.</div></div>
-      <div id="racesList" style="display:none"></div>
-      <span id="raceCount" style="display:none"></span>
-    </div>
   </div>
+
+  <div class="pw-library">
+    <div class="pw-lib-head pw-lib-head-row">
+      <div class="pw-lib-title">
+        <span class="pw-lib-bar"></span>
+        <span>Bibliothek</span>
+      </div>
+      <button class="pw-btn primary" id="openNewRaceBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Neues Rennen</span>
+      </button>
+    </div>
+    <div class="race-list" id="raceList"><div class="muted">Noch keine Rennen.</div></div>
+    <div id="racesList" style="display:none"></div>
+    <span id="raceCount" style="display:none"></span>
+  </div>
+
 </section>
 
 <!-- ============================================================
      TAB: FAHRER
      ============================================================ -->
 <section class="tab" id="tab-drivers">
-  <div class="total-hero">
-    <div class="total-hero-label">Gefahrene Strecke (alle Rennen)</div>
-    <div class="total-hero-km" id="totalDistance">0<small>km</small></div>
-    <span id="totalKm" style="display:none"></span>
-    <div class="total-hero-grid" id="totalStatsGrid"></div>
-  </div>
 
-  <div class="grid g-1-2">
-    <div class="card">
-      <div class="card-head"><span class="card-title">Neuer Fahrer</span><span class="card-sub">hinzufügen</span></div>
-      <div class="fieldset">
-        <div class="field"><label>Name</label><input id="newDriverName" placeholder="z.B. Jim"></div>
-        <div class="field"><label>Startnummer</label><input id="newDriverNumber" placeholder="1"></div>
-        <div class="field"><label>Farbe</label><input id="newDriverColor" type="color" value="#c8ff3d"></div>
-        <button class="btn primary" id="addDriverBtn">Fahrer hinzufügen</button>
+  <div class="pw-hero">
+    <div class="pw-hero-bg"></div>
+    <div class="pw-hero-grid"></div>
+    <div class="pw-hero-content">
+      <div class="pw-hero-left">
+        <div class="pw-eyebrow">
+          <span class="pw-eyebrow-dot"></span>
+          <span>FAHRER &amp; STATISTIK</span>
+        </div>
+        <h1 class="pw-hero-title">Fahrer<span class="pw-hero-accent">.</span></h1>
+        <p class="pw-hero-sub">Gefahrene Strecke aller Rennen</p>
+      </div>
+      <div class="pw-hero-telemetry">
+        <div class="pw-tel">
+          <div class="pw-tel-label">Strecke gesamt</div>
+          <div class="pw-tel-value" id="totalDistance">0<small>km</small></div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Runden</div>
+          <div class="pw-tel-value mono" id="totalLaps">0</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Rennen</div>
+          <div class="pw-tel-value mono" id="totalRaces">0</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Beste Runde</div>
+          <div class="pw-tel-value" id="totalBestLap">--</div>
+        </div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-head"><span class="card-title">Fahrer & Statistiken</span><span class="card-sub" id="driverCount">0</span></div>
-      <div id="driverStatsList"><div class="muted">Noch keine Fahrer.</div></div>
-      <div id="driversList" style="display:none"></div>
-    </div>
   </div>
+
+  <div class="pw-library">
+    <div class="pw-lib-head pw-lib-head-row">
+      <div class="pw-lib-title">
+        <span class="pw-lib-bar"></span>
+        <span>Bibliothek</span>
+        <span class="pw-lib-count"><span id="driverCount">0</span> · Fahrer</span>
+      </div>
+      <button class="pw-btn primary" id="openNewDriverBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Neuer Fahrer</span>
+      </button>
+    </div>
+    <div id="driverStatsList"><div class="muted">Noch keine Fahrer.</div></div>
+    <div id="driversList" style="display:none"></div>
+  </div>
+
 </section>
 
 <!-- ============================================================
@@ -2907,6 +3021,59 @@ body.diagnose-on .diagnose-only{display:block}
     <div class="dialog-btns">
       <button class="btn ghost" id="edCancelBtn">Abbrechen</button>
       <button class="btn primary" id="edSaveBtn">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Race Modal -->
+<div id="newRaceModal" class="overlay">
+  <div class="dialog" style="max-width:440px">
+    <h3>Neues Rennen</h3>
+    <div class="field">
+      <label>Rennname</label>
+      <input id="newRaceName" placeholder="z.B. Sonntag Sprint">
+    </div>
+    <div class="field">
+      <label>Strecke</label>
+      <select id="newRaceTrack"><option value="">Keine Strecken gespeichert</option></select>
+    </div>
+    <div class="field">
+      <label>Format</label>
+      <select id="newRaceLengthType">
+        <option value="time">Zeit (Minuten)</option>
+        <option value="laps">Runden</option>
+        <option value="free">Frei (kein Limit)</option>
+      </select>
+    </div>
+    <div class="field" id="newRaceDurationField">
+      <label>Dauer (min)</label>
+      <input id="newRaceDuration" type="number" min="1" value="20">
+    </div>
+    <div class="field hidden" id="newRaceLapsField">
+      <label>Anzahl Runden</label>
+      <input id="newRaceLaps" type="number" min="1" value="10">
+    </div>
+    <div class="field">
+      <label>Start-Fahrer</label>
+      <select id="newRaceDriver"><option value="">Erst Fahrer anlegen</option></select>
+    </div>
+    <div class="dialog-btns">
+      <button class="btn ghost" id="cancelNewRaceBtn">Abbrechen</button>
+      <button class="btn primary" id="createRaceBtn">Rennen erstellen</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Driver Modal -->
+<div id="newDriverModal" class="overlay">
+  <div class="dialog" style="max-width:400px">
+    <h3>Neuer Fahrer</h3>
+    <div class="field"><label>Name</label><input id="newDriverName" placeholder="z.B. Jim"></div>
+    <div class="field"><label>Startnummer</label><input id="newDriverNumber" placeholder="1"></div>
+    <div class="field"><label>Farbe</label><input id="newDriverColor" type="color" value="#c8ff3d"></div>
+    <div class="dialog-btns">
+      <button class="btn ghost" id="cancelNewDriverBtn">Abbrechen</button>
+      <button class="btn primary" id="addDriverBtn">Fahrer hinzufügen</button>
     </div>
   </div>
 </div>
