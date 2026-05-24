@@ -412,6 +412,14 @@ class Bridge:
             print("[init] Kart-MAC aus NVS geladen:",
                   ubinascii.hexlify(saved_mac, ":").decode())
 
+        # Broadcast-Peer fuer Pairing-Hellos, solange kein Kart bekannt ist.
+        # Ohne diesen Peer kann esp_now.send() den Broadcast nicht raustragen.
+        self._bcast = b'\xff\xff\xff\xff\xff\xff'
+        try:
+            self.esp.add_peer(self._bcast)
+        except Exception:
+            pass
+
         # Watchdog
         self.wdt = None
         if _HAS_WDT and Config.WATCHDOG_MS > 0:
@@ -671,22 +679,34 @@ class Bridge:
         })
 
     def _send_hello(self):
-        """Sendet ein Hello-Paket an den Kart, aber nur wenn vom Kart
-        laenger nichts kam (HELLO_QUIET_MS). Spart Airtime."""
-        if not self.kart_host:
-            return
+        """Sendet ein Hello-Paket an den Kart.
+        - Bekanntes Kart: gerichtet, nur wenn Kart laenger nichts geschickt
+          hat (HELLO_QUIET_MS, spart Airtime).
+        - Unbekanntes Kart (Pairing-Phase): per Broadcast, damit ein frisch
+          gestartetes Kart die Bridge-MAC ohne Hardcoding lernen kann.
+          Loest das Cold-Start-Henne-Ei-Problem zwischen Sender und Bridge."""
         now = utime.ticks_ms()
         if utime.ticks_diff(now, self.last_hello_ms) < Config.HELLO_MS:
             return
-        # Nur senden wenn Kart laenger nichts geschickt hat
-        if self.stats.packet_age_ms < Config.HELLO_QUIET_MS:
-            return
-        self.last_hello_ms = now
-        try:
-            self.esp.send(self.kart_host,
-                          ujson.dumps({"type": "bridge_hello"}), False)
-        except Exception:
-            pass
+
+        if self.kart_host:
+            # Nur senden wenn Kart laenger nichts geschickt hat
+            if self.stats.packet_age_ms < Config.HELLO_QUIET_MS:
+                return
+            self.last_hello_ms = now
+            try:
+                self.esp.send(self.kart_host,
+                              ujson.dumps({"type": "bridge_hello"}), False)
+            except Exception:
+                pass
+        else:
+            # Pairing-Broadcast — kein Kart bekannt
+            self.last_hello_ms = now
+            try:
+                self.esp.send(self._bcast,
+                              ujson.dumps({"type": "bridge_hello"}), False)
+            except Exception:
+                pass
 
     # ── Peer-Verwaltung ───────────────────────────────────────────────────
 
