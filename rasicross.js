@@ -2280,7 +2280,44 @@ function updateLiveKPIs() {
         }
       }
     }
+    updateDiagnostics();
   } catch (e) { /* stumm — animLoop soll nie crashen */ }
+}
+
+// Diagnose-Block auf #tab-detail — pro Paket geschrieben, schluckt
+// fehlende Felder still (frühe Pakete bevor erste GPS-/Batt-/RSSI-Daten da sind).
+// Hinweis: gps_sat/gps_health/send_ms/imu_cal sind im rohen ESP-NOW-Paket
+// vorhanden, werden aber bisher nicht in state gespiegelt -> zeigen '--'.
+function updateDiagnostics() {
+  const t = state.telemetry || {};
+  const b = state.batt || {};
+  const imu = state.imu || {};
+  const conn = state.connection || {};
+  const gps = state.gps || {};
+
+  setText('diagGpsLat',    t.lat ? Number(t.lat).toFixed(6) : '--');
+  setText('diagGpsLon',    t.lon ? Number(t.lon).toFixed(6) : '--');
+  setText('diagGpsSat',    '--');
+  setText('diagGpsHealth', gps.fix ? 'fix' : '--');
+
+  setText('diagPackets', String(conn.packets || 0));
+  setText('diagLost',    String(conn.lost || 0));
+  setText('diagRate',    '--');
+  setText('diagRssi',    conn.rssi != null ? String(conn.rssi) : '--');
+
+  setText('diagGx',      t.gx != null ? Number(t.gx).toFixed(2) : '0.00');
+  setText('diagGy',      t.gy != null ? Number(t.gy).toFixed(2) : '0.00');
+  setText('diagAz',      t.gz != null ? Number(t.gz).toFixed(2) : '0.00');
+  setText('diagYaw',     imu.yaw != null ? String(Math.round(imu.yaw)) : '0');
+  setText('diagMpuTemp', imu.mtemp != null ? String(imu.mtemp) : '--');
+
+  setText('diagVbat',    (b.present && b.vbat != null) ? b.vbat.toFixed(2) : '--');
+  setText('diagSoc',     (b.present && b.soc != null)  ? String(b.soc)     : '--');
+  setText('diagBattWarn',b.warn != null ? String(b.warn) : '0');
+
+  setText('diagSendMs',  '--');
+  setText('diagSpdSrc',  state.spdSrc || '--');
+  setText('diagImuCal',  '--');
 }
 
 function updateLiveUi() {
