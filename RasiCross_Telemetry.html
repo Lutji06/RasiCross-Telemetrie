@@ -2412,6 +2412,37 @@ body.diagnose-on .diagnose-only{display:block}
       </div>
     </div>
   </div>
+
+  <!-- Diagnose: alle Roh-Werte der Telemetrie -->
+  <div id="detailDiagnoseSlot" style="margin-top:18px">
+    <div class="pw-module">
+      <div class="pw-mod-head">
+        <div class="pw-mod-title">Diagnose</div>
+        <span class="card-sub">Roh-Werte · Funk · Sensoren</span>
+      </div>
+      <div class="pw-diag-grid">
+        <div class="pw-diag-row"><span class="pw-diag-label">GPS Lat</span>      <span class="pw-diag-val" id="diagGpsLat">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">GPS Lon</span>      <span class="pw-diag-val" id="diagGpsLon">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">GPS Sat</span>      <span class="pw-diag-val" id="diagGpsSat">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">GPS Health</span>   <span class="pw-diag-val" id="diagGpsHealth">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Pakete</span>       <span class="pw-diag-val" id="diagPackets">0</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Lost</span>         <span class="pw-diag-val" id="diagLost">0</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Rate / s</span>     <span class="pw-diag-val" id="diagRate">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Link RSSI</span>    <span class="pw-diag-val" id="diagRssi">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Gx</span>           <span class="pw-diag-val" id="diagGx">0.00</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Gy</span>           <span class="pw-diag-val" id="diagGy">0.00</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Az</span>           <span class="pw-diag-val" id="diagAz">0.00</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Yaw °/s</span>      <span class="pw-diag-val" id="diagYaw">0</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">MPU °C</span>       <span class="pw-diag-val" id="diagMpuTemp">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Vbat</span>         <span class="pw-diag-val" id="diagVbat">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">SoC %</span>        <span class="pw-diag-val" id="diagSoc">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Batt Warn</span>    <span class="pw-diag-val" id="diagBattWarn">0</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">send_ms</span>      <span class="pw-diag-val" id="diagSendMs">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">spd_src</span>      <span class="pw-diag-val" id="diagSpdSrc">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">imu_cal</span>      <span class="pw-diag-val" id="diagImuCal">--</span></div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <!-- ============================================================
