@@ -18,13 +18,13 @@
 }(typeof self !== 'undefined' ? self : this, function () {
 
   const SHARED_ID_MAP = Object.freeze({
-    speed:    ['kSpeed',    'kSpeedLive'],
-    speedMax: ['kSpeedMax', 'kSpeedMaxLive'],
-    spdSrc:   ['spdSrcTag', 'spdSrcTagLive'],
-    rpm:      ['kRpm',      'kRpmLive'],
-    rpmMax:   ['kRpmMax',   'kRpmMaxLive'],
-    lap:      ['kLap',      'liveLapBig',  'detailHeroLapCurrent'],
-    lapBest:  ['kLapBest',  'liveLapBest', 'detailHeroLapBest'],
+    speed:    Object.freeze(['kSpeed',    'kSpeedLive']),
+    speedMax: Object.freeze(['kSpeedMax', 'kSpeedMaxLive']),
+    spdSrc:   Object.freeze(['spdSrcTag', 'spdSrcTagLive']),
+    rpm:      Object.freeze(['kRpm',      'kRpmLive']),
+    rpmMax:   Object.freeze(['kRpmMax',   'kRpmMaxLive']),
+    lap:      Object.freeze(['kLap',      'liveLapBig',  'detailHeroLapCurrent']),
+    lapBest:  Object.freeze(['kLapBest',  'liveLapBest', 'detailHeroLapBest']),
   });
 
   function targetIdsFor(key) {

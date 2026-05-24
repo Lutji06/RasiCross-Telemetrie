@@ -29,12 +29,19 @@ test('targetIdsFor: lapBest fans out to Detail KPI + Live sub + Detail hero chip
   assert.deepEqual(targetIdsFor('lapBest'), ['kLapBest', 'liveLapBest', 'detailHeroLapBest']);
 });
 
-test('SHARED_ID_MAP is a frozen plain object with string-array values', () => {
+test('SHARED_ID_MAP is a frozen plain object with frozen string-array values', () => {
   assert.equal(typeof SHARED_ID_MAP, 'object');
   assert.equal(Object.isFrozen(SHARED_ID_MAP), true);
   for (const [k, v] of Object.entries(SHARED_ID_MAP)) {
     assert.equal(typeof k, 'string');
     assert.ok(Array.isArray(v) && v.length > 0, `${k} must be a non-empty array`);
+    assert.equal(Object.isFrozen(v), true, `${k} array must be frozen`);
     for (const id of v) assert.equal(typeof id, 'string');
   }
+});
+
+test('targetIdsFor returns a defensive copy — mutating it does not leak back', () => {
+  const a = targetIdsFor('speed');
+  a.push('mutated');
+  assert.deepEqual(targetIdsFor('speed'), ['kSpeed', 'kSpeedLive']);
 });
