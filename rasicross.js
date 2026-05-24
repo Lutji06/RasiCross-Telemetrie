@@ -94,6 +94,22 @@ const state = {
 // fmtMs / fmtClock / fmtDelta moved to geo.js (loaded as a <script> before rasicross.js; also a CommonJS module for tests)
 function setText(id, val) { const e = $(id); if (e) e.textContent = val; }
 
+// Shared-ID fan-out — Live and Detail share several values (Speed, RPM, Lap, ...).
+// DomTargets is provided by dom-targets.js (loaded before rasicross.js).
+function setTextShared(key, value) {
+  const ids = (typeof DomTargets !== 'undefined' && DomTargets.targetIdsFor)
+    ? DomTargets.targetIdsFor(key) : [];
+  for (const id of ids) setText(id, value);
+}
+function setHtmlShared(key, html) {
+  const ids = (typeof DomTargets !== 'undefined' && DomTargets.targetIdsFor)
+    ? DomTargets.targetIdsFor(key) : [];
+  for (const id of ids) {
+    const el = $(id);
+    if (el) el.innerHTML = html;
+  }
+}
+
 // traceDistanceM moved to geo.js
 
 // gpsDist / headingFromPoints / segmentsCross / crossingDirectionOk / lineEndpointsFromGate moved to geo.js
@@ -276,7 +292,6 @@ function loadSettingsToUi() {
   $('setMinLap').value = state.settings.minLapSeconds;
   if ($('setDisplayUpdateMs')) $('setDisplayUpdateMs').value = state.settings.displayUpdateMs || 500;
   $('settingsHint').textContent = `${state.settings.maxSpeed} km/h · ${state.settings.maxRpm} rpm`;
-  $('rpmScale').textContent = state.settings.maxRpm;
   $('gxOffsetText').textContent = state.calibration.gxZero.toFixed(2);
   $('gyOffsetText').textContent = state.calibration.gyZero.toFixed(2);
   if ($('setInvertGx')) $('setInvertGx').checked = !!state.calibration.invertGx;
@@ -438,19 +453,8 @@ const LERP = 0.18;
 function lerp(a, b) { return a + (b - a) * LERP; }
 function renderGauges() {
   const t = state.telemetry;
-  state.display.speedLerp = lerp(state.display.speedLerp, t.speed);
-  state.display.rpmLerp = lerp(state.display.rpmLerp, t.rpm);
   state.display.gxLerp = lerp(state.display.gxLerp, t.gx);
   state.display.gyLerp = lerp(state.display.gyLerp, t.gy);
-  // Tacho
-  const speedRatio = Math.min(1, state.display.speedLerp / state.settings.maxSpeed);
-  const arc = $('speedArc');
-  if (arc) arc.setAttribute('stroke-dashoffset', String(314 - 314 * speedRatio));
-  setText('speedDial', Math.round(state.display.speedLerp));
-  // RPM bar
-  const rpmRatio = Math.min(1, state.display.rpmLerp / state.settings.maxRpm);
-  const fill = $('rpmFill');
-  if (fill) fill.style.width = (rpmRatio * 100).toFixed(1) + '%';
   // G-Meter
   if (state.settings.gView === '3d' && _kart3dReady && window.RasiKart3D) {
     const now = performance.now();
@@ -2193,19 +2197,21 @@ function updateLiveKPIs() {
     // Texte vorbereiten (gerundet) und nur setzen wenn sich was geaendert hat
     const speedText = _kpiDisplay.speed.toFixed(0);
     if (speedText !== _lastKpiText.speed) {
-      $('kSpeed').innerHTML = `${speedText}<small>km/h</small>`;
+      setHtmlShared('speed', `${speedText}<small>km/h</small>`);
       _lastKpiText.speed = speedText;
     }
     // Geschwindigkeitsquelle-Indikator (GPS / WHL-Fallback / keine)
     const _srcMap = { gps: 'GPS', wheel: 'WHL', none: '—' };
     const _srcLabel = _srcMap[state.spdSrc] || '—';
     if (_srcLabel !== _lastKpiText.spdSrc) {
-      const _srcEl = $('spdSrcTag');
-      if (_srcEl) {
-        _srcEl.textContent = _srcLabel;
-        _srcEl.style.color = state.spdSrc === 'wheel' ? '#e8a13a'
-                           : (state.spdSrc === 'none' || !state.spdSrc) ? 'var(--mut)'
-                           : '';
+      const _spdColor = state.spdSrc === 'wheel' ? '#e8a13a'
+                      : (state.spdSrc === 'none' || !state.spdSrc) ? 'var(--mut)'
+                      : '';
+      const _spdIds = (typeof DomTargets !== 'undefined' && DomTargets.targetIdsFor)
+        ? DomTargets.targetIdsFor('spdSrc') : [];
+      for (const _id of _spdIds) {
+        const _e = $(_id);
+        if (_e) { _e.textContent = _srcLabel; _e.style.color = _spdColor; }
       }
       _lastKpiText.spdSrc = _srcLabel;
     }
@@ -2230,7 +2236,7 @@ function updateLiveKPIs() {
     const rpmRounded = Math.round(_kpiDisplay.rpm / 50) * 50;
     const rpmText = rpmRounded.toLocaleString('de-DE');
     if (rpmText !== _lastKpiText.rpm) {
-      setText('kRpm', rpmText);
+      setTextShared('rpm', rpmText);
       _lastKpiText.rpm = rpmText;
     }
     // G-Kraft auf eine Nachkommastelle (statt zwei) — weniger flackern
@@ -2240,21 +2246,19 @@ function updateLiveKPIs() {
       _lastKpiText.g = gText;
     }
     // Max-Werte: aktualisieren sich seltener (bei jedem Update OK)
-    setText('kSpeedMax', state.max.speed.toFixed(0));
-    setText('kRpmMax', Math.round(state.max.rpm / 50) * 50);
+    setTextShared('speedMax', state.max.speed.toFixed(0));
+    setTextShared('rpmMax', String(Math.round(state.max.rpm / 50) * 50));
     setText('kGMax', state.max.g.toFixed(1));
     setText('kYaw', Math.round(state.imu.yaw));
     setText('kMtemp', state.imu.mtemp == null ? '--' : Math.round(state.imu.mtemp));
     // Rundenzeit: nur alle 100ms aktualisieren ist ok
     const lapText = state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
-      setText('kLap', lapText);
-      setText('detailHeroLapCurrent', lapText);
+      setTextShared('lap', lapText);     // -> kLap, liveLapBig, detailHeroLapCurrent
       _lastKpiText.lap = lapText;
     }
     const lapBestText = state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---';
-    setText('kLapBest', lapBestText);
-    setText('detailHeroLapBest', lapBestText);
+    setTextShared('lapBest', lapBestText); // -> kLapBest, liveLapBest, detailHeroLapBest
     setText('gxText', _kpiDisplay.gx.toFixed(1));
     setText('gyText', _kpiDisplay.gy.toFixed(1));
     // Race-Countdown
