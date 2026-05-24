@@ -2192,122 +2192,96 @@ body.diagnose-on .diagnose-only{display:block}
     <button class="btn danger" id="endRaceBtn" disabled>Ende</button>
   </div>
 
-  <!-- KPIs -->
-  <div class="kpi-row">
-    <div class="kpi accent">
-      <div class="kpi-head">
-        <span class="kpi-l">Speed</span>
-        <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 18 0M12 12l5-3"/></svg></span>
-      </div>
-      <div class="kpi-v" id="kSpeed">0<small>km/h</small></div>
-      <div class="kpi-sub">Max <b id="kSpeedMax">0</b> · Quelle <b id="spdSrcTag">GPS</b></div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-head">
-        <span class="kpi-l">RPM</span>
-        <span class="kpi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg></span>
-      </div>
-      <div class="kpi-v" id="kRpm">0</div>
-      <div class="kpi-sub">Max <b id="kRpmMax">0</b></div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-head">
-        <span class="kpi-l">G-Kraft</span>
-        <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>
-      </div>
-      <div class="kpi-v" id="kG">0.0<small>G</small></div>
-      <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s · MPU <b id="kMtemp">--</b>°C</div>
-      <canvas id="yawSparkCanvas" width="240" height="28" style="width:100%;margin-top:6px;display:block"></canvas>
-    </div>
-    <div class="kpi">
-      <div class="kpi-head">
-        <span class="kpi-l">Aktuelle Runde</span>
-        <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3"/></svg></span>
-      </div>
-      <div class="kpi-v" id="kLap" style="font-size:clamp(30px,3.6vw,40px)">--:--.---</div>
-      <div class="kpi-sub">Best <b id="kLapBest">--:--.---</b></div>
-    </div>
-    <div class="kpi hidden" id="kpiBatt">
-      <div class="kpi-head">
-        <span class="kpi-l">Batterie</span>
-        <span class="kpi-icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="16" height="10" rx="2"/><path d="M20 10v4"/></svg></span>
-      </div>
-      <div class="kpi-v" id="kBatt">--<small>%</small></div>
-      <div class="kpi-sub" id="kBattSub"><b>--</b> V · Zelle <b>--</b> V</div>
-    </div>
-  </div>
+  <!-- Delta + Sektoren strip ist jetzt aufgeteilt:
+       deltaBanner wandert nach Detail (KPI-Strip);
+       sectorPanel bleibt auf Live im rechten Stack unten. -->
 
-  <!-- Delta + Sektor strip -->
-  <div class="pw-strip-delta-sectors">
-    <div class="delta-banner hidden" id="deltaBanner">
-      <span class="delta-label">Δ Live-Delta</span>
-      <span class="delta-time same" id="deltaTime">+0.000s</span>
-      <span class="delta-ref" id="deltaRef">vs. beste Runde</span>
-    </div>
-    <div class="sector-panel" id="sectorPanel" style="display:none">
-      <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
-      <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
-      <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
-    </div>
-  </div>
+  <!-- Live v2 body: Karte (2/3) + rechter Stack (1/3) -->
+  <div class="pw-live-body">
 
-  <!-- Map + gauges -->
-  <div class="grid g-2-1" style="margin-bottom:18px">
-    <div class="pw-module">
-      <div class="pw-mod-head">
-        <div class="pw-mod-title">Streckenkarte</div>
-        <button class="heat-btn" id="heatmapBtn">Heatmap</button>
-      </div>
-      <div class="map"><canvas id="trackCanvas"></canvas></div>
-      <div class="row" style="margin-top:14px;gap:10px">
-        <div class="stat"><div class="t">Lat</div><div class="n" id="latText">--</div></div>
-        <div class="stat"><div class="t">Lon</div><div class="n" id="lonText">--</div></div>
-        <div class="stat"><div class="t">Punkte</div><div class="n" id="trackPoints">0</div></div>
-        <div class="stat"><div class="t">Pakete</div><div class="n" id="packetsText">0</div></div>
-      </div>
-    </div>
-    <div class="pw-module">
-      <div class="pw-mod-head">
-        <div class="pw-mod-title">Tacho</div>
-        <span class="card-sub">Live</span>
-      </div>
-      <div class="tacho-wrap">
-        <svg class="tacho-svg" viewBox="0 0 220 130">
-          <defs>
-            <linearGradient id="speedGrad" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0" stop-color="#3ee08a"/>
-              <stop offset=".5" stop-color="#c8ff3d"/>
-              <stop offset=".75" stop-color="#ffa336"/>
-              <stop offset="1" stop-color="#ff5470"/>
-            </linearGradient>
-          </defs>
-          <path d="M20 110 A90 90 0 0 1 200 110" stroke="rgba(255,255,255,.08)" stroke-width="14" fill="none" stroke-linecap="round"/>
-          <path id="speedArc" d="M20 110 A90 90 0 0 1 200 110" stroke="url(#speedGrad)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314"/>
-          <text x="110" y="92" text-anchor="middle" font-family="JetBrains Mono" font-size="42" font-weight="700" fill="currentColor" id="speedDial">0</text>
-          <text x="110" y="115" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#6f7796" font-weight="600">km/h</text>
-        </svg>
-        <div class="rpm-block">
-          <div class="rpm-bar"><div class="rpm-fill" id="rpmFill"></div></div>
-          <div class="rpm-row">
-            <span>0 rpm</span>
-            <span id="rpmScale">10000</span>
-          </div>
+    <!-- Karte (linke 2/3) -->
+    <div class="pw-live-map">
+      <div class="pw-module">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">Streckenkarte</div>
+          <button class="heat-btn" id="heatmapBtn">Heatmap</button>
         </div>
-        <div style="width:100%;text-align:center">
-          <div class="g-view-toggle" id="gViewToggle">
-            <button type="button" data-view="2d" class="active">2D</button>
-            <button type="button" data-view="3d">3D</button>
-          </div>
-          <canvas id="gMeterCanvas"></canvas>
-          <canvas id="gMeter3dCanvas" class="hidden"></canvas>
-          <div class="g-readout">
-            <span>Gx <b id="gxText">0.0</b></span>
-            <span>Gy <b id="gyText">0.0</b></span>
-          </div>
+        <div class="map"><canvas id="trackCanvas"></canvas></div>
+        <div class="row" style="margin-top:14px;gap:10px">
+          <div class="stat"><div class="t">Lat</div><div class="n" id="latText">--</div></div>
+          <div class="stat"><div class="t">Lon</div><div class="n" id="lonText">--</div></div>
+          <div class="stat"><div class="t">Punkte</div><div class="n" id="trackPoints">0</div></div>
+          <div class="stat"><div class="t">Pakete</div><div class="n" id="packetsText">0</div></div>
         </div>
       </div>
     </div>
-  </div>
+
+    <!-- Rechte 1/3 — Stack -->
+    <div class="pw-live-side">
+
+      <!-- Speed + RPM combo -->
+      <div class="pw-module">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">Speed · RPM</div>
+          <span class="card-sub">Live</span>
+        </div>
+        <div class="pw-kpi-combo">
+          <div class="pw-kpi-cell">
+            <span class="kpi-l">Speed</span>
+            <span class="kpi-v" id="kSpeedLive">0<small>km/h</small></span>
+            <span class="kpi-sub">Max <b id="kSpeedMaxLive">0</b> · <b id="spdSrcTagLive">GPS</b></span>
+          </div>
+          <div class="pw-kpi-cell">
+            <span class="kpi-l">RPM</span>
+            <span class="kpi-v" id="kRpmLive">0</span>
+            <span class="kpi-sub">Max <b id="kRpmMaxLive">0</b></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rundenzeit groß -->
+      <div class="pw-module pw-lap-big">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">Rundenzeit</div>
+          <span class="card-sub">aktuell</span>
+        </div>
+        <div class="kpi-v" id="liveLapBig">--:--.---</div>
+        <div class="kpi-sub">Best <b id="liveLapBest">--:--.---</b></div>
+      </div>
+
+      <!-- Sektoren (horizontal) -->
+      <div class="pw-module">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">Sektoren</div>
+          <span class="card-sub">aktive Runde</span>
+        </div>
+        <div class="sector-panel" id="sectorPanel" style="display:none">
+          <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
+          <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
+          <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
+        </div>
+      </div>
+
+      <!-- G-Meter / 3D Kart Toggle -->
+      <div class="pw-module pw-g3d">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">G-Meter · 3D Kart</div>
+          <span class="card-sub">Live</span>
+        </div>
+        <div class="g-view-toggle" id="gViewToggle">
+          <button type="button" data-view="2d" class="active">2D</button>
+          <button type="button" data-view="3d">3D</button>
+        </div>
+        <canvas id="gMeterCanvas"></canvas>
+        <canvas id="gMeter3dCanvas" class="hidden"></canvas>
+        <div class="g-readout">
+          <span>Gx <b id="gxText">0.0</b></span>
+          <span>Gy <b id="gyText">0.0</b></span>
+        </div>
+      </div>
+
+    </div><!-- /pw-live-side -->
+  </div><!-- /pw-live-body -->
 
 </section>
 
