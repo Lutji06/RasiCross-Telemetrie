@@ -2324,6 +2324,58 @@ body.diagnose-on .diagnose-only{display:block}
     </div>
   </div>
 
+  <!-- KPI-Strip: alle Live-Werte detailliert (war frueher auf #tab-live) -->
+  <div class="kpi-row" id="detailKpiStrip" style="margin-bottom:12px">
+    <div class="kpi accent">
+      <div class="kpi-head">
+        <span class="kpi-l">Speed</span>
+        <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 18 0M12 12l5-3"/></svg></span>
+      </div>
+      <div class="kpi-v" id="kSpeed">0<small>km/h</small></div>
+      <div class="kpi-sub">Max <b id="kSpeedMax">0</b> · Quelle <b id="spdSrcTag">GPS</b></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-head">
+        <span class="kpi-l">RPM</span>
+        <span class="kpi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/></svg></span>
+      </div>
+      <div class="kpi-v" id="kRpm">0</div>
+      <div class="kpi-sub">Max <b id="kRpmMax">0</b></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-head">
+        <span class="kpi-l">G-Kraft</span>
+        <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>
+      </div>
+      <div class="kpi-v" id="kG">0.0<small>G</small></div>
+      <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s · MPU <b id="kMtemp">--</b>°C</div>
+      <canvas id="yawSparkCanvas" width="240" height="28" style="width:100%;margin-top:6px;display:block"></canvas>
+    </div>
+    <div class="kpi">
+      <div class="kpi-head">
+        <span class="kpi-l">Aktuelle Runde</span>
+        <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3"/></svg></span>
+      </div>
+      <div class="kpi-v" id="kLap" style="font-size:clamp(30px,3.6vw,40px)">--:--.---</div>
+      <div class="kpi-sub">Best <b id="kLapBest">--:--.---</b></div>
+    </div>
+    <div class="kpi hidden" id="kpiBatt">
+      <div class="kpi-head">
+        <span class="kpi-l">Batterie</span>
+        <span class="kpi-icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="16" height="10" rx="2"/><path d="M20 10v4"/></svg></span>
+      </div>
+      <div class="kpi-v" id="kBatt">--<small>%</small></div>
+      <div class="kpi-sub" id="kBattSub"><b>--</b> V · Zelle <b>--</b> V</div>
+    </div>
+  </div>
+
+  <!-- Delta-Banner — von Live nach Detail verschoben -->
+  <div class="delta-banner hidden" id="deltaBanner" style="margin-bottom:18px">
+    <span class="delta-label">Δ Live-Delta</span>
+    <span class="delta-time same" id="deltaTime">+0.000s</span>
+    <span class="delta-ref" id="deltaRef">vs. beste Runde</span>
+  </div>
+
   <!-- Verlauf (Speed/RPM + G-Kraft) -->
   <div class="grid g2" id="detailVerlaufSlot" style="margin-bottom:18px">
     <div class="pw-module">
