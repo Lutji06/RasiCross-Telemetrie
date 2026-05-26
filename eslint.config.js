@@ -66,7 +66,19 @@ module.exports = [
         THREE: 'readonly',
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',
+        DomTargets: 'readonly',
       },
+    },
+    rules: bugRules,
+  },
+
+  // dom-targets.js setzt window.DomTargets (UMD, Browser)
+  {
+    files: ['dom-targets.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, module: 'readonly' },
     },
     rules: bugRules,
   },
