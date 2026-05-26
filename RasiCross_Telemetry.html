@@ -414,6 +414,43 @@ body.gps-warn{box-shadow:inset 0 0 0 2px var(--orange),inset 0 0 60px var(--oran
 .pill.red{color:var(--red);border-color:rgba(255,84,112,.3)}
 .pill.red .dot{background:var(--red);box-shadow:0 0 8px var(--red-glow)}
 
+/* iPhone-style Batterie-Pill (Topbar, rechts) */
+.batt-pill{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:6px 10px;border-radius:99px;
+  background:var(--soft);border:1px solid var(--bor);
+  font-family:var(--mono);font-size:10.5px;font-weight:600;
+  color:var(--tx-dim);letter-spacing:.02em;
+  transition:var(--t);
+}
+.batt-pill.hidden{display:none}
+.batt-pill .batt-ico{
+  position:relative;display:inline-block;
+  width:22px;height:11px;
+  border:1.4px solid currentColor;border-radius:2.5px;
+  opacity:.9;
+}
+.batt-pill .batt-ico::after{
+  content:"";position:absolute;
+  right:-3px;top:50%;transform:translateY(-50%);
+  width:2px;height:5px;border-radius:0 1.5px 1.5px 0;
+  background:currentColor;opacity:.9;
+}
+.batt-pill .batt-fill{
+  position:absolute;left:1px;top:1px;bottom:1px;
+  width:0%;border-radius:1.2px;
+  background:currentColor;
+  transition:width .35s ease;
+}
+.batt-pill.ok    {color:var(--green);border-color:rgba(62,224,138,.3)}
+.batt-pill.warn  {color:var(--orange);border-color:rgba(255,163,54,.35)}
+.batt-pill.crit  {color:var(--red);border-color:rgba(255,84,112,.4);
+                  animation:battCritGlow 1.4s ease-in-out infinite}
+@keyframes battCritGlow{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,84,112,0)}
+  50%    {box-shadow:0 0 0 3px rgba(255,84,112,.35)}
+}
+
 /* ============================================================
    GRID
    ============================================================ */
@@ -589,12 +626,13 @@ select{
 
 .kpi{
   position:relative;overflow:hidden;
-  padding:22px;
+  padding:22px 22px 48px;
   background:var(--surf);
   border:1px solid var(--bor);
   border-radius:var(--r-xl);
-  display:flex;flex-direction:column;
-  gap:8px;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  row-gap:8px;
   min-height:148px;
   transition:var(--t);
 }
@@ -621,7 +659,14 @@ select{
   font-weight:700;color:var(--tx);
   line-height:.95;letter-spacing:-.045em;
   font-variant-numeric:tabular-nums;
-  margin-top:auto;
+}
+/* Nur in der Grid-basierten .kpi-Karte den Wert nach unten in die mittlere Zeile ziehen.
+   In Flex-Column-Containern (z.B. .pw-kpi-cell) wuerde align-self:end den Wert
+   stattdessen auf der Cross-Achse nach RECHTS schieben — daher hier scoped. */
+.kpi > .kpi-v{align-self:end}
+.kpi #yawSparkCanvas{
+  position:absolute;left:22px;right:22px;bottom:14px;
+  height:24px;width:auto;margin:0;display:block;
 }
 .kpi.accent .kpi-v{color:var(--pr);text-shadow:0 0 24px var(--pr-glow)}
 .kpi-v small{
@@ -1274,10 +1319,28 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .dialog .field{margin-bottom:12px}
 .dialog .field:last-of-type{margin-bottom:0}
 
-/* Redesign: Live race-control cluster */
-.pw-livebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--surf);border:1px solid var(--bor);border-radius:var(--r-md);padding:10px 12px;margin-bottom:18px}
-.pw-livebar select{margin-left:auto}
+/* Redesign: Live race-control row (Restzeit + Buttons als getrennte Kaestchen) */
+.pw-liverow{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:18px;align-items:stretch}
+.pw-livebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--surf);border:1px solid var(--bor);border-radius:var(--r-md);padding:10px 12px;min-width:0}
 .pw-livebar select+.btn{margin-left:0}
+.pw-livebar .btn{padding:7px 12px;font-size:12px;border-radius:9px}
+.pw-livebar .btn svg{width:13px;height:13px}
+.pw-clockbox{
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:center;
+  padding:8px 22px;border-radius:var(--r-md);
+  background:var(--surf);border:1px solid var(--bor);
+  min-width:0;text-align:left;
+}
+@media (max-width:900px){.pw-liverow{grid-template-columns:1fr}}
+.pw-clockbox-label{
+  font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--tx-dim);margin-bottom:4px;
+}
+.pw-clockbox-value{
+  font-family:var(--mono);font-weight:800;line-height:1;
+  color:var(--tx);letter-spacing:1px;
+  font-size:clamp(40px, 8vw, 72px);
+}
 
 /* ============================================================
    LIVE-TAB COMPACT VARIANTS  (no-scroll on 1440x900)
@@ -1291,7 +1354,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .pw-hero--compact .pw-hero-title{font-size:26px;margin-bottom:0;line-height:1}
 .pw-hero--compact .pw-hero-sub{display:none}
 .pw-hero--compact .pw-hero-telemetry{
-  grid-template-columns:repeat(3,minmax(120px,auto));gap:10px;
+  grid-template-columns:repeat(2,minmax(120px,auto));gap:10px;
 }
 .pw-hero--compact .pw-tel{padding:8px 12px}
 .pw-hero--compact .pw-tel-label{margin-bottom:3px}
@@ -1335,6 +1398,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .pw-kpi-combo .pw-kpi-cell .kpi-l{font-size:10.5px;color:var(--mut);letter-spacing:.04em;text-transform:uppercase}
 .pw-kpi-combo .pw-kpi-cell .kpi-v{font-size:clamp(24px,2.6vw,30px);font-weight:700;font-family:'JetBrains Mono',monospace}
 .pw-kpi-combo .pw-kpi-cell .kpi-sub{font-size:10px;color:var(--mut)}
+#kSpeed,#kSpeedLive{color:var(--pr);text-shadow:0 0 18px var(--pr-glow)}
 
 /* Big Rundenzeit card */
 .pw-lap-big .kpi-v{font-size:clamp(40px,4.2vw,56px);font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:.02em;line-height:1.05}
@@ -1347,8 +1411,39 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .pw-live-side #sectorPanel .sector-delta{font-size:11px}
 
 /* G/3D card on Live — fills remaining vertical space */
-.pw-live-side .pw-g3d{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.pw-live-side .pw-g3d canvas{max-width:100%;height:auto}
+.pw-live-side .pw-g3d{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;overflow:hidden}
+.pw-live-side .pw-g3d canvas{max-width:100%;max-height:100%;height:auto}
+
+/* ------------------------------------------------------------
+   Live no-scroll: wenn Live-Tab aktiv (body[data-tab=live]),
+   sperrt der Body den Seiten-Scroll und der Live-Inhalt fuellt
+   exakt den Raum zwischen Topbar (sticky) und Statusbar (sticky).
+   Andere Tabs (Detail, Strecke, ...) duerfen weiter scrollen.
+   Nur ab Viewport-Hoehe >=760px aktiv, sonst (Mobile/landscape klein)
+   wuerde der Inhalt vertikal abgeschnitten werden.
+   ------------------------------------------------------------ */
+@media (min-height:760px){
+  html:has(body[data-tab="live"]),
+  body[data-tab="live"]{
+    height:100vh;overflow:hidden;
+  }
+  body[data-tab="live"] .main{height:100vh;min-height:0}
+  body[data-tab="live"] main.content{
+    flex:1;min-height:0;overflow:hidden;
+    padding-top:18px;padding-bottom:14px;
+    display:flex;flex-direction:column;justify-content:center;
+  }
+  body[data-tab="live"] #tab-live.active{
+    display:flex;flex-direction:column;gap:12px;
+    flex:1;min-height:0;width:100%;
+  }
+  body[data-tab="live"] #tab-live .pw-hero,
+  body[data-tab="live"] #tab-live .pw-liverow{flex:0 0 auto;margin-bottom:0}
+  body[data-tab="live"] #tab-live .pw-live-body{flex:1 1 auto;min-height:0}
+  body[data-tab="live"] #tab-live .pw-live-map,
+  body[data-tab="live"] #tab-live .pw-live-side{min-height:0}
+  body[data-tab="live"] #tab-live .pw-live-map .pw-module{min-height:0}
+}
 
 /* Detail Diagnose block — 2-col label/value grid */
 .pw-diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 24px}
@@ -1974,13 +2069,14 @@ body.diagnose-on .diagnose-only{display:block}
 }
 #rcToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* Footer status bar */
+/* Footer status bar — sticky am unteren Rand (immer sichtbar) */
 .statusbar{
+  position:sticky;bottom:0;z-index:40;
   margin-top:auto;
   padding:10px 32px;
-  background:rgba(7,9,18,.5);
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
+  background:rgba(7,9,18,.72);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
   border-top:1px solid var(--bor);
   font-family:var(--mono);font-size:10.5px;
   color:var(--mut);
@@ -1988,7 +2084,11 @@ body.diagnose-on .diagnose-only{display:block}
   font-weight:500;
   flex-wrap:wrap;
 }
+[data-theme=light] .statusbar{background:rgba(255,255,255,.72)}
 .statusbar span b{color:var(--tx-dim);font-weight:700}
+/* Wenn die Replay-Bar (fixed bottom, z-900) sichtbar ist,
+   die Statusbar nach oben schieben, damit sie nicht ueberdeckt wird. */
+body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s ease}
 
 /* Utilities */
 .hidden{display:none!important}
@@ -2129,6 +2229,10 @@ body.diagnose-on .diagnose-only{display:block}
   <div class="topbar-spacer"></div>
   <div class="pill" id="hzPill"><span class="dot"></span><span id="hzText">0</span> Hz</div>
   <div class="pill" id="topConnPill"><span class="dot"></span><span id="topConnText">Offline</span></div>
+  <div class="batt-pill hidden" id="battPill" title="Akku">
+    <span class="batt-ico"><span class="batt-fill" id="battFill"></span></span>
+    <span id="battPct">--%</span>
+  </div>
 </header>
 
 <main class="content">
@@ -2152,10 +2256,6 @@ body.diagnose-on .diagnose-only{display:block}
       </div>
       <div class="pw-hero-telemetry">
         <div class="pw-tel">
-          <div class="pw-tel-label">Countdown</div>
-          <div class="pw-tel-value mono" id="countdown">--:--</div>
-        </div>
-        <div class="pw-tel">
           <div class="pw-tel-label">Status</div>
           <div class="pw-tel-value" id="raceMeta">Bereit</div>
         </div>
@@ -2167,7 +2267,12 @@ body.diagnose-on .diagnose-only{display:block}
     </div>
   </div>
 
-  <!-- Race-control cluster -->
+  <!-- Race-control row: Restzeit + Buttons als getrennte Kästchen -->
+  <div class="pw-liverow">
+    <div class="pw-clockbox">
+      <div class="pw-clockbox-label">Restzeit</div>
+      <div class="pw-clockbox-value" id="countdown">--:--</div>
+    </div>
   <div class="pw-livebar">
     <button class="btn good" id="startRaceBtn" disabled>
       <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9z"/></svg>
@@ -2191,6 +2296,7 @@ body.diagnose-on .diagnose-only{display:block}
     </select>
     <button class="btn danger" id="endRaceBtn" disabled>Ende</button>
   </div>
+  </div><!-- /pw-liverow -->
 
   <!-- Delta + Sektoren strip ist jetzt aufgeteilt:
        deltaBanner wandert nach Detail (KPI-Strip);
@@ -2264,10 +2370,6 @@ body.diagnose-on .diagnose-only{display:block}
 
       <!-- G-Meter / 3D Kart Toggle -->
       <div class="pw-module pw-g3d">
-        <div class="pw-mod-head">
-          <div class="pw-mod-title">G-Meter · 3D Kart</div>
-          <span class="card-sub">Live</span>
-        </div>
         <div class="g-view-toggle" id="gViewToggle">
           <button type="button" data-view="2d" class="active">2D</button>
           <button type="button" data-view="3d">3D</button>
@@ -2349,7 +2451,7 @@ body.diagnose-on .diagnose-only{display:block}
       </div>
       <div class="kpi-v" id="kG">0.0<small>G</small></div>
       <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s · MPU <b id="kMtemp">--</b>°C</div>
-      <canvas id="yawSparkCanvas" width="240" height="28" style="width:100%;margin-top:6px;display:block"></canvas>
+      <canvas id="yawSparkCanvas" width="240" height="28"></canvas>
     </div>
     <div class="kpi">
       <div class="kpi-head">
@@ -2358,14 +2460,6 @@ body.diagnose-on .diagnose-only{display:block}
       </div>
       <div class="kpi-v" id="kLap" style="font-size:clamp(30px,3.6vw,40px)">--:--.---</div>
       <div class="kpi-sub">Best <b id="kLapBest">--:--.---</b></div>
-    </div>
-    <div class="kpi hidden" id="kpiBatt">
-      <div class="kpi-head">
-        <span class="kpi-l">Batterie</span>
-        <span class="kpi-icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="16" height="10" rx="2"/><path d="M20 10v4"/></svg></span>
-      </div>
-      <div class="kpi-v" id="kBatt">--<small>%</small></div>
-      <div class="kpi-sub" id="kBattSub"><b>--</b> V · Zelle <b>--</b> V</div>
     </div>
   </div>
 
