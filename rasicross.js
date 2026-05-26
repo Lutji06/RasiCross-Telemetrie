@@ -209,6 +209,9 @@ function rcToast(msg, ms = 2000) {
 // 5. TAB NAVIGATION + THEME
 // ============================================================
 function setupTabs() {
+  // Initial: aktiven Tab am body markieren (CSS nutzt body[data-tab=live] fuer no-scroll-Layout)
+  const _active = document.querySelector('.nav-item[data-tab].active');
+  if (_active) document.body.dataset.tab = _active.dataset.tab;
   document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.remove('active'));
@@ -217,6 +220,7 @@ function setupTabs() {
       const tab = btn.dataset.tab;
       const panel = $('tab-' + tab);
       if (panel) panel.classList.add('active');
+      document.body.dataset.tab = tab;
       // Resize canvases when tab becomes visible
       setTimeout(resizeCanvases, 50);
       // Bei Driver-Tab: Stats neu berechnen (kann sich nach jedem Rennen aendern)
@@ -2215,22 +2219,38 @@ function updateLiveKPIs() {
       }
       _lastKpiText.spdSrc = _srcLabel;
     }
-    // Batterie-KPI: erst sichtbar sobald Daten kamen; Farbe nach warn.
-    if (state.batt.present) {
-      const _bEl = $('kpiBatt');
+    // Batterie-Pill (iPhone-Style, Topbar oben rechts):
+    // erst sichtbar sobald Daten kamen; Farbe nach warn + SoC;
+    // verschwindet wieder wenn laenger als 5s kein Paket (stale).
+    const _bEl = $('battPill');
+    const _battStale = !state.connection.lastPacketAt
+                    || (Date.now() - state.connection.lastPacketAt) > 5000;
+    if (state.batt.present && !_battStale) {
       if (_bEl && _bEl.classList.contains('hidden')) _bEl.classList.remove('hidden');
-      const _cells = state.batt.cells > 0 ? state.batt.cells : 3;
-      const _vc = state.batt.vbat / _cells;
-      const _battText = `${state.batt.soc}|${state.batt.vbat.toFixed(2)}|${_vc.toFixed(2)}|${state.batt.warn}`;
+      const _soc = Math.max(0, Math.min(100, state.batt.soc | 0));
+      const _vb  = +state.batt.vbat.toFixed(2);
+      // Klasse aus warn (Sender) plus SoC-Fallback (falls warn=0 aber SoC niedrig)
+      let _cls = 'ok';
+      if (state.batt.warn === 2 || _soc <= 15) _cls = 'crit';
+      else if (state.batt.warn === 1 || _soc <= 30) _cls = 'warn';
+      // vbat im Diff-Schluessel, damit der title-Tooltip mit aktualisiert wird,
+      // auch wenn SoC/cls gleich bleiben.
+      const _battText = `${_soc}|${_cls}|${_vb}`;
       if (_battText !== _lastKpiText.batt) {
-        const _v = $('kBatt'), _s = $('kBattSub');
-        if (_v) _v.innerHTML = `${state.batt.soc}<small>%</small>`;
-        if (_s) _s.innerHTML = `<b>${state.batt.vbat.toFixed(2)}</b> V · Zelle <b>${_vc.toFixed(2)}</b> V`;
-        if (_bEl) _bEl.style.color = state.batt.warn === 2 ? '#e5484d'
-                                   : state.batt.warn === 1 ? '#e8a13a'
-                                   : '';
+        const _fill = $('battFill'), _pct = $('battPct');
+        if (_fill) _fill.style.width = _soc + '%';
+        if (_pct)  _pct.textContent = _soc + '%';
+        if (_bEl) {
+          _bEl.classList.remove('ok','warn','crit');
+          _bEl.classList.add(_cls);
+          _bEl.title = `Akku ${_soc}% · ${_vb.toFixed(2)} V`;
+        }
         _lastKpiText.batt = _battText;
       }
+    } else if (_bEl && !_bEl.classList.contains('hidden')) {
+      // Stale oder Battery weg -> Pill wieder verstecken, Diff-Cache leeren
+      _bEl.classList.add('hidden');
+      _lastKpiText.batt = '';
     }
     // RPM in 50er-Schritten runden damit es nicht so wackelt
     const rpmRounded = Math.round(_kpiDisplay.rpm / 50) * 50;
