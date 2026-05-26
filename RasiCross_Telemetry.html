@@ -1321,6 +1321,42 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 #tab-live #yawSparkCanvas{height:22px}
 #tab-live .kpi-row{margin-bottom:12px}
 
+/* Live v2 — main body grid */
+.pw-live-body{display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:stretch}
+.pw-live-map{display:flex;flex-direction:column}
+.pw-live-map .pw-module{flex:1 1 auto;display:flex;flex-direction:column}
+.pw-live-map .map{flex:1 1 auto;min-height:0}
+.pw-live-side{display:flex;flex-direction:column;gap:12px}
+.pw-live-side .pw-module{padding:10px 12px}
+
+/* Speed + RPM combo card */
+.pw-kpi-combo{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pw-kpi-combo .pw-kpi-cell{display:flex;flex-direction:column;gap:2px}
+.pw-kpi-combo .pw-kpi-cell .kpi-l{font-size:10.5px;color:var(--mut);letter-spacing:.04em;text-transform:uppercase}
+.pw-kpi-combo .pw-kpi-cell .kpi-v{font-size:clamp(24px,2.6vw,30px);font-weight:700;font-family:'JetBrains Mono',monospace}
+.pw-kpi-combo .pw-kpi-cell .kpi-sub{font-size:10px;color:var(--mut)}
+
+/* Big Rundenzeit card */
+.pw-lap-big .kpi-v{font-size:clamp(40px,4.2vw,56px);font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:.02em;line-height:1.05}
+.pw-lap-big .kpi-sub{font-size:11px;color:var(--mut);margin-top:4px}
+
+/* Sektoren horizontal strip inside the right column */
+.pw-live-side #sectorPanel{display:flex;gap:8px}
+.pw-live-side #sectorPanel .sector-card{flex:1 1 0;padding:8px 10px}
+.pw-live-side #sectorPanel .sector-time{font-size:14px}
+.pw-live-side #sectorPanel .sector-delta{font-size:11px}
+
+/* G/3D card on Live — fills remaining vertical space */
+.pw-live-side .pw-g3d{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pw-live-side .pw-g3d canvas{max-width:100%;height:auto}
+
+/* Detail Diagnose block — 2-col label/value grid */
+.pw-diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 24px}
+.pw-diag-grid .pw-diag-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--bor)}
+.pw-diag-grid .pw-diag-row:last-child{border-bottom:none}
+.pw-diag-grid .pw-diag-label{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.pw-diag-grid .pw-diag-val{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink)}
+
 /* ============================================================
    TRACK LIST
    ============================================================ */
@@ -2156,8 +2192,140 @@ body.diagnose-on .diagnose-only{display:block}
     <button class="btn danger" id="endRaceBtn" disabled>Ende</button>
   </div>
 
-  <!-- KPIs -->
-  <div class="kpi-row">
+  <!-- Delta + Sektoren strip ist jetzt aufgeteilt:
+       deltaBanner wandert nach Detail (KPI-Strip);
+       sectorPanel bleibt auf Live im rechten Stack unten. -->
+
+  <!-- Live v2 body: Karte (2/3) + rechter Stack (1/3) -->
+  <div class="pw-live-body">
+
+    <!-- Karte (linke 2/3) -->
+    <div class="pw-live-map">
+      <div class="pw-module">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">Streckenkarte</div>
+          <button class="heat-btn" id="heatmapBtn">Heatmap</button>
+        </div>
+        <div class="map"><canvas id="trackCanvas"></canvas></div>
+        <div class="row" style="margin-top:14px;gap:10px">
+          <div class="stat"><div class="t">Lat</div><div class="n" id="latText">--</div></div>
+          <div class="stat"><div class="t">Lon</div><div class="n" id="lonText">--</div></div>
+          <div class="stat"><div class="t">Punkte</div><div class="n" id="trackPoints">0</div></div>
+          <div class="stat"><div class="t">Pakete</div><div class="n" id="packetsText">0</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rechte 1/3 — Stack -->
+    <div class="pw-live-side">
+
+      <!-- Speed + RPM combo -->
+      <div class="pw-module">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">Speed · RPM</div>
+          <span class="card-sub">Live</span>
+        </div>
+        <div class="pw-kpi-combo">
+          <div class="pw-kpi-cell">
+            <span class="kpi-l">Speed</span>
+            <span class="kpi-v" id="kSpeedLive">0<small>km/h</small></span>
+            <span class="kpi-sub">Max <b id="kSpeedMaxLive">0</b> · <b id="spdSrcTagLive">GPS</b></span>
+          </div>
+          <div class="pw-kpi-cell">
+            <span class="kpi-l">RPM</span>
+            <span class="kpi-v" id="kRpmLive">0</span>
+            <span class="kpi-sub">Max <b id="kRpmMaxLive">0</b></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rundenzeit groß -->
+      <div class="pw-module pw-lap-big">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">Rundenzeit</div>
+          <span class="card-sub">aktuell</span>
+        </div>
+        <div class="kpi-v" id="liveLapBig">--:--.---</div>
+        <div class="kpi-sub">Best <b id="liveLapBest">--:--.---</b></div>
+      </div>
+
+      <!-- Sektoren (horizontal) -->
+      <div class="pw-module">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">Sektoren</div>
+          <span class="card-sub">aktive Runde</span>
+        </div>
+        <div class="sector-panel" id="sectorPanel" style="display:none">
+          <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
+          <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
+          <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
+        </div>
+      </div>
+
+      <!-- G-Meter / 3D Kart Toggle -->
+      <div class="pw-module pw-g3d">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">G-Meter · 3D Kart</div>
+          <span class="card-sub">Live</span>
+        </div>
+        <div class="g-view-toggle" id="gViewToggle">
+          <button type="button" data-view="2d" class="active">2D</button>
+          <button type="button" data-view="3d">3D</button>
+        </div>
+        <canvas id="gMeterCanvas"></canvas>
+        <canvas id="gMeter3dCanvas" class="hidden"></canvas>
+        <div class="g-readout">
+          <span>Gx <b id="gxText">0.0</b></span>
+          <span>Gy <b id="gyText">0.0</b></span>
+        </div>
+      </div>
+
+    </div><!-- /pw-live-side -->
+  </div><!-- /pw-live-body -->
+
+</section>
+
+<!-- ============================================================
+     TAB: DETAIL
+     ============================================================ -->
+<section class="tab" id="tab-detail">
+
+  <!-- Hero -->
+  <div class="pw-hero">
+    <div class="pw-hero-bg"></div>
+    <div class="pw-hero-grid"></div>
+    <div class="pw-hero-content">
+      <div class="pw-hero-left">
+        <div class="pw-eyebrow">
+          <span class="pw-eyebrow-dot"></span>
+          <span>LIVE-DETAIL</span>
+        </div>
+        <h1 class="pw-hero-title">Detail<span class="pw-hero-accent">.</span></h1>
+        <p class="pw-hero-sub">Verlauf, Stints und Rundentabelle des aktiven Rennens</p>
+      </div>
+      <div class="pw-hero-telemetry">
+        <div class="pw-tel">
+          <div class="pw-tel-label">Aktive Runde</div>
+          <div class="pw-tel-value mono" id="detailHeroLapCurrent">--:--.---</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Beste Runde</div>
+          <div class="pw-tel-value mono" id="detailHeroLapBest">--:--.---</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Stints</div>
+          <div class="pw-tel-value mono" id="detailHeroStintCount">0</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Pakete</div>
+          <div class="pw-tel-value mono" id="detailHeroPackets">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI-Strip: alle Live-Werte detailliert (war frueher auf #tab-live) -->
+  <div class="kpi-row" id="detailKpiStrip" style="margin-bottom:12px">
     <div class="kpi accent">
       <div class="kpi-head">
         <span class="kpi-l">Speed</span>
@@ -2201,117 +2369,11 @@ body.diagnose-on .diagnose-only{display:block}
     </div>
   </div>
 
-  <!-- Delta + Sektor strip -->
-  <div class="pw-strip-delta-sectors">
-    <div class="delta-banner hidden" id="deltaBanner">
-      <span class="delta-label">Δ Live-Delta</span>
-      <span class="delta-time same" id="deltaTime">+0.000s</span>
-      <span class="delta-ref" id="deltaRef">vs. beste Runde</span>
-    </div>
-    <div class="sector-panel" id="sectorPanel" style="display:none">
-      <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
-      <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
-      <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
-    </div>
-  </div>
-
-  <!-- Map + gauges -->
-  <div class="grid g-2-1" style="margin-bottom:18px">
-    <div class="pw-module">
-      <div class="pw-mod-head">
-        <div class="pw-mod-title">Streckenkarte</div>
-        <button class="heat-btn" id="heatmapBtn">Heatmap</button>
-      </div>
-      <div class="map"><canvas id="trackCanvas"></canvas></div>
-      <div class="row" style="margin-top:14px;gap:10px">
-        <div class="stat"><div class="t">Lat</div><div class="n" id="latText">--</div></div>
-        <div class="stat"><div class="t">Lon</div><div class="n" id="lonText">--</div></div>
-        <div class="stat"><div class="t">Punkte</div><div class="n" id="trackPoints">0</div></div>
-        <div class="stat"><div class="t">Pakete</div><div class="n" id="packetsText">0</div></div>
-      </div>
-    </div>
-    <div class="pw-module">
-      <div class="pw-mod-head">
-        <div class="pw-mod-title">Tacho</div>
-        <span class="card-sub">Live</span>
-      </div>
-      <div class="tacho-wrap">
-        <svg class="tacho-svg" viewBox="0 0 220 130">
-          <defs>
-            <linearGradient id="speedGrad" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0" stop-color="#3ee08a"/>
-              <stop offset=".5" stop-color="#c8ff3d"/>
-              <stop offset=".75" stop-color="#ffa336"/>
-              <stop offset="1" stop-color="#ff5470"/>
-            </linearGradient>
-          </defs>
-          <path d="M20 110 A90 90 0 0 1 200 110" stroke="rgba(255,255,255,.08)" stroke-width="14" fill="none" stroke-linecap="round"/>
-          <path id="speedArc" d="M20 110 A90 90 0 0 1 200 110" stroke="url(#speedGrad)" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314"/>
-          <text x="110" y="92" text-anchor="middle" font-family="JetBrains Mono" font-size="42" font-weight="700" fill="currentColor" id="speedDial">0</text>
-          <text x="110" y="115" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#6f7796" font-weight="600">km/h</text>
-        </svg>
-        <div class="rpm-block">
-          <div class="rpm-bar"><div class="rpm-fill" id="rpmFill"></div></div>
-          <div class="rpm-row">
-            <span>0 rpm</span>
-            <span id="rpmScale">10000</span>
-          </div>
-        </div>
-        <div style="width:100%;text-align:center">
-          <div class="g-view-toggle" id="gViewToggle">
-            <button type="button" data-view="2d" class="active">2D</button>
-            <button type="button" data-view="3d">3D</button>
-          </div>
-          <canvas id="gMeterCanvas"></canvas>
-          <canvas id="gMeter3dCanvas" class="hidden"></canvas>
-          <div class="g-readout">
-            <span>Gx <b id="gxText">0.0</b></span>
-            <span>Gy <b id="gyText">0.0</b></span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</section>
-
-<!-- ============================================================
-     TAB: DETAIL
-     ============================================================ -->
-<section class="tab" id="tab-detail">
-
-  <!-- Hero -->
-  <div class="pw-hero">
-    <div class="pw-hero-bg"></div>
-    <div class="pw-hero-grid"></div>
-    <div class="pw-hero-content">
-      <div class="pw-hero-left">
-        <div class="pw-eyebrow">
-          <span class="pw-eyebrow-dot"></span>
-          <span>LIVE-DETAIL</span>
-        </div>
-        <h1 class="pw-hero-title">Detail<span class="pw-hero-accent">.</span></h1>
-        <p class="pw-hero-sub">Verlauf, Stints und Rundentabelle des aktiven Rennens</p>
-      </div>
-      <div class="pw-hero-telemetry">
-        <div class="pw-tel">
-          <div class="pw-tel-label">Aktive Runde</div>
-          <div class="pw-tel-value mono" id="detailHeroLapCurrent">--:--.---</div>
-        </div>
-        <div class="pw-tel">
-          <div class="pw-tel-label">Beste Runde</div>
-          <div class="pw-tel-value mono" id="detailHeroLapBest">--:--.---</div>
-        </div>
-        <div class="pw-tel">
-          <div class="pw-tel-label">Stints</div>
-          <div class="pw-tel-value mono" id="detailHeroStintCount">0</div>
-        </div>
-        <div class="pw-tel">
-          <div class="pw-tel-label">Pakete</div>
-          <div class="pw-tel-value mono" id="detailHeroPackets">0</div>
-        </div>
-      </div>
-    </div>
+  <!-- Delta-Banner — von Live nach Detail verschoben -->
+  <div class="delta-banner hidden" id="deltaBanner" style="margin-bottom:18px">
+    <span class="delta-label">Δ Live-Delta</span>
+    <span class="delta-time same" id="deltaTime">+0.000s</span>
+    <span class="delta-ref" id="deltaRef">vs. beste Runde</span>
   </div>
 
   <!-- Verlauf (Speed/RPM + G-Kraft) -->
@@ -2347,6 +2409,37 @@ body.diagnose-on .diagnose-only{display:block}
           <thead><tr><th>#</th><th>Zeit</th><th>Fahrer</th><th>Max km/h</th><th>Max RPM</th></tr></thead>
           <tbody id="lapTableBody"><tr><td colspan="5" class="muted">Noch keine Runden</td></tr></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diagnose: alle Roh-Werte der Telemetrie -->
+  <div id="detailDiagnoseSlot" style="margin-top:18px">
+    <div class="pw-module">
+      <div class="pw-mod-head">
+        <div class="pw-mod-title">Diagnose</div>
+        <span class="card-sub">Roh-Werte · Funk · Sensoren</span>
+      </div>
+      <div class="pw-diag-grid">
+        <div class="pw-diag-row"><span class="pw-diag-label">GPS Lat</span>      <span class="pw-diag-val" id="diagGpsLat">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">GPS Lon</span>      <span class="pw-diag-val" id="diagGpsLon">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">GPS Sat</span>      <span class="pw-diag-val" id="diagGpsSat">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">GPS Health</span>   <span class="pw-diag-val" id="diagGpsHealth">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Pakete</span>       <span class="pw-diag-val" id="diagPackets">0</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Lost</span>         <span class="pw-diag-val" id="diagLost">0</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Rate / s</span>     <span class="pw-diag-val" id="diagRate">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Link RSSI</span>    <span class="pw-diag-val" id="diagRssi">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Gx</span>           <span class="pw-diag-val" id="diagGx">0.00</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Gy</span>           <span class="pw-diag-val" id="diagGy">0.00</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Az</span>           <span class="pw-diag-val" id="diagAz">0.00</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Yaw °/s</span>      <span class="pw-diag-val" id="diagYaw">0</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">MPU °C</span>       <span class="pw-diag-val" id="diagMpuTemp">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Vbat</span>         <span class="pw-diag-val" id="diagVbat">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">SoC %</span>        <span class="pw-diag-val" id="diagSoc">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Batt Warn</span>    <span class="pw-diag-val" id="diagBattWarn">0</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">send_ms</span>      <span class="pw-diag-val" id="diagSendMs">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">spd_src</span>      <span class="pw-diag-val" id="diagSpdSrc">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">imu_cal</span>      <span class="pw-diag-val" id="diagImuCal">--</span></div>
       </div>
     </div>
   </div>
@@ -3117,6 +3210,7 @@ body.diagnose-on .diagnose-only{display:block}
 
 <script src="geo.js"></script>
 <script src="replay.js"></script>
+<script src="dom-targets.js"></script>
 <script src="vendor/three.min.js"></script>
 <script src="vendor/three.gltf-loader.min.js"></script>
 <script src="karts3d.js"></script>

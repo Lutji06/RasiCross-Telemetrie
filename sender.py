@@ -98,7 +98,7 @@ class Config:
 
     # Batterie (A3) — None = Feature aus. NUR ADC1-Pins (GPIO 32-39);
     # ADC2 ist bei aktivem WiFi/ESP-NOW gesperrt!
-    BATT_ADC_PIN    = None       # z.B. 34. None -> Battery-Klasse inert
+    BATT_ADC_PIN    = 34       # z.B. 34. None -> Battery-Klasse inert
     BATT_DIVIDER    = 11.0       # externer Teiler Vin/Vadc (z.B. 100k/10k)
     BATT_CELLS      = 3          # Zellen in Serie (Per-Cell + SoC)
     BATT_CAL        = 1.0        # Feinkalibrierung (Multiplikator)
