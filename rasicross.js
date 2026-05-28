@@ -3718,6 +3718,21 @@ function init() {
     try { drawTrack(); } catch (e) {}
   });
   if ($('tilesClearBtn')) $('tilesClearBtn').onclick = onTilesClearClicked;
+  if ($('liveTileToggle')) {
+    const btn = $('liveTileToggle');
+    function applyLiveTileToggleClass() {
+      if (!state.settings.tiles) return;
+      btn.classList.toggle('off', !state.settings.tiles.liveQuickToggle);
+    }
+    applyLiveTileToggleClass();
+    btn.addEventListener('click', function () {
+      if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
+      state.settings.tiles.liveQuickToggle = !state.settings.tiles.liveQuickToggle;
+      applyLiveTileToggleClass();
+      saveData();
+      try { drawTrack(); } catch (e) {}
+    });
+  }
   $('demoStartBtn').onclick = startDemo;
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab

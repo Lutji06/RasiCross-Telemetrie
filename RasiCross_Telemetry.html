@@ -828,6 +828,23 @@ select{
   position:relative;
 }
 .map canvas{width:100%;height:100%;display:block}
+.map-toggle{
+  position:absolute;
+  top:6px;
+  left:6px;
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  border:1px solid var(--bor);
+  background:rgba(0,0,0,.55);
+  color:var(--tx);
+  font:700 12px/1 monospace;
+  cursor:pointer;
+  opacity:.8;
+  z-index:2;
+}
+.map-toggle.off{opacity:.4}
+.map-toggle:hover{opacity:1}
 
 /* ============================================================
    TACHO / RPM / G
@@ -2312,7 +2329,10 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <div class="pw-mod-title">Streckenkarte</div>
           <button class="heat-btn" id="heatmapBtn">Heatmap</button>
         </div>
-        <div class="map"><canvas id="trackCanvas"></canvas></div>
+        <div class="map">
+          <canvas id="trackCanvas"></canvas>
+          <button id="liveTileToggle" class="map-toggle" title="Karten-Hintergrund umschalten" aria-label="Karten-Hintergrund umschalten">M</button>
+        </div>
         <div class="row" style="margin-top:14px;gap:10px">
           <div class="stat"><div class="t">Lat</div><div class="n" id="latText">--</div></div>
           <div class="stat"><div class="t">Lon</div><div class="n" id="lonText">--</div></div>
