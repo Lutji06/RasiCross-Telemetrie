@@ -891,6 +891,12 @@ async function saveCurrentTrack() {
   renderTrackOptions();
   saveData();
   rcToast(`Strecke "${name}" gespeichert`);
+  try {
+    const newTrack = state.savedTracks[0];
+    if (newTrack && newTrack.bounds && window.rasiTiles) {
+      startTrackTileCache(newTrack.id);
+    }
+  } catch (e) { /* silent — manual button is the fallback */ }
 }
 function loadSavedTrack(id) {
   const t = state.savedTracks.find(x => x.id === id);
@@ -927,6 +933,87 @@ async function deleteSavedTrack(id) {
   saveData();
   rcToast('Strecke gelöscht');
 }
+const TILE_Z_MIN = 16, TILE_Z_MAX = 18;
+
+function _activeTileTemplate() {
+  const t = (state.settings && state.settings.tiles && state.settings.tiles.urlTemplate) || '';
+  if (t && t.indexOf('{z}') >= 0 && t.indexOf('{x}') >= 0 && t.indexOf('{y}') >= 0) return t;
+  return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+}
+function _activeTileHost() {
+  try { return new URL(_activeTileTemplate()).host || 'unknown'; }
+  catch (_) { return 'unknown'; }
+}
+
+async function refreshTrackTileStatus(trackId) {
+  const slot = document.getElementById('trackTileStatus_' + trackId);
+  if (!slot) return;
+  if (!window.rasiTiles) { slot.textContent = 'Tile-Cache nur in Desktop-App'; return; }
+  const t = state.savedTracks.find(x => x.id === trackId);
+  if (!t || !t.bounds) { slot.textContent = ''; return; }
+  try {
+    const r = await window.rasiTiles.areaStats({
+      host: _activeTileHost(),
+      bbox: t.bounds, zMin: TILE_Z_MIN, zMax: TILE_Z_MAX,
+    });
+    if (r.total === 0) { slot.textContent = ''; return; }
+    if (r.missing === 0) {
+      slot.textContent = `Karte: ${r.cached}/${r.total} Tiles · ${formatBytes(r.bytes)}`;
+    } else {
+      slot.textContent = `Karte: ${r.cached}/${r.total} Tiles — ${r.missing} fehlen`;
+    }
+  } catch (e) {
+    slot.textContent = '';
+  }
+}
+
+let _tileCacheRun = null;
+
+async function startTrackTileCache(trackId) {
+  if (!window.rasiTiles) {
+    rcAlert('Tile-Cache nur in der Desktop-App verfügbar.', 'Karte');
+    return;
+  }
+  if (_tileCacheRun && _tileCacheRun.running) {
+    rcToast('Tiles werden bereits geladen — bitte warten.');
+    return;
+  }
+  const t = state.savedTracks.find(x => x.id === trackId);
+  if (!t || !t.bounds) return;
+  _tileCacheRun = { trackId, running: true, done: 0, total: 0 };
+  const btn = document.getElementById('trackTileBtn_' + trackId);
+  if (btn) { btn.disabled = true; btn.textContent = 'Lade …'; }
+  try {
+    if (window.rasiTiles.onProgress) {
+      window.rasiTiles.onProgress(function (p) {
+        if (!_tileCacheRun) return;
+        _tileCacheRun.done = p.done; _tileCacheRun.total = p.total;
+        if (btn) btn.textContent = `${p.done} / ${p.total}…`;
+      });
+    }
+    const r = await window.rasiTiles.cacheArea({
+      host: _activeTileHost(),
+      bbox: t.bounds,
+      urlTemplate: _activeTileTemplate(),
+      zMin: TILE_Z_MIN, zMax: TILE_Z_MAX,
+    });
+    if (r.errors > 0) {
+      rcToast(`Tiles geladen: ${r.done}/${r.total} (${r.errors} Fehler)`);
+    } else if (r.cancelled) {
+      rcToast(`Abgebrochen: ${r.done}/${r.total} Tiles`);
+    } else {
+      rcToast(`Karte für "${t.name}" geladen (${r.done} Tiles)`);
+    }
+  } catch (e) {
+    rcAlert('Tiles konnten nicht geladen werden: ' + (e && e.message ? e.message : e), 'Karte');
+  } finally {
+    _tileCacheRun = null;
+    if (btn) { btn.disabled = false; btn.textContent = 'Tiles aktualisieren'; }
+    await refreshTrackTileStatus(trackId);
+    try { drawTrack(); } catch (e) {}
+  }
+}
+
 function renderSavedTracks() {
   const list = $('savedTracksList');
   setText('savedTrackCount', state.savedTracks.length);
@@ -943,8 +1030,17 @@ function renderSavedTracks() {
       <button class="btn primary" data-action="loadSavedTrack" data-id="${t.id}">Laden</button>
       <button class="btn ghost" data-action="openTrackEditor" data-id="${t.id}">✎</button>
       <button class="btn danger" data-action="deleteSavedTrack" data-id="${t.id}">✕</button>
+      <div class="track-item-tile-row" style="flex-basis:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px">
+        <span id="trackTileStatus_${t.id}" class="muted" style="font-size:11px">…</span>
+        <button id="trackTileBtn_${t.id}" class="btn ghost" style="font-size:11px;padding:4px 10px">Tiles aktualisieren</button>
+      </div>
     </div>
   `).join('');
+  for (const t of state.savedTracks) {
+    const btn = document.getElementById('trackTileBtn_' + t.id);
+    if (btn) btn.onclick = function () { startTrackTileCache(t.id); };
+    refreshTrackTileStatus(t.id);
+  }
 }
 
 // ============================================================
