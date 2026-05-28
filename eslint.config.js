@@ -68,6 +68,7 @@ module.exports = [
         RasiKart3D: 'readonly',
         DomTargets: 'readonly',
         RasiTiles: 'readonly',
+        RasiTileRenderer: 'readonly',
       },
     },
     rules: bugRules,
@@ -80,6 +81,17 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, module: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
+  // tile-renderer.js — UMD module, uses window/document/fetch + window.rasiTiles
+  {
+    files: ['tile-renderer.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, module: 'readonly', RasiTiles: 'readonly' },
     },
     rules: bugRules,
   },
