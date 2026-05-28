@@ -562,11 +562,13 @@ function resizeCanvases() {
 function gpsXYOnCanvas(lat, lon, c, bounds) {
   const b = bounds || state.track.bounds || { minLat: lat - .0001, maxLat: lat + .0001, minLon: lon - .0001, maxLon: lon + .0001 };
   const w = c.width, h = c.height, pad = 32 * dpr();
-  const dLat = (b.maxLat - b.minLat) || 0.0001;
-  const dLon = (b.maxLon - b.minLon) || 0.0001;
-  const sc = Math.min((w - 2*pad) / dLon, (h - 2*pad) / dLat);
-  const ox = (w - dLon * sc) / 2, oy = (h - dLat * sc) / 2;
-  return { x: ox + (lon - b.minLon) * sc, y: h - oy - (lat - b.minLat) * sc };
+  // Web-Mercator via RasiTiles -- shared projection with the tile-blit layer.
+  // Reference zoom 18 cancels out of the uniform-scale fit; only ratios matter.
+  const z = 18;
+  const tr = RasiTiles.bboxToCanvasTransform(b, z, w, h, pad);
+  const gx = RasiTiles.lonToGlobalX(lon, z);
+  const gy = RasiTiles.latToGlobalY(lat, z);
+  return { x: tr.ox + (gx - tr.gxBase) * tr.sc, y: tr.oy + (gy - tr.gyBase) * tr.sc };
 }
 function drawTrack() {
   try {

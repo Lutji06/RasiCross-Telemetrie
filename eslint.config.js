@@ -67,6 +67,7 @@ module.exports = [
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',
         DomTargets: 'readonly',
+        RasiTiles: 'readonly',
       },
     },
     rules: bugRules,
