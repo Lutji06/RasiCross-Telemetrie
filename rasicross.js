@@ -288,6 +288,40 @@ const rcAudio = (() => {
 // ============================================================
 // 6. SETTINGS
 // ============================================================
+function formatBytes(b) {
+  if (!b || b < 1024) return (b | 0) + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  return (b / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function updateTilesUrlHint() {
+  const el = $('setTilesUrl');
+  const hint = $('setTilesUrlHint');
+  if (!el || !hint) return;
+  const v = (el.value || '').trim();
+  const ok = !v || (v.indexOf('{z}') >= 0 && v.indexOf('{x}') >= 0 && v.indexOf('{y}') >= 0);
+  el.classList.toggle('invalid', !ok);
+  hint.textContent = ok
+    ? (v ? 'Gültige Vorlage.' : 'Leer = OSM Standard wird verwendet.')
+    : 'Vorlage muss {z}, {x}, {y} enthalten.';
+}
+
+async function onTilesClearClicked() {
+  if (!window.rasiTiles) {
+    rcAlert('Tile-Cache nur in der Desktop-App verfügbar.', 'Karten-Hintergrund');
+    return;
+  }
+  if (!await rcConfirm('Alle gecachten Karten-Tiles löschen?', 'Cache leeren', 'Löschen', true)) return;
+  try {
+    const r = await window.rasiTiles.clearAll();
+    if (typeof RasiTileRenderer !== 'undefined') RasiTileRenderer.clearMemory();
+    rcToast(`${r.deleted || 0} Tiles entfernt (${formatBytes(r.bytes || 0)})`);
+    try { drawTrack(); renderSavedTracks(); } catch (e) {}
+  } catch (e) {
+    rcAlert('Cache konnte nicht geleert werden: ' + (e && e.message ? e.message : e), 'Karten-Hintergrund');
+  }
+}
+
 function loadSettingsToUi() {
   $('setMaxSpeed').value = state.settings.maxSpeed;
   $('setMaxRpm').value = state.settings.maxRpm;
@@ -302,6 +336,13 @@ function loadSettingsToUi() {
   if ($('setInvertGy')) $('setInvertGy').checked = !!state.calibration.invertGy;
   if ($('setSwapG')) $('setSwapG').checked = !!state.calibration.swapG;
   if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
+  if ($('setTilesEnabled')) {
+    $('setTilesEnabled').checked = !!(state.settings.tiles && state.settings.tiles.enabled);
+  }
+  if ($('setTilesUrl')) {
+    $('setTilesUrl').value = (state.settings.tiles && state.settings.tiles.urlTemplate) || '';
+    updateTilesUrlHint();
+  }
 }
 function saveSettingsFromUi() {
   state.settings.maxSpeed = Math.max(20, Math.min(200, Number($('setMaxSpeed').value) || 80));
@@ -318,6 +359,9 @@ function saveSettingsFromUi() {
   state.calibration.invertGy = !!$('setInvertGy')?.checked;
   state.calibration.swapG = !!$('setSwapG')?.checked;
   drawGMeter._trail = [];
+  if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
+  if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
+  if ($('setTilesUrl')) state.settings.tiles.urlTemplate = ($('setTilesUrl').value || '').trim();
   loadSettingsToUi();
   saveData();
   rcToast('Einstellungen gespeichert');
@@ -3570,6 +3614,14 @@ function init() {
   $('serialConnectBtn').onclick = () => state.serial.connected ? disconnectSerial() : connectSerial();
   $('autoReconnectToggle').onchange = () => { state.serial.autoReconnect = $('autoReconnectToggle').checked; };
   if ($('recAutoArmToggle')) $('recAutoArmToggle').onchange = () => { state.settings.recordAutoArm = $('recAutoArmToggle').checked; saveData(); };
+  if ($('setTilesUrl')) $('setTilesUrl').addEventListener('input', updateTilesUrlHint);
+  if ($('setTilesEnabled')) $('setTilesEnabled').addEventListener('change', function () {
+    if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
+    state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
+    saveData();
+    try { drawTrack(); } catch (e) {}
+  });
+  if ($('tilesClearBtn')) $('tilesClearBtn').onclick = onTilesClearClicked;
   $('demoStartBtn').onclick = startDemo;
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab

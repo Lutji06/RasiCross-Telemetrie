@@ -3110,6 +3110,24 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
         <button class="btn danger" id="resetAllBtn" style="margin-top:8px">🗑 Alle Daten zurücksetzen</button>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-title">Karten-Hintergrund</span><span class="card-sub">OSM-Tiles</span></div>
+      <div class="toggle-row"><span class="label-text">OSM-Hintergrund anzeigen</span><label class="toggle"><input type="checkbox" id="setTilesEnabled" checked><span class="toggle-knob"></span></label></div>
+      <div class="field" style="margin-top:10px">
+        <label>Tile-URL-Template (leer = OSM Standard)</label>
+        <input type="text" id="setTilesUrl" placeholder="z.B. https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=…" autocomplete="off">
+        <small id="setTilesUrlHint" style="display:block;color:var(--mut);font-size:11px;margin-top:4px">{z}, {x}, {y} sind Pflicht.</small>
+      </div>
+      <div class="fieldset" style="margin-top:10px">
+        <button class="btn ghost" id="tilesClearBtn">Cache leeren</button>
+        <span id="tilesCacheInfo" style="display:block;color:var(--mut);font-size:11px;margin-top:6px">—</span>
+      </div>
+      <p style="color:var(--mut);font-size:12px;margin-top:10px">
+        Karten-Tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>.
+        Eigene Tile-URL nur mit gültiger Lizenz des jeweiligen Anbieters verwenden.
+      </p>
+    </div>
   </div>
 </section>
 
