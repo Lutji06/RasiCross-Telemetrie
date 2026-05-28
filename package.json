@@ -36,6 +36,9 @@
       "geo.js",
       "replay.js",
       "karts3d.js",
+      "tiles.js",
+      "tile-renderer.js",
+      "dom-targets.js",
       "vendor/**",
       "icon.ico"
     ],
