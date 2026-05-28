@@ -294,6 +294,45 @@ function formatBytes(b) {
   return (b / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+const TILES_PRESETS = [
+  '',
+  'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+  'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+  'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+  'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+];
+
+function applyTilesPresetFromUrl() {
+  const sel = $('setTilesPreset');
+  const url = $('setTilesUrl');
+  if (!sel || !url) return;
+  const cur = (url.value || '').trim();
+  sel.value = TILES_PRESETS.indexOf(cur) >= 0 ? cur : '__custom__';
+}
+
+function onTilesPresetChanged() {
+  const sel = $('setTilesPreset');
+  const url = $('setTilesUrl');
+  if (!sel || !url) return;
+  const v = sel.value;
+  if (v === '__custom__') { url.focus(); return; }
+  if (url.value === v) return;
+  let prevHost = 'tile.openstreetmap.org';
+  try { if (url.value) prevHost = new URL(url.value).host || prevHost; } catch (_) {}
+  url.value = v;
+  updateTilesUrlHint();
+  if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
+  state.settings.tiles.urlTemplate = v;
+  saveData();
+  let newHost = 'tile.openstreetmap.org';
+  try { if (v) newHost = new URL(v).host || newHost; } catch (_) {}
+  if (prevHost !== newHost) {
+    rcToast('Stil geändert — neue Tiles können in der Strecken-Bibliothek geladen werden');
+  }
+  try { drawTrack(); renderSavedTracks(); } catch (e) {}
+}
+
 function updateTilesUrlHint() {
   const el = $('setTilesUrl');
   const hint = $('setTilesUrlHint');
@@ -342,6 +381,7 @@ function loadSettingsToUi() {
   if ($('setTilesUrl')) {
     $('setTilesUrl').value = (state.settings.tiles && state.settings.tiles.urlTemplate) || '';
     updateTilesUrlHint();
+    applyTilesPresetFromUrl();
   }
 }
 function saveSettingsFromUi() {
@@ -3710,7 +3750,8 @@ function init() {
   $('serialConnectBtn').onclick = () => state.serial.connected ? disconnectSerial() : connectSerial();
   $('autoReconnectToggle').onchange = () => { state.serial.autoReconnect = $('autoReconnectToggle').checked; };
   if ($('recAutoArmToggle')) $('recAutoArmToggle').onchange = () => { state.settings.recordAutoArm = $('recAutoArmToggle').checked; saveData(); };
-  if ($('setTilesUrl')) $('setTilesUrl').addEventListener('input', updateTilesUrlHint);
+  if ($('setTilesUrl')) $('setTilesUrl').addEventListener('input', function () { updateTilesUrlHint(); applyTilesPresetFromUrl(); });
+  if ($('setTilesPreset')) $('setTilesPreset').addEventListener('change', onTilesPresetChanged);
   if ($('setTilesEnabled')) $('setTilesEnabled').addEventListener('change', function () {
     if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
     state.settings.tiles.enabled = !!$('setTilesEnabled').checked;

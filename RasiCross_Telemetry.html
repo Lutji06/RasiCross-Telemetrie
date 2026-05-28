@@ -1478,7 +1478,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   background:var(--soft);
   border:1px solid var(--bor);
   border-radius:var(--r-md);
-  display:flex;align-items:center;gap:10px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
   transition:var(--t);
 }
 .track-item:hover{
@@ -3134,6 +3134,18 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
     <div class="card">
       <div class="card-head"><span class="card-title">Karten-Hintergrund</span><span class="card-sub">OSM-Tiles</span></div>
       <div class="toggle-row"><span class="label-text">OSM-Hintergrund anzeigen</span><label class="toggle"><input type="checkbox" id="setTilesEnabled" checked><span class="toggle-knob"></span></label></div>
+      <div class="field" style="margin-top:10px">
+        <label>Karten-Stil</label>
+        <select id="setTilesPreset" style="width:100%">
+          <option value="">OSM Standard</option>
+          <option value="https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png">Carto Hell (minimalistisch)</option>
+          <option value="https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png">Carto Voyager (saubere Karte)</option>
+          <option value="https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png">Carto Dark</option>
+          <option value="https://a.tile.opentopomap.org/{z}/{x}/{y}.png">OpenTopoMap (Topo / Outdoor)</option>
+          <option value="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}">Esri Satellit</option>
+          <option value="__custom__">Eigene URL …</option>
+        </select>
+      </div>
       <div class="field" style="margin-top:10px">
         <label>Tile-URL-Template (leer = OSM Standard)</label>
         <input type="text" id="setTilesUrl" placeholder="z.B. https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=…" autocomplete="off">
