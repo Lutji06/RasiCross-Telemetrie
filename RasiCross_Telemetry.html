@@ -1030,12 +1030,13 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   font-family:var(--mono);font-weight:600;letter-spacing:.04em;
 }
 .pw-hero-telemetry{
-  display:flex;flex-wrap:wrap;gap:12px;
+  display:grid;grid-template-columns:repeat(4,minmax(max-content,1fr));
+  gap:12px;
 }
+@media (max-width:900px){.pw-hero-telemetry{grid-template-columns:repeat(2,minmax(max-content,1fr))}}
 .pw-tel{
   padding:14px 16px;border-radius:12px;
   background:rgba(255,255,255,.03);border:1px solid var(--bor);
-  width:max-content;
 }
 .pw-tel-label{
   font-family:var(--mono);font-size:9.5px;font-weight:800;
@@ -1373,7 +1374,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .pw-hero--compact .pw-hero-title{font-size:26px;margin-bottom:0;line-height:1}
 .pw-hero--compact .pw-hero-sub{display:none}
 .pw-hero--compact .pw-hero-telemetry{
-  flex:1 1 auto;gap:10px;justify-content:space-between;
+  flex:1 1 auto;min-width:0;gap:10px;
 }
 .pw-hero--compact .pw-tel{padding:8px 12px}
 .pw-hero--compact .pw-tel-label{margin-bottom:3px}
