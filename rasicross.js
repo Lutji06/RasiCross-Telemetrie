@@ -583,6 +583,19 @@ function drawTrackOn(c) {
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = css('--soft');
   ctx.fillRect(0, 0, w, h);
+  // ---- Tile background (Phase 17) ----
+  // Excluded: editorCanvas (sector-editor needs neutral contrast).
+  // Excluded: trackCanvas when state.settings.tiles.liveQuickToggle === false.
+  let _tilesPaintedAtZ = null;
+  try {
+    if (c.id !== 'editorCanvas' && typeof RasiTileRenderer !== 'undefined') {
+      const liveSuppressed = (c.id === 'trackCanvas' && state.settings.tiles && state.settings.tiles.liveQuickToggle === false);
+      if (!liveSuppressed && state.track.bounds) {
+        RasiTileRenderer.ensureBbox(state.track.bounds, w, h);
+        _tilesPaintedAtZ = RasiTileRenderer.paintTilesOn(ctx, c, state.track.bounds);
+      }
+    }
+  } catch (e) { /* silent */ }
   const pts = state.track.points;
   if (!pts || pts.length < 2) {
     // Wenn der Scan-Canvas (Strecke-Tab) gezeichnet wird, übernimmt die HTML
@@ -645,6 +658,16 @@ function drawTrackOn(c) {
     ctx.arc(xy.x, xy.y, 7 * dpr(), 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
+  }
+  // ---- Attribution overlay (OSM Tile Usage Policy) ----
+  if (_tilesPaintedAtZ !== null) {
+    ctx.save();
+    ctx.font = (10 * dpr()) + 'px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(255,255,255,.65)';
+    ctx.fillText('© OpenStreetMap-Mitwirkende', w - 6 * dpr(), h - 4 * dpr());
+    ctx.restore();
   }
 }
 function drawLineOn(ctx, c, ep, color, label, flash) {
@@ -3460,6 +3483,14 @@ function initKartModelUploader() {
 // ============================================================
 function init() {
   loadData();
+  try {
+    if (typeof RasiTileRenderer !== 'undefined') {
+      RasiTileRenderer.init({
+        getSettings: function () { return state.settings.tiles || { enabled: false, urlTemplate: '', liveQuickToggle: true }; },
+        redraw: function () { try { drawTrack(); } catch (e) {} },
+      });
+    }
+  } catch (e) { console.warn('tile-renderer init:', e); }
   applyTheme();
   loadSettingsToUi();
   setupTabs();
