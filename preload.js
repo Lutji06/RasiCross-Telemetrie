@@ -23,3 +23,12 @@ contextBridge.exposeInMainWorld("rasiKart", {
   loadKartModel:  ()      => ipcRenderer.invoke("rasi-kart:load"),
   clearKartModel: ()      => ipcRenderer.invoke("rasi-kart:clear"),
 });
+
+contextBridge.exposeInMainWorld("rasiTiles", {
+  fetchTile:  (args) => ipcRenderer.invoke("rasi-tiles:fetch", args),
+  cacheArea:  (args) => ipcRenderer.invoke("rasi-tiles:cacheArea", args),
+  cancel:     ()     => ipcRenderer.invoke("rasi-tiles:cancel"),
+  areaStats:  (args) => ipcRenderer.invoke("rasi-tiles:areaStats", args),
+  clearAll:   ()     => ipcRenderer.invoke("rasi-tiles:clearAll"),
+  onProgress: (cb) => { ipcRenderer.on("rasi-tiles:progress", (_, p) => { try { cb(p); } catch(e) { console.error(e); } }); },
+});

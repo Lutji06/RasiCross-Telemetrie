@@ -26,7 +26,7 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 - **Eigenes 3D-Modell** — `.glb`/`.gltf` für den 3D-Viewer hochladen (Settings-Tab), ersetzt das Standard-Kart, persistent gespeichert
 - **Batterie-Monitoring** — Live-Spannung/SOC/Zellenspannung, akustische Warnung bei niedrigem Stand
 - **GPS-Ausfall-Fallback** — bei GPS-Verlust automatisch auf Radumfang-basierte Geschwindigkeit umschalten
-- **Test-Suite** — 70 Unit-Tests (36 JS, 34 Python) laufen automatisch in CI bei jedem Push
+- **Test-Suite** — 86 Unit-Tests (52 JS, 34 Python) laufen automatisch in CI bei jedem Push
 
 ---
 
@@ -244,6 +244,32 @@ Im Settings-Tab → Karte *"Kart-Modell"* kann eine eigene `.glb` oder `.gltf` (
 - **Ausrichtung** lässt sich in 90°-Schritten (0° / 90° / 180° / 270°) nachjustieren, falls die Vorderachse nicht in +X zeigt.
 - Persistent gespeichert (Electron `userData/karts/active.glb`) — wird beim nächsten Start automatisch geladen.
 - *Zurücksetzen* stellt das Standard-Primitive-Kart wieder her.
+
+### Karten-Hintergrund (OSM, offline-fähig)
+
+Über der Track-Karte wird ein OpenStreetMap-Raster-Hintergrund eingeblendet,
+sobald für eine Strecke Tiles vorliegen.
+
+- **Auto-Cache:** Beim Klick auf *"Strecke speichern"* lädt das Dashboard im
+  Hintergrund alle Tiles für die Streckengrenzen (Zoom 16–18, typisch
+  40–80 Tiles, ~1–2 MB). Voraussetzung: Internet zum Zeitpunkt des
+  Speicherns.
+- **Offline:** Sobald die Tiles im Cache sind, wird die Karte komplett ohne
+  Netzwerk gerendert — ideal für die Boxengasse ohne Empfang.
+- **Manueller Refresh:** Im Strecken-Tab steht neben jeder Strecke ein
+  *Tiles aktualisieren*-Knopf mit Status („Karte: 42/42 Tiles · 1,3 MB").
+- **Live-Schalter:** Kleiner *M*-Knopf links oben auf der Live-Karte schaltet
+  den Hintergrund während des Rennens an/aus.
+- **Eigene Tile-URL:** In den Einstellungen → *"Karten-Hintergrund"* lässt sich
+  eine eigene `{z}/{x}/{y}`-URL (z. B. MapTiler, Stadia, Carto) hinterlegen.
+  Leer = OpenStreetMap Standard.
+- **Cache leeren:** Settings → *"Cache leeren"* entfernt alle gecachten Tiles
+  von der Festplatte (`userData/tiles/`).
+
+> Karten © [OpenStreetMap-Mitwirkende](https://www.openstreetmap.org/copyright).
+> Bei eigener Tile-URL gelten die Lizenzbedingungen des jeweiligen Anbieters.
+> Die Browser-Variante (`RasiCross_Telemetry.html` direkt im Browser) hat
+> dieses Feature nicht — es ist Desktop-App only.
 
 ### Live-Charts
 

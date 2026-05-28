@@ -44,7 +44,7 @@ const state = {
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
-  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0 },
+  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true } },
   calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false },
   theme: 'dark',
   // Telemetry
@@ -288,6 +288,40 @@ const rcAudio = (() => {
 // ============================================================
 // 6. SETTINGS
 // ============================================================
+function formatBytes(b) {
+  if (!b || b < 1024) return (b | 0) + ' B';
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+  return (b / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function updateTilesUrlHint() {
+  const el = $('setTilesUrl');
+  const hint = $('setTilesUrlHint');
+  if (!el || !hint) return;
+  const v = (el.value || '').trim();
+  const ok = !v || (v.indexOf('{z}') >= 0 && v.indexOf('{x}') >= 0 && v.indexOf('{y}') >= 0);
+  el.classList.toggle('invalid', !ok);
+  hint.textContent = ok
+    ? (v ? 'Gültige Vorlage.' : 'Leer = OSM Standard wird verwendet.')
+    : 'Vorlage muss {z}, {x}, {y} enthalten.';
+}
+
+async function onTilesClearClicked() {
+  if (!window.rasiTiles) {
+    rcAlert('Tile-Cache nur in der Desktop-App verfügbar.', 'Karten-Hintergrund');
+    return;
+  }
+  if (!await rcConfirm('Alle gecachten Karten-Tiles löschen?', 'Cache leeren', 'Löschen', true)) return;
+  try {
+    const r = await window.rasiTiles.clearAll();
+    if (typeof RasiTileRenderer !== 'undefined') RasiTileRenderer.clearMemory();
+    rcToast(`${r.deleted || 0} Tiles entfernt (${formatBytes(r.bytes || 0)})`);
+    try { drawTrack(); renderSavedTracks(); } catch (e) {}
+  } catch (e) {
+    rcAlert('Cache konnte nicht geleert werden: ' + (e && e.message ? e.message : e), 'Karten-Hintergrund');
+  }
+}
+
 function loadSettingsToUi() {
   $('setMaxSpeed').value = state.settings.maxSpeed;
   $('setMaxRpm').value = state.settings.maxRpm;
@@ -302,6 +336,13 @@ function loadSettingsToUi() {
   if ($('setInvertGy')) $('setInvertGy').checked = !!state.calibration.invertGy;
   if ($('setSwapG')) $('setSwapG').checked = !!state.calibration.swapG;
   if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
+  if ($('setTilesEnabled')) {
+    $('setTilesEnabled').checked = !!(state.settings.tiles && state.settings.tiles.enabled);
+  }
+  if ($('setTilesUrl')) {
+    $('setTilesUrl').value = (state.settings.tiles && state.settings.tiles.urlTemplate) || '';
+    updateTilesUrlHint();
+  }
 }
 function saveSettingsFromUi() {
   state.settings.maxSpeed = Math.max(20, Math.min(200, Number($('setMaxSpeed').value) || 80));
@@ -318,6 +359,9 @@ function saveSettingsFromUi() {
   state.calibration.invertGy = !!$('setInvertGy')?.checked;
   state.calibration.swapG = !!$('setSwapG')?.checked;
   drawGMeter._trail = [];
+  if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
+  if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
+  if ($('setTilesUrl')) state.settings.tiles.urlTemplate = ($('setTilesUrl').value || '').trim();
   loadSettingsToUi();
   saveData();
   rcToast('Einstellungen gespeichert');
@@ -562,11 +606,13 @@ function resizeCanvases() {
 function gpsXYOnCanvas(lat, lon, c, bounds) {
   const b = bounds || state.track.bounds || { minLat: lat - .0001, maxLat: lat + .0001, minLon: lon - .0001, maxLon: lon + .0001 };
   const w = c.width, h = c.height, pad = 32 * dpr();
-  const dLat = (b.maxLat - b.minLat) || 0.0001;
-  const dLon = (b.maxLon - b.minLon) || 0.0001;
-  const sc = Math.min((w - 2*pad) / dLon, (h - 2*pad) / dLat);
-  const ox = (w - dLon * sc) / 2, oy = (h - dLat * sc) / 2;
-  return { x: ox + (lon - b.minLon) * sc, y: h - oy - (lat - b.minLat) * sc };
+  // Web-Mercator via RasiTiles -- shared projection with the tile-blit layer.
+  // Reference zoom 18 cancels out of the uniform-scale fit; only ratios matter.
+  const z = 18;
+  const tr = RasiTiles.bboxToCanvasTransform(b, z, w, h, pad);
+  const gx = RasiTiles.lonToGlobalX(lon, z);
+  const gy = RasiTiles.latToGlobalY(lat, z);
+  return { x: tr.ox + (gx - tr.gxBase) * tr.sc, y: tr.oy + (gy - tr.gyBase) * tr.sc };
 }
 function drawTrack() {
   try {
@@ -581,6 +627,19 @@ function drawTrackOn(c) {
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = css('--soft');
   ctx.fillRect(0, 0, w, h);
+  // ---- Tile background (Phase 17) ----
+  // Excluded: editorCanvas (sector-editor needs neutral contrast).
+  // Excluded: trackCanvas when state.settings.tiles.liveQuickToggle === false.
+  let _tilesPaintedAtZ = null;
+  try {
+    if (c.id !== 'editorCanvas' && typeof RasiTileRenderer !== 'undefined') {
+      const liveSuppressed = (c.id === 'trackCanvas' && state.settings.tiles && state.settings.tiles.liveQuickToggle === false);
+      if (!liveSuppressed && state.track.bounds) {
+        RasiTileRenderer.ensureBbox(state.track.bounds, w, h);
+        _tilesPaintedAtZ = RasiTileRenderer.paintTilesOn(ctx, c, state.track.bounds);
+      }
+    }
+  } catch (e) { /* silent */ }
   const pts = state.track.points;
   if (!pts || pts.length < 2) {
     // Wenn der Scan-Canvas (Strecke-Tab) gezeichnet wird, übernimmt die HTML
@@ -643,6 +702,16 @@ function drawTrackOn(c) {
     ctx.arc(xy.x, xy.y, 7 * dpr(), 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
+  }
+  // ---- Attribution overlay (OSM Tile Usage Policy) ----
+  if (_tilesPaintedAtZ !== null) {
+    ctx.save();
+    ctx.font = (10 * dpr()) + 'px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(255,255,255,.65)';
+    ctx.fillText('© OpenStreetMap-Mitwirkende', w - 6 * dpr(), h - 4 * dpr());
+    ctx.restore();
   }
 }
 function drawLineOn(ctx, c, ep, color, label, flash) {
@@ -822,6 +891,12 @@ async function saveCurrentTrack() {
   renderTrackOptions();
   saveData();
   rcToast(`Strecke "${name}" gespeichert`);
+  try {
+    const newTrack = state.savedTracks[0];
+    if (newTrack && newTrack.bounds && window.rasiTiles) {
+      startTrackTileCache(newTrack.id);
+    }
+  } catch (e) { /* silent — manual button is the fallback */ }
 }
 function loadSavedTrack(id) {
   const t = state.savedTracks.find(x => x.id === id);
@@ -858,6 +933,87 @@ async function deleteSavedTrack(id) {
   saveData();
   rcToast('Strecke gelöscht');
 }
+const TILE_Z_MIN = 16, TILE_Z_MAX = 18;
+
+function _activeTileTemplate() {
+  const t = (state.settings && state.settings.tiles && state.settings.tiles.urlTemplate) || '';
+  if (t && t.indexOf('{z}') >= 0 && t.indexOf('{x}') >= 0 && t.indexOf('{y}') >= 0) return t;
+  return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+}
+function _activeTileHost() {
+  try { return new URL(_activeTileTemplate()).host || 'unknown'; }
+  catch (_) { return 'unknown'; }
+}
+
+async function refreshTrackTileStatus(trackId) {
+  const slot = document.getElementById('trackTileStatus_' + trackId);
+  if (!slot) return;
+  if (!window.rasiTiles) { slot.textContent = 'Tile-Cache nur in Desktop-App'; return; }
+  const t = state.savedTracks.find(x => x.id === trackId);
+  if (!t || !t.bounds) { slot.textContent = ''; return; }
+  try {
+    const r = await window.rasiTiles.areaStats({
+      host: _activeTileHost(),
+      bbox: t.bounds, zMin: TILE_Z_MIN, zMax: TILE_Z_MAX,
+    });
+    if (r.total === 0) { slot.textContent = ''; return; }
+    if (r.missing === 0) {
+      slot.textContent = `Karte: ${r.cached}/${r.total} Tiles · ${formatBytes(r.bytes)}`;
+    } else {
+      slot.textContent = `Karte: ${r.cached}/${r.total} Tiles — ${r.missing} fehlen`;
+    }
+  } catch (e) {
+    slot.textContent = '';
+  }
+}
+
+let _tileCacheRun = null;
+
+async function startTrackTileCache(trackId) {
+  if (!window.rasiTiles) {
+    rcAlert('Tile-Cache nur in der Desktop-App verfügbar.', 'Karte');
+    return;
+  }
+  if (_tileCacheRun && _tileCacheRun.running) {
+    rcToast('Tiles werden bereits geladen — bitte warten.');
+    return;
+  }
+  const t = state.savedTracks.find(x => x.id === trackId);
+  if (!t || !t.bounds) return;
+  _tileCacheRun = { trackId, running: true, done: 0, total: 0 };
+  const btn = document.getElementById('trackTileBtn_' + trackId);
+  if (btn) { btn.disabled = true; btn.textContent = 'Lade …'; }
+  try {
+    if (window.rasiTiles.onProgress) {
+      window.rasiTiles.onProgress(function (p) {
+        if (!_tileCacheRun) return;
+        _tileCacheRun.done = p.done; _tileCacheRun.total = p.total;
+        if (btn) btn.textContent = `${p.done} / ${p.total}…`;
+      });
+    }
+    const r = await window.rasiTiles.cacheArea({
+      host: _activeTileHost(),
+      bbox: t.bounds,
+      urlTemplate: _activeTileTemplate(),
+      zMin: TILE_Z_MIN, zMax: TILE_Z_MAX,
+    });
+    if (r.errors > 0) {
+      rcToast(`Tiles geladen: ${r.done}/${r.total} (${r.errors} Fehler)`);
+    } else if (r.cancelled) {
+      rcToast(`Abgebrochen: ${r.done}/${r.total} Tiles`);
+    } else {
+      rcToast(`Karte für "${t.name}" geladen (${r.done} Tiles)`);
+    }
+  } catch (e) {
+    rcAlert('Tiles konnten nicht geladen werden: ' + (e && e.message ? e.message : e), 'Karte');
+  } finally {
+    _tileCacheRun = null;
+    if (btn) { btn.disabled = false; btn.textContent = 'Tiles aktualisieren'; }
+    await refreshTrackTileStatus(trackId);
+    try { drawTrack(); } catch (e) {}
+  }
+}
+
 function renderSavedTracks() {
   const list = $('savedTracksList');
   setText('savedTrackCount', state.savedTracks.length);
@@ -874,8 +1030,17 @@ function renderSavedTracks() {
       <button class="btn primary" data-action="loadSavedTrack" data-id="${t.id}">Laden</button>
       <button class="btn ghost" data-action="openTrackEditor" data-id="${t.id}">✎</button>
       <button class="btn danger" data-action="deleteSavedTrack" data-id="${t.id}">✕</button>
+      <div class="track-item-tile-row" style="flex-basis:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px">
+        <span id="trackTileStatus_${t.id}" class="muted" style="font-size:11px">…</span>
+        <button id="trackTileBtn_${t.id}" class="btn ghost" style="font-size:11px;padding:4px 10px">Tiles aktualisieren</button>
+      </div>
     </div>
   `).join('');
+  for (const t of state.savedTracks) {
+    const btn = document.getElementById('trackTileBtn_' + t.id);
+    if (btn) btn.onclick = function () { startTrackTileCache(t.id); };
+    refreshTrackTileStatus(t.id);
+  }
 }
 
 // ============================================================
@@ -3458,6 +3623,14 @@ function initKartModelUploader() {
 // ============================================================
 function init() {
   loadData();
+  try {
+    if (typeof RasiTileRenderer !== 'undefined') {
+      RasiTileRenderer.init({
+        getSettings: function () { return state.settings.tiles || { enabled: false, urlTemplate: '', liveQuickToggle: true }; },
+        redraw: function () { try { drawTrack(); } catch (e) {} },
+      });
+    }
+  } catch (e) { console.warn('tile-renderer init:', e); }
   applyTheme();
   loadSettingsToUi();
   setupTabs();
@@ -3537,6 +3710,29 @@ function init() {
   $('serialConnectBtn').onclick = () => state.serial.connected ? disconnectSerial() : connectSerial();
   $('autoReconnectToggle').onchange = () => { state.serial.autoReconnect = $('autoReconnectToggle').checked; };
   if ($('recAutoArmToggle')) $('recAutoArmToggle').onchange = () => { state.settings.recordAutoArm = $('recAutoArmToggle').checked; saveData(); };
+  if ($('setTilesUrl')) $('setTilesUrl').addEventListener('input', updateTilesUrlHint);
+  if ($('setTilesEnabled')) $('setTilesEnabled').addEventListener('change', function () {
+    if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
+    state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
+    saveData();
+    try { drawTrack(); } catch (e) {}
+  });
+  if ($('tilesClearBtn')) $('tilesClearBtn').onclick = onTilesClearClicked;
+  if ($('liveTileToggle')) {
+    const btn = $('liveTileToggle');
+    function applyLiveTileToggleClass() {
+      if (!state.settings.tiles) return;
+      btn.classList.toggle('off', !state.settings.tiles.liveQuickToggle);
+    }
+    applyLiveTileToggleClass();
+    btn.addEventListener('click', function () {
+      if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
+      state.settings.tiles.liveQuickToggle = !state.settings.tiles.liveQuickToggle;
+      applyLiveTileToggleClass();
+      saveData();
+      try { drawTrack(); } catch (e) {}
+    });
+  }
   $('demoStartBtn').onclick = startDemo;
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab
