@@ -978,6 +978,10 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   border:1px solid var(--bor);
   background:linear-gradient(135deg,var(--surf2) 0%,var(--surf) 60%);
 }
+[data-theme=light] .pw-hero{
+  background:linear-gradient(135deg,var(--soft2) 0%,var(--surf2) 60%);
+  border-color:var(--bor2);
+}
 .pw-hero-bg{
   position:absolute;inset:-40% -10% auto auto;width:75%;height:200%;
   background:
@@ -1369,7 +1373,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .pw-hero--compact .pw-hero-title{font-size:26px;margin-bottom:0;line-height:1}
 .pw-hero--compact .pw-hero-sub{display:none}
 .pw-hero--compact .pw-hero-telemetry{
-  flex:1 1 auto;gap:10px;justify-content:flex-end;
+  flex:1 1 auto;gap:10px;justify-content:space-between;
 }
 .pw-hero--compact .pw-tel{padding:8px 12px}
 .pw-hero--compact .pw-tel-label{margin-bottom:3px}
