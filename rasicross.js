@@ -3416,6 +3416,22 @@ function fastForwardTo(targetMs) {
   state.replay.idx = end;
   state.replay.virtualMs = targetMs;
 }
+// Drift-Phasen als proportionale Marker über dem Replay-Seek (Phase 18).
+function renderDriftStrip(spans, durationMs) {
+  const strip = $('rpDriftStrip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  const dur = Number(durationMs) || 0;
+  if (!dur || !spans || !spans.length) return;
+  for (const s of spans) {
+    const a = Math.max(0, Math.min(100, s.startMs / dur * 100));
+    const b = Math.max(0, Math.min(100, s.endMs / dur * 100));
+    const tick = document.createElement('i');
+    tick.style.left = a + '%';
+    tick.style.width = Math.max(0.3, b - a) + '%';
+    strip.appendChild(tick);
+  }
+}
 function loadRecordingFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -3440,6 +3456,7 @@ function enterReplay(parsed) {
   const _ds = RasiDrift.summarize(parsed.packets, state.settings.drift);
   state.replay.driftSummary = _ds;
   setText('rpDrift', _ds.counted ? `${_ds.driftPct.toFixed(0)}% · max ${_ds.maxIndex.toFixed(1)}` : '–');
+  renderDriftStrip(RasiDrift.driftSpans(parsed.packets, state.settings.drift), parsed.durationMs);
   state.replay.idx = 0;
   state.replay.virtualMs = 0;
   state.replay.durationMs = parsed.durationMs;

@@ -2137,7 +2137,10 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
   align-items:center;gap:14px;padding:12px 20px;background:var(--card,#15171c);
   border-top:1px solid var(--border,#2a2d36);box-shadow:0 -6px 24px rgba(0,0,0,.35)}
 .replay-bar.hidden{display:none}
-.replay-bar .rp-seek{flex:1;min-width:120px;accent-color:var(--pr,#7aa2f7)}
+.replay-bar .rp-seek-wrap{position:relative;flex:1;min-width:120px;display:flex;align-items:center}
+.replay-bar .rp-seek-wrap .rp-seek{flex:1;width:100%;accent-color:var(--pr,#7aa2f7)}
+.replay-bar .rp-drift-strip{position:absolute;left:0;right:0;top:-7px;height:4px;pointer-events:none}
+.replay-bar .rp-drift-strip i{position:absolute;top:0;height:4px;background:var(--warn,#e0a13a);border-radius:2px;min-width:2px}
 .replay-bar .rp-time{font-family:var(--mono,monospace);font-size:12px;color:var(--mut,#8b90a0);white-space:nowrap}
 .replay-bar select{background:var(--bg,#0e0f13);color:var(--tx,#e8eaf0);border:1px solid var(--border,#2a2d36);border-radius:8px;padding:6px 8px;font-size:12px}
 .replay-bar #rpPlayBtn{min-width:44px;font-size:15px}
@@ -3342,7 +3345,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 
 <div id="replayBar" class="replay-bar hidden">
   <button class="btn ghost" id="rpPlayBtn">⏸</button>
-  <input type="range" id="rpSeek" class="rp-seek" min="0" max="1000" value="0">
+  <span class="rp-seek-wrap"><span id="rpDriftStrip" class="rp-drift-strip"></span><input type="range" id="rpSeek" class="rp-seek" min="0" max="1000" value="0"></span>
   <span class="rp-time"><b id="rpElapsed">00:00</b> / <b id="rpTotal">00:00</b></span>
   <span class="rp-time" title="Drift-Zeitanteil · stärkster Index">Drift <b id="rpDrift">–</b></span>
   <select id="rpSpeed" title="Wiedergabe-Geschwindigkeit">
