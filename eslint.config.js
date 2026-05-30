@@ -69,7 +69,19 @@ module.exports = [
         DomTargets: 'readonly',
         RasiTiles: 'readonly',
         RasiTileRenderer: 'readonly',
+        RasiDrift: 'readonly',
       },
+    },
+    rules: bugRules,
+  },
+
+  // drift.js setzt window.RasiDrift (UMD, Browser + node:test)
+  {
+    files: ['drift.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, module: 'readonly' },
     },
     rules: bugRules,
   },
