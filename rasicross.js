@@ -3437,6 +3437,9 @@ function enterReplay(parsed) {
   if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
   state.replay.active = true;
   state.replay.packets = parsed.packets;
+  const _ds = RasiDrift.summarize(parsed.packets, state.settings.drift);
+  state.replay.driftSummary = _ds;
+  setText('rpDrift', _ds.counted ? `${_ds.driftPct.toFixed(0)}% · max ${_ds.maxIndex.toFixed(1)}` : '–');
   state.replay.idx = 0;
   state.replay.virtualMs = 0;
   state.replay.durationMs = parsed.durationMs;
