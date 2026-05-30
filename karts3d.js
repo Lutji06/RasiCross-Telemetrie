@@ -82,6 +82,36 @@ function kartModelYawReducer(current, action) {
   return c;
 }
 
+// driftArrowSpec: Darstellungs-Parameter fuer den 3D-Drift-Pfeil aus dem
+// Phase-18-Driftzustand. Rein, wirft nie. Laenge ~ Drift-Index (0..2 -> 0..maxLen),
+// Richtung = Vorzeichen der gemessenen Gierrate, Farbe je Status. 'n/a'/fehlende
+// Daten -> unsichtbar.
+var DRIFT_3D_COLOR = {
+  grip:       0x3ee08a,   // gruen  (wie _zoneColor green)
+  oversteer:  0xffa336,   // amber  (wie _zoneColor orange)
+  understeer: 0x7aa2f7,   // blau   (wie 2D-Badge --blue)
+  counter:    0xff5470    // rot    (wie _zoneColor red)
+};
+function driftArrowSpec(status, index, yawRate, opts) {
+  opts = opts || {};
+  var maxLen = Number(opts.maxLen) || 1.6;
+  var minLen = Number(opts.minLen) || 0.06;
+  var color = DRIFT_3D_COLOR[status];
+  var idx = Number(index);
+  if (color == null || index == null || !isFinite(idx)) {
+    return { visible: false, length: 0, dirSign: 0, color: 0xffffff };
+  }
+  var clamped = Math.max(0, Math.min(2, idx));
+  var length = clamped / 2 * maxLen;
+  var dirSign = (Number(yawRate) || 0) >= 0 ? 1 : -1;
+  return {
+    visible: length > 0.05,
+    length: Math.max(length, minLen),
+    dirSign: dirSign,
+    color: color
+  };
+}
+
 // ── DOM/WebGL wrapper (gated by typeof THREE) ──────────────
 // All fields prefixed with `_` to mark module-internal state.
 var _scene = null;
@@ -461,6 +491,7 @@ function _disposeGroup(group) {
     gViewReducer: gViewReducer,
     computeAutoFitScale: computeAutoFitScale,
     kartModelYawReducer: kartModelYawReducer,
+    driftArrowSpec: driftArrowSpec,
     init: init,
     update: update,
     start: start,
