@@ -55,8 +55,9 @@ const state = {
   spdSrc: 'gps',
   batt: { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 },
   max: { speed: 0, rpm: 0, g: 0 },
-  charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [] },
+  charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] },
   imu: { yaw: 0, mtemp: null },
+  drift: { status: 'n/a', index: null },
   heatmap: { on: false, lapMaxSpeed: 0 },
   // Track
   track: { points: [], bounds: null, scanning: false, totalDistance: 0, maxDistFromStart: 0, closed: false },
@@ -461,6 +462,10 @@ function processTelemetry(d) {
     if (state.calibration.swapG) { const tmp = gx; gx = gy; gy = tmp; }
     if (state.calibration.invertGx) gx = -gx;
     if (state.calibration.invertGy) gy = -gy;
+    // Drift (Phase 18): gemessene vs. erwartete Gierrate. gy = transformierte
+    // Querbeschleunigung, yawv = Gier-Rate (Gyro-Z), speed in km/h.
+    state.drift = RasiDrift.analyze(
+      { yawRate: yawv, latAccel: gy, speed: speed }, state.settings.drift);
     const lat = Number(d.lat);
     const lon = Number(d.lon);
     const hasGps = !!(d.gps_fix ?? d.fix ?? (lat && lon));
@@ -499,6 +504,7 @@ function processTelemetry(d) {
       state.charts.gy.push(gy);
       state.charts.gz.push(gz);
       state.charts.yaw.push(yawv);
+      state.charts.driftIndex.push(state.drift.index == null ? 0 : state.drift.index);
       const max = 600;
       while (state.charts.speed.length > max) state.charts.speed.shift();
       while (state.charts.rpm.length > max) state.charts.rpm.shift();
@@ -506,6 +512,7 @@ function processTelemetry(d) {
       while (state.charts.gy.length > max) state.charts.gy.shift();
       while (state.charts.gz.length > max) state.charts.gz.shift();
       while (state.charts.yaw.length > max) state.charts.yaw.shift();
+      while (state.charts.driftIndex.length > max) state.charts.driftIndex.shift();
     }
     // Track current lap trace
     if (state.lapStart && lat && lon) {
@@ -3321,7 +3328,7 @@ function saveRecording() {
 // Slices that processTelemetry / onGpsUpdate / lap-sector-race
 // detection mutate. Snapshot on enter, restore verbatim on exit.
 const REPLAY_KEYS = ['connection','hz','telemetry','raw','display','gps','spdSrc',
-  'batt','max','charts','imu','heatmap','sectors','lapStart','currentLapMax',
+  'batt','max','charts','imu','drift','heatmap','sectors','lapStart','currentLapMax',
   'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap',
   'drivers','races','activeRaceId','selectedRaceId','gateFlashUntil'];
 
@@ -3347,8 +3354,9 @@ function resetReplayDerived() {
   state.spdSrc = 'gps';
   state.batt = { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 };
   state.max = { speed: 0, rpm: 0, g: 0 };
-  state.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [] };
+  state.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] };
   state.imu = { yaw: 0, mtemp: null };
+  state.drift = { status: 'n/a', index: null };
   state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
   state.sectors = { boundaries: state.sectors.boundaries, cur: 0, sectorStart: null,
     lapSectors: [null, null, null], best: [null, null, null], lastLapSectors: null,
