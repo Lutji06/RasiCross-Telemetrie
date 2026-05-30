@@ -544,6 +544,22 @@ function processTelemetry(d) {
 // ============================================================
 // 8. TACHO / RPM / G-METER
 // ============================================================
+// Drift-Badge (Phase 18): Label + Indexwert + Farbe je Status.
+const DRIFT_LABEL = { 'n/a': '–', grip: 'Grip', oversteer: 'Drift',
+                      understeer: 'Schiebt', counter: 'Spin' };
+const DRIFT_COLOR = { 'n/a': '', grip: 'var(--green,#5ad17a)',
+                      oversteer: 'var(--warn,#e0a13a)',
+                      understeer: 'var(--blue,#7aa2f7)',
+                      counter: 'var(--danger,#e05a5a)' };
+function renderDriftBadge() {
+  const el = $('kDrift');
+  if (!el) return;
+  const st = (state.drift && state.drift.status) || 'n/a';
+  const idx = state.drift && state.drift.index;
+  const label = DRIFT_LABEL[st] || '–';
+  el.textContent = (st === 'n/a' || idx == null) ? label : `${label} ${idx.toFixed(1)}`;
+  el.style.color = DRIFT_COLOR[st] || '';
+}
 const LERP = 0.18;
 function lerp(a, b) { return a + (b - a) * LERP; }
 function renderGauges() {
@@ -2483,6 +2499,7 @@ function updateLiveKPIs() {
     setText('kGMax', state.max.g.toFixed(1));
     setText('kYaw', Math.round(state.imu.yaw));
     setText('kMtemp', state.imu.mtemp == null ? '--' : Math.round(state.imu.mtemp));
+    renderDriftBadge();
     // Rundenzeit: nur alle 100ms aktualisieren ist ok
     const lapText = state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
