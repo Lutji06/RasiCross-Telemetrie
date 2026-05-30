@@ -581,7 +581,8 @@ function renderGauges() {
       gy: state.display.gyLerp,
       gz: state.telemetry.gz || 0,
       yaw: state.imu.yaw || 0,
-      dtMs: dtMs
+      dtMs: dtMs,
+      drift: state.drift
     });
   } else {
     drawGMeter();
