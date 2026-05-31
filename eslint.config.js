@@ -70,6 +70,7 @@ module.exports = [
         RasiTiles: 'readonly',
         RasiTileRenderer: 'readonly',
         RasiDrift: 'readonly',
+        RasiAttitude: 'readonly',
       },
     },
     rules: bugRules,

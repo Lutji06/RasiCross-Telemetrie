@@ -44,8 +44,8 @@ const state = {
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
-  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 } },
-  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false, invertYaw: false },
+  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 }, rollover: { angleDeg: 75 } },
+  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false, invertYaw: false, rollZero: 0 },
   theme: 'dark',
   // Telemetry
   telemetry: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
@@ -58,6 +58,7 @@ const state = {
   charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] },
   imu: { yaw: 0, mtemp: null },
   drift: { status: 'n/a', index: null },
+  attitude: { rollDeg: 0, over: false, overState: { active: false } },
   driftSmooth: { idxEma: null, status: 'n/a', counterRun: 0 },
   heatmap: { on: false, lapMaxSpeed: 0 },
   // Track
@@ -282,6 +283,7 @@ const rcAudio = (() => {
     pitCall:    () => { beep(660, 200, 0.2); setTimeout(() => beep(880, 200, 0.2), 220); },
     battWarn:   () => beep(300, 350, 0.2),
     battCrit:   () => { beep(200, 300, 0.25); setTimeout(() => beep(200, 300, 0.25), 320); },
+    rollover:   () => { beep(160, 300, 0.3); setTimeout(() => beep(120, 450, 0.3), 300); },
     setEnabled: (v) => { enabled = !!v; try { localStorage.setItem('rc_audio', v ? '1' : '0'); } catch(e){} },
     isEnabled:  () => enabled,
   };
@@ -494,6 +496,23 @@ function processTelemetry(d) {
     // sind nicht in den Settings und fallen in smoothStep auf SMOOTH_DEFAULTS zurueck.
     state.driftSmooth = RasiDrift.smoothStep(state.driftSmooth, dRaw, state.settings.drift);
     state.drift = { status: state.driftSmooth.status, index: state.driftSmooth.idxEma };
+    // Rollwinkel (Phase 19b): Roll-Rate (d.roll) + Accel-Schwerkraft-Referenz
+    // -> Winkel (Komplementaerfilter), minus Null-Offset. di.latAccel = kalibrierte
+    // Querbeschleunigung; gz = Accel-Z.
+    const _attNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const _attDt = _attLastMs ? (_attNow - _attLastMs) / 1000 : 0.08;
+    _attLastMs = _attNow;
+    const _rollRaw = RasiAttitude.rollStep(
+      state.attitude.rollDeg + state.calibration.rollZero,
+      Number(d.roll) || 0, di.latAccel, Number(d.gz) || 0, _attDt, 0.98);
+    state.attitude.rollDeg = _rollRaw - state.calibration.rollZero;
+    state.attitude.overState = RasiAttitude.rolloverStep(
+      state.attitude.overState, state.attitude.rollDeg, state.settings.rollover);
+    state.attitude.over = state.attitude.overState.active;
+    if (state.attitude.overState.onset) {
+      rcToast('⚠ Mäher umgekippt!', 4000);
+      rcAudio.rollover();
+    }
     const lat = Number(d.lat);
     const lon = Number(d.lon);
     const hasGps = !!(d.gps_fix ?? d.fix ?? (lat && lon));
@@ -2447,6 +2466,7 @@ let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '', spdSrc: '', 
 // 3D-Viewer instance state (single global; rAF lifecycle managed by start/stop).
 let _kart3dReady = false;
 let _kart3dLastTick = 0;
+let _attLastMs = 0;            // wall-clock of last attitude fusion step (ms)
 
 function updateLiveKPIs() {
   const now = Date.now();
@@ -3379,7 +3399,7 @@ function saveRecording() {
 // Slices that processTelemetry / onGpsUpdate / lap-sector-race
 // detection mutate. Snapshot on enter, restore verbatim on exit.
 const REPLAY_KEYS = ['connection','hz','telemetry','raw','display','gps','spdSrc',
-  'batt','max','charts','imu','drift','driftSmooth','heatmap','sectors','lapStart','currentLapMax',
+  'batt','max','charts','imu','drift','driftSmooth','attitude','heatmap','sectors','lapStart','currentLapMax',
   'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap',
   'drivers','races','activeRaceId','selectedRaceId','gateFlashUntil'];
 
@@ -3409,6 +3429,8 @@ function resetReplayDerived() {
   state.imu = { yaw: 0, mtemp: null };
   state.drift = { status: 'n/a', index: null };
   state.driftSmooth = { idxEma: null, status: 'n/a', counterRun: 0 };
+  state.attitude = { rollDeg: 0, over: false, overState: { active: false } };
+  _attLastMs = 0;
   state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
   state.sectors = { boundaries: state.sectors.boundaries, cur: 0, sectorStart: null,
     lapSectors: [null, null, null], best: [null, null, null], lastLapSectors: null,
