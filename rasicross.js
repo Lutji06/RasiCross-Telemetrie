@@ -373,6 +373,7 @@ function loadSettingsToUi() {
   $('setMinLap').value = state.settings.minLapSeconds;
   if ($('setDriftTol')) $('setDriftTol').value = state.settings.drift.tol;
   if ($('setDriftMinSpeed')) $('setDriftMinSpeed').value = state.settings.drift.minSpeedKmh;
+  if ($('setRolloverAngle')) $('setRolloverAngle').value = (state.settings.rollover && state.settings.rollover.angleDeg) || 75;
   if ($('setDisplayUpdateMs')) $('setDisplayUpdateMs').value = state.settings.displayUpdateMs || 500;
   $('settingsHint').textContent = `${state.settings.maxSpeed} km/h · ${state.settings.maxRpm} rpm`;
   $('gxOffsetText').textContent = state.calibration.gxZero.toFixed(2);
@@ -400,6 +401,8 @@ function saveSettingsFromUi() {
   if (!state.settings.drift) state.settings.drift = { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 };
   state.settings.drift.tol = Math.max(0.05, Math.min(1, Number($('setDriftTol')?.value) || 0.25));
   state.settings.drift.minSpeedKmh = Math.max(1, Math.min(60, Number($('setDriftMinSpeed')?.value) || 5));
+  if (!state.settings.rollover) state.settings.rollover = { angleDeg: 75 };
+  state.settings.rollover.angleDeg = Math.max(30, Math.min(90, Number($('setRolloverAngle')?.value) || 75));
   const newInterval = Math.max(100, Math.min(2000, Number($('setDisplayUpdateMs')?.value) || 500));
   if (newInterval !== state.settings.displayUpdateMs) {
     state.settings.displayUpdateMs = newInterval;
@@ -3899,6 +3902,15 @@ function init() {
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab
   $('saveSettingsBtn').onclick = saveSettingsFromUi;
+  if ($('zeroRollBtn')) $('zeroRollBtn').onclick = () => {
+    // Aktuellen fusionierten Rollwinkel (inkl. bestehendem Offset) als neue 0 setzen.
+    state.calibration.rollZero = state.calibration.rollZero + ((state.attitude && state.attitude.rollDeg) || 0);
+    state.attitude.rollDeg = 0;
+    state.attitude.overState = { active: false };
+    state.attitude.over = false;
+    saveData();
+    rcToast('Rollwinkel genullt', 1500);
+  };
   $('zeroImuBtn').onclick = () => {
     const btn = $('zeroImuBtn');
     if (btn.disabled) return;

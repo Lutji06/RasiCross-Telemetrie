@@ -3067,6 +3067,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
         <div class="field"><label>Mindest-Rundenzeit (s)</label><input type="number" id="setMinLap" value="10" min="3" max="300"></div>
         <div class="field"><label>Drift-Empfindlichkeit (Toleranz)</label><input type="number" id="setDriftTol" value="0.25" min="0.05" max="1" step="0.05"></div>
         <div class="field"><label>Drift Min-Tempo (km/h)</label><input type="number" id="setDriftMinSpeed" value="5" min="1" max="60" step="1"></div>
+        <div class="field"><label>Umkipp-Schwelle (Grad)</label><input type="number" id="setRolloverAngle" value="75" min="30" max="90" step="1"></div>
         <div class="field"><label>OLED-Update Intervall (ms)</label><input type="number" id="setDisplayUpdateMs" value="500" min="100" max="2000" step="50"></div>
         <button class="btn primary" id="saveSettingsBtn">Übernehmen</button>
       </div>
@@ -3089,6 +3090,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
       <div class="row" style="gap:8px;margin-top:14px">
         <button class="btn primary" id="zeroImuBtn" style="flex:1">Nullpunkt setzen</button>
         <button class="btn ghost" id="resetImuBtn" style="flex:0 0 auto">Zurücksetzen</button>
+        <button class="btn ghost" id="zeroRollBtn" style="flex:0 0 auto" title="Aktuellen Rollwinkel als 0 setzen">Roll nullen</button>
       </div>
       <p style="color:var(--mut);font-size:12px;margin-top:8px">
         Mäher auf eine ebene Fläche stellen, dann 2 Sekunden lang ruhig halten.
