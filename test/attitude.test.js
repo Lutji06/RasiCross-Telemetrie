@@ -42,6 +42,7 @@ test('wheelLift: no onset when only one threshold exceeds', () => {
 test('wheelLift: hysteresis holds active until below angle-hyst', () => {
   const thr = { angleDeg: 12, rateDps: 60, hystDeg: 3 };
   assert.equal(att.wheelLift({ active: true }, 10, 5, thr).active, true);  // 10 > 9
+  assert.equal(att.wheelLift({ active: true }, 9, 5, thr).active, true);   // 9 == angle-hyst -> stays (spec: ends only when <)
   assert.equal(att.wheelLift({ active: true }, 8, 5, thr).active, false);  // 8 < 9
   assert.equal(att.wheelLift({ active: true }, 15, 80, thr).onset, false); // continuing
 });

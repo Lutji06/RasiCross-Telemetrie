@@ -42,7 +42,7 @@ function wheelLift(st, rollDeg, rollRateDps, thr) {
   var aRate = Math.abs(_num(rollRateDps));
   var wasActive = !!st.active;
   var active = wasActive
-    ? aRoll > (angleDeg - hystDeg)                 // stay until below angle-hyst
+    ? aRoll >= (angleDeg - hystDeg)                // stay until strictly below angle-hyst
     : (aRoll > angleDeg && aRate > rateDps);       // enter needs BOTH
   return { active: active, onset: active && !wasActive };
 }
