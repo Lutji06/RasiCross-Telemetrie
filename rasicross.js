@@ -44,7 +44,7 @@ const state = {
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
-  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true } },
+  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 } },
   calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false },
   theme: 'dark',
   // Telemetry
@@ -55,8 +55,9 @@ const state = {
   spdSrc: 'gps',
   batt: { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 },
   max: { speed: 0, rpm: 0, g: 0 },
-  charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [] },
+  charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] },
   imu: { yaw: 0, mtemp: null },
+  drift: { status: 'n/a', index: null },
   heatmap: { on: false, lapMaxSpeed: 0 },
   // Track
   track: { points: [], bounds: null, scanning: false, totalDistance: 0, maxDistFromStart: 0, closed: false },
@@ -367,6 +368,8 @@ function loadSettingsToUi() {
   $('setRpmWarn').value = state.settings.rpmWarning;
   $('setGScale').value = state.settings.gScale;
   $('setMinLap').value = state.settings.minLapSeconds;
+  if ($('setDriftTol')) $('setDriftTol').value = state.settings.drift.tol;
+  if ($('setDriftMinSpeed')) $('setDriftMinSpeed').value = state.settings.drift.minSpeedKmh;
   if ($('setDisplayUpdateMs')) $('setDisplayUpdateMs').value = state.settings.displayUpdateMs || 500;
   $('settingsHint').textContent = `${state.settings.maxSpeed} km/h · ${state.settings.maxRpm} rpm`;
   $('gxOffsetText').textContent = state.calibration.gxZero.toFixed(2);
@@ -390,6 +393,9 @@ function saveSettingsFromUi() {
   state.settings.rpmWarning = Math.max(2000, Math.min(state.settings.maxRpm, Number($('setRpmWarn').value) || 9000));
   state.settings.gScale = Math.max(2, Math.min(5, Number($('setGScale').value) || 3));
   state.settings.minLapSeconds = Math.max(3, Math.min(300, Number($('setMinLap').value) || 10));
+  if (!state.settings.drift) state.settings.drift = { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 };
+  state.settings.drift.tol = Math.max(0.05, Math.min(1, Number($('setDriftTol')?.value) || 0.25));
+  state.settings.drift.minSpeedKmh = Math.max(1, Math.min(60, Number($('setDriftMinSpeed')?.value) || 5));
   const newInterval = Math.max(100, Math.min(2000, Number($('setDisplayUpdateMs')?.value) || 500));
   if (newInterval !== state.settings.displayUpdateMs) {
     state.settings.displayUpdateMs = newInterval;
@@ -461,6 +467,10 @@ function processTelemetry(d) {
     if (state.calibration.swapG) { const tmp = gx; gx = gy; gy = tmp; }
     if (state.calibration.invertGx) gx = -gx;
     if (state.calibration.invertGy) gy = -gy;
+    // Drift (Phase 18): gemessene vs. erwartete Gierrate. gy = transformierte
+    // Querbeschleunigung, yawv = Gier-Rate (Gyro-Z), speed in km/h.
+    state.drift = RasiDrift.analyze(
+      { yawRate: yawv, latAccel: gy, speed: speed }, state.settings.drift);
     const lat = Number(d.lat);
     const lon = Number(d.lon);
     const hasGps = !!(d.gps_fix ?? d.fix ?? (lat && lon));
@@ -499,6 +509,7 @@ function processTelemetry(d) {
       state.charts.gy.push(gy);
       state.charts.gz.push(gz);
       state.charts.yaw.push(yawv);
+      state.charts.driftIndex.push(state.drift.index == null ? 0 : state.drift.index);
       const max = 600;
       while (state.charts.speed.length > max) state.charts.speed.shift();
       while (state.charts.rpm.length > max) state.charts.rpm.shift();
@@ -506,6 +517,7 @@ function processTelemetry(d) {
       while (state.charts.gy.length > max) state.charts.gy.shift();
       while (state.charts.gz.length > max) state.charts.gz.shift();
       while (state.charts.yaw.length > max) state.charts.yaw.shift();
+      while (state.charts.driftIndex.length > max) state.charts.driftIndex.shift();
     }
     // Track current lap trace
     if (state.lapStart && lat && lon) {
@@ -537,6 +549,22 @@ function processTelemetry(d) {
 // ============================================================
 // 8. TACHO / RPM / G-METER
 // ============================================================
+// Drift-Badge (Phase 18): Label + Indexwert + Farbe je Status.
+const DRIFT_LABEL = { 'n/a': '–', grip: 'Grip', oversteer: 'Drift',
+                      understeer: 'Schiebt', counter: 'Spin' };
+const DRIFT_COLOR = { 'n/a': '', grip: 'var(--green,#5ad17a)',
+                      oversteer: 'var(--warn,#e0a13a)',
+                      understeer: 'var(--blue,#7aa2f7)',
+                      counter: 'var(--danger,#e05a5a)' };
+function renderDriftBadge() {
+  const el = $('kDrift');
+  if (!el) return;
+  const st = (state.drift && state.drift.status) || 'n/a';
+  const idx = state.drift && state.drift.index;
+  const label = DRIFT_LABEL[st] || '–';
+  el.textContent = (st === 'n/a' || idx == null) ? label : `${label} ${idx.toFixed(1)}`;
+  el.style.color = DRIFT_COLOR[st] || '';
+}
 const LERP = 0.18;
 function lerp(a, b) { return a + (b - a) * LERP; }
 function renderGauges() {
@@ -553,7 +581,8 @@ function renderGauges() {
       gy: state.display.gyLerp,
       gz: state.telemetry.gz || 0,
       yaw: state.imu.yaw || 0,
-      dtMs: dtMs
+      dtMs: dtMs,
+      drift: state.drift
     });
   } else {
     drawGMeter();
@@ -2476,6 +2505,7 @@ function updateLiveKPIs() {
     setText('kGMax', state.max.g.toFixed(1));
     setText('kYaw', Math.round(state.imu.yaw));
     setText('kMtemp', state.imu.mtemp == null ? '--' : Math.round(state.imu.mtemp));
+    renderDriftBadge();
     // Rundenzeit: nur alle 100ms aktualisieren ist ok
     const lapText = state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
@@ -3321,7 +3351,7 @@ function saveRecording() {
 // Slices that processTelemetry / onGpsUpdate / lap-sector-race
 // detection mutate. Snapshot on enter, restore verbatim on exit.
 const REPLAY_KEYS = ['connection','hz','telemetry','raw','display','gps','spdSrc',
-  'batt','max','charts','imu','heatmap','sectors','lapStart','currentLapMax',
+  'batt','max','charts','imu','drift','heatmap','sectors','lapStart','currentLapMax',
   'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap',
   'drivers','races','activeRaceId','selectedRaceId','gateFlashUntil'];
 
@@ -3347,8 +3377,9 @@ function resetReplayDerived() {
   state.spdSrc = 'gps';
   state.batt = { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 };
   state.max = { speed: 0, rpm: 0, g: 0 };
-  state.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [] };
+  state.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] };
   state.imu = { yaw: 0, mtemp: null };
+  state.drift = { status: 'n/a', index: null };
   state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
   state.sectors = { boundaries: state.sectors.boundaries, cur: 0, sectorStart: null,
     lapSectors: [null, null, null], best: [null, null, null], lastLapSectors: null,
@@ -3386,6 +3417,22 @@ function fastForwardTo(targetMs) {
   state.replay.idx = end;
   state.replay.virtualMs = targetMs;
 }
+// Drift-Phasen als proportionale Marker über dem Replay-Seek (Phase 18).
+function renderDriftStrip(spans, durationMs) {
+  const strip = $('rpDriftStrip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  const dur = Number(durationMs) || 0;
+  if (!dur || !spans || !spans.length) return;
+  for (const s of spans) {
+    const a = Math.max(0, Math.min(100, s.startMs / dur * 100));
+    const b = Math.max(0, Math.min(100, s.endMs / dur * 100));
+    const tick = document.createElement('i');
+    tick.style.left = a + '%';
+    tick.style.width = Math.max(0.3, b - a) + '%';
+    strip.appendChild(tick);
+  }
+}
 function loadRecordingFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -3407,6 +3454,10 @@ function enterReplay(parsed) {
   if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
   state.replay.active = true;
   state.replay.packets = parsed.packets;
+  const _ds = RasiDrift.summarize(parsed.packets, state.settings.drift);
+  state.replay.driftSummary = _ds;
+  setText('rpDrift', _ds.counted ? `${_ds.driftPct.toFixed(0)}% · max ${_ds.maxIndex.toFixed(1)}` : '–');
+  renderDriftStrip(RasiDrift.driftSpans(parsed.packets, state.settings.drift), parsed.durationMs);
   state.replay.idx = 0;
   state.replay.virtualMs = 0;
   state.replay.durationMs = parsed.durationMs;

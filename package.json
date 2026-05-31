@@ -35,6 +35,7 @@
       "rasicross.js",
       "geo.js",
       "replay.js",
+      "drift.js",
       "karts3d.js",
       "tiles.js",
       "tile-renderer.js",

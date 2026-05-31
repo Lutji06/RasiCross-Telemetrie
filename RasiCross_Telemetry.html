@@ -1005,7 +1005,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   padding:30px 36px;
 }
 @media (max-width:900px){.pw-hero-content{padding:24px}}
-.pw-hero-left{min-width:0}
+.pw-hero-left{flex-shrink:0}
 .pw-eyebrow{
   display:inline-flex;align-items:center;gap:8px;
   padding:5px 12px;border-radius:99px;
@@ -1030,12 +1030,12 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   font-family:var(--mono);font-weight:600;letter-spacing:.04em;
 }
 .pw-hero-telemetry{
-  display:flex;flex-wrap:wrap;gap:12px;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(max-content,1fr));
+  gap:12px;
 }
 .pw-tel{
   padding:14px 16px;border-radius:12px;
   background:rgba(255,255,255,.03);border:1px solid var(--bor);
-  width:max-content;
 }
 .pw-tel-label{
   font-family:var(--mono);font-size:9.5px;font-weight:800;
@@ -1373,7 +1373,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .pw-hero--compact .pw-hero-title{font-size:26px;margin-bottom:0;line-height:1}
 .pw-hero--compact .pw-hero-sub{display:none}
 .pw-hero--compact .pw-hero-telemetry{
-  flex:1 1 auto;gap:10px;justify-content:space-between;
+  flex:1 1 auto;min-width:0;gap:10px;
 }
 .pw-hero--compact .pw-tel{padding:8px 12px}
 .pw-hero--compact .pw-tel-label{margin-bottom:3px}
@@ -2137,7 +2137,10 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
   align-items:center;gap:14px;padding:12px 20px;background:var(--card,#15171c);
   border-top:1px solid var(--border,#2a2d36);box-shadow:0 -6px 24px rgba(0,0,0,.35)}
 .replay-bar.hidden{display:none}
-.replay-bar .rp-seek{flex:1;min-width:120px;accent-color:var(--pr,#7aa2f7)}
+.replay-bar .rp-seek-wrap{position:relative;flex:1;min-width:120px;display:flex;align-items:center}
+.replay-bar .rp-seek-wrap .rp-seek{flex:1;width:100%;accent-color:var(--pr,#7aa2f7)}
+.replay-bar .rp-drift-strip{position:absolute;left:0;right:0;top:-7px;height:4px;pointer-events:none}
+.replay-bar .rp-drift-strip i{position:absolute;top:0;height:4px;background:var(--warn,#e0a13a);border-radius:2px;min-width:2px}
 .replay-bar .rp-time{font-family:var(--mono,monospace);font-size:12px;color:var(--mut,#8b90a0);white-space:nowrap}
 .replay-bar select{background:var(--bg,#0e0f13);color:var(--tx,#e8eaf0);border:1px solid var(--border,#2a2d36);border-radius:8px;padding:6px 8px;font-size:12px}
 .replay-bar #rpPlayBtn{min-width:44px;font-size:15px}
@@ -2472,7 +2475,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
         <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>
       </div>
       <div class="kpi-v" id="kG">0.0<small>G</small></div>
-      <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s · MPU <b id="kMtemp">--</b>°C</div>
+      <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s · MPU <b id="kMtemp">--</b>°C · Drift <b id="kDrift">–</b></div>
       <canvas id="yawSparkCanvas" width="240" height="28"></canvas>
     </div>
     <div class="kpi">
@@ -3046,6 +3049,8 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <select id="setGScale"><option value="2">±2G</option><option value="3" selected>±3G</option><option value="4">±4G</option><option value="5">±5G</option></select>
         </div>
         <div class="field"><label>Mindest-Rundenzeit (s)</label><input type="number" id="setMinLap" value="10" min="3" max="300"></div>
+        <div class="field"><label>Drift-Empfindlichkeit (Toleranz)</label><input type="number" id="setDriftTol" value="0.25" min="0.05" max="1" step="0.05"></div>
+        <div class="field"><label>Drift Min-Tempo (km/h)</label><input type="number" id="setDriftMinSpeed" value="5" min="1" max="60" step="1"></div>
         <div class="field"><label>OLED-Update Intervall (ms)</label><input type="number" id="setDisplayUpdateMs" value="500" min="100" max="2000" step="50"></div>
         <button class="btn primary" id="saveSettingsBtn">Übernehmen</button>
       </div>
@@ -3340,8 +3345,9 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 
 <div id="replayBar" class="replay-bar hidden">
   <button class="btn ghost" id="rpPlayBtn">⏸</button>
-  <input type="range" id="rpSeek" class="rp-seek" min="0" max="1000" value="0">
+  <span class="rp-seek-wrap"><span id="rpDriftStrip" class="rp-drift-strip"></span><input type="range" id="rpSeek" class="rp-seek" min="0" max="1000" value="0"></span>
   <span class="rp-time"><b id="rpElapsed">00:00</b> / <b id="rpTotal">00:00</b></span>
+  <span class="rp-time" title="Drift-Zeitanteil · stärkster Index">Drift <b id="rpDrift">–</b></span>
   <select id="rpSpeed" title="Wiedergabe-Geschwindigkeit">
     <option value="0.25">0.25×</option>
     <option value="0.5">0.5×</option>
@@ -3356,6 +3362,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 
 <script src="geo.js"></script>
 <script src="replay.js"></script>
+<script src="drift.js"></script>
 <script src="tiles.js"></script>
 <script src="tile-renderer.js"></script>
 <script src="dom-targets.js"></script>

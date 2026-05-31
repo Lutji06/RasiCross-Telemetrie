@@ -7,7 +7,7 @@ const close = (a, b, eps) => Math.abs(a - b) <= (eps == null ? 1e-9 : eps);
 
 test('exports the pure-helper api', () => {
   for (const n of ['pitchFromG', 'rollFromG', 'yawIntegrate', 'gViewReducer',
-                   'computeAutoFitScale', 'kartModelYawReducer']) {
+                   'computeAutoFitScale', 'kartModelYawReducer', 'driftArrowSpec']) {
     assert.equal(typeof K[n], 'function', `missing ${n}`);
   }
 });
@@ -101,4 +101,38 @@ test('kartModelYawReducer: set:N actions, clamp invalid current, unknown action 
   assert.equal(K.kartModelYawReducer(90,  'noop'),    90);
   assert.equal(K.kartModelYawReducer('xx', 'noop'),   0);
   assert.equal(K.kartModelYawReducer(undefined, 'next'), 90);
+});
+
+test('driftArrowSpec: n/a / fehlend / null / NaN -> unsichtbar', () => {
+  assert.equal(K.driftArrowSpec('n/a', 1, 5).visible, false);
+  assert.equal(K.driftArrowSpec(undefined, 1, 5).visible, false);
+  assert.equal(K.driftArrowSpec('grip', null, 5).visible, false);
+  assert.equal(K.driftArrowSpec('grip', NaN, 5).visible, false);
+});
+
+test('driftArrowSpec: grip sichtbar, gruene Farbe, positive Laenge', () => {
+  const s = K.driftArrowSpec('grip', 1, 5);
+  assert.equal(s.visible, true);
+  assert.equal(s.color, 0x3ee08a);
+  assert.ok(s.length > 0);
+});
+
+test('driftArrowSpec: oversteer laenger als understeer; Farben je Status', () => {
+  const over = K.driftArrowSpec('oversteer', 1.6, 5);
+  const under = K.driftArrowSpec('understeer', 0.5, 5);
+  assert.ok(over.length > under.length, `${over.length} !> ${under.length}`);
+  assert.equal(over.color, 0xffa336);
+  assert.equal(under.color, 0x7aa2f7);
+});
+
+test('driftArrowSpec: index ueber 2 wird auf maxLen geclamped', () => {
+  const at2 = K.driftArrowSpec('oversteer', 2, 5).length;
+  const above = K.driftArrowSpec('oversteer', 10, 5).length;
+  assert.equal(at2, above);
+});
+
+test('driftArrowSpec: dirSign folgt dem Vorzeichen der Gierrate', () => {
+  assert.equal(K.driftArrowSpec('counter', 1.5, -5).dirSign, -1);
+  assert.equal(K.driftArrowSpec('counter', 1.5, 5).dirSign, 1);
+  assert.equal(K.driftArrowSpec('counter', 1.5, 5).color, 0xff5470);
 });

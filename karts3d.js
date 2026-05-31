@@ -82,6 +82,36 @@ function kartModelYawReducer(current, action) {
   return c;
 }
 
+// driftArrowSpec: Darstellungs-Parameter fuer den 3D-Drift-Pfeil aus dem
+// Phase-18-Driftzustand. Rein, wirft nie. Laenge ~ Drift-Index (0..2 -> 0..maxLen),
+// Richtung = Vorzeichen der gemessenen Gierrate, Farbe je Status. 'n/a'/fehlende
+// Daten -> unsichtbar.
+var DRIFT_3D_COLOR = {
+  grip:       0x3ee08a,   // gruen  (wie _zoneColor green)
+  oversteer:  0xffa336,   // amber  (wie _zoneColor orange)
+  understeer: 0x7aa2f7,   // blau   (wie 2D-Badge --blue)
+  counter:    0xff5470    // rot    (wie _zoneColor red)
+};
+function driftArrowSpec(status, index, yawRate, opts) {
+  opts = opts || {};
+  var maxLen = Number(opts.maxLen) || 1.6;
+  var minLen = Number(opts.minLen) || 0.06;
+  var color = DRIFT_3D_COLOR[status];
+  var idx = Number(index);
+  if (color == null || index == null || !isFinite(idx)) {
+    return { visible: false, length: 0, dirSign: 0, color: 0xffffff };
+  }
+  var clamped = Math.max(0, Math.min(2, idx));
+  var length = clamped / 2 * maxLen;
+  var dirSign = (Number(yawRate) || 0) >= 0 ? 1 : -1;
+  return {
+    visible: length > 0.05,
+    length: Math.max(length, minLen),
+    dirSign: dirSign,
+    color: color
+  };
+}
+
 // ── DOM/WebGL wrapper (gated by typeof THREE) ──────────────
 // All fields prefixed with `_` to mark module-internal state.
 var _scene = null;
@@ -91,6 +121,7 @@ var _canvas = null;
 var _kartGroup = null;
 var _arrow = null;          // G-vector arrow on the floor
 var _gzBar = null;          // Gz-glow vertical bar mesh
+var _driftArrow = null;     // Drift yaw-rate arrow (Phase 18 -> 3D)
 var _gScale = 3;
 var _pitch = 0;             // rad, EMA-smoothed
 var _roll = 0;              // rad, EMA-smoothed
@@ -220,6 +251,17 @@ function init(canvasEl, opts) {
   _gzBar.scale.y = 0.001;
   _scene.add(_gzBar);
 
+  // Drift yaw-rate arrow (raised above the kart, world-fixed like _arrow).
+  _driftArrow = new THREE.ArrowHelper(
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(0, 1.4, 0),
+    0.01,
+    0x3ee08a,
+    0.2, 0.12
+  );
+  _driftArrow.visible = false;
+  _scene.add(_driftArrow);
+
   _disposed = false;
   _lastTickMs = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   try {
@@ -281,6 +323,20 @@ function update(imu) {
   _gzBar.position.y = (gz >= 0 ? 0.5 * scaleY : -0.5 * scaleY) + 0.001;
   _gzBar.material.color.setHex(_zoneColor(gzMag));
   _gzBar.material.opacity = 0.3 + 0.6 * scaleY;
+
+  // Drift-Pfeil: gemessene Gierrate-Abweichung. imu.drift = {status,index}
+  // aus RasiDrift.analyze; imu.yaw liefert das Vorzeichen (Drehrichtung).
+  var dInfo = imu.drift || {};
+  var dSpec = driftArrowSpec(dInfo.status, dInfo.index, imu.yaw);
+  if (!dSpec.visible) {
+    _driftArrow.visible = false;
+  } else {
+    _driftArrow.visible = true;
+    _tmpArrowDir.set(dSpec.dirSign, 0, 0);
+    _driftArrow.setDirection(_tmpArrowDir);
+    _driftArrow.setLength(dSpec.length, 0.2, 0.12);
+    _driftArrow.setColor(dSpec.color);
+  }
 
   // Re-fit if the canvas client size or device pixel ratio changed (cheap
   // check, no listeners). Comparison is against our own last-applied logical
@@ -350,7 +406,7 @@ function dispose() {
     }
   } catch (e) { /* ignore */ }
   _scene = _camera = _renderer = _canvas = null;
-  _kartGroup = _arrow = _gzBar = null;
+  _kartGroup = _arrow = _gzBar = _driftArrow = null;
   _tmpEuler = _tmpArrowDir = null;
 }
 
@@ -461,6 +517,7 @@ function _disposeGroup(group) {
     gViewReducer: gViewReducer,
     computeAutoFitScale: computeAutoFitScale,
     kartModelYawReducer: kartModelYawReducer,
+    driftArrowSpec: driftArrowSpec,
     init: init,
     update: update,
     start: start,
