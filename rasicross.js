@@ -3478,10 +3478,16 @@ function enterReplay(parsed) {
   if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
   state.replay.active = true;
   state.replay.packets = parsed.packets;
-  const _ds = RasiDrift.summarize(parsed.packets, state.settings.drift);
+  // Drift-Aggregat mit DERSELBEN Kalibrierung wie Live (driftInputs): Pakete
+  // normalisieren, summarize/driftSpans erwarten die Keys yaw/gy/speed/t_rel.
+  const _calPk = parsed.packets.map(p => {
+    const i = driftInputs(p, state.calibration);
+    return { yaw: i.yawRate, gy: i.latAccel, speed: i.speed, t_rel: p.t_rel };
+  });
+  const _ds = RasiDrift.summarize(_calPk, state.settings.drift);
   state.replay.driftSummary = _ds;
   setText('rpDrift', _ds.counted ? `${_ds.driftPct.toFixed(0)}% · max ${_ds.maxIndex.toFixed(1)}` : '–');
-  renderDriftStrip(RasiDrift.driftSpans(parsed.packets, state.settings.drift), parsed.durationMs);
+  renderDriftStrip(RasiDrift.driftSpans(_calPk, state.settings.drift), parsed.durationMs);
   state.replay.idx = 0;
   state.replay.virtualMs = 0;
   state.replay.durationMs = parsed.durationMs;
