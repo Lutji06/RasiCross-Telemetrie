@@ -45,7 +45,7 @@ const state = {
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
   settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 } },
-  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false },
+  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false, invertYaw: false },
   theme: 'dark',
   // Telemetry
   telemetry: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
@@ -58,6 +58,7 @@ const state = {
   charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] },
   imu: { yaw: 0, mtemp: null },
   drift: { status: 'n/a', index: null },
+  driftSmooth: { idxEma: null, status: 'n/a', counterRun: 0 },
   heatmap: { on: false, lapMaxSpeed: 0 },
   // Track
   track: { points: [], bounds: null, scanning: false, totalDistance: 0, maxDistFromStart: 0, closed: false },
@@ -433,6 +434,20 @@ function recordPacket(d) {
     rcToast('⚠ Aufnahme-Puffer voll — älteste Pakete werden verworfen', 4000);
   }
 }
+// Drift-Eingaenge aus einem (Roh-)Paket — identisch fuer Live und Replay-Aggregat.
+// Wendet die IMU-Kalibrierung an (gy: swap/invert/zero; yaw: invertYaw), damit der
+// Vorzeichen-/Counter-Check konsistente Achsen vergleicht.
+function driftInputs(d, cal) {
+  cal = cal || {};
+  let gx = (Number(d.gx) || 0) - (cal.gxZero || 0);
+  let gy = (Number(d.gy) || 0) - (cal.gyZero || 0);
+  if (cal.swapG) { const t = gx; gx = gy; gy = t; }
+  if (cal.invertGy) gy = -gy;
+  let yaw = Number(d.yaw) || 0;
+  if (cal.invertYaw) yaw = -yaw;
+  return { yawRate: yaw, latAccel: gy, speed: Math.max(0, Number(d.speed) || 0) };
+}
+
 function processTelemetry(d) {
   try {
     if (!d) return;
@@ -460,17 +475,20 @@ function processTelemetry(d) {
     let gx = (Number(d.gx) || 0) - state.calibration.gxZero;
     let gy = (Number(d.gy) || 0) - state.calibration.gyZero;
     const gz = Number(d.gz) || 0;                  // Accel-Z (g), jedes Paket
-    const yawv = Number(d.yaw) || 0;               // Gier (deg/s), jedes Paket
+    const di = driftInputs(d, state.calibration);  // geteilte Drift-Normalisierung (inkl. invertYaw)
+    const yawv = di.yawRate;                        // vorzeichen-korrigierte Gierrate (deg/s)
     state.imu.yaw = yawv;
     if (d.mtemp != null) state.imu.mtemp = Number(d.mtemp) || 0;  // langsam: letzten Wert halten
     // Apply axis transformations
     if (state.calibration.swapG) { const tmp = gx; gx = gy; gy = tmp; }
     if (state.calibration.invertGx) gx = -gx;
     if (state.calibration.invertGy) gy = -gy;
-    // Drift (Phase 18): gemessene vs. erwartete Gierrate. gy = transformierte
-    // Querbeschleunigung, yawv = Gier-Rate (Gyro-Z), speed in km/h.
-    state.drift = RasiDrift.analyze(
-      { yawRate: yawv, latAccel: gy, speed: speed }, state.settings.drift);
+    // Drift (Phase 20): gehaerteter + geglaetteter Gierraten-Index. di teilt die
+    // Eingangs-Normalisierung mit dem Replay-Aggregat; smoothStep liefert
+    // EMA-Index + entprellten/hysterese-stabilen Status.
+    const dRaw = RasiDrift.analyze(di, state.settings.drift);
+    state.driftSmooth = RasiDrift.smoothStep(state.driftSmooth, dRaw, state.settings.drift);
+    state.drift = { status: state.driftSmooth.status, index: state.driftSmooth.idxEma };
     const lat = Number(d.lat);
     const lon = Number(d.lon);
     const hasGps = !!(d.gps_fix ?? d.fix ?? (lat && lon));
@@ -3351,7 +3369,7 @@ function saveRecording() {
 // Slices that processTelemetry / onGpsUpdate / lap-sector-race
 // detection mutate. Snapshot on enter, restore verbatim on exit.
 const REPLAY_KEYS = ['connection','hz','telemetry','raw','display','gps','spdSrc',
-  'batt','max','charts','imu','drift','heatmap','sectors','lapStart','currentLapMax',
+  'batt','max','charts','imu','drift','driftSmooth','heatmap','sectors','lapStart','currentLapMax',
   'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap',
   'drivers','races','activeRaceId','selectedRaceId','gateFlashUntil'];
 
@@ -3380,6 +3398,7 @@ function resetReplayDerived() {
   state.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] };
   state.imu = { yaw: 0, mtemp: null };
   state.drift = { status: 'n/a', index: null };
+  state.driftSmooth = { idxEma: null, status: 'n/a', counterRun: 0 };
   state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
   state.sectors = { boundaries: state.sectors.boundaries, cur: 0, sectorStart: null,
     lapSectors: [null, null, null], best: [null, null, null], lastLapSectors: null,
