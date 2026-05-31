@@ -76,3 +76,52 @@ test('driftSpans: contiguous drift phases in ms', () => {
   assert.deepEqual(spans[0], { startMs: 100, endMs: 200 });
   assert.deepEqual(spans[1], { startMs: 400, endMs: 400 });
 });
+
+test('smoothInit: sauberer Reset-Shape', () => {
+  assert.deepEqual(drift.smoothInit(), { idxEma: null, status: 'n/a', counterRun: 0 });
+});
+
+test('smoothStep: n/a / null / NaN raw -> Reset auf n/a', () => {
+  const st = { idxEma: 1.4, status: 'oversteer', counterRun: 2 };
+  assert.deepEqual(drift.smoothStep(st, { status: 'n/a', index: null }),
+                   { idxEma: null, status: 'n/a', counterRun: 0 });
+  assert.equal(drift.smoothStep(st, { status: 'grip', index: NaN }).status, 'n/a');
+});
+
+test('smoothStep: EMA seedet beim ersten Sample, dann Mischung mit smooth-Gewicht', () => {
+  const s1 = drift.smoothStep(drift.smoothInit(), { status: 'oversteer', index: 1.5 }, { smooth: 0.6 });
+  approx(s1.idxEma, 1.5, 1e-9);
+  const s2 = drift.smoothStep(s1, { status: 'oversteer', index: 2.0 }, { smooth: 0.6 });
+  approx(s2.idxEma, 1.7, 1e-9);
+});
+
+test('smoothStep: Hysterese haelt oversteer bis Index unter 1+tol-hyst faellt', () => {
+  const opts = { smooth: 0, tol: 0.25, hyst: 0.15 };
+  let s = drift.smoothStep(drift.smoothInit(), { status: 'oversteer', index: 1.4 }, opts);
+  assert.equal(s.status, 'oversteer');
+  s = drift.smoothStep(s, { status: 'grip', index: 1.15 }, opts);
+  assert.equal(s.status, 'oversteer');
+  s = drift.smoothStep(s, { status: 'grip', index: 1.05 }, opts);
+  assert.equal(s.status, 'grip');
+});
+
+test('smoothStep: counter braucht counterHold Samples (Entprellung), dann loest es', () => {
+  const opts = { smooth: 0, counterHold: 3 };
+  let s = drift.smoothInit();
+  s = drift.smoothStep(s, { status: 'counter', index: 1.5 }, opts);
+  assert.notEqual(s.status, 'counter');
+  s = drift.smoothStep(s, { status: 'counter', index: 1.5 }, opts);
+  assert.notEqual(s.status, 'counter');
+  s = drift.smoothStep(s, { status: 'counter', index: 1.5 }, opts);
+  assert.equal(s.status, 'counter');
+  s = drift.smoothStep(s, { status: 'oversteer', index: 1.5 }, opts);
+  assert.equal(s.status, 'counter');
+  s = drift.smoothStep(s, { status: 'oversteer', index: 1.5 }, opts);
+  s = drift.smoothStep(s, { status: 'oversteer', index: 1.5 }, opts);
+  assert.notEqual(s.status, 'counter');
+});
+
+test('smoothStep: Junk-Eingaben werfen nie', () => {
+  assert.doesNotThrow(() => drift.smoothStep(null, null));
+  assert.equal(drift.smoothStep(undefined, { status: 'grip', index: 'x' }).status, 'n/a');
+});

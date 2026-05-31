@@ -10,6 +10,7 @@
 
 var G_MS2 = 9.80665;
 var DEFAULTS = { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 };
+var SMOOTH_DEFAULTS = { smooth: 0.6, hyst: 0.15, counterHold: 3 };
 
 function _num(x) { var v = Number(x); return isFinite(v) ? v : 0; }
 
@@ -88,10 +89,53 @@ function driftSpans(samples, opts) {
   return spans;
 }
 
+// Default-Glaettungs-State.
+function smoothInit() { return { idxEma: null, status: 'n/a', counterRun: 0 }; }
+
+// Purer Reducer: vorheriger Glaettungs-State + rohes analyze()-Ergebnis -> neuer
+// State. Ausgabe fuer die UI: state.status (entprellt/hysterese) + state.idxEma
+// (EMA-geglaetteter Index). Wirft nie.
+function smoothStep(st, raw, opts) {
+  st = st || smoothInit();
+  raw = raw || {};
+  var o = opts || {};
+  var a    = o.smooth      == null ? SMOOTH_DEFAULTS.smooth      : o.smooth;
+  var hyst = o.hyst        == null ? SMOOTH_DEFAULTS.hyst        : o.hyst;
+  var hold = o.counterHold == null ? SMOOTH_DEFAULTS.counterHold : o.counterHold;
+  var tol  = o.tol         == null ? DEFAULTS.tol                : o.tol;
+
+  // Gerade/langsam: Drift-Status sinnlos -> Reset.
+  if (raw.status === 'n/a' || raw.index == null || !isFinite(Number(raw.index))) {
+    return { idxEma: null, status: 'n/a', counterRun: 0 };
+  }
+
+  var rawIdx = Number(raw.index);
+  var idxEma = st.idxEma == null ? rawIdx : a * st.idxEma + (1 - a) * rawIdx;
+
+  // Counter-Entprellung: Run hoch bei 'counter', runter sonst (geklemmt 0..hold).
+  var run = st.counterRun + (raw.status === 'counter' ? 1 : -1);
+  if (run < 0) run = 0;
+  if (run > hold) run = hold;
+  var counterActive = st.status === 'counter' ? run > 0 : run >= hold;
+
+  var status;
+  if (counterActive) {
+    status = 'counter';
+  } else if (st.status === 'oversteer') {
+    status = idxEma > 1 + tol - hyst ? 'oversteer' : (idxEma < 1 - tol ? 'understeer' : 'grip');
+  } else if (st.status === 'understeer') {
+    status = idxEma < 1 - tol + hyst ? 'understeer' : (idxEma > 1 + tol ? 'oversteer' : 'grip');
+  } else { // grip / counter-Ausstieg / n/a -> frische Klassifikation
+    status = idxEma > 1 + tol ? 'oversteer' : (idxEma < 1 - tol ? 'understeer' : 'grip');
+  }
+  return { idxEma: idxEma, status: status, counterRun: run };
+}
+
 // ── UMD-style export ────────────────────────────────────────
 (function () {
   var api = { expectedYawRate: expectedYawRate, analyze: analyze,
-              summarize: summarize, driftSpans: driftSpans };
+              summarize: summarize, driftSpans: driftSpans,
+              smoothInit: smoothInit, smoothStep: smoothStep };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
   if (typeof window !== 'undefined') { window.RasiDrift = api; }
 })();
