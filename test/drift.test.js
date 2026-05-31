@@ -5,8 +5,9 @@ const drift = require('../drift.js');
 
 const approx = (a, b, tol = 1e-3) => assert.ok(Math.abs(a - b) <= tol, `${a} != ${b} (±${tol})`);
 
-test('module exports the 4 functions', () => {
-  for (const n of ['expectedYawRate', 'analyze', 'summarize', 'driftSpans']) {
+test('module exports the 6 functions', () => {
+  for (const n of ['expectedYawRate', 'analyze', 'summarize', 'driftSpans',
+                   'smoothInit', 'smoothStep']) {
     assert.equal(typeof drift[n], 'function', `missing ${n}`);
   }
 });
@@ -102,6 +103,16 @@ test('smoothStep: Hysterese haelt oversteer bis Index unter 1+tol-hyst faellt', 
   s = drift.smoothStep(s, { status: 'grip', index: 1.15 }, opts);
   assert.equal(s.status, 'oversteer');
   s = drift.smoothStep(s, { status: 'grip', index: 1.05 }, opts);
+  assert.equal(s.status, 'grip');
+});
+
+test('smoothStep: Hysterese haelt understeer bis Index ueber 1-tol+hyst steigt', () => {
+  const opts = { smooth: 0, tol: 0.25, hyst: 0.15 };
+  let s = drift.smoothStep(drift.smoothInit(), { status: 'understeer', index: 0.6 }, opts);
+  assert.equal(s.status, 'understeer');
+  s = drift.smoothStep(s, { status: 'grip', index: 0.85 }, opts);  // 0.85 < 0.90 -> haelt
+  assert.equal(s.status, 'understeer');
+  s = drift.smoothStep(s, { status: 'grip', index: 0.95 }, opts);  // 0.95 > 0.90 -> grip
   assert.equal(s.status, 'grip');
 });
 
