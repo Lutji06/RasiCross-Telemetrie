@@ -36,6 +36,7 @@
       "geo.js",
       "replay.js",
       "drift.js",
+      "attitude.js",
       "karts3d.js",
       "tiles.js",
       "tile-renderer.js",

@@ -86,6 +86,17 @@ module.exports = [
     rules: bugRules,
   },
 
+  // attitude.js setzt window.RasiAttitude (UMD, Browser + node:test)
+  {
+    files: ['attitude.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, module: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
   // dom-targets.js setzt window.DomTargets (UMD, Browser)
   {
     files: ['dom-targets.js'],
