@@ -3500,6 +3500,36 @@ function renderDriftStrip(spans, durationMs) {
     strip.appendChild(tick);
   }
 }
+// Umkipp-Onset-Marker über dem Replay-Seek (Phase 19b). onsets = [ms, …].
+function renderRollStrip(onsets, durationMs) {
+  const strip = $('rpRollStrip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  const dur = Number(durationMs) || 0;
+  if (!dur || !onsets || !onsets.length) return;
+  for (const t of onsets) {
+    const p = Math.max(0, Math.min(100, t / dur * 100));
+    const tick = document.createElement('i');
+    tick.style.left = p + '%';
+    strip.appendChild(tick);
+  }
+}
+// Umkipp-Onsets über eine Aufnahme: Roll fusionieren + rolloverStep, Onset-ms sammeln.
+function rolloverOnsets(packets, cal, thr) {
+  const out = [];
+  let roll = 0, st = { active: false }, lastT = null;
+  for (const p of (packets || [])) {
+    const t = Number(p.t_rel) || 0;
+    const dt = lastT == null ? 0.08 : Math.max(0, (t - lastT) / 1000);
+    lastT = t;
+    roll = RasiAttitude.rollStep(roll, Number(p.roll) || 0,
+      (Number(p.gy) || 0) - (cal.gyZero || 0), Number(p.gz) || 0, dt, 0.98);
+    const r = RasiAttitude.rolloverStep(st, roll - (cal.rollZero || 0), thr);
+    if (r.onset) out.push(t);
+    st = r;
+  }
+  return out;
+}
 function loadRecordingFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -3531,6 +3561,7 @@ function enterReplay(parsed) {
   state.replay.driftSummary = _ds;
   setText('rpDrift', _ds.counted ? `${_ds.driftPct.toFixed(0)}% · max ${_ds.maxIndex.toFixed(1)}` : '–');
   renderDriftStrip(RasiDrift.driftSpans(_calPk, state.settings.drift), parsed.durationMs);
+  renderRollStrip(rolloverOnsets(parsed.packets, state.calibration, state.settings.rollover), parsed.durationMs);
   state.replay.idx = 0;
   state.replay.virtualMs = 0;
   state.replay.durationMs = parsed.durationMs;
