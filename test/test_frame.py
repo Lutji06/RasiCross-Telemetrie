@@ -40,6 +40,7 @@ class RoundTrip(unittest.TestCase):
         self.assertAlmostEqual(out["gy"], -1.987, places=3)
         self.assertAlmostEqual(out["gz"], 0.97, places=2)
         self.assertAlmostEqual(out["yaw"], -142.3, places=1)
+        self.assertAlmostEqual(out["roll"], 75.4, places=1)
         self.assertAlmostEqual(out["lat"], 49.6012345, places=6)
         self.assertAlmostEqual(out["lon"], 6.1198765, places=6)
         self.assertEqual(out["gps_fix"], 1)
@@ -163,6 +164,7 @@ class RollField(unittest.TestCase):
         self.assertAlmostEqual(frame.unpack(frame.pack(d, 0))["roll"], -3276.8, places=1)
 
     def test_v1_frame_rejected_by_length(self):
+        # 33-byte frame (old v1 SIZE) is rejected on length before the version check.
         self.assertEqual(frame.unpack(b"\x02" * 33)["_err"], "bad_len")
 
 
