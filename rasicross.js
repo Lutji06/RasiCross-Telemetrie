@@ -585,7 +585,12 @@ function renderDriftBadge() {
   const st = (state.drift && state.drift.status) || 'n/a';
   const idx = state.drift && state.drift.index;
   const label = DRIFT_LABEL[st] || '–';
-  el.textContent = (st === 'n/a' || idx == null) ? label : `${label} ${idx.toFixed(1)}`;
+  // Richtungs-Glyph nur fuer Rotations-Status, aus dem Vorzeichen der (kalibrierten) Gierrate.
+  const glyph = (st === 'oversteer' || st === 'counter')
+    ? ((state.imu && state.imu.yaw < 0) ? ' ←' : ' →') : '';
+  // Wert (geglaetteter Index) bei oversteer/understeer/counter; grip/n/a nur Label.
+  const showVal = idx != null && (st === 'oversteer' || st === 'understeer' || st === 'counter');
+  el.textContent = showVal ? `${label}${glyph} ${idx.toFixed(1)}` : label;
   el.style.color = DRIFT_COLOR[st] || '';
 }
 const LERP = 0.18;
