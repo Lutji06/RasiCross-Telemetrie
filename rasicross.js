@@ -612,6 +612,18 @@ function renderDriftBadge() {
   el.textContent = showVal ? `${label}${glyph} ${idx.toFixed(1)}` : label;
   el.style.color = DRIFT_COLOR[st] || '';
 }
+// Neigungs-Balken (Phase 19b): Marker-Position aus Rollwinkel (±90° -> 0..100%),
+// Umkipp-Zustand faerbt Marker rot + zeigt "UMGEKIPPT".
+function renderRollBar() {
+  const m = $('rollMarker');
+  if (!m) return;
+  const deg = Math.max(-90, Math.min(90, (state.attitude && state.attitude.rollDeg) || 0));
+  m.style.left = (50 + deg / 90 * 50) + '%';
+  const over = !!(state.attitude && state.attitude.over);
+  m.classList.toggle('over', over);
+  const v = $('rollVal'); if (v) v.textContent = Math.round(deg) + '°';
+  const o = $('rollOver'); if (o) o.classList.toggle('hidden', !over);
+}
 const LERP = 0.18;
 function lerp(a, b) { return a + (b - a) * LERP; }
 function renderGauges() {
@@ -2554,6 +2566,7 @@ function updateLiveKPIs() {
     setText('kYaw', Math.round(state.imu.yaw));
     setText('kMtemp', state.imu.mtemp == null ? '--' : Math.round(state.imu.mtemp));
     renderDriftBadge();
+    renderRollBar();
     // Rundenzeit: nur alle 100ms aktualisieren ist ok
     const lapText = state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
