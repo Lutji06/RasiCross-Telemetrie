@@ -435,9 +435,10 @@ function recordPacket(d) {
   }
 }
 // Drift-Eingaenge aus einem (Roh-)Paket — identisch fuer Live und Replay-Aggregat.
-// Wendet die IMU-Kalibrierung an (gy: swap/invert/zero; yaw: invertYaw), damit der
-// Vorzeichen-/Counter-Check konsistente Achsen vergleicht.
+// Wendet die IMU-Kalibrierung an (gy: Null-Offset, swap, invertGy; yaw: invertYaw),
+// damit der Vorzeichen-/Counter-Check konsistente Achsen vergleicht.
 function driftInputs(d, cal) {
+  d = d || {};
   cal = cal || {};
   let gx = (Number(d.gx) || 0) - (cal.gxZero || 0);
   let gy = (Number(d.gy) || 0) - (cal.gyZero || 0);
@@ -487,6 +488,8 @@ function processTelemetry(d) {
     // Eingangs-Normalisierung mit dem Replay-Aggregat; smoothStep liefert
     // EMA-Index + entprellten/hysterese-stabilen Status.
     const dRaw = RasiDrift.analyze(di, state.settings.drift);
+    // settings.drift liefert tol (-> Hysterese-Baender); smooth/hyst/counterHold
+    // sind nicht in den Settings und fallen in smoothStep auf SMOOTH_DEFAULTS zurueck.
     state.driftSmooth = RasiDrift.smoothStep(state.driftSmooth, dRaw, state.settings.drift);
     state.drift = { status: state.driftSmooth.status, index: state.driftSmooth.idxEma };
     const lat = Number(d.lat);
