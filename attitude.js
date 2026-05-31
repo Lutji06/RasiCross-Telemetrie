@@ -22,7 +22,7 @@ function rollStep(prevRollDeg, rollRateDps, gy, gz, dtSec, alpha) {
   var a = alpha == null ? 0.98 : Number(alpha);
   if (!(a >= 0)) a = 0;
   if (a > 1) a = 1;
-  var dt = _clamp(_num(dtSec), 0, 0.5);            // clamp against stalls/gaps
+  var dt = _clamp(_num(dtSec), 0, 0.5);            // upper bound vs stalls/gaps; lower 0 (no div-by-dt; avoids over-integration on fast samples)
   var gyroPart = _num(prevRollDeg) + _num(rollRateDps) * dt;
   var accelRoll = Math.atan2(_num(gy), _num(gz)) * _DEG;
   return a * gyroPart + (1 - a) * accelRoll;

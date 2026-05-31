@@ -1185,7 +1185,7 @@ def main():
                                              Config.GEAR_RATIO)
             else:
                 speed = 0.0
-            # Binaer-Frame ist winzig (~33 B) -> keine Slow-Kadenz mehr:
+            # Binaer-Frame ist winzig (~35 B) -> keine Slow-Kadenz mehr:
             # alle Felder in jedem Paket (D1-Spec 4.3).
             if battery.active:
                 battery.read()
