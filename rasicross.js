@@ -378,6 +378,7 @@ function loadSettingsToUi() {
   if ($('setInvertGx')) $('setInvertGx').checked = !!state.calibration.invertGx;
   if ($('setInvertGy')) $('setInvertGy').checked = !!state.calibration.invertGy;
   if ($('setSwapG')) $('setSwapG').checked = !!state.calibration.swapG;
+  if ($('setInvertYaw')) $('setInvertYaw').checked = !!state.calibration.invertYaw;
   if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
   if ($('setTilesEnabled')) {
     $('setTilesEnabled').checked = !!(state.settings.tiles && state.settings.tiles.enabled);
@@ -405,6 +406,7 @@ function saveSettingsFromUi() {
   state.calibration.invertGx = !!$('setInvertGx')?.checked;
   state.calibration.invertGy = !!$('setInvertGy')?.checked;
   state.calibration.swapG = !!$('setSwapG')?.checked;
+  state.calibration.invertYaw = !!$('setInvertYaw')?.checked;
   drawGMeter._trail = [];
   if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
   if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
