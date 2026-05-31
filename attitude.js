@@ -7,7 +7,7 @@
 // ============================================================
 
 var _DEG = 180 / Math.PI;
-var LIFT_DEFAULTS = { angleDeg: 12, rateDps: 60, hystDeg: 3 };
+var ROLLOVER_DEFAULTS = { angleDeg: 75, hystDeg: 5 };
 
 function _num(x) { var v = Number(x); return isFinite(v) ? v : 0; }
 function _clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
@@ -28,28 +28,26 @@ function rollStep(prevRollDeg, rollRateDps, gy, gz, dtSec, alpha) {
   return a * gyroPart + (1 - a) * accelRoll;
 }
 
-// Wheel-lift event with hysteresis. Pure: state in, result out.
-//   st  : { active }
-//   thr : { angleDeg, rateDps, hystDeg }
-//   -> { active, onset }
-function wheelLift(st, rollDeg, rollRateDps, thr) {
+// Rollover (capsize) detector with hysteresis. Pure: state in, result out.
+// Fires on a SUSTAINED large roll angle — wheel-lift (small/normal lean) is NOT
+// flagged here. No rate gate, no dwell (immediate). A high default threshold
+// (75deg, well above cornering lean ~45deg) is the false-alarm guard.
+//   st  : { active } ; thr : { angleDeg, hystDeg }  ->  { active, onset }
+function rolloverStep(st, rollDeg, thr) {
   st = st || {};
   var t = thr || {};
-  var angleDeg = t.angleDeg == null ? LIFT_DEFAULTS.angleDeg : t.angleDeg;
-  var rateDps  = t.rateDps  == null ? LIFT_DEFAULTS.rateDps  : t.rateDps;
-  var hystDeg  = t.hystDeg  == null ? LIFT_DEFAULTS.hystDeg  : t.hystDeg;
+  var angleDeg = t.angleDeg == null ? ROLLOVER_DEFAULTS.angleDeg : t.angleDeg;
+  var hystDeg  = t.hystDeg  == null ? ROLLOVER_DEFAULTS.hystDeg  : t.hystDeg;
   var aRoll = Math.abs(_num(rollDeg));
-  var aRate = Math.abs(_num(rollRateDps));
   var wasActive = !!st.active;
-  var active = wasActive
-    ? aRoll >= (angleDeg - hystDeg)                // stay until strictly below angle-hyst
-    : (aRoll > angleDeg && aRate > rateDps);       // enter needs BOTH
+  var active = wasActive ? aRoll >= (angleDeg - hystDeg)   // stay until below angle-hyst
+                         : aRoll >= angleDeg;               // enter at/above threshold
   return { active: active, onset: active && !wasActive };
 }
 
 // ── UMD-style export ────────────────────────────────────────
 (function () {
-  var api = { rollStep: rollStep, wheelLift: wheelLift };
+  var api = { rollStep: rollStep, rolloverStep: rolloverStep };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
   if (typeof window !== 'undefined') { window.RasiAttitude = api; }
 })();

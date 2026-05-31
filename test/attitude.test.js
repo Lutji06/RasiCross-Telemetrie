@@ -5,9 +5,9 @@ const att = require('../attitude.js');
 
 const approx = (a, b, tol = 1e-3) => assert.ok(Math.abs(a - b) <= tol, `${a} != ${b} (±${tol})`);
 
-test('module exports rollStep + wheelLift', () => {
+test('module exports rollStep + rolloverStep', () => {
   assert.equal(typeof att.rollStep, 'function');
-  assert.equal(typeof att.wheelLift, 'function');
+  assert.equal(typeof att.rolloverStep, 'function');
 });
 
 test('rollStep: alpha=0 -> pure accel reference atan2(gy,gz)', () => {
@@ -26,28 +26,34 @@ test('rollStep: blends gyro and accel by alpha', () => {
   approx(att.rollStep(0, 0, 1, 1, 0.1, 0.5), 22.5, 1e-6);  // 0.5*0 + 0.5*45
 });
 
-test('wheelLift: onset when angle AND rate exceed', () => {
-  const thr = { angleDeg: 12, rateDps: 60, hystDeg: 3 };
-  const r = att.wheelLift({ active: false }, 15, 80, thr);
+test('rolloverStep: onset at/above the angle threshold (no rate gate)', () => {
+  const thr = { angleDeg: 75, hystDeg: 5 };
+  const r = att.rolloverStep({ active: false }, 80, thr);
   assert.equal(r.active, true);
   assert.equal(r.onset, true);
+  assert.equal(att.rolloverStep({ active: false }, 75, thr).active, true);  // == threshold
 });
 
-test('wheelLift: no onset when only one threshold exceeds', () => {
-  const thr = { angleDeg: 12, rateDps: 60, hystDeg: 3 };
-  assert.equal(att.wheelLift({ active: false }, 15, 50, thr).active, false);
-  assert.equal(att.wheelLift({ active: false }, 10, 80, thr).active, false);
+test('rolloverStep: cornering lean (~45deg) does NOT trigger', () => {
+  const thr = { angleDeg: 75, hystDeg: 5 };
+  assert.equal(att.rolloverStep({ active: false }, 45, thr).active, false);
+  assert.equal(att.rolloverStep({ active: false }, 70, thr).active, false);
 });
 
-test('wheelLift: hysteresis holds active until below angle-hyst', () => {
-  const thr = { angleDeg: 12, rateDps: 60, hystDeg: 3 };
-  assert.equal(att.wheelLift({ active: true }, 10, 5, thr).active, true);  // 10 > 9
-  assert.equal(att.wheelLift({ active: true }, 9, 5, thr).active, true);   // 9 == angle-hyst -> stays (spec: ends only when <)
-  assert.equal(att.wheelLift({ active: true }, 8, 5, thr).active, false);  // 8 < 9
-  assert.equal(att.wheelLift({ active: true }, 15, 80, thr).onset, false); // continuing
+test('rolloverStep: sign-independent (negative roll triggers too)', () => {
+  const thr = { angleDeg: 75, hystDeg: 5 };
+  assert.equal(att.rolloverStep({ active: false }, -80, thr).active, true);
+});
+
+test('rolloverStep: hysteresis holds until below angle-hyst; onset only on transition', () => {
+  const thr = { angleDeg: 75, hystDeg: 5 };
+  assert.equal(att.rolloverStep({ active: true }, 72, thr).active, true);
+  assert.equal(att.rolloverStep({ active: true }, 70, thr).active, true);
+  assert.equal(att.rolloverStep({ active: true }, 69, thr).active, false);
+  assert.equal(att.rolloverStep({ active: true }, 80, thr).onset, false);
 });
 
 test('attitude: junk inputs never throw', () => {
   assert.doesNotThrow(() => att.rollStep(NaN, NaN, NaN, NaN, NaN, NaN));
-  assert.doesNotThrow(() => att.wheelLift(null, NaN, NaN, null));
+  assert.doesNotThrow(() => att.rolloverStep(null, NaN, null));
 });
