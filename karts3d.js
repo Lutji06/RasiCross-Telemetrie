@@ -83,9 +83,10 @@ function kartModelYawReducer(current, action) {
 }
 
 // driftArrowSpec: Darstellungs-Parameter fuer den 3D-Drift-Pfeil aus dem
-// Phase-18-Driftzustand. Rein, wirft nie. Laenge ~ Drift-Index (0..2 -> 0..maxLen),
-// Richtung = Vorzeichen der gemessenen Gierrate, Farbe je Status. 'n/a'/fehlende
-// Daten -> unsichtbar.
+// (geglaetteten) Driftzustand. Rein, wirft nie. Laenge ~ Abweichung vom Grip
+// (|index-1|, geklemmt auf SEV_MAX). Sichtbar nur bei oversteer & counter;
+// grip/understeer/'n/a'/fehlende Daten -> unsichtbar. Richtung = Vorzeichen der
+// gemessenen Gierrate, Farbe je Status.
 var DRIFT_3D_COLOR = {
   grip:       0x3ee08a,   // gruen  (wie _zoneColor green)
   oversteer:  0xffa336,   // amber  (wie _zoneColor orange)
@@ -96,13 +97,16 @@ function driftArrowSpec(status, index, yawRate, opts) {
   opts = opts || {};
   var maxLen = Number(opts.maxLen) || 1.6;
   var minLen = Number(opts.minLen) || 0.06;
+  var sevMax = Number(opts.sevMax) || 1.0;
   var color = DRIFT_3D_COLOR[status];
   var idx = Number(index);
-  if (color == null || index == null || !isFinite(idx)) {
+  // Pfeil zeigt nur Rotations-Ueberschuss / Spin; grip & understeer -> unsichtbar.
+  if (color == null || index == null || !isFinite(idx) ||
+      (status !== 'oversteer' && status !== 'counter')) {
     return { visible: false, length: 0, dirSign: 0, color: 0xffffff };
   }
-  var clamped = Math.max(0, Math.min(2, idx));
-  var length = clamped / 2 * maxLen;
+  var severity = Math.max(0, Math.min(sevMax, Math.abs(idx - 1)));   // Abweichung vom Grip
+  var length = severity / sevMax * maxLen;
   var dirSign = (Number(yawRate) || 0) >= 0 ? 1 : -1;
   return {
     visible: length > 0.05,
