@@ -110,24 +110,23 @@ test('driftArrowSpec: n/a / fehlend / null / NaN -> unsichtbar', () => {
   assert.equal(K.driftArrowSpec('grip', NaN, 5).visible, false);
 });
 
-test('driftArrowSpec: grip sichtbar, gruene Farbe, positive Laenge', () => {
-  const s = K.driftArrowSpec('grip', 1, 5);
-  assert.equal(s.visible, true);
-  assert.equal(s.color, 0x3ee08a);
-  assert.ok(s.length > 0);
+test('driftArrowSpec: grip & understeer -> unsichtbar (kein Rotations-Ueberschuss)', () => {
+  assert.equal(K.driftArrowSpec('grip', 1, 5).visible, false);
+  assert.equal(K.driftArrowSpec('grip', 1.05, 5).visible, false);
+  assert.equal(K.driftArrowSpec('understeer', 0.5, 5).visible, false);
 });
 
-test('driftArrowSpec: oversteer laenger als understeer; Farben je Status', () => {
-  const over = K.driftArrowSpec('oversteer', 1.6, 5);
-  const under = K.driftArrowSpec('understeer', 0.5, 5);
-  assert.ok(over.length > under.length, `${over.length} !> ${under.length}`);
-  assert.equal(over.color, 0xffa336);
-  assert.equal(under.color, 0x7aa2f7);
+test('driftArrowSpec: oversteer sichtbar, Laenge ~ |index-1|, amber', () => {
+  const small = K.driftArrowSpec('oversteer', 1.3, 5);
+  const big   = K.driftArrowSpec('oversteer', 1.8, 5);
+  assert.equal(small.visible, true);
+  assert.equal(small.color, 0xffa336);
+  assert.ok(big.length > small.length, `${big.length} !> ${small.length}`);
 });
 
-test('driftArrowSpec: index ueber 2 wird auf maxLen geclamped', () => {
-  const at2 = K.driftArrowSpec('oversteer', 2, 5).length;
-  const above = K.driftArrowSpec('oversteer', 10, 5).length;
+test('driftArrowSpec: severity auf SEV_MAX (index 2) geclamped', () => {
+  const at2   = K.driftArrowSpec('oversteer', 2, 5).length;   // |2-1| = 1 = SEV_MAX
+  const above = K.driftArrowSpec('oversteer', 10, 5).length;  // auf SEV_MAX geklemmt
   assert.equal(at2, above);
 });
 

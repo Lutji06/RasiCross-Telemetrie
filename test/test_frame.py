@@ -10,7 +10,7 @@ def _base():
     # A fully-populated telemetry dict (battery active + IMU temp present).
     return {
         "speed": 42.37, "rpm": 5123, "gx": 0.123, "gy": -1.987,
-        "gz": 0.97, "yaw": -142.3, "lat": 49.6012345, "lon": 6.1198765,
+        "gz": 0.97, "yaw": -142.3, "roll": 75.4, "lat": 49.6012345, "lon": 6.1198765,
         "gps_fix": 1, "gps_health": "ok", "pulse_hz": 318.4,
         "send_ms": 80, "spd_src": "gps", "imu_cal": 0,
         "batt_warn": 1, "vbat": 11.84, "soc": 73, "mtemp": 34,
@@ -19,12 +19,12 @@ def _base():
 
 class FrameLayout(unittest.TestCase):
     def test_size_and_ver(self):
-        self.assertEqual(frame.SIZE, 33)
-        self.assertEqual(frame.FMT, "<BHHHhhhhiiHHHBbBB")
-        self.assertEqual(frame.FRAME_VER, 1)
+        self.assertEqual(frame.SIZE, 35)
+        self.assertEqual(frame.FMT, "<BHHHhhhhhiiHHHBbBB")
+        self.assertEqual(frame.FRAME_VER, 2)
         b = frame.pack(_base(), 7)
         self.assertIsInstance(b, (bytes, bytearray))
-        self.assertEqual(len(b), 33)
+        self.assertEqual(len(b), 35)
         self.assertEqual(b[0], frame.FRAME_VER)
 
 
@@ -40,6 +40,7 @@ class RoundTrip(unittest.TestCase):
         self.assertAlmostEqual(out["gy"], -1.987, places=3)
         self.assertAlmostEqual(out["gz"], 0.97, places=2)
         self.assertAlmostEqual(out["yaw"], -142.3, places=1)
+        self.assertAlmostEqual(out["roll"], 75.4, places=1)
         self.assertAlmostEqual(out["lat"], 49.6012345, places=6)
         self.assertAlmostEqual(out["lon"], 6.1198765, places=6)
         self.assertEqual(out["gps_fix"], 1)
@@ -143,6 +144,28 @@ class Errors(unittest.TestCase):
     def test_seq_wraps(self):
         out = frame.unpack(frame.pack(_base(), 70000))
         self.assertEqual(out["seq"], 70000 & 0xFFFF)
+
+
+class RollField(unittest.TestCase):
+    def test_roll_roundtrip_value_and_sign(self):
+        d = _base(); d["roll"] = 75.4
+        self.assertAlmostEqual(frame.unpack(frame.pack(d, 0))["roll"], 75.4, places=1)
+        d["roll"] = -75.4
+        self.assertAlmostEqual(frame.unpack(frame.pack(d, 0))["roll"], -75.4, places=1)
+
+    def test_roll_absent_defaults_zero(self):
+        d = _base(); d.pop("roll")
+        self.assertEqual(frame.unpack(frame.pack(d, 0))["roll"], 0.0)
+
+    def test_roll_saturates(self):
+        d = _base(); d["roll"] = 99999.0
+        self.assertAlmostEqual(frame.unpack(frame.pack(d, 0))["roll"], 3276.7, places=1)
+        d["roll"] = -99999.0
+        self.assertAlmostEqual(frame.unpack(frame.pack(d, 0))["roll"], -3276.8, places=1)
+
+    def test_v1_frame_rejected_by_length(self):
+        # 33-byte frame (old v1 SIZE) is rejected on length before the version check.
+        self.assertEqual(frame.unpack(b"\x02" * 33)["_err"], "bad_len")
 
 
 if __name__ == '__main__':

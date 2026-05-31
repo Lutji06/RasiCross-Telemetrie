@@ -44,8 +44,8 @@ const state = {
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
-  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 } },
-  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false },
+  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 }, rollover: { angleDeg: 75 } },
+  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false, invertYaw: false, rollZero: 0 },
   theme: 'dark',
   // Telemetry
   telemetry: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
@@ -58,6 +58,8 @@ const state = {
   charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] },
   imu: { yaw: 0, mtemp: null },
   drift: { status: 'n/a', index: null },
+  attitude: { rollDeg: 0, over: false, overState: { active: false } },
+  driftSmooth: { idxEma: null, status: 'n/a', counterRun: 0 },
   heatmap: { on: false, lapMaxSpeed: 0 },
   // Track
   track: { points: [], bounds: null, scanning: false, totalDistance: 0, maxDistFromStart: 0, closed: false },
@@ -281,6 +283,7 @@ const rcAudio = (() => {
     pitCall:    () => { beep(660, 200, 0.2); setTimeout(() => beep(880, 200, 0.2), 220); },
     battWarn:   () => beep(300, 350, 0.2),
     battCrit:   () => { beep(200, 300, 0.25); setTimeout(() => beep(200, 300, 0.25), 320); },
+    rollover:   () => { beep(160, 300, 0.3); setTimeout(() => beep(120, 450, 0.3), 300); },
     setEnabled: (v) => { enabled = !!v; try { localStorage.setItem('rc_audio', v ? '1' : '0'); } catch(e){} },
     isEnabled:  () => enabled,
   };
@@ -370,6 +373,7 @@ function loadSettingsToUi() {
   $('setMinLap').value = state.settings.minLapSeconds;
   if ($('setDriftTol')) $('setDriftTol').value = state.settings.drift.tol;
   if ($('setDriftMinSpeed')) $('setDriftMinSpeed').value = state.settings.drift.minSpeedKmh;
+  if ($('setRolloverAngle')) $('setRolloverAngle').value = (state.settings.rollover && state.settings.rollover.angleDeg) || 75;
   if ($('setDisplayUpdateMs')) $('setDisplayUpdateMs').value = state.settings.displayUpdateMs || 500;
   $('settingsHint').textContent = `${state.settings.maxSpeed} km/h · ${state.settings.maxRpm} rpm`;
   $('gxOffsetText').textContent = state.calibration.gxZero.toFixed(2);
@@ -377,6 +381,7 @@ function loadSettingsToUi() {
   if ($('setInvertGx')) $('setInvertGx').checked = !!state.calibration.invertGx;
   if ($('setInvertGy')) $('setInvertGy').checked = !!state.calibration.invertGy;
   if ($('setSwapG')) $('setSwapG').checked = !!state.calibration.swapG;
+  if ($('setInvertYaw')) $('setInvertYaw').checked = !!state.calibration.invertYaw;
   if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
   if ($('setTilesEnabled')) {
     $('setTilesEnabled').checked = !!(state.settings.tiles && state.settings.tiles.enabled);
@@ -396,6 +401,8 @@ function saveSettingsFromUi() {
   if (!state.settings.drift) state.settings.drift = { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 };
   state.settings.drift.tol = Math.max(0.05, Math.min(1, Number($('setDriftTol')?.value) || 0.25));
   state.settings.drift.minSpeedKmh = Math.max(1, Math.min(60, Number($('setDriftMinSpeed')?.value) || 5));
+  if (!state.settings.rollover) state.settings.rollover = { angleDeg: 75 };
+  state.settings.rollover.angleDeg = Math.max(30, Math.min(90, Number($('setRolloverAngle')?.value) || 75));
   const newInterval = Math.max(100, Math.min(2000, Number($('setDisplayUpdateMs')?.value) || 500));
   if (newInterval !== state.settings.displayUpdateMs) {
     state.settings.displayUpdateMs = newInterval;
@@ -404,6 +411,7 @@ function saveSettingsFromUi() {
   state.calibration.invertGx = !!$('setInvertGx')?.checked;
   state.calibration.invertGy = !!$('setInvertGy')?.checked;
   state.calibration.swapG = !!$('setSwapG')?.checked;
+  state.calibration.invertYaw = !!$('setInvertYaw')?.checked;
   drawGMeter._trail = [];
   if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
   if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
@@ -433,6 +441,21 @@ function recordPacket(d) {
     rcToast('⚠ Aufnahme-Puffer voll — älteste Pakete werden verworfen', 4000);
   }
 }
+// Drift-Eingaenge aus einem (Roh-)Paket — identisch fuer Live und Replay-Aggregat.
+// Wendet die IMU-Kalibrierung an (gy: Null-Offset, swap, invertGy; yaw: invertYaw),
+// damit der Vorzeichen-/Counter-Check konsistente Achsen vergleicht.
+function driftInputs(d, cal) {
+  d = d || {};
+  cal = cal || {};
+  let gx = (Number(d.gx) || 0) - (cal.gxZero || 0);
+  let gy = (Number(d.gy) || 0) - (cal.gyZero || 0);
+  if (cal.swapG) { const t = gx; gx = gy; gy = t; }
+  if (cal.invertGy) gy = -gy;
+  let yaw = Number(d.yaw) || 0;
+  if (cal.invertYaw) yaw = -yaw;
+  return { yawRate: yaw, latAccel: gy, speed: Math.max(0, Number(d.speed) || 0) };
+}
+
 function processTelemetry(d) {
   try {
     if (!d) return;
@@ -460,17 +483,39 @@ function processTelemetry(d) {
     let gx = (Number(d.gx) || 0) - state.calibration.gxZero;
     let gy = (Number(d.gy) || 0) - state.calibration.gyZero;
     const gz = Number(d.gz) || 0;                  // Accel-Z (g), jedes Paket
-    const yawv = Number(d.yaw) || 0;               // Gier (deg/s), jedes Paket
+    const di = driftInputs(d, state.calibration);  // geteilte Drift-Normalisierung (inkl. invertYaw)
+    const yawv = di.yawRate;                        // vorzeichen-korrigierte Gierrate (deg/s)
     state.imu.yaw = yawv;
     if (d.mtemp != null) state.imu.mtemp = Number(d.mtemp) || 0;  // langsam: letzten Wert halten
     // Apply axis transformations
     if (state.calibration.swapG) { const tmp = gx; gx = gy; gy = tmp; }
     if (state.calibration.invertGx) gx = -gx;
     if (state.calibration.invertGy) gy = -gy;
-    // Drift (Phase 18): gemessene vs. erwartete Gierrate. gy = transformierte
-    // Querbeschleunigung, yawv = Gier-Rate (Gyro-Z), speed in km/h.
-    state.drift = RasiDrift.analyze(
-      { yawRate: yawv, latAccel: gy, speed: speed }, state.settings.drift);
+    // Drift (Phase 20): gehaerteter + geglaetteter Gierraten-Index. di teilt die
+    // Eingangs-Normalisierung mit dem Replay-Aggregat; smoothStep liefert
+    // EMA-Index + entprellten/hysterese-stabilen Status.
+    const dRaw = RasiDrift.analyze(di, state.settings.drift);
+    // settings.drift liefert tol (-> Hysterese-Baender); smooth/hyst/counterHold
+    // sind nicht in den Settings und fallen in smoothStep auf SMOOTH_DEFAULTS zurueck.
+    state.driftSmooth = RasiDrift.smoothStep(state.driftSmooth, dRaw, state.settings.drift);
+    state.drift = { status: state.driftSmooth.status, index: state.driftSmooth.idxEma };
+    // Rollwinkel (Phase 19b): Roll-Rate (d.roll) + Accel-Schwerkraft-Referenz
+    // -> Winkel (Komplementaerfilter), minus Null-Offset. di.latAccel = kalibrierte
+    // Querbeschleunigung; gz = Accel-Z.
+    const _attNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const _attDt = _attLastMs ? (_attNow - _attLastMs) / 1000 : 0.08;
+    _attLastMs = _attNow;
+    const _rollRaw = RasiAttitude.rollStep(
+      state.attitude.rollDeg + state.calibration.rollZero,
+      Number(d.roll) || 0, di.latAccel, Number(d.gz) || 0, _attDt, 0.98);
+    state.attitude.rollDeg = _rollRaw - state.calibration.rollZero;
+    state.attitude.overState = RasiAttitude.rolloverStep(
+      state.attitude.overState, state.attitude.rollDeg, state.settings.rollover);
+    state.attitude.over = state.attitude.overState.active;
+    if (state.attitude.overState.onset) {
+      rcToast('⚠ Mäher umgekippt!', 4000);
+      rcAudio.rollover();
+    }
     const lat = Number(d.lat);
     const lon = Number(d.lon);
     const hasGps = !!(d.gps_fix ?? d.fix ?? (lat && lon));
@@ -562,8 +607,25 @@ function renderDriftBadge() {
   const st = (state.drift && state.drift.status) || 'n/a';
   const idx = state.drift && state.drift.index;
   const label = DRIFT_LABEL[st] || '–';
-  el.textContent = (st === 'n/a' || idx == null) ? label : `${label} ${idx.toFixed(1)}`;
+  // Richtungs-Glyph nur fuer Rotations-Status, aus dem Vorzeichen der (kalibrierten) Gierrate.
+  const glyph = (st === 'oversteer' || st === 'counter')
+    ? ((state.imu && state.imu.yaw < 0) ? ' ←' : ' →') : '';
+  // Wert (geglaetteter Index) bei oversteer/understeer/counter; grip/n/a nur Label.
+  const showVal = idx != null && (st === 'oversteer' || st === 'understeer' || st === 'counter');
+  el.textContent = showVal ? `${label}${glyph} ${idx.toFixed(1)}` : label;
   el.style.color = DRIFT_COLOR[st] || '';
+}
+// Neigungs-Balken (Phase 19b): Marker-Position aus Rollwinkel (±90° -> 0..100%),
+// Umkipp-Zustand faerbt Marker rot + zeigt "UMGEKIPPT".
+function renderRollBar() {
+  const m = $('rollMarker');
+  if (!m) return;
+  const deg = Math.max(-90, Math.min(90, (state.attitude && state.attitude.rollDeg) || 0));
+  m.style.left = (50 + deg / 90 * 50) + '%';
+  const over = !!(state.attitude && state.attitude.over);
+  m.classList.toggle('over', over);
+  const v = $('rollVal'); if (v) v.textContent = Math.round(deg) + '°';
+  const o = $('rollOver'); if (o) o.classList.toggle('hidden', !over);
 }
 const LERP = 0.18;
 function lerp(a, b) { return a + (b - a) * LERP; }
@@ -2419,6 +2481,7 @@ let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '', spdSrc: '', 
 // 3D-Viewer instance state (single global; rAF lifecycle managed by start/stop).
 let _kart3dReady = false;
 let _kart3dLastTick = 0;
+let _attLastMs = 0;            // wall-clock of last attitude fusion step (ms)
 
 function updateLiveKPIs() {
   const now = Date.now();
@@ -2506,6 +2569,7 @@ function updateLiveKPIs() {
     setText('kYaw', Math.round(state.imu.yaw));
     setText('kMtemp', state.imu.mtemp == null ? '--' : Math.round(state.imu.mtemp));
     renderDriftBadge();
+    renderRollBar();
     // Rundenzeit: nur alle 100ms aktualisieren ist ok
     const lapText = state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
@@ -3351,7 +3415,7 @@ function saveRecording() {
 // Slices that processTelemetry / onGpsUpdate / lap-sector-race
 // detection mutate. Snapshot on enter, restore verbatim on exit.
 const REPLAY_KEYS = ['connection','hz','telemetry','raw','display','gps','spdSrc',
-  'batt','max','charts','imu','drift','heatmap','sectors','lapStart','currentLapMax',
+  'batt','max','charts','imu','drift','driftSmooth','attitude','heatmap','sectors','lapStart','currentLapMax',
   'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap',
   'drivers','races','activeRaceId','selectedRaceId','gateFlashUntil'];
 
@@ -3380,6 +3444,9 @@ function resetReplayDerived() {
   state.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] };
   state.imu = { yaw: 0, mtemp: null };
   state.drift = { status: 'n/a', index: null };
+  state.driftSmooth = { idxEma: null, status: 'n/a', counterRun: 0 };
+  state.attitude = { rollDeg: 0, over: false, overState: { active: false } };
+  _attLastMs = 0;
   state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
   state.sectors = { boundaries: state.sectors.boundaries, cur: 0, sectorStart: null,
     lapSectors: [null, null, null], best: [null, null, null], lastLapSectors: null,
@@ -3433,6 +3500,36 @@ function renderDriftStrip(spans, durationMs) {
     strip.appendChild(tick);
   }
 }
+// Umkipp-Onset-Marker über dem Replay-Seek (Phase 19b). onsets = [ms, …].
+function renderRollStrip(onsets, durationMs) {
+  const strip = $('rpRollStrip');
+  if (!strip) return;
+  strip.innerHTML = '';
+  const dur = Number(durationMs) || 0;
+  if (!dur || !onsets || !onsets.length) return;
+  for (const t of onsets) {
+    const p = Math.max(0, Math.min(100, t / dur * 100));
+    const tick = document.createElement('i');
+    tick.style.left = p + '%';
+    strip.appendChild(tick);
+  }
+}
+// Umkipp-Onsets über eine Aufnahme: Roll fusionieren + rolloverStep, Onset-ms sammeln.
+function rolloverOnsets(packets, cal, thr) {
+  const out = [];
+  let roll = 0, st = { active: false }, lastT = null;
+  for (const p of (packets || [])) {
+    const t = Number(p.t_rel) || 0;
+    const dt = lastT == null ? 0.08 : Math.max(0, (t - lastT) / 1000);
+    lastT = t;
+    roll = RasiAttitude.rollStep(roll, Number(p.roll) || 0,
+      (Number(p.gy) || 0) - (cal.gyZero || 0), Number(p.gz) || 0, dt, 0.98);
+    const r = RasiAttitude.rolloverStep(st, roll - (cal.rollZero || 0), thr);
+    if (r.onset) out.push(t);
+    st = r;
+  }
+  return out;
+}
 function loadRecordingFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -3454,10 +3551,17 @@ function enterReplay(parsed) {
   if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
   state.replay.active = true;
   state.replay.packets = parsed.packets;
-  const _ds = RasiDrift.summarize(parsed.packets, state.settings.drift);
+  // Drift-Aggregat mit DERSELBEN Kalibrierung wie Live (driftInputs): Pakete
+  // normalisieren, summarize/driftSpans erwarten die Keys yaw/gy/speed/t_rel.
+  const _calPk = parsed.packets.map(p => {
+    const i = driftInputs(p, state.calibration);
+    return { yaw: i.yawRate, gy: i.latAccel, speed: i.speed, t_rel: p.t_rel };
+  });
+  const _ds = RasiDrift.summarize(_calPk, state.settings.drift);
   state.replay.driftSummary = _ds;
   setText('rpDrift', _ds.counted ? `${_ds.driftPct.toFixed(0)}% · max ${_ds.maxIndex.toFixed(1)}` : '–');
-  renderDriftStrip(RasiDrift.driftSpans(parsed.packets, state.settings.drift), parsed.durationMs);
+  renderDriftStrip(RasiDrift.driftSpans(_calPk, state.settings.drift), parsed.durationMs);
+  renderRollStrip(rolloverOnsets(parsed.packets, state.calibration, state.settings.rollover), parsed.durationMs);
   state.replay.idx = 0;
   state.replay.virtualMs = 0;
   state.replay.durationMs = parsed.durationMs;
@@ -3829,6 +3933,15 @@ function init() {
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab
   $('saveSettingsBtn').onclick = saveSettingsFromUi;
+  if ($('zeroRollBtn')) $('zeroRollBtn').onclick = () => {
+    // Aktuellen fusionierten Rollwinkel (inkl. bestehendem Offset) als neue 0 setzen.
+    state.calibration.rollZero = state.calibration.rollZero + ((state.attitude && state.attitude.rollDeg) || 0);
+    state.attitude.rollDeg = 0;
+    state.attitude.overState = { active: false };
+    state.attitude.over = false;
+    saveData();
+    rcToast('Rollwinkel genullt', 1500);
+  };
   $('zeroImuBtn').onclick = () => {
     const btn = $('zeroImuBtn');
     if (btn.disabled) return;

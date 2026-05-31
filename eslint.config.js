@@ -70,6 +70,7 @@ module.exports = [
         RasiTiles: 'readonly',
         RasiTileRenderer: 'readonly',
         RasiDrift: 'readonly',
+        RasiAttitude: 'readonly',
       },
     },
     rules: bugRules,
@@ -78,6 +79,17 @@ module.exports = [
   // drift.js setzt window.RasiDrift (UMD, Browser + node:test)
   {
     files: ['drift.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, module: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
+  // attitude.js setzt window.RasiAttitude (UMD, Browser + node:test)
+  {
+    files: ['attitude.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',

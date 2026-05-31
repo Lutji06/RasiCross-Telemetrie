@@ -885,6 +885,17 @@ select{
   border-radius:50%;
 }
 #gMeter3dCanvas.hidden, #gMeterCanvas.hidden{ display:none; }
+.roll-ind{ margin:10px auto 0; max-width:280px; }
+.roll-track{ position:relative; height:14px; border-radius:7px;
+  background:linear-gradient(90deg,#e05a5a 0%,#e0a13a 22%,#3ddc84 50%,#e0a13a 78%,#e05a5a 100%); }
+.roll-marker{ position:absolute; top:-3px; left:50%; width:4px; height:20px;
+  margin-left:-2px; border-radius:2px; background:#fff; box-shadow:0 0 4px rgba(0,0,0,.6); transition:left .1s linear; }
+.roll-marker.over{ background:#ff2d2d; box-shadow:0 0 8px #ff2d2d; }
+.roll-scale{ display:flex; justify-content:space-between; font-size:11px; color:var(--mut); margin-top:2px; }
+.roll-val{ text-align:center; font-size:13px; margin-top:2px; }
+.roll-over{ color:#ff2d2d; font-weight:700; animation:rollBlink .5s steps(1) infinite; }
+.roll-over.hidden{ display:none; }
+@keyframes rollBlink{ 50%{ opacity:.2; } }
 .g-view-toggle{
   display:inline-flex;gap:4px;margin:0 auto 4px;
   padding:3px;border-radius:999px;
@@ -2141,6 +2152,8 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 .replay-bar .rp-seek-wrap .rp-seek{flex:1;width:100%;accent-color:var(--pr,#7aa2f7)}
 .replay-bar .rp-drift-strip{position:absolute;left:0;right:0;top:-7px;height:4px;pointer-events:none}
 .replay-bar .rp-drift-strip i{position:absolute;top:0;height:4px;background:var(--warn,#e0a13a);border-radius:2px;min-width:2px}
+.replay-bar .rp-roll-strip{position:absolute;left:0;right:0;top:-7px;height:4px;pointer-events:none}
+.replay-bar .rp-roll-strip i{position:absolute;top:0;height:4px;width:3px;margin-left:-1.5px;background:#ff2d2d;box-shadow:0 0 4px #ff2d2d}
 .replay-bar .rp-time{font-family:var(--mono,monospace);font-size:12px;color:var(--mut,#8b90a0);white-space:nowrap}
 .replay-bar select{background:var(--bg,#0e0f13);color:var(--tx,#e8eaf0);border:1px solid var(--border,#2a2d36);border-radius:8px;padding:6px 8px;font-size:12px}
 .replay-bar #rpPlayBtn{min-width:44px;font-size:15px}
@@ -2401,6 +2414,11 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
         </div>
         <canvas id="gMeterCanvas"></canvas>
         <canvas id="gMeter3dCanvas" class="hidden"></canvas>
+        <div class="roll-ind" id="rollInd" title="Rollwinkel (Umkipp-Warnung ab Schwelle)">
+          <div class="roll-track"><i class="roll-marker" id="rollMarker"></i></div>
+          <div class="roll-scale"><span>-90°</span><span>0°</span><span>+90°</span></div>
+          <div class="roll-val"><b id="rollVal">0°</b> <span id="rollOver" class="roll-over hidden">UMGEKIPPT</span></div>
+        </div>
         <div class="g-readout">
           <span>Gx <b id="gxText">0.0</b></span>
           <span>Gy <b id="gyText">0.0</b></span>
@@ -3051,6 +3069,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
         <div class="field"><label>Mindest-Rundenzeit (s)</label><input type="number" id="setMinLap" value="10" min="3" max="300"></div>
         <div class="field"><label>Drift-Empfindlichkeit (Toleranz)</label><input type="number" id="setDriftTol" value="0.25" min="0.05" max="1" step="0.05"></div>
         <div class="field"><label>Drift Min-Tempo (km/h)</label><input type="number" id="setDriftMinSpeed" value="5" min="1" max="60" step="1"></div>
+        <div class="field"><label>Umkipp-Schwelle (Grad)</label><input type="number" id="setRolloverAngle" value="75" min="30" max="90" step="1"></div>
         <div class="field"><label>OLED-Update Intervall (ms)</label><input type="number" id="setDisplayUpdateMs" value="500" min="100" max="2000" step="50"></div>
         <button class="btn primary" id="saveSettingsBtn">Übernehmen</button>
       </div>
@@ -3069,9 +3088,11 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
       <div class="toggle-row"><span class="label-text">Gx invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGx"><span class="toggle-knob"></span></label></div>
       <div class="toggle-row"><span class="label-text">Gy invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGy"><span class="toggle-knob"></span></label></div>
       <div class="toggle-row"><span class="label-text">Gx ↔ Gy tauschen</span><label class="toggle"><input type="checkbox" id="setSwapG"><span class="toggle-knob"></span></label></div>
+      <div class="toggle-row"><span class="label-text">Gier invertieren</span><label class="toggle"><input type="checkbox" id="setInvertYaw"><span class="toggle-knob"></span></label></div>
       <div class="row" style="gap:8px;margin-top:14px">
         <button class="btn primary" id="zeroImuBtn" style="flex:1">Nullpunkt setzen</button>
         <button class="btn ghost" id="resetImuBtn" style="flex:0 0 auto">Zurücksetzen</button>
+        <button class="btn ghost" id="zeroRollBtn" style="flex:0 0 auto" title="Aktuellen Rollwinkel als 0 setzen">Roll nullen</button>
       </div>
       <p style="color:var(--mut);font-size:12px;margin-top:8px">
         Mäher auf eine ebene Fläche stellen, dann 2 Sekunden lang ruhig halten.
@@ -3345,7 +3366,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 
 <div id="replayBar" class="replay-bar hidden">
   <button class="btn ghost" id="rpPlayBtn">⏸</button>
-  <span class="rp-seek-wrap"><span id="rpDriftStrip" class="rp-drift-strip"></span><input type="range" id="rpSeek" class="rp-seek" min="0" max="1000" value="0"></span>
+  <span class="rp-seek-wrap"><span id="rpDriftStrip" class="rp-drift-strip"></span><span id="rpRollStrip" class="rp-roll-strip"></span><input type="range" id="rpSeek" class="rp-seek" min="0" max="1000" value="0"></span>
   <span class="rp-time"><b id="rpElapsed">00:00</b> / <b id="rpTotal">00:00</b></span>
   <span class="rp-time" title="Drift-Zeitanteil · stärkster Index">Drift <b id="rpDrift">–</b></span>
   <select id="rpSpeed" title="Wiedergabe-Geschwindigkeit">
@@ -3363,6 +3384,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 <script src="geo.js"></script>
 <script src="replay.js"></script>
 <script src="drift.js"></script>
+<script src="attitude.js"></script>
 <script src="tiles.js"></script>
 <script src="tile-renderer.js"></script>
 <script src="dom-targets.js"></script>

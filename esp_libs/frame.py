@@ -5,13 +5,13 @@
 #  (Unit-Tests / CI) und MicroPython (Kart-ESP packt, Bridge-ESP
 #  entpackt). Auf BEIDE ESPs flashen:
 #    mpremote connect <port> cp esp_libs/frame.py :
-#  33-Byte Little-Endian Frame, siehe Spec 2026-05-19 D1 4.2.
+#  35-Byte Little-Endian Frame (v2: +roll Gyro-X), siehe Spec 2026-05-19 D1 4.2.
 # ============================================================
 import struct
 
-FRAME_VER = 1
-FMT = "<BHHHhhhhiiHHHBbBB"
-SIZE = struct.calcsize(FMT)            # 33
+FRAME_VER = 2
+FMT = "<BHHHhhhhhiiHHHBbBB"
+SIZE = struct.calcsize(FMT)            # 35
 
 _GPS_HEALTH = ("ok", "searching", "lost", "disabled")
 _SPD_SRC = ("gps", "wheel", "none")
@@ -47,7 +47,7 @@ def _f(x):
 
 
 def pack(d, seq):
-    """Telemetrie-dict + seq -> 33 Byte. Saettigt, wirft nie."""
+    """Telemetrie-dict + seq -> 35 Byte. Saettigt, wirft nie."""
     d = d or {}
     speed = _clamp(_i(_f(d.get("speed")) * 100.0), 0, 65535)
     rpm = _clamp(_i(d.get("rpm")), 0, 65535)
@@ -55,6 +55,7 @@ def pack(d, seq):
     gy = _clamp(_i(_f(d.get("gy")) * 1000.0), -32768, 32767)
     gz = _clamp(_i(_f(d.get("gz")) * 1000.0), -32768, 32767)
     yaw = _clamp(_i(_f(d.get("yaw")) * 10.0), -32768, 32767)
+    roll = _clamp(_i(_f(d.get("roll")) * 10.0), -32768, 32767)
     lat = _clamp(_i(_f(d.get("lat")) * 1e7), -2147483648, 2147483647)
     lon = _clamp(_i(_f(d.get("lon")) * 1e7), -2147483648, 2147483647)
     pulse = _clamp(_i(_f(d.get("pulse_hz")) * 10.0), 0, 65535)
@@ -82,12 +83,12 @@ def pack(d, seq):
     flags2 = batt_present | (mtemp_valid << 1)
 
     return struct.pack(FMT, FRAME_VER, seq & 0xFFFF, speed, rpm,
-                       gx, gy, gz, yaw, lat, lon, pulse, send_ms,
+                       gx, gy, gz, yaw, roll, lat, lon, pulse, send_ms,
                        vbat, soc, mtemp, flags1, flags2)
 
 
 def unpack(buf):
-    """33 Byte -> Telemetrie-dict (Dashboard-kompatible Keys).
+    """35 Byte -> Telemetrie-dict (Dashboard-kompatible Keys).
     Wirft nie; bei Fehler {'_err': 'bad_len'|'bad_ver', ...}."""
     try:
         n = len(buf)
@@ -97,7 +98,7 @@ def unpack(buf):
         return {"_err": "bad_len", "len": n}
     if buf[0] != FRAME_VER:
         return {"_err": "bad_ver", "ver": buf[0]}
-    (_ver, seq, speed, rpm, gx, gy, gz, yaw, lat, lon, pulse,
+    (_ver, seq, speed, rpm, gx, gy, gz, yaw, roll, lat, lon, pulse,
      send_ms, vbat, soc, mtemp, flags1, flags2) = struct.unpack(FMT, buf)
     out = {
         "seq": seq,
@@ -107,6 +108,7 @@ def unpack(buf):
         "gy": gy / 1000.0,
         "gz": gz / 1000.0,
         "yaw": yaw / 10.0,
+        "roll": roll / 10.0,
         "lat": lat / 1e7,
         "lon": lon / 1e7,
         "gps_fix": flags1 & 1,
