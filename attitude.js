@@ -1,6 +1,6 @@
 'use strict';
 // ============================================================
-//  attitude.js — pure roll-angle fusion + wheel-lift (Phase 19)
+//  attitude.js — pure roll-angle fusion + rollover detection (Phase 19)
 //  Loaded as a classic <script> BEFORE rasicross.js (exposes
 //  window.RasiAttitude) and as a CommonJS module for node:test.
 //  Dependency-free. No DOM. See spec 2026-05-30 §5.6.
