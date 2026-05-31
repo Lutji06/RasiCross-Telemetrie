@@ -295,6 +295,7 @@ class IMU:
         self._gy  = 0.0
         self._az  = 0.0          # geglaettetes Accel-Z (g)
         self._yaw = 0.0          # geglaettete Gier-Rate = Gyro-Z (deg/s)
+        self._roll = 0.0         # geglaettete Roll-Rate = Gyro-X (deg/s)
         self._mpu = None
         self._fail_count = 0
         # Kalibrier-Offsets (in g)
@@ -323,11 +324,12 @@ class IMU:
             return (0.0, 0.0)
         try:
             ax, ay, az = self._mpu.accel
-            _gxr, _gyr, gzr = self._mpu.gyro      # nur Z (= Gier) genutzt
+            gxr, _gyr, gzr = self._mpu.gyro       # X (= Roll) + Z (= Gier) genutzt
             # Accel-Z + Gier mit demselben EMA wie gx/gy glaetten
             # (keine Kalibrier-Offsets: nur die Lehne-Achsen werden genullt).
             self._az  = alpha * az  + (1 - alpha) * self._az
             self._yaw = alpha * gzr + (1 - alpha) * self._yaw
+            self._roll = alpha * gxr + (1 - alpha) * self._roll
             # Kalibrierung: rohe Samples mitteln, bis Zeit abgelaufen
             if self._cal_active:
                 self._cal_sum_x += ax
@@ -388,6 +390,9 @@ class IMU:
 
     @property
     def yaw(self):  return self._yaw
+
+    @property
+    def roll(self): return self._roll
 
     @property
     def mpu_temp(self):
@@ -1191,6 +1196,7 @@ def main():
                 "gy":       round(gy, 3),
                 "gz":       round(imu.az, 2),    # Accel-Z (g), jedes Paket
                 "yaw":      round(imu.yaw, 1),   # Gier-Rate (deg/s), jedes Paket
+                "roll":     round(imu.roll, 1),  # Roll-Rate (deg/s), jedes Paket
                 "lat":      round(gps.lat, 7),
                 "lon":      round(gps.lon, 7),
                 "gps_fix":  1 if gps.fix else 0,
