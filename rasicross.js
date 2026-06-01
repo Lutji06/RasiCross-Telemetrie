@@ -449,7 +449,9 @@ function driftInputs(d, cal) {
   cal = cal || {};
   let gx = (Number(d.gx) || 0) - (cal.gxZero || 0);
   let gy = (Number(d.gy) || 0) - (cal.gyZero || 0);
-  if (cal.swapG) { const t = gx; gx = gy; gy = t; }
+  // Nur gy (Querbeschleunigung) fliesst ins Ergebnis; bei vertauschten Achsen
+  // liegt sie auf gx -> gy <- gx (kein voller Swap noetig, gx wird hier nicht mehr gelesen).
+  if (cal.swapG) gy = gx;
   if (cal.invertGy) gy = -gy;
   let yaw = Number(d.yaw) || 0;
   if (cal.invertYaw) yaw = -yaw;
