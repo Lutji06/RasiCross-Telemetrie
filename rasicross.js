@@ -2272,7 +2272,6 @@ function renderTrackOptions() {
 
 function updateRaceControls() {
   const r = activeRace();
-  setText('liveHeroTitle', r ? r.name : 'Live');
   const running = r && r.status === 'running';
   const paused = r && r.status === 'paused';
   const startBtn = $('startRaceBtn');
@@ -2644,7 +2643,6 @@ function updateDiagnostics() {
 function updateLiveUi() {
   try {
     const t = state.telemetry;
-    setText('gpsStatus', state.gps.fix ? 'OK' : '--');
     setText('latText', t.lat ? t.lat.toFixed(6) : '--');
     setText('lonText', t.lon ? t.lon.toFixed(6) : '--');
     setText('trackPoints', state.track.points.length);
@@ -2663,14 +2661,11 @@ function updateLiveUi() {
         setText('countdown', `${left} LAPS`);
       }
       const drv = state.drivers.find(d => d.id === r.currentDriverId);
-      setText('raceMeta', `${r.name} · ${drv ? drv.name : 'Kein Fahrer'} · Runde ${raceValidLaps(r).length + 1}`);
       setText('currentDriverName', drv ? drv.name : '--');
     } else if (r) {
       setText('countdown', r.lengthType === 'time' ? fmtClock(r.durationMs) : r.lengthType === 'laps' ? `${r.targetLaps} LAPS` : '∞');
-      setText('raceMeta', `${r.name} · ${r.status === 'created' ? 'Bereit' : r.status}`);
     } else {
       setText('countdown', '--:--');
-      setText('raceMeta', 'Erstelle im Tab Rennen ein Rennen.');
       setText('currentDriverName', '--');
     }
     // Stints
@@ -4008,7 +4003,7 @@ function init() {
       pulses_per_rev: Number($('espPulses').value) || 1,
       wheel_circ_m: Number($('espWheelCirc').value) || 0,
       gear_ratio: Number($('espGearRatio').value) || 1,
-      batt_cells: Number($('espBattCells').value) || 3
+      batt_cells: Number($('espBattCells').value) || 1
     };
     state.batt.cells = cfg.batt_cells;
     if (!state.serial.connected) {
