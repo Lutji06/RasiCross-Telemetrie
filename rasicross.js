@@ -228,6 +228,9 @@ function setupTabs() {
       setTimeout(resizeCanvases, 50);
       // Bei Driver-Tab: Stats neu berechnen (kann sich nach jedem Rennen aendern)
       if (tab === 'drivers') renderDrivers();
+      // Task 7 – Settings-Suche beim Tab-Wechsel zuruecksetzen
+      const _ss = document.getElementById('settingsSearch');
+      if (_ss && _ss.value) { _ss.value = ''; _ss.dispatchEvent(new Event('input')); }
     };
   });
 }
@@ -4040,6 +4043,35 @@ function init() {
   document.querySelectorAll('#tab-settings .settings-nav-item').forEach(btn => {
     btn.onclick = () => showSettingsGroup(btn.dataset.sgroup);
   });
+  // Task 7 – Settings search filter
+  const _settingsSearch = $('settingsSearch');
+  if (_settingsSearch) {
+    _settingsSearch.addEventListener('input', () => {
+      const res = RasiSettings.settingsFilter(_settingsSearch.value, RasiSettings.SETTINGS_INDEX);
+      const active = res.query !== '';
+
+      // Nav: passende Gruppen markieren / Rest dimmen
+      document.querySelectorAll('#tab-settings .settings-nav-item').forEach(b => {
+        b.classList.toggle('search-hit', active && res.groups.has(b.dataset.sgroup));
+        b.classList.toggle('search-dim', active && !res.groups.has(b.dataset.sgroup));
+      });
+
+      // Zeilen ein-/ausblenden (Zeilen ohne bekannte rowId bleiben immer sichtbar)
+      document.querySelectorAll('#tab-settings .settings-row').forEach(row => {
+        const ctrl = row.querySelector('[id]');
+        const rowId = ctrl ? ctrl.id : null;
+        const known = rowId && RasiSettings.SETTINGS_INDEX.some(e => e.rowId === rowId);
+        row.classList.toggle('row-hidden', active && known && !res.rows.has(rowId));
+        row.classList.toggle('row-hit', active && known && res.rows.has(rowId));
+      });
+
+      // Bei Treffer zur ersten passenden Gruppe springen
+      if (active && res.groups.size > 0) {
+        const first = RasiSettings.GROUPS.find(g => res.groups.has(g));
+        if (first) showSettingsGroup(first);
+      }
+    });
+  }
   $('gateWidth').onchange = () => {
     state.startGate.width = Number($('gateWidth').value) || 14;
     setText('gateSizeText', state.startGate.width + 'm');
