@@ -41,6 +41,7 @@
       "tiles.js",
       "tile-renderer.js",
       "dom-targets.js",
+      "settings.js",
       "vendor/**",
       "icon.ico"
     ],

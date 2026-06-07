@@ -71,6 +71,7 @@ module.exports = [
         RasiTileRenderer: 'readonly',
         RasiDrift: 'readonly',
         RasiAttitude: 'readonly',
+        RasiSettings: 'readonly',
       },
     },
     rules: bugRules,
@@ -101,6 +102,17 @@ module.exports = [
   // dom-targets.js setzt window.DomTargets (UMD, Browser)
   {
     files: ['dom-targets.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, module: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
+  // settings.js setzt window.RasiSettings (UMD, Browser + node:test)
+  {
+    files: ['settings.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
