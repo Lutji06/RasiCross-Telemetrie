@@ -365,6 +365,18 @@ async function onTilesClearClicked() {
   }
 }
 
+function showSettingsGroup(id) {
+  const next = RasiSettings.settingsNavReducer(
+    (state.settings && state.settings.uiActiveGroup) || 'dashboard',
+    { type: 'set', id }
+  );
+  state.settings.uiActiveGroup = next;
+  document.querySelectorAll('#tab-settings .settings-nav-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.sgroup === next));
+  document.querySelectorAll('#tab-settings .settings-group').forEach(s =>
+    s.classList.toggle('active', s.dataset.sgroup === next));
+}
+
 function loadSettingsToUi() {
   $('setMaxSpeed').value = state.settings.maxSpeed;
   $('setMaxRpm').value = state.settings.maxRpm;
@@ -390,6 +402,9 @@ function loadSettingsToUi() {
     $('setTilesUrl').value = (state.settings.tiles && state.settings.tiles.urlTemplate) || '';
     updateTilesUrlHint();
     applyTilesPresetFromUrl();
+  }
+  if (typeof showSettingsGroup === 'function') {
+    showSettingsGroup((state.settings && state.settings.uiActiveGroup) || 'dashboard');
   }
 }
 // eslint-disable-next-line no-unused-vars -- re-wired in Task 8 (auto-save)
@@ -4021,6 +4036,10 @@ function init() {
   $('importAllBtn').onclick = () => $('importAllFile').click();
   $('importAllFile').onchange = e => { if (e.target.files[0]) importAll(e.target.files[0]); e.target.value = ''; };
   $('resetAllBtn').onclick = resetAll;
+  // Settings sub-navigation
+  document.querySelectorAll('#tab-settings .settings-nav-item').forEach(btn => {
+    btn.onclick = () => showSettingsGroup(btn.dataset.sgroup);
+  });
   $('gateWidth').onchange = () => {
     state.startGate.width = Number($('gateWidth').value) || 14;
     setText('gateSizeText', state.startGate.width + 'm');
