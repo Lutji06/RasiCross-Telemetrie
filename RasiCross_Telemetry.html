@@ -1955,7 +1955,7 @@ body.diagnose-on .diagnose-only{display:block}
   transition:var(--t);
 }
 .pw-close:hover{background:var(--soft2)}
-.pw-hero{
+#pitwallOverlay .pw-hero{
   flex:1;display:grid;
   grid-template-columns:1fr 1.7fr 1fr;
   gap:18px;padding:20px 0;
@@ -2035,7 +2035,7 @@ body.diagnose-on .diagnose-only{display:block}
 .pw-foot-l{font-family:var(--mono);font-size:9px;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
 .pw-foot-v{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--tx);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:1100px){
-  .pw-hero{grid-template-columns:1fr;gap:12px}
+  #pitwallOverlay .pw-hero{grid-template-columns:1fr;gap:12px}
   .pw-footer{grid-template-columns:repeat(2,1fr)}
 }
 
