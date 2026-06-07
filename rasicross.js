@@ -411,12 +411,13 @@ function loadSettingsToUi() {
   }
 }
 let _settingsSaveTimer = null;
+let _flashTimerId = null;
 function flashSettingsSaved() {
   const active = document.querySelector('#tab-settings .settings-group.active [data-savemark]');
   if (!active) return;
   active.classList.add('show');
-  clearTimeout(flashSettingsSaved._t);
-  flashSettingsSaved._t = setTimeout(() => active.classList.remove('show'), 1500);
+  clearTimeout(_flashTimerId);
+  _flashTimerId = setTimeout(() => active.classList.remove('show'), 1500);
 }
 function scheduleSettingsSave() {
   clearTimeout(_settingsSaveTimer);
