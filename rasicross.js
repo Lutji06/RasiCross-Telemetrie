@@ -410,7 +410,18 @@ function loadSettingsToUi() {
     showSettingsGroup((state.settings && state.settings.uiActiveGroup) || 'dashboard');
   }
 }
-// eslint-disable-next-line no-unused-vars -- re-wired in Task 8 (auto-save)
+let _settingsSaveTimer = null;
+function flashSettingsSaved() {
+  const active = document.querySelector('#tab-settings .settings-group.active [data-savemark]');
+  if (!active) return;
+  active.classList.add('show');
+  clearTimeout(flashSettingsSaved._t);
+  flashSettingsSaved._t = setTimeout(() => active.classList.remove('show'), 1500);
+}
+function scheduleSettingsSave() {
+  clearTimeout(_settingsSaveTimer);
+  _settingsSaveTimer = setTimeout(() => { saveSettingsFromUi(); }, 150);
+}
 function saveSettingsFromUi() {
   state.settings.maxSpeed = Math.max(20, Math.min(200, Number($('setMaxSpeed').value) || 80));
   state.settings.maxRpm = Math.max(3000, Math.min(20000, Number($('setMaxRpm').value) || 10000));
@@ -437,7 +448,7 @@ function saveSettingsFromUi() {
   if ($('setTilesUrl')) state.settings.tiles.urlTemplate = ($('setTilesUrl').value || '').trim();
   loadSettingsToUi();
   saveData();
-  rcToast('Einstellungen gespeichert');
+  flashSettingsSaved();
 }
 
 // ============================================================
@@ -4071,6 +4082,17 @@ function init() {
         if (first) showSettingsGroup(first);
       }
     });
+  }
+  // Task 8 – Auto-save on change/blur for data-autosave controls
+  const _settingsTab = $('tab-settings');
+  if (_settingsTab) {
+    _settingsTab.addEventListener('change', (e) => {
+      if (e.target && e.target.closest && e.target.closest('[data-autosave]')) scheduleSettingsSave();
+    });
+    // Zahlenfelder zusätzlich bei Blur sofort sichern
+    _settingsTab.addEventListener('blur', (e) => {
+      if (e.target && e.target.matches && e.target.matches('input[type=number][data-autosave]')) scheduleSettingsSave();
+    }, true);
   }
   $('gateWidth').onchange = () => {
     state.startGate.width = Number($('gateWidth').value) || 14;
