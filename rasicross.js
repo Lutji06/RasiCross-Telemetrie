@@ -392,6 +392,7 @@ function loadSettingsToUi() {
     applyTilesPresetFromUrl();
   }
 }
+// eslint-disable-next-line no-unused-vars -- re-wired in Task 8 (auto-save)
 function saveSettingsFromUi() {
   state.settings.maxSpeed = Math.max(20, Math.min(200, Number($('setMaxSpeed').value) || 80));
   state.settings.maxRpm = Math.max(3000, Math.min(20000, Number($('setMaxRpm').value) || 10000));
@@ -3929,7 +3930,6 @@ function init() {
   $('demoStartBtn').onclick = startDemo;
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab
-  $('saveSettingsBtn').onclick = saveSettingsFromUi;
   if ($('zeroRollBtn')) $('zeroRollBtn').onclick = () => {
     // Aktuellen fusionierten Rollwinkel (inkl. bestehendem Offset) als neue 0 setzen.
     state.calibration.rollZero = state.calibration.rollZero + ((state.attitude && state.attitude.rollDeg) || 0);

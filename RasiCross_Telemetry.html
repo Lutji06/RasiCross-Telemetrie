@@ -3011,137 +3011,202 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
      TAB: EINSTELLUNGEN
      ============================================================ -->
 <section class="tab" id="tab-settings">
-  <div class="grid g2">
-    <div class="card">
-      <div class="card-head"><span class="card-title">Anzeige & Skalen</span><span class="card-sub">Dashboard-Limits</span></div>
-      <div class="fieldset">
-        <div class="field"><label>Max Speed (km/h)</label><input type="number" id="setMaxSpeed" value="80" min="20" max="200"></div>
-        <div class="field"><label>Max RPM</label><input type="number" id="setMaxRpm" value="10000" min="3000" max="20000" step="500"></div>
-        <div class="field"><label>RPM-Warnung ab</label><input type="number" id="setRpmWarn" value="9000" min="2000" max="20000" step="500"></div>
-        <div class="field"><label>G-Skala (max ±G)</label>
-          <select id="setGScale"><option value="2">±2G</option><option value="3" selected>±3G</option><option value="4">±4G</option><option value="5">±5G</option></select>
+  <div class="settings-shell">
+    <aside class="settings-nav">
+      <div class="settings-search">
+        <input type="text" id="settingsSearch" placeholder="Einstellung suchen…" autocomplete="off">
+      </div>
+      <button type="button" class="settings-nav-item active" data-sgroup="dashboard">Dashboard</button>
+      <button type="button" class="settings-nav-item" data-sgroup="sensorik">Sensorik &amp; Fahrdynamik</button>
+      <button type="button" class="settings-nav-item" data-sgroup="hardware">ESP32 / Hardware</button>
+      <button type="button" class="settings-nav-item" data-sgroup="model3d">3D-Modell</button>
+      <button type="button" class="settings-nav-item" data-sgroup="map">Karten-Hintergrund</button>
+      <button type="button" class="settings-nav-item" data-sgroup="data">Daten &amp; Backup</button>
+    </aside>
+
+    <div class="settings-panels">
+
+      <!-- ── Dashboard ─────────────────────────────────────── -->
+      <section class="settings-group active" data-sgroup="dashboard">
+        <header class="settings-group-head">
+          <div><h2 class="settings-group-title">Dashboard</h2><p class="settings-group-sub">Anzeige-Limits &amp; Skalen</p></div>
+          <span class="settings-saved" data-savemark>Automatisch gespeichert ✓</span>
+        </header>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Max Speed</span><span class="settings-row-desc">Obergrenze der Tacho-Skala (km/h)</span></div>
+          <input type="number" id="setMaxSpeed" value="80" min="20" max="200" data-autosave>
         </div>
-        <div class="field"><label>Mindest-Rundenzeit (s)</label><input type="number" id="setMinLap" value="10" min="3" max="300"></div>
-        <div class="field"><label>Drift-Empfindlichkeit (Toleranz)</label><input type="number" id="setDriftTol" value="0.25" min="0.05" max="1" step="0.05"></div>
-        <div class="field"><label>Drift Min-Tempo (km/h)</label><input type="number" id="setDriftMinSpeed" value="5" min="1" max="60" step="1"></div>
-        <div class="field"><label>Umkipp-Schwelle (Grad)</label><input type="number" id="setRolloverAngle" value="75" min="30" max="90" step="1"></div>
-        <div class="field"><label>OLED-Update Intervall (ms)</label><input type="number" id="setDisplayUpdateMs" value="500" min="100" max="2000" step="50"></div>
-        <button class="btn primary" id="saveSettingsBtn">Übernehmen</button>
-      </div>
-      <p id="settingsHint" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:10px"></p>
-    </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Max RPM</span><span class="settings-row-desc">Vollausschlag des Drehzahlmessers</span></div>
+          <input type="number" id="setMaxRpm" value="10000" min="3000" max="20000" step="500" data-autosave>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">RPM-Warnung ab</span><span class="settings-row-desc">Schwelle für die Drehzahl-Warnung</span></div>
+          <input type="number" id="setRpmWarn" value="9000" min="2000" max="20000" step="500" data-autosave>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">G-Skala</span><span class="settings-row-desc">Maximaler Ausschlag des G-Meters</span></div>
+          <select id="setGScale" data-autosave><option value="2">±2G</option><option value="3" selected>±3G</option><option value="4">±4G</option><option value="5">±5G</option></select>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Mindest-Rundenzeit</span><span class="settings-row-desc">Kürzere Runden werden ignoriert (s)</span></div>
+          <input type="number" id="setMinLap" value="10" min="3" max="300" data-autosave>
+        </div>
+        <p id="settingsHint" class="settings-foot-hint"></p>
+      </section>
 
-    <div class="card">
-      <div class="card-head"><span class="card-title">IMU Kalibrierung</span><span class="card-sub">G-Sensor</span></div>
-      <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
-        Stelle den Mäher auf eine ebene Fläche, dann "Nullpunkt setzen". Achsen-Korrekturen unten.
-      </p>
-      <div class="row" style="margin-bottom:14px">
-        <div class="stat"><div class="t">Gx Offset</div><div class="n" id="gxOffsetText">0.00</div></div>
-        <div class="stat"><div class="t">Gy Offset</div><div class="n" id="gyOffsetText">0.00</div></div>
-      </div>
-      <div class="toggle-row"><span class="label-text">Gx invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGx"><span class="toggle-knob"></span></label></div>
-      <div class="toggle-row"><span class="label-text">Gy invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGy"><span class="toggle-knob"></span></label></div>
-      <div class="toggle-row"><span class="label-text">Gx ↔ Gy tauschen</span><label class="toggle"><input type="checkbox" id="setSwapG"><span class="toggle-knob"></span></label></div>
-      <div class="toggle-row"><span class="label-text">Gier invertieren</span><label class="toggle"><input type="checkbox" id="setInvertYaw"><span class="toggle-knob"></span></label></div>
-      <div class="row" style="gap:8px;margin-top:14px">
-        <button class="btn primary" id="zeroImuBtn" style="flex:1">Nullpunkt setzen</button>
-        <button class="btn ghost" id="resetImuBtn" style="flex:0 0 auto">Zurücksetzen</button>
-        <button class="btn ghost" id="zeroRollBtn" style="flex:0 0 auto" title="Aktuellen Rollwinkel als 0 setzen">Roll nullen</button>
-      </div>
-      <p style="color:var(--mut);font-size:12px;margin-top:8px">
-        Mäher auf eine ebene Fläche stellen, dann 2 Sekunden lang ruhig halten.
-        Der Knopf misst Gx/Gy und setzt sie als Null-Offset — sowohl im
-        Dashboard als auch im Sender.
-      </p>
-    </div>
+      <!-- ── Sensorik & Fahrdynamik ────────────────────────── -->
+      <section class="settings-group" data-sgroup="sensorik">
+        <header class="settings-group-head">
+          <div><h2 class="settings-group-title">Sensorik &amp; Fahrdynamik</h2><p class="settings-group-sub">IMU-Kalibrierung, Drift, Umkippen</p></div>
+          <span class="settings-saved" data-savemark>Automatisch gespeichert ✓</span>
+        </header>
+        <p class="settings-block-note">Mäher auf eine ebene Fläche stellen, dann „Nullpunkt setzen". Achsen-Korrekturen darunter.</p>
+        <div class="row" style="margin-bottom:14px">
+          <div class="stat"><div class="t">Gx Offset</div><div class="n" id="gxOffsetText">0.00</div></div>
+          <div class="stat"><div class="t">Gy Offset</div><div class="n" id="gyOffsetText">0.00</div></div>
+        </div>
+        <div class="toggle-row"><span class="label-text">Gx invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGx" data-autosave><span class="toggle-knob"></span></label></div>
+        <div class="toggle-row"><span class="label-text">Gy invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGy" data-autosave><span class="toggle-knob"></span></label></div>
+        <div class="toggle-row"><span class="label-text">Gx ↔ Gy tauschen</span><label class="toggle"><input type="checkbox" id="setSwapG" data-autosave><span class="toggle-knob"></span></label></div>
+        <div class="toggle-row"><span class="label-text">Gier invertieren</span><label class="toggle"><input type="checkbox" id="setInvertYaw" data-autosave><span class="toggle-knob"></span></label></div>
+        <div class="row" style="gap:8px;margin:14px 0">
+          <button class="btn primary" id="zeroImuBtn" style="flex:1">Nullpunkt setzen</button>
+          <button class="btn ghost" id="resetImuBtn" style="flex:0 0 auto">Zurücksetzen</button>
+          <button class="btn ghost" id="zeroRollBtn" style="flex:0 0 auto" title="Aktuellen Rollwinkel als 0 setzen">Roll nullen</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Drift-Empfindlichkeit</span><span class="settings-row-desc">Toleranz des Drift-Index (kleiner = empfindlicher)</span></div>
+          <input type="number" id="setDriftTol" value="0.25" min="0.05" max="1" step="0.05" data-autosave>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Drift Min-Tempo</span><span class="settings-row-desc">Unter diesem Tempo keine Drift-Erkennung (km/h)</span></div>
+          <input type="number" id="setDriftMinSpeed" value="5" min="1" max="60" step="1" data-autosave>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Umkipp-Schwelle</span><span class="settings-row-desc">Rollwinkel, ab dem die Umkipp-Warnung auslöst (Grad)</span></div>
+          <input type="number" id="setRolloverAngle" value="75" min="30" max="90" step="1" data-autosave>
+        </div>
+      </section>
 
-    <div class="card" id="kartModelCard">
-      <div class="card-head"><span class="card-title">Kart-Modell</span><span class="card-sub">3D-Viewer</span></div>
-      <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
-        Lade ein eigenes 3D-Modell (.glb / .gltf, max 10 MB) für den 3D-Kart-Viewer hoch.
-        Vorderachse sollte in +X zeigen, oben = +Y. Modell wird automatisch in die
-        Anzeige eingepasst.
-      </p>
-      <div class="row" style="margin-bottom:14px">
-        <div class="stat"><div class="t">Aktuell</div><div class="n" id="kartModelName">Standard (Primitive)</div></div>
-      </div>
-      <div class="row" style="gap:8px;margin-bottom:14px">
-        <label class="btn primary" style="flex:1;cursor:pointer;text-align:center">
-          📂 Datei wählen…
-          <input type="file" id="kartModelFile" accept=".glb,.gltf" style="display:none">
-        </label>
-        <button class="btn ghost" id="kartModelResetBtn" style="flex:0 0 auto">Zurücksetzen</button>
-      </div>
-      <div class="stat" style="margin-bottom:8px"><div class="t">Ausrichtung (Heading)</div></div>
-      <div class="g-view-toggle" id="kartModelYawToggle" style="display:flex;width:100%">
-        <button type="button" data-yaw="0" class="active" style="flex:1">0°</button>
-        <button type="button" data-yaw="90" style="flex:1">90°</button>
-        <button type="button" data-yaw="180" style="flex:1">180°</button>
-        <button type="button" data-yaw="270" style="flex:1">270°</button>
-      </div>
-    </div>
+      <!-- ── ESP32 / Hardware ──────────────────────────────── -->
+      <section class="settings-group" data-sgroup="hardware">
+        <header class="settings-group-head">
+          <div><h2 class="settings-group-title">ESP32 / Hardware</h2><p class="settings-group-sub">Sender-Konfig (USB → Bridge → Kart) &amp; Bridge-Display</p></div>
+          <span class="settings-saved" data-savemark>Automatisch gespeichert ✓</span>
+        </header>
+        <p class="settings-block-note">Werte unten gehen erst per „An ESP32 senden" an den Kart und wirken dann sofort.</p>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Max RPM (Sender)</span><span class="settings-row-desc">Drehzahl-Obergrenze im Sender</span></div>
+          <input type="number" id="espMaxRpm" value="6000">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Warn RPM (Sender)</span><span class="settings-row-desc">Warnschwelle im Sender</span></div>
+          <input type="number" id="espWarnRpm" value="5500">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Sende-Intervall</span><span class="settings-row-desc">Telemetrie-Rate des Senders (ms)</span></div>
+          <input type="number" id="espSendMs" value="80" min="20" max="500">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Pulses per Revolution</span><span class="settings-row-desc">Sensor-Pulse pro Wellenumdrehung</span></div>
+          <input type="number" id="espPulses" value="1" min="1" max="32">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Radumfang</span><span class="settings-row-desc">Meter pro Radumdrehung (0 = nur GPS)</span></div>
+          <input type="number" id="espWheelCirc" value="0" min="0" step="0.001">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Übersetzung Welle:Rad</span><span class="settings-row-desc">Getriebeverhältnis (1 = 1:1)</span></div>
+          <input type="number" id="espGearRatio" value="1" min="0.01" step="0.01">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Akkuzellen in Reihe</span><span class="settings-row-desc">Anzahl LiPo-Zellen (cells in series)</span></div>
+          <input type="number" id="espBattCells" value="1" min="1" max="14">
+        </div>
+        <div class="row" style="margin:6px 0 4px"><button class="btn primary" id="espSendBtn" style="flex:1">An ESP32 senden</button></div>
+        <p id="espSendStatus" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:6px;text-align:center;min-height:14px"></p>
+        <div class="settings-row" style="margin-top:8px">
+          <div class="settings-row-label"><span class="settings-row-name">OLED-Update Intervall</span><span class="settings-row-desc">Aktualisierungsrate des Bridge-Displays (ms)</span></div>
+          <input type="number" id="setDisplayUpdateMs" value="500" min="100" max="2000" step="50" data-autosave>
+        </div>
+      </section>
 
-    <div class="card">
-      <div class="card-head"><span class="card-title">ESP32 Sender</span><span class="card-sub">Live-Konfig</span></div>
-      <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
-        Sendet Konfiguration über USB → Bridge → Kart-ESP. Wirkt sofort.
-      </p>
-      <div class="fieldset">
-        <div class="field"><label>Max RPM (Sender)</label><input type="number" id="espMaxRpm" value="6000"></div>
-        <div class="field"><label>Warn RPM (Sender)</label><input type="number" id="espWarnRpm" value="5500"></div>
-        <div class="field"><label>Sende-Intervall (ms)</label><input type="number" id="espSendMs" value="80" min="20" max="500"></div>
-        <div class="field"><label>Pulses per Revolution</label><input type="number" id="espPulses" value="1" min="1" max="32"></div>
-        <div class="field"><label>Radumfang m (0 = nur GPS)</label><input type="number" id="espWheelCirc" value="0" min="0" step="0.001"></div>
-        <div class="field"><label>Übersetzung Welle:Rad (1 = 1:1)</label><input type="number" id="espGearRatio" value="1" min="0.01" step="0.01"></div>
-        <div class="field"><label>Akkuzellen in Reihe (cells in series)</label><input type="number" id="espBattCells" value="1" min="1" max="14"></div>
-        <button class="btn primary" id="espSendBtn">An ESP32 senden</button>
-      </div>
-      <p id="espSendStatus" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:8px;text-align:center;min-height:14px"></p>
-    </div>
+      <!-- ── 3D-Modell ─────────────────────────────────────── -->
+      <section class="settings-group" data-sgroup="model3d" id="kartModelCard">
+        <header class="settings-group-head">
+          <div><h2 class="settings-group-title">3D-Modell</h2><p class="settings-group-sub">Kart-Viewer</p></div>
+        </header>
+        <p class="settings-block-note">Eigenes 3D-Modell (.glb / .gltf, max 10 MB). Vorderachse → +X, oben → +Y; wird automatisch eingepasst.</p>
+        <div class="row" style="margin-bottom:14px">
+          <div class="stat"><div class="t">Aktuell</div><div class="n" id="kartModelName">Standard (Primitive)</div></div>
+        </div>
+        <div class="row" style="gap:8px;margin-bottom:14px">
+          <label class="btn primary" style="flex:1;cursor:pointer;text-align:center">
+            📂 Datei wählen…
+            <input type="file" id="kartModelFile" accept=".glb,.gltf" style="display:none">
+          </label>
+          <button class="btn ghost" id="kartModelResetBtn" style="flex:0 0 auto">Zurücksetzen</button>
+        </div>
+        <div class="stat" style="margin-bottom:8px"><div class="t">Ausrichtung (Heading)</div></div>
+        <div class="g-view-toggle" id="kartModelYawToggle" style="display:flex;width:100%">
+          <button type="button" data-yaw="0" class="active" style="flex:1">0°</button>
+          <button type="button" data-yaw="90" style="flex:1">90°</button>
+          <button type="button" data-yaw="180" style="flex:1">180°</button>
+          <button type="button" data-yaw="270" style="flex:1">270°</button>
+        </div>
+      </section>
 
-    <div class="card">
-      <div class="card-head"><span class="card-title">Daten</span><span class="card-sub">Backup & Reset</span></div>
-      <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
-        Alle Einstellungen, Fahrer, Strecken und Rennen werden im Browser gespeichert.
-      </p>
-      <div class="toggle-row"><span class="label-text">Aufnahme bei Verbindung automatisch starten</span><label class="toggle"><input type="checkbox" id="recAutoArmToggle" checked><span class="toggle-knob"></span></label></div>
-      <div class="fieldset">
-        <button class="btn ghost" id="exportAllBtn">📥 Alle Daten exportieren</button>
-        <button class="btn ghost" id="importAllBtn">📤 Daten importieren</button>
-        <input type="file" id="importAllFile" accept=".json" style="display:none">
-        <button class="btn danger" id="resetAllBtn" style="margin-top:8px">🗑 Alle Daten zurücksetzen</button>
-      </div>
-    </div>
+      <!-- ── Karten-Hintergrund ────────────────────────────── -->
+      <section class="settings-group" data-sgroup="map">
+        <header class="settings-group-head">
+          <div><h2 class="settings-group-title">Karten-Hintergrund</h2><p class="settings-group-sub">OSM-Tiles</p></div>
+          <span class="settings-saved" data-savemark>Automatisch gespeichert ✓</span>
+        </header>
+        <div class="toggle-row"><span class="label-text">OSM-Hintergrund anzeigen</span><label class="toggle"><input type="checkbox" id="setTilesEnabled" checked data-autosave><span class="toggle-knob"></span></label></div>
+        <div class="field" style="margin-top:10px">
+          <label>Karten-Stil</label>
+          <select id="setTilesPreset" style="width:100%" data-autosave>
+            <option value="">OSM Standard</option>
+            <option value="https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png">Carto Hell (minimalistisch)</option>
+            <option value="https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png">Carto Voyager (saubere Karte)</option>
+            <option value="https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png">Carto Dark</option>
+            <option value="https://a.tile.opentopomap.org/{z}/{x}/{y}.png">OpenTopoMap (Topo / Outdoor)</option>
+            <option value="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}">Esri Satellit</option>
+            <option value="__custom__">Eigene URL …</option>
+          </select>
+        </div>
+        <div class="field" style="margin-top:10px">
+          <label>Tile-URL-Template (leer = OSM Standard)</label>
+          <input type="text" id="setTilesUrl" placeholder="z.B. https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=…" autocomplete="off" data-autosave>
+          <small id="setTilesUrlHint" style="display:block;color:var(--mut);font-size:11px;margin-top:4px">{z}, {x}, {y} sind Pflicht.</small>
+        </div>
+        <div class="fieldset" style="margin-top:10px">
+          <button class="btn ghost" id="tilesClearBtn">Cache leeren</button>
+          <span id="tilesCacheInfo" style="display:block;color:var(--mut);font-size:11px;margin-top:6px">—</span>
+        </div>
+        <p style="color:var(--mut);font-size:12px;margin-top:10px">
+          Karten-Tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>.
+          Eigene Tile-URL nur mit gültiger Lizenz des jeweiligen Anbieters verwenden.
+        </p>
+      </section>
 
-    <div class="card">
-      <div class="card-head"><span class="card-title">Karten-Hintergrund</span><span class="card-sub">OSM-Tiles</span></div>
-      <div class="toggle-row"><span class="label-text">OSM-Hintergrund anzeigen</span><label class="toggle"><input type="checkbox" id="setTilesEnabled" checked><span class="toggle-knob"></span></label></div>
-      <div class="field" style="margin-top:10px">
-        <label>Karten-Stil</label>
-        <select id="setTilesPreset" style="width:100%">
-          <option value="">OSM Standard</option>
-          <option value="https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png">Carto Hell (minimalistisch)</option>
-          <option value="https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png">Carto Voyager (saubere Karte)</option>
-          <option value="https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png">Carto Dark</option>
-          <option value="https://a.tile.opentopomap.org/{z}/{x}/{y}.png">OpenTopoMap (Topo / Outdoor)</option>
-          <option value="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}">Esri Satellit</option>
-          <option value="__custom__">Eigene URL …</option>
-        </select>
-      </div>
-      <div class="field" style="margin-top:10px">
-        <label>Tile-URL-Template (leer = OSM Standard)</label>
-        <input type="text" id="setTilesUrl" placeholder="z.B. https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=…" autocomplete="off">
-        <small id="setTilesUrlHint" style="display:block;color:var(--mut);font-size:11px;margin-top:4px">{z}, {x}, {y} sind Pflicht.</small>
-      </div>
-      <div class="fieldset" style="margin-top:10px">
-        <button class="btn ghost" id="tilesClearBtn">Cache leeren</button>
-        <span id="tilesCacheInfo" style="display:block;color:var(--mut);font-size:11px;margin-top:6px">—</span>
-      </div>
-      <p style="color:var(--mut);font-size:12px;margin-top:10px">
-        Karten-Tiles © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a>.
-        Eigene Tile-URL nur mit gültiger Lizenz des jeweiligen Anbieters verwenden.
-      </p>
+      <!-- ── Daten & Backup ────────────────────────────────── -->
+      <section class="settings-group" data-sgroup="data">
+        <header class="settings-group-head">
+          <div><h2 class="settings-group-title">Daten &amp; Backup</h2><p class="settings-group-sub">Sichern &amp; Zurücksetzen</p></div>
+          <span class="settings-saved" data-savemark>Automatisch gespeichert ✓</span>
+        </header>
+        <p class="settings-block-note">Alle Einstellungen, Fahrer, Strecken und Rennen werden im Browser gespeichert.</p>
+        <div class="toggle-row"><span class="label-text">Aufnahme bei Verbindung automatisch starten</span><label class="toggle"><input type="checkbox" id="recAutoArmToggle" checked data-autosave><span class="toggle-knob"></span></label></div>
+        <div class="fieldset" style="margin-top:12px">
+          <button class="btn ghost" id="exportAllBtn">📥 Alle Daten exportieren</button>
+          <button class="btn ghost" id="importAllBtn">📤 Daten importieren</button>
+          <input type="file" id="importAllFile" accept=".json" style="display:none">
+          <button class="btn danger" id="resetAllBtn" style="margin-top:8px">🗑 Alle Daten zurücksetzen</button>
+        </div>
+      </section>
+
     </div>
   </div>
 </section>
