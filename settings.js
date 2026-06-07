@@ -53,7 +53,7 @@
     { group: 'data',      rowId: 'exportAllBtn',      label: 'Alle Daten exportieren', keywords: ['export', 'backup', 'sichern'] },
     { group: 'data',      rowId: 'importAllBtn',      label: 'Daten importieren',    keywords: ['import', 'backup', 'laden'] },
     { group: 'data',      rowId: 'resetAllBtn',       label: 'Alle Daten zuruecksetzen', keywords: ['reset', 'loeschen', 'zuruecksetzen'] },
-  ]);
+  ].map(Object.freeze));
 
   function _norm(s) {
     return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
@@ -70,7 +70,7 @@
     }
     for (const e of list) {
       const hay = _norm(e.label + ' ' + (e.keywords || []).join(' ') + ' ' + e.group);
-      if (hay.indexOf(q) !== -1) { rows.add(e.rowId); groups.add(e.group); }
+      if (hay.includes(q)) { rows.add(e.rowId); groups.add(e.group); }
     }
     return { groups, rows, query: q };
   }

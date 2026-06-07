@@ -64,3 +64,9 @@ test('settingsFilter: kein Treffer -> leere Sets', () => {
   assert.equal(r.rows.size, 0);
   assert.equal(r.groups.size, 0);
 });
+
+test('SETTINGS_INDEX: jeder Eintrag ist eingefroren', () => {
+  for (const e of SETTINGS_INDEX) {
+    assert.equal(Object.isFrozen(e), true, `Eintrag ${e.rowId} muss frozen sein`);
+  }
+});
