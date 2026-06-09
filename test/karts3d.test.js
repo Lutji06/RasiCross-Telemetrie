@@ -44,6 +44,16 @@ test('resolveRollRad: fusionierter rollDeg wenn endlich, sonst rollFromG-Fallbac
   assert.equal(K.resolveRollRad(null, 0, 0, 1), 0);
 });
 
+test('rolloverGlowAlpha: 0 wenn nicht over; pulst in [0.25,0.60] wenn over', () => {
+  assert.equal(K.rolloverGlowAlpha(false, 1234), 0);
+  for (const t of [0, 90, 180, 500, 1000, 4321]) {
+    const a = K.rolloverGlowAlpha(true, t);
+    assert.ok(a >= 0.25 - 1e-9 && a <= 0.60 + 1e-9, `alpha ${a} out of range @t=${t}`);
+  }
+  // nicht-endliches t -> als 0 behandelt -> 0.25 + 0.35*0.5 = 0.425
+  assert.ok(close(K.rolloverGlowAlpha(true, NaN), 0.425, 1e-9));
+});
+
 test('yawIntegrate: dt-scaling + dps->rad; wraps into [-pi, pi]', () => {
   // 90 deg/s for 1000 ms -> +pi/2 rad
   assert.ok(close(K.yawIntegrate(0, 90, 1000), Math.PI / 2, 1e-9));
