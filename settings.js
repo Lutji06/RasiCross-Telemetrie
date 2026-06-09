@@ -34,6 +34,7 @@
     { group: 'sensorik',  rowId: 'setInvertGy',       label: 'Gy invertieren',       keywords: ['imu', 'achse', 'kalibrierung', 'g'] },
     { group: 'sensorik',  rowId: 'setSwapG',          label: 'Gx Gy tauschen',       keywords: ['imu', 'achse', 'swap', 'tauschen'] },
     { group: 'sensorik',  rowId: 'setInvertYaw',      label: 'Gier invertieren',     keywords: ['imu', 'yaw', 'gier', 'drift'] },
+    { group: 'sensorik',  rowId: 'setInvertRollRate', label: 'Roll-Rate invertieren', keywords: ['imu', 'roll', 'kipp', 'achse', 'rollwinkel', 'gyro'] },
     { group: 'sensorik',  rowId: 'setDriftTol',       label: 'Drift-Empfindlichkeit', keywords: ['drift', 'toleranz', 'empfindlichkeit'] },
     { group: 'sensorik',  rowId: 'setDriftMinSpeed',  label: 'Drift Min-Tempo',      keywords: ['drift', 'tempo', 'speed', 'minimum'] },
     { group: 'sensorik',  rowId: 'setRolloverAngle',  label: 'Umkipp-Schwelle',      keywords: ['umkippen', 'rollover', 'rollwinkel', 'grad', 'sicherheit'] },

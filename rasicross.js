@@ -45,7 +45,7 @@ const state = {
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
   settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 }, rollover: { angleDeg: 75 } },
-  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false, invertYaw: false, rollZero: 0 },
+  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0 },
   theme: 'dark',
   // Telemetry
   telemetry: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
@@ -397,6 +397,7 @@ function loadSettingsToUi() {
   if ($('setInvertGy')) $('setInvertGy').checked = !!state.calibration.invertGy;
   if ($('setSwapG')) $('setSwapG').checked = !!state.calibration.swapG;
   if ($('setInvertYaw')) $('setInvertYaw').checked = !!state.calibration.invertYaw;
+  if ($('setInvertRollRate')) $('setInvertRollRate').checked = !!state.calibration.invertRollRate;
   if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
   if ($('setTilesEnabled')) {
     $('setTilesEnabled').checked = !!(state.settings.tiles && state.settings.tiles.enabled);
@@ -443,6 +444,7 @@ function saveSettingsFromUi() {
   state.calibration.invertGy = !!$('setInvertGy')?.checked;
   state.calibration.swapG = !!$('setSwapG')?.checked;
   state.calibration.invertYaw = !!$('setInvertYaw')?.checked;
+  state.calibration.invertRollRate = !!$('setInvertRollRate')?.checked;
   drawGMeter._trail = [];
   if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
   if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
@@ -538,9 +540,10 @@ function processTelemetry(d) {
     const _attNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     const _attDt = _attLastMs ? (_attNow - _attLastMs) / 1000 : 0.08;
     _attLastMs = _attNow;
+    const _rollRate = (Number(d.roll) || 0) * (state.calibration.invertRollRate ? -1 : 1);
     const _rollRaw = RasiAttitude.rollStep(
       state.attitude.rollDeg + state.calibration.rollZero,
-      Number(d.roll) || 0, di.latAccel, Number(d.gz) || 0, _attDt, 0.98);
+      _rollRate, di.latAccel, Number(d.gz) || 0, _attDt, 0.98);
     state.attitude.rollDeg = _rollRaw - state.calibration.rollZero;
     state.attitude.overState = RasiAttitude.rolloverStep(
       state.attitude.overState, state.attitude.rollDeg, state.settings.rollover);
@@ -3550,7 +3553,7 @@ function rolloverOnsets(packets, cal, thr) {
     const t = Number(p.t_rel) || 0;
     const dt = lastT == null ? 0.08 : Math.max(0, (t - lastT) / 1000);
     lastT = t;
-    roll = RasiAttitude.rollStep(roll, Number(p.roll) || 0,
+    roll = RasiAttitude.rollStep(roll, (Number(p.roll) || 0) * (cal.invertRollRate ? -1 : 1),
       (Number(p.gy) || 0) - (cal.gyZero || 0), Number(p.gz) || 0, dt, 0.98);
     const r = RasiAttitude.rolloverStep(st, roll - (cal.rollZero || 0), thr);
     if (r.onset) out.push(t);
