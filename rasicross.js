@@ -696,7 +696,7 @@ function drawGMeter() {
     c.height = c.offsetHeight * dpr();
   }
   const ctx = c.getContext('2d');
-  const w = c.width, h = c.height, cx = w/2, cy = h/2, r = w * 0.46;
+  const w = c.width, h = c.height, cx = w/2, cy = h/2, r = w * 0.40, rr = w * 0.46;
   const gs = state.settings.gScale;
   const gx = state.display.gxLerp, gy = state.display.gyLerp;
   ctx.clearRect(0, 0, w, h);
@@ -722,16 +722,29 @@ function drawGMeter() {
   ctx.fillStyle = css('--sub');
   ctx.font = `${Math.round(10 * dpr())}px sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText('+Gx', cx, cy - r - lpad);
+  ctx.fillText('+Gx', cx, cy - rr - lpad);
   ctx.textBaseline = 'top';
-  ctx.fillText('−Gx', cx, cy + r + lpad);
+  ctx.fillText('−Gx', cx, cy + rr + lpad);
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText('+Gy', cx + r + lpad, cy);
+  ctx.fillText('+Gy', cx + rr + lpad, cy);
   ctx.textAlign = 'right';
-  ctx.fillText('−Gy', cx - r - lpad, cy);
+  ctx.fillText('−Gy', cx - rr - lpad, cy);
   // Border
   ctx.strokeStyle = css('--bor'); ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  // ── Künstlicher Horizont (Kippfunktion) ──────────────────────
+  const rollDeg = Math.max(-90, Math.min(90, (state.attitude && state.attitude.rollDeg) || 0));
+  const over = !!(state.attitude && state.attitude.over);
+  const rollRad = rollDeg * Math.PI / 180;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+  ctx.translate(cx, cy); ctx.rotate(-rollRad);
+  ctx.fillStyle = over ? 'rgba(255,84,112,.13)' : 'rgba(90,184,255,.10)';
+  ctx.fillRect(-r, 0, r * 2, r);
+  ctx.strokeStyle = over ? css('--red') : 'rgba(90,184,255,.55)';
+  ctx.lineWidth = 1.5 * dpr();
+  ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.stroke();
+  ctx.restore();
   // Trail (last positions tracked here)
   if (!drawGMeter._trail) drawGMeter._trail = [];
   drawGMeter._trail.push({ x: gy, y: gx });
@@ -752,6 +765,41 @@ function drawGMeter() {
   ctx.shadowColor = dotCol; ctx.shadowBlur = 12 * dpr();
   ctx.beginPath(); ctx.arc(px, py, 7 * dpr(), 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
+  // ── Bank-Ring: Roll-Skala + Zeiger + Umkipp-Zonen ────────────
+  const thr = (state.settings.rollover && state.settings.rollover.angleDeg) || 75;
+  const a0 = -Math.PI / 2;                 // 0° Roll = oben (12 Uhr)
+  const toA = d => a0 + d * Math.PI / 180; // Roll φ -> Canvas-Winkel
+  ctx.strokeStyle = css('--bor'); ctx.lineWidth = 2 * dpr();
+  ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke();
+  // Umkipp-Zonen ±thr..±90°
+  ctx.strokeStyle = over ? css('--red') : 'rgba(255,84,112,.5)';
+  ctx.lineWidth = 4 * dpr();
+  ctx.beginPath(); ctx.arc(cx, cy, rr, toA(thr), toA(90)); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, rr, toA(-90), toA(-thr)); ctx.stroke();
+  // Ticks 0/±30/±60
+  ctx.strokeStyle = css('--sub'); ctx.lineWidth = 1.5 * dpr();
+  [-60, -30, 0, 30, 60].forEach(d => {
+    const a = toA(d), c1 = Math.cos(a), s1 = Math.sin(a);
+    ctx.beginPath();
+    ctx.moveTo(cx + c1 * (rr - 5 * dpr()), cy + s1 * (rr - 5 * dpr()));
+    ctx.lineTo(cx + c1 * (rr + 4 * dpr()), cy + s1 * (rr + 4 * dpr()));
+    ctx.stroke();
+  });
+  // Zeiger am aktuellen Rollwinkel
+  const ap = toA(rollDeg);
+  const cpx = cx + Math.cos(ap) * rr, cpy = cy + Math.sin(ap) * rr;
+  ctx.fillStyle = over ? css('--red') : css('--green');
+  ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = (over ? 10 : 5) * dpr();
+  ctx.beginPath(); ctx.arc(cpx, cpy, 4 * dpr(), 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  // Umkipp-Glow am Hauptkreis
+  if (over) {
+    ctx.strokeStyle = css('--red');
+    ctx.shadowColor = css('--red'); ctx.shadowBlur = 14 * dpr();
+    ctx.lineWidth = 2.5 * dpr();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
 }
 
 // ============================================================
