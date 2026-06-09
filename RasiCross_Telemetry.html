@@ -886,13 +886,8 @@ select{
 }
 #gMeter3dCanvas.hidden, #gMeterCanvas.hidden{ display:none; }
 .roll-ind{ margin:10px auto 0; max-width:280px; }
-.roll-track{ position:relative; height:14px; border-radius:7px;
-  background:linear-gradient(90deg,#e05a5a 0%,#e0a13a 22%,#3ddc84 50%,#e0a13a 78%,#e05a5a 100%); }
-.roll-marker{ position:absolute; top:-3px; left:50%; width:4px; height:20px;
-  margin-left:-2px; border-radius:2px; background:#fff; box-shadow:0 0 4px rgba(0,0,0,.6); transition:left .1s linear; }
-.roll-marker.over{ background:#ff2d2d; box-shadow:0 0 8px #ff2d2d; }
-.roll-scale{ display:flex; justify-content:space-between; font-size:11px; color:var(--mut); margin-top:2px; }
 .roll-val{ text-align:center; font-size:13px; margin-top:2px; }
+.roll-cap{ font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.1em; color:var(--mut); }
 .roll-over{ color:#ff2d2d; font-weight:700; animation:rollBlink .5s steps(1) infinite; }
 .roll-over.hidden{ display:none; }
 @keyframes rollBlink{ 50%{ opacity:.2; } }
@@ -2442,9 +2437,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
         <canvas id="gMeterCanvas"></canvas>
         <canvas id="gMeter3dCanvas" class="hidden"></canvas>
         <div class="roll-ind" id="rollInd" title="Rollwinkel (Umkipp-Warnung ab Schwelle)">
-          <div class="roll-track"><i class="roll-marker" id="rollMarker"></i></div>
-          <div class="roll-scale"><span>-90°</span><span>0°</span><span>+90°</span></div>
-          <div class="roll-val"><b id="rollVal">0°</b> <span id="rollOver" class="roll-over hidden">UMGEKIPPT</span></div>
+          <div class="roll-val"><span class="roll-cap">ROLL</span> <b id="rollVal">0°</b> <span id="rollOver" class="roll-over hidden">⚠ UMGEKIPPT</span></div>
         </div>
         <div class="g-readout">
           <span>Gx <b id="gxText">0.0</b></span>
