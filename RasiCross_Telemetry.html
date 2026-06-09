@@ -1397,9 +1397,26 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 
 /* Live v2 — main body grid */
 .pw-live-body{display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:stretch}
-.pw-live-map{display:flex;flex-direction:column}
-.pw-live-map .pw-module{flex:1 1 auto;display:flex;flex-direction:column}
+.pw-live-map{display:flex;flex-direction:column;gap:12px}
+.pw-live-map .pw-module{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+.pw-live-map .pw-map-mod{flex:2 1 0}
 .pw-live-map .map{flex:1 1 auto;min-height:0}
+/* Live-Rundentabelle unter der Karte — scrollbar, Sticky-Header, fuellt den Restraum */
+.pw-live-map .pw-live-laps{flex:1 1 0}
+.pw-live-map .pw-live-laps .pw-laplist{flex:1 1 auto;min-height:0;overflow-y:auto;margin-top:8px}
+.live-lap-table{width:100%;border-collapse:collapse;font-family:var(--mono)}
+.live-lap-table thead th{position:sticky;top:0;z-index:1;background:var(--surf);
+  font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
+  text-align:right;padding:5px 8px;border-bottom:1px solid var(--bor);white-space:nowrap}
+.live-lap-table thead th:first-child,
+.live-lap-table thead th:last-child{text-align:left}
+.live-lap-table tbody td{font-size:12px;padding:4px 8px;text-align:right;white-space:nowrap;
+  border-bottom:1px solid rgba(255,255,255,.04)}
+.live-lap-table tbody td:first-child{text-align:left;color:var(--mut);font-weight:700}
+.live-lap-table tbody td.llt-time{font-weight:700;color:var(--tx)}
+.live-lap-table tbody td.llt-drv{text-align:left;color:var(--mut)}
+.live-lap-table tbody tr.best td.llt-time{color:var(--pr);font-weight:800}
+.live-lap-table tbody tr.invalid{opacity:.5}
 .pw-live-side{display:flex;flex-direction:column;gap:12px}
 .pw-live-side .pw-module{padding:10px 12px}
 
@@ -2338,7 +2355,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 
     <!-- Karte (linke 2/3) -->
     <div class="pw-live-map">
-      <div class="pw-module">
+      <div class="pw-module pw-map-mod">
         <div class="pw-mod-head">
           <div class="pw-mod-title">Streckenkarte</div>
           <button class="heat-btn" id="heatmapBtn">Heatmap</button>
@@ -2352,6 +2369,20 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <div class="stat"><div class="t">Lon</div><div class="n" id="lonText">--</div></div>
           <div class="stat"><div class="t">Punkte</div><div class="n" id="trackPoints">0</div></div>
           <div class="stat"><div class="t">Pakete</div><div class="n" id="packetsText">0</div></div>
+        </div>
+      </div>
+
+      <!-- Rundenliste: alle Runden im aktiven Rennen, scrollbar -->
+      <div class="pw-module pw-live-laps">
+        <div class="pw-mod-head">
+          <div class="pw-mod-title">Runden</div>
+          <span class="card-sub" id="liveLapCount">0 Runden</span>
+        </div>
+        <div class="pw-laplist">
+          <table class="live-lap-table">
+            <thead><tr><th>Rd</th><th>Zeit</th><th>&Delta;</th><th>S1</th><th>S2</th><th>S3</th><th>km/h</th><th>RPM</th><th>Fahrer</th></tr></thead>
+            <tbody id="liveLapList"><tr><td colspan="9" class="muted">Noch keine Runden.</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>

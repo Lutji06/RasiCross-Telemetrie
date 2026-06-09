@@ -1676,6 +1676,7 @@ function triggerLap() {
           rcAudio.sectorBest();
         }
       }
+      lap.sectors = s.lapSectors.slice(0, 3);    // [s1,s2,s3] ms (null ohne Sektorgrenzen)
       // Update best lap
       if (state.bestLapMs == null || lapMs < state.bestLapMs) {
         state.bestLapMs = lapMs;
@@ -1714,6 +1715,7 @@ function triggerLap() {
   } catch (e) { console.warn('triggerLap:', e); }
 }
 function renderLapTable() {
+  renderLiveLapList();
   const r = activeRace();
   const tbody = $('lapTable');
   if (!r || !r.laps.length) {
@@ -1736,6 +1738,43 @@ function renderLapTable() {
       <td>${esc(d?.name || '--')}</td>
       <td>${l.maxSpeed.toFixed(1)}</td>
       <td>${Math.round(l.maxRpm)}</td>
+    </tr>`;
+  }).join('');
+}
+// Kompakte, scrollbare Rundentabelle im Live-Tab unter der Streckenkarte.
+// Alle Pro-Runden-Infos: Zeit, Delta vs. Vorrunde, Sektoren S1-S3, Max km/h,
+// Max RPM, Fahrer. Neueste zuerst, schnellste gueltige Runde hervorgehoben.
+function renderLiveLapList() {
+  const tbody = $('liveLapList');
+  if (!tbody) return;
+  const r = activeRace();
+  if (!r || !r.laps.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="muted">Noch keine Runden.</td></tr>';
+    setText('liveLapCount', '0 Runden');
+    return;
+  }
+  const fmtS = ms => (ms == null ? '--' : (ms / 1000).toFixed(2));
+  const valid = r.laps.filter(l => l.valid);
+  const best = valid.length ? Math.min(...valid.map(l => l.timeMs)) : null;
+  setText('liveLapCount', `${valid.length} Runden`);
+  tbody.innerHTML = [...r.laps].reverse().map(l => {
+    const idx = l.number - 1;
+    const prev = idx > 0 ? r.laps[idx - 1].timeMs : null;
+    const delta = prev ? l.timeMs - prev : null;
+    const sec = Array.isArray(l.sectors) ? l.sectors : [null, null, null];
+    const d = state.drivers.find(x => x.id === l.driverId);
+    const cls = !l.valid ? 'invalid' : (l.timeMs === best ? 'best' : '');
+    const dColor = delta == null ? 'var(--mut)' : delta < 0 ? 'var(--green)' : 'var(--red)';
+    return `<tr class="${cls}">
+      <td>${l.number}</td>
+      <td class="llt-time">${fmtMs(l.timeMs)}</td>
+      <td style="color:${dColor}">${delta == null ? '--' : fmtDelta(delta)}</td>
+      <td>${fmtS(sec[0])}</td>
+      <td>${fmtS(sec[1])}</td>
+      <td>${fmtS(sec[2])}</td>
+      <td>${(l.maxSpeed || 0).toFixed(1)}</td>
+      <td>${Math.round(l.maxRpm || 0)}</td>
+      <td class="llt-drv">${esc(d?.name || '--')}</td>
     </tr>`;
   }).join('');
 }
