@@ -680,7 +680,9 @@ function renderGauges() {
       gz: state.telemetry.gz || 0,
       yaw: state.imu.yaw || 0,
       dtMs: dtMs,
-      drift: state.drift
+      drift: state.drift,
+      rollDeg: (state.attitude && state.attitude.rollDeg) || 0,
+      over: !!(state.attitude && state.attitude.over)
     });
   } else {
     drawGMeter();

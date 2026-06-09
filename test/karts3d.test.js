@@ -7,7 +7,8 @@ const close = (a, b, eps) => Math.abs(a - b) <= (eps == null ? 1e-9 : eps);
 
 test('exports the pure-helper api', () => {
   for (const n of ['pitchFromG', 'rollFromG', 'yawIntegrate', 'gViewReducer',
-                   'computeAutoFitScale', 'kartModelYawReducer', 'driftArrowSpec']) {
+                   'computeAutoFitScale', 'kartModelYawReducer', 'driftArrowSpec',
+                   'resolveRollRad', 'rolloverGlowAlpha']) {
     assert.equal(typeof K[n], 'function', `missing ${n}`);
   }
 });
@@ -29,6 +30,18 @@ test('rollFromG: pure lateral G -> +pi/2; sign symmetric; gravity-only -> 0', ()
   assert.ok(close(K.rollFromG(0, 1, 0), Math.PI / 2, 1e-9));
   assert.ok(close(K.rollFromG(0, -1, 0), -Math.PI / 2, 1e-9));
   assert.equal(K.rollFromG(0, 0, 1), 0);
+});
+
+test('resolveRollRad: fusionierter rollDeg wenn endlich, sonst rollFromG-Fallback', () => {
+  // 30 deg -> pi/6 rad, ignoriert Accel
+  assert.ok(close(K.resolveRollRad(30, 0, 1, 0), Math.PI / 6, 1e-9));
+  // negative Grad
+  assert.ok(close(K.resolveRollRad(-45, 0, 0, 1), -Math.PI / 4, 1e-9));
+  // fehlend/NaN -> Fallback rollFromG(gx,gy,gz)
+  assert.ok(close(K.resolveRollRad(undefined, 0, 1, 0), Math.PI / 2, 1e-9));
+  assert.ok(close(K.resolveRollRad(NaN, 0, -1, 0), -Math.PI / 2, 1e-9));
+  // Fallback im Stillstand -> 0
+  assert.equal(K.resolveRollRad(null, 0, 0, 1), 0);
 });
 
 test('yawIntegrate: dt-scaling + dps->rad; wraps into [-pi, pi]', () => {

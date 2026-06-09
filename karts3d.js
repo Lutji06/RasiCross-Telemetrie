@@ -29,6 +29,15 @@ function rollFromG(gx, gy, gz) {
   return Math.atan2(y, Math.sqrt(x * x + z * z));
 }
 
+// resolveRollRad: bevorzugt den fusionierten Rollwinkel (Grad) wenn endlich,
+// sonst Fallback auf accel-basiertes rollFromG. Liefert Radiant. Hält update()
+// abwaertskompatibel fuer Aufrufer ohne rollDeg.
+function resolveRollRad(rollDeg, gx, gy, gz) {
+  var d = Number(rollDeg);
+  if (isFinite(d)) return d * Math.PI / 180;
+  return rollFromG(gx, gy, gz);
+}
+
 // yawIntegrate: prev + dps * dt/1000 * pi/180, wrapped into (-pi, pi].
 // NaN/Inf in dps or dtMs -> returns prev unchanged (no propagation).
 function yawIntegrate(prevRad, yawDegPerS, dtMs) {
@@ -295,7 +304,7 @@ function update(imu) {
   var gz = Number(imu.gz) || 0;
 
   var targetPitch = pitchFromG(gx, gy, gz);
-  var targetRoll  = rollFromG(gx, gy, gz);
+  var targetRoll  = resolveRollRad(imu.rollDeg, gx, gy, gz);
   _pitch += (targetPitch - _pitch) * _EMA_ALPHA;
   _roll  += (targetRoll  - _roll)  * _EMA_ALPHA;
   _yaw    = yawIntegrate(_yaw, Number(imu.yaw) || 0, dt);
@@ -517,6 +526,7 @@ function _disposeGroup(group) {
   var api = {
     pitchFromG: pitchFromG,
     rollFromG: rollFromG,
+    resolveRollRad: resolveRollRad,
     yawIntegrate: yawIntegrate,
     gViewReducer: gViewReducer,
     computeAutoFitScale: computeAutoFitScale,
