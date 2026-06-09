@@ -8,7 +8,7 @@
 #            SSD1306 OLED (5 Seiten + Pit-Call Override).
 #
 #  Pins (Standard, im Config-Block änderbar):
-#    Hall      → GPIO 34   (INPUT, PULL-UP, falling-edge IRQ)
+#    Hall      → GPIO 4    (INPUT, PULL-UP, falling-edge IRQ)
 #    MPU-6050  → I2C  SDA=21  SCL=22
 #    GPS       → UART2  RX=16  TX=17  (9600 Baud)
 #    OLED      → I2C  SDA=21  SCL=22  (Adresse 0x3C)
@@ -65,6 +65,13 @@ try:
 except ImportError:
     _HAS_FRAME = False
 
+# NVS fuer persistente Live-Config (ueberlebt Watchdog-/Power-Resets)
+try:
+    import esp32
+    _HAS_NVS = True
+except ImportError:
+    _HAS_NVS = False
+
 
 # ── Konfiguration ─────────────────────────────────────────────────────────
 
@@ -106,9 +113,6 @@ class Config:
     BATT_CAL        = 1.0        # Feinkalibrierung (Multiplikator)
     BATT_CELL_WARN  = 3.5        # Warn-Schwelle pro Zelle (V)
     BATT_CELL_CRIT  = 3.3        # Kritisch-Schwelle pro Zelle (V)
-
-    # Langsame Felder (vbat/soc/...) nur jedes N-te Paket senden
-    SLOW_FIELD_EVERY = 8         # ~1 Hz bei 12.5 Hz Basisrate
 
     # Timing (alle Werte in ms)
     SEND_MS         = 80         # Telemetrie-Intervall (12.5 Hz)
@@ -376,6 +380,14 @@ class IMU:
         self._off_y = 0.0
         self._cal_active = False
 
+    def set_offsets(self, ox, oy):
+        """Setzt gespeicherte Null-Offsets direkt (z.B. aus NVS geladen)."""
+        try:
+            self._off_x = float(ox)
+            self._off_y = float(oy)
+        except (TypeError, ValueError):
+            pass
+
     @property
     def calibrating(self):
         return self._cal_active
@@ -399,7 +411,8 @@ class IMU:
     @property
     def mpu_temp(self):
         """Chip-Temperatur in ganzen Grad C, oder None wenn nicht
-        verfuegbar. Wird nur auf Slow-Paketen abgefragt."""
+        verfuegbar. Wird in jedem Telemetrie-Paket abgefragt (eine
+        I2C-Transaktion pro Paket, seit dem Binaer-Frame ohne Slow-Kadenz)."""
         if not self._ok:
             return None
         try:
@@ -1034,8 +1047,72 @@ class StatusLED:
             pass
 
 
-def apply_config(cfg, rpm_counter):
-    """Übernimmt eine Config-Nachricht vom Dashboard."""
+class ConfigStore:
+    """Persistiert die live aenderbaren Config-Werte im ESP32-NVS, damit
+    sie einen Reboot ueberleben (z.B. Watchdog-Reset mitten im Rennen).
+    Ohne NVS (oder bei Fehlern) inert — dann gelten die Code-Defaults.
+    Gleiches Muster wie PeerStore in bridge.py."""
+
+    NAMESPACE = "rasicross"
+    KEY       = "config"
+    _BUF_SIZE = 256
+
+    def __init__(self):
+        self._nvs = None
+        if not _HAS_NVS:
+            return
+        try:
+            self._nvs = esp32.NVS(self.NAMESPACE)
+        except Exception as e:
+            log("init", "NVS init fehler:", e)
+            self._nvs = None
+
+    def load(self, rpm_counter, imu=None):
+        """Gespeicherte Config laden und anwenden (via apply_config,
+        damit dieselbe Validierung greift wie beim Dashboard-Paket).
+        Enthaelt der Blob IMU-Offsets, werden sie ebenfalls gesetzt."""
+        if not self._nvs:
+            return
+        try:
+            buf = bytearray(self._BUF_SIZE)
+            n = self._nvs.get_blob(self.KEY, buf)
+            cfg = ujson.loads(bytes(buf[:n]))
+        except Exception:
+            return    # nichts gespeichert / korrupt -> Code-Defaults
+        if isinstance(cfg, dict):
+            apply_config(cfg, rpm_counter)
+            if imu is not None and "imu_off_x" in cfg:
+                imu.set_offsets(cfg.get("imu_off_x", 0.0),
+                                cfg.get("imu_off_y", 0.0))
+            log("init", "Config aus NVS geladen")
+
+    def save(self, rpm_counter, imu=None):
+        if not self._nvs:
+            return
+        try:
+            data = {
+                "max_rpm":        Config.MAX_RPM,
+                "warn_rpm":       Config.RPM_WARN,
+                "send_ms":        Config.SEND_MS,
+                "pulses_per_rev": rpm_counter.ppr,
+                "wheel_circ_m":   Config.WHEEL_CIRC_M,
+                "gear_ratio":     Config.GEAR_RATIO,
+                "batt_cells":     Config.BATT_CELLS,
+            }
+            if imu is not None:
+                off = imu.offsets
+                data["imu_off_x"] = off[0]
+                data["imu_off_y"] = off[1]
+            self._nvs.set_blob(self.KEY, ujson.dumps(data).encode())
+            self._nvs.commit()
+        except Exception as e:
+            log("config", "NVS save fehler:", e)
+
+
+def apply_config(cfg, rpm_counter, store=None, imu=None):
+    """Übernimmt eine Config-Nachricht vom Dashboard. Mit store wird der
+    neue Stand zusaetzlich ins NVS geschrieben (reboot-fest); imu liefert
+    dabei die aktuellen Kalibrier-Offsets, damit sie im Blob erhalten bleiben."""
     if "max_rpm" in cfg:
         try:
             Config.MAX_RPM = max(500, int(cfg["max_rpm"]))
@@ -1072,6 +1149,8 @@ def apply_config(cfg, rpm_counter):
         except (TypeError, ValueError):
             pass
     log("config", "übernommen:", cfg)
+    if store:
+        store.save(rpm_counter, imu)
 
 
 def main():
@@ -1104,6 +1183,11 @@ def main():
     link        = ESPNowLink(Config.BRIDGE_MAC)
     battery     = Battery()
 
+    # Persistierte Live-Config + IMU-Offsets anwenden
+    # (ueberlebt Watchdog-/Power-Resets)
+    cfg_store = ConfigStore()
+    cfg_store.load(rpm_counter, imu)
+
     log("init", "Eigene MAC:", link.mac)
 
     # Display-Pages registrieren (Reihenfolge bestimmt Wechsel)
@@ -1117,6 +1201,7 @@ def main():
     # Lokaler Zustand
     last_send = utime.ticks_ms()
     race_data = None
+    imu_was_calibrating = False
 
     while True:
         if wdt:
@@ -1128,6 +1213,13 @@ def main():
         rpm = rpm_counter.update()
         gx, gy = imu.update()
         gps.update()
+
+        # Kalibrierung gerade (non-blocking) fertig geworden?
+        # -> neue Offsets reboot-fest ins NVS schreiben.
+        if imu_was_calibrating and not imu.calibrating:
+            cfg_store.save(rpm_counter, imu)
+            log("config", "IMU-Offsets im NVS gespeichert")
+        imu_was_calibrating = imu.calibrating
 
         # ── Rückkanal ──
         pkt = link.recv()
@@ -1142,7 +1234,7 @@ def main():
                 page_choice = data.get("page", "auto")
                 display.set_forced_page(page_choice)
             elif kind == "config":
-                apply_config(data, rpm_counter)
+                apply_config(data, rpm_counter, cfg_store, imu)
             elif kind == "pit_call":
                 action = data.get("action", "trigger")
                 if action == "cancel":
@@ -1156,6 +1248,7 @@ def main():
                 action = data.get("action", "auto")
                 if action == "reset":
                     imu.reset_calibration()
+                    cfg_store.save(rpm_counter, imu)   # genullte Offsets persistieren
                     log("config", "IMU-Kalibrierung zurueckgesetzt")
                 else:
                     if imu.start_calibration(int(data.get("duration_ms", 2000))):
