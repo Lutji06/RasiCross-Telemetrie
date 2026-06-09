@@ -29,6 +29,23 @@ function rollFromG(gx, gy, gz) {
   return Math.atan2(y, Math.sqrt(x * x + z * z));
 }
 
+// resolveRollRad: bevorzugt den fusionierten Rollwinkel (Grad) wenn endlich,
+// sonst Fallback auf accel-basiertes rollFromG. Liefert Radiant. Hält update()
+// abwaertskompatibel fuer Aufrufer ohne rollDeg.
+function resolveRollRad(rollDeg, gx, gy, gz) {
+  var d = Number(rollDeg);
+  if (isFinite(d)) return d * Math.PI / 180;
+  return rollFromG(gx, gy, gz);
+}
+
+// rolloverGlowAlpha: Opacity fuer das rote 3D-Umkipp-Boden-Gluehen. 0 wenn
+// nicht over; sonst zeit-pulsierend in ~[0.25, 0.60]. Rein/testbar.
+function rolloverGlowAlpha(over, tMs) {
+  if (!over) return 0;
+  var t = Number(tMs) || 0;
+  return 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t / 180));
+}
+
 // yawIntegrate: prev + dps * dt/1000 * pi/180, wrapped into (-pi, pi].
 // NaN/Inf in dps or dtMs -> returns prev unchanged (no propagation).
 function yawIntegrate(prevRad, yawDegPerS, dtMs) {
@@ -126,6 +143,8 @@ var _kartGroup = null;
 var _arrow = null;          // G-vector arrow on the floor
 var _gzBar = null;          // Gz-glow vertical bar mesh
 var _driftArrow = null;     // Drift yaw-rate arrow (Phase 18 -> 3D)
+var _floor = null;          // floor plate (tinted red on rollover)
+var _rolloverGlow = null;   // red floor ring, pulsing when `over`
 var _gScale = 3;
 var _pitch = 0;             // rad, EMA-smoothed
 var _roll = 0;              // rad, EMA-smoothed
@@ -225,12 +244,22 @@ function init(canvasEl, opts) {
   _scene.add(dir);
 
   // Floor plate (semi-transparent, gives a visible shadow surface)
-  var floor = new THREE.Mesh(
+  _floor = new THREE.Mesh(
     new THREE.PlaneGeometry(4, 3),
     new THREE.MeshBasicMaterial({ color: 0x1a1f2c, transparent: true, opacity: 0.35 })
   );
-  floor.rotation.x = -Math.PI / 2;
-  _scene.add(floor);
+  _floor.rotation.x = -Math.PI / 2;
+  _scene.add(_floor);
+
+  // Rollover floor glow: roter Ring auf dem Boden, unsichtbar bis `over`.
+  _rolloverGlow = new THREE.Mesh(
+    new THREE.RingGeometry(0.9, 1.9, 40),
+    new THREE.MeshBasicMaterial({ color: 0xff5470, transparent: true, opacity: 0, side: THREE.DoubleSide })
+  );
+  _rolloverGlow.rotation.x = -Math.PI / 2;
+  _rolloverGlow.position.y = 0.012;
+  _rolloverGlow.visible = false;
+  _scene.add(_rolloverGlow);
 
   // Kart
   _kartGroup = _buildKart();
@@ -295,7 +324,7 @@ function update(imu) {
   var gz = Number(imu.gz) || 0;
 
   var targetPitch = pitchFromG(gx, gy, gz);
-  var targetRoll  = rollFromG(gx, gy, gz);
+  var targetRoll  = resolveRollRad(imu.rollDeg, gx, gy, gz);
   _pitch += (targetPitch - _pitch) * _EMA_ALPHA;
   _roll  += (targetRoll  - _roll)  * _EMA_ALPHA;
   _yaw    = yawIntegrate(_yaw, Number(imu.yaw) || 0, dt);
@@ -340,6 +369,17 @@ function update(imu) {
     _driftArrow.setDirection(_tmpArrowDir);
     _driftArrow.setLength(dSpec.length, 0.2, 0.12);
     _driftArrow.setColor(dSpec.color);
+  }
+
+  // Umkipp-Optik (Szenen-Ebene, schont Custom-Modelle): roter Boden-Glow-Ring
+  // + Boden-Toenung, solange `over`.
+  var over = !!imu.over;
+  if (_rolloverGlow) {
+    _rolloverGlow.visible = over;
+    _rolloverGlow.material.opacity = rolloverGlowAlpha(over, now);
+  }
+  if (_floor) {
+    _floor.material.color.setHex(over ? 0x3a1420 : 0x1a1f2c);
   }
 
   // Re-fit if the canvas client size or device pixel ratio changed (cheap
@@ -411,6 +451,7 @@ function dispose() {
   } catch (e) { /* ignore */ }
   _scene = _camera = _renderer = _canvas = null;
   _kartGroup = _arrow = _gzBar = _driftArrow = null;
+  _floor = _rolloverGlow = null;
   _tmpEuler = _tmpArrowDir = null;
 }
 
@@ -517,6 +558,8 @@ function _disposeGroup(group) {
   var api = {
     pitchFromG: pitchFromG,
     rollFromG: rollFromG,
+    resolveRollRad: resolveRollRad,
+    rolloverGlowAlpha: rolloverGlowAlpha,
     yawIntegrate: yawIntegrate,
     gViewReducer: gViewReducer,
     computeAutoFitScale: computeAutoFitScale,

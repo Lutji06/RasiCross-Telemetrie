@@ -45,7 +45,7 @@ const state = {
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
   // Settings
   settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 }, rollover: { angleDeg: 75 } },
-  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false, invertYaw: false, rollZero: 0 },
+  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0 },
   theme: 'dark',
   // Telemetry
   telemetry: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
@@ -228,6 +228,9 @@ function setupTabs() {
       setTimeout(resizeCanvases, 50);
       // Bei Driver-Tab: Stats neu berechnen (kann sich nach jedem Rennen aendern)
       if (tab === 'drivers') renderDrivers();
+      // Task 7 – Settings-Suche beim Tab-Wechsel zuruecksetzen
+      const _ss = document.getElementById('settingsSearch');
+      if (_ss && _ss.value) { _ss.value = ''; _ss.dispatchEvent(new Event('input')); }
     };
   });
 }
@@ -365,6 +368,18 @@ async function onTilesClearClicked() {
   }
 }
 
+function showSettingsGroup(id) {
+  const next = RasiSettings.settingsNavReducer(
+    (state.settings && state.settings.uiActiveGroup) || 'dashboard',
+    { type: 'set', id }
+  );
+  state.settings.uiActiveGroup = next;
+  document.querySelectorAll('#tab-settings .settings-nav-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.sgroup === next));
+  document.querySelectorAll('#tab-settings .settings-group').forEach(s =>
+    s.classList.toggle('active', s.dataset.sgroup === next));
+}
+
 function loadSettingsToUi() {
   $('setMaxSpeed').value = state.settings.maxSpeed;
   $('setMaxRpm').value = state.settings.maxRpm;
@@ -382,6 +397,7 @@ function loadSettingsToUi() {
   if ($('setInvertGy')) $('setInvertGy').checked = !!state.calibration.invertGy;
   if ($('setSwapG')) $('setSwapG').checked = !!state.calibration.swapG;
   if ($('setInvertYaw')) $('setInvertYaw').checked = !!state.calibration.invertYaw;
+  if ($('setInvertRollRate')) $('setInvertRollRate').checked = !!state.calibration.invertRollRate;
   if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
   if ($('setTilesEnabled')) {
     $('setTilesEnabled').checked = !!(state.settings.tiles && state.settings.tiles.enabled);
@@ -391,6 +407,22 @@ function loadSettingsToUi() {
     updateTilesUrlHint();
     applyTilesPresetFromUrl();
   }
+  if (typeof showSettingsGroup === 'function') {
+    showSettingsGroup((state.settings && state.settings.uiActiveGroup) || 'dashboard');
+  }
+}
+let _settingsSaveTimer = null;
+let _flashTimerId = null;
+function flashSettingsSaved() {
+  const active = document.querySelector('#tab-settings .settings-group.active [data-savemark]');
+  if (!active) return;
+  active.classList.add('show');
+  clearTimeout(_flashTimerId);
+  _flashTimerId = setTimeout(() => active.classList.remove('show'), 1500);
+}
+function scheduleSettingsSave() {
+  clearTimeout(_settingsSaveTimer);
+  _settingsSaveTimer = setTimeout(() => { saveSettingsFromUi(); }, 150);
 }
 function saveSettingsFromUi() {
   state.settings.maxSpeed = Math.max(20, Math.min(200, Number($('setMaxSpeed').value) || 80));
@@ -412,13 +444,14 @@ function saveSettingsFromUi() {
   state.calibration.invertGy = !!$('setInvertGy')?.checked;
   state.calibration.swapG = !!$('setSwapG')?.checked;
   state.calibration.invertYaw = !!$('setInvertYaw')?.checked;
+  state.calibration.invertRollRate = !!$('setInvertRollRate')?.checked;
   drawGMeter._trail = [];
   if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
   if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
   if ($('setTilesUrl')) state.settings.tiles.urlTemplate = ($('setTilesUrl').value || '').trim();
   loadSettingsToUi();
   saveData();
-  rcToast('Einstellungen gespeichert');
+  flashSettingsSaved();
 }
 
 // ============================================================
@@ -507,9 +540,10 @@ function processTelemetry(d) {
     const _attNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     const _attDt = _attLastMs ? (_attNow - _attLastMs) / 1000 : 0.08;
     _attLastMs = _attNow;
+    const _rollRate = (Number(d.roll) || 0) * (state.calibration.invertRollRate ? -1 : 1);
     const _rollRaw = RasiAttitude.rollStep(
       state.attitude.rollDeg + state.calibration.rollZero,
-      Number(d.roll) || 0, di.latAccel, Number(d.gz) || 0, _attDt, 0.98);
+      _rollRate, di.latAccel, Number(d.gz) || 0, _attDt, 0.98);
     state.attitude.rollDeg = _rollRaw - state.calibration.rollZero;
     state.attitude.overState = RasiAttitude.rolloverStep(
       state.attitude.overState, state.attitude.rollDeg, state.settings.rollover);
@@ -620,13 +654,11 @@ function renderDriftBadge() {
 // Neigungs-Balken (Phase 19b): Marker-Position aus Rollwinkel (±90° -> 0..100%),
 // Umkipp-Zustand faerbt Marker rot + zeigt "UMGEKIPPT".
 function renderRollBar() {
-  const m = $('rollMarker');
-  if (!m) return;
+  const v = $('rollVal');
+  if (!v) return;
   const deg = Math.max(-90, Math.min(90, (state.attitude && state.attitude.rollDeg) || 0));
-  m.style.left = (50 + deg / 90 * 50) + '%';
+  v.textContent = Math.round(deg) + '°';
   const over = !!(state.attitude && state.attitude.over);
-  m.classList.toggle('over', over);
-  const v = $('rollVal'); if (v) v.textContent = Math.round(deg) + '°';
   const o = $('rollOver'); if (o) o.classList.toggle('hidden', !over);
 }
 const LERP = 0.18;
@@ -646,7 +678,9 @@ function renderGauges() {
       gz: state.telemetry.gz || 0,
       yaw: state.imu.yaw || 0,
       dtMs: dtMs,
-      drift: state.drift
+      drift: state.drift,
+      rollDeg: (state.attitude && state.attitude.rollDeg) || 0,
+      over: !!(state.attitude && state.attitude.over)
     });
   } else {
     drawGMeter();
@@ -660,7 +694,7 @@ function drawGMeter() {
     c.height = c.offsetHeight * dpr();
   }
   const ctx = c.getContext('2d');
-  const w = c.width, h = c.height, cx = w/2, cy = h/2, r = w * 0.46;
+  const w = c.width, h = c.height, cx = w/2, cy = h/2, r = w * 0.40, rr = w * 0.46;
   const gs = state.settings.gScale;
   const gx = state.display.gxLerp, gy = state.display.gyLerp;
   ctx.clearRect(0, 0, w, h);
@@ -686,16 +720,29 @@ function drawGMeter() {
   ctx.fillStyle = css('--sub');
   ctx.font = `${Math.round(10 * dpr())}px sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText('+Gx', cx, cy - r - lpad);
+  ctx.fillText('+Gx', cx, cy - rr - lpad);
   ctx.textBaseline = 'top';
-  ctx.fillText('−Gx', cx, cy + r + lpad);
+  ctx.fillText('−Gx', cx, cy + rr + lpad);
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText('+Gy', cx + r + lpad, cy);
+  ctx.fillText('+Gy', cx + rr + lpad, cy);
   ctx.textAlign = 'right';
-  ctx.fillText('−Gy', cx - r - lpad, cy);
+  ctx.fillText('−Gy', cx - rr - lpad, cy);
   // Border
   ctx.strokeStyle = css('--bor'); ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  // ── Künstlicher Horizont (Kippfunktion) ──────────────────────
+  const rollDeg = Math.max(-90, Math.min(90, (state.attitude && state.attitude.rollDeg) || 0));
+  const over = !!(state.attitude && state.attitude.over);
+  const rollRad = rollDeg * Math.PI / 180;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
+  ctx.translate(cx, cy); ctx.rotate(-rollRad);
+  ctx.fillStyle = over ? 'rgba(255,84,112,.13)' : 'rgba(90,184,255,.10)';
+  ctx.fillRect(-r, 0, r * 2, r);
+  ctx.strokeStyle = over ? css('--red') : 'rgba(90,184,255,.55)';
+  ctx.lineWidth = 1.5 * dpr();
+  ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.stroke();
+  ctx.restore();
   // Trail (last positions tracked here)
   if (!drawGMeter._trail) drawGMeter._trail = [];
   drawGMeter._trail.push({ x: gy, y: gx });
@@ -716,6 +763,41 @@ function drawGMeter() {
   ctx.shadowColor = dotCol; ctx.shadowBlur = 12 * dpr();
   ctx.beginPath(); ctx.arc(px, py, 7 * dpr(), 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0;
+  // ── Bank-Ring: Roll-Skala + Zeiger + Umkipp-Zonen ────────────
+  const thr = (state.settings.rollover && state.settings.rollover.angleDeg) || 75;
+  const a0 = -Math.PI / 2;                 // 0° Roll = oben (12 Uhr)
+  const toA = d => a0 + d * Math.PI / 180; // Roll φ -> Canvas-Winkel
+  ctx.strokeStyle = css('--bor'); ctx.lineWidth = 2 * dpr();
+  ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke();
+  // Umkipp-Zonen ±thr..±90°
+  ctx.strokeStyle = over ? css('--red') : 'rgba(255,84,112,.5)';
+  ctx.lineWidth = 4 * dpr();
+  ctx.beginPath(); ctx.arc(cx, cy, rr, toA(thr), toA(90)); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, rr, toA(-90), toA(-thr)); ctx.stroke();
+  // Ticks 0/±30/±60
+  ctx.strokeStyle = css('--sub'); ctx.lineWidth = 1.5 * dpr();
+  [-60, -30, 0, 30, 60].forEach(d => {
+    const a = toA(d), c1 = Math.cos(a), s1 = Math.sin(a);
+    ctx.beginPath();
+    ctx.moveTo(cx + c1 * (rr - 5 * dpr()), cy + s1 * (rr - 5 * dpr()));
+    ctx.lineTo(cx + c1 * (rr + 4 * dpr()), cy + s1 * (rr + 4 * dpr()));
+    ctx.stroke();
+  });
+  // Zeiger am aktuellen Rollwinkel
+  const ap = toA(rollDeg);
+  const cpx = cx + Math.cos(ap) * rr, cpy = cy + Math.sin(ap) * rr;
+  ctx.fillStyle = over ? css('--red') : css('--green');
+  ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = (over ? 10 : 5) * dpr();
+  ctx.beginPath(); ctx.arc(cpx, cpy, 4 * dpr(), 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  // Umkipp-Glow am Hauptkreis
+  if (over) {
+    ctx.strokeStyle = css('--red');
+    ctx.shadowColor = css('--red'); ctx.shadowBlur = 14 * dpr();
+    ctx.lineWidth = 2.5 * dpr();
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
 }
 
 // ============================================================
@@ -1642,6 +1724,7 @@ function triggerLap() {
           rcAudio.sectorBest();
         }
       }
+      lap.sectors = s.lapSectors.slice(0, 3);    // [s1,s2,s3] ms (null ohne Sektorgrenzen)
       // Update best lap
       if (state.bestLapMs == null || lapMs < state.bestLapMs) {
         state.bestLapMs = lapMs;
@@ -1680,6 +1763,7 @@ function triggerLap() {
   } catch (e) { console.warn('triggerLap:', e); }
 }
 function renderLapTable() {
+  renderLiveLapList();
   const r = activeRace();
   const tbody = $('lapTable');
   if (!r || !r.laps.length) {
@@ -1702,6 +1786,43 @@ function renderLapTable() {
       <td>${esc(d?.name || '--')}</td>
       <td>${l.maxSpeed.toFixed(1)}</td>
       <td>${Math.round(l.maxRpm)}</td>
+    </tr>`;
+  }).join('');
+}
+// Kompakte, scrollbare Rundentabelle im Live-Tab unter der Streckenkarte.
+// Alle Pro-Runden-Infos: Zeit, Delta vs. Vorrunde, Sektoren S1-S3, Max km/h,
+// Max RPM, Fahrer. Neueste zuerst, schnellste gueltige Runde hervorgehoben.
+function renderLiveLapList() {
+  const tbody = $('liveLapList');
+  if (!tbody) return;
+  const r = activeRace();
+  if (!r || !r.laps.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="muted">Noch keine Runden.</td></tr>';
+    setText('liveLapCount', '0 Runden');
+    return;
+  }
+  const fmtS = ms => (ms == null ? '--' : (ms / 1000).toFixed(2));
+  const valid = r.laps.filter(l => l.valid);
+  const best = valid.length ? Math.min(...valid.map(l => l.timeMs)) : null;
+  setText('liveLapCount', `${valid.length} Runden`);
+  tbody.innerHTML = [...r.laps].reverse().map(l => {
+    const idx = l.number - 1;
+    const prev = idx > 0 ? r.laps[idx - 1].timeMs : null;
+    const delta = prev ? l.timeMs - prev : null;
+    const sec = Array.isArray(l.sectors) ? l.sectors : [null, null, null];
+    const d = state.drivers.find(x => x.id === l.driverId);
+    const cls = !l.valid ? 'invalid' : (l.timeMs === best ? 'best' : '');
+    const dColor = delta == null ? 'var(--mut)' : delta < 0 ? 'var(--green)' : 'var(--red)';
+    return `<tr class="${cls}">
+      <td>${l.number}</td>
+      <td class="llt-time">${fmtMs(l.timeMs)}</td>
+      <td style="color:${dColor}">${delta == null ? '--' : fmtDelta(delta)}</td>
+      <td>${fmtS(sec[0])}</td>
+      <td>${fmtS(sec[1])}</td>
+      <td>${fmtS(sec[2])}</td>
+      <td>${(l.maxSpeed || 0).toFixed(1)}</td>
+      <td>${Math.round(l.maxRpm || 0)}</td>
+      <td class="llt-drv">${esc(d?.name || '--')}</td>
     </tr>`;
   }).join('');
 }
@@ -2272,7 +2393,6 @@ function renderTrackOptions() {
 
 function updateRaceControls() {
   const r = activeRace();
-  setText('liveHeroTitle', r ? r.name : 'Live');
   const running = r && r.status === 'running';
   const paused = r && r.status === 'paused';
   const startBtn = $('startRaceBtn');
@@ -2644,7 +2764,6 @@ function updateDiagnostics() {
 function updateLiveUi() {
   try {
     const t = state.telemetry;
-    setText('gpsStatus', state.gps.fix ? 'OK' : '--');
     setText('latText', t.lat ? t.lat.toFixed(6) : '--');
     setText('lonText', t.lon ? t.lon.toFixed(6) : '--');
     setText('trackPoints', state.track.points.length);
@@ -2663,14 +2782,11 @@ function updateLiveUi() {
         setText('countdown', `${left} LAPS`);
       }
       const drv = state.drivers.find(d => d.id === r.currentDriverId);
-      setText('raceMeta', `${r.name} · ${drv ? drv.name : 'Kein Fahrer'} · Runde ${raceValidLaps(r).length + 1}`);
       setText('currentDriverName', drv ? drv.name : '--');
     } else if (r) {
       setText('countdown', r.lengthType === 'time' ? fmtClock(r.durationMs) : r.lengthType === 'laps' ? `${r.targetLaps} LAPS` : '∞');
-      setText('raceMeta', `${r.name} · ${r.status === 'created' ? 'Bereit' : r.status}`);
     } else {
       setText('countdown', '--:--');
-      setText('raceMeta', 'Erstelle im Tab Rennen ein Rennen.');
       setText('currentDriverName', '--');
     }
     // Stints
@@ -3524,7 +3640,7 @@ function rolloverOnsets(packets, cal, thr) {
     const t = Number(p.t_rel) || 0;
     const dt = lastT == null ? 0.08 : Math.max(0, (t - lastT) / 1000);
     lastT = t;
-    roll = RasiAttitude.rollStep(roll, Number(p.roll) || 0,
+    roll = RasiAttitude.rollStep(roll, (Number(p.roll) || 0) * (cal.invertRollRate ? -1 : 1),
       (Number(p.gy) || 0) - (cal.gyZero || 0), Number(p.gz) || 0, dt, 0.98);
     const r = RasiAttitude.rolloverStep(st, roll - (cal.rollZero || 0), thr);
     if (r.onset) out.push(t);
@@ -3934,7 +4050,6 @@ function init() {
   $('demoStartBtn').onclick = startDemo;
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab
-  $('saveSettingsBtn').onclick = saveSettingsFromUi;
   if ($('zeroRollBtn')) $('zeroRollBtn').onclick = () => {
     // Aktuellen fusionierten Rollwinkel (inkl. bestehendem Offset) als neue 0 setzen.
     state.calibration.rollZero = state.calibration.rollZero + ((state.attitude && state.attitude.rollDeg) || 0);
@@ -4008,7 +4123,7 @@ function init() {
       pulses_per_rev: Number($('espPulses').value) || 1,
       wheel_circ_m: Number($('espWheelCirc').value) || 0,
       gear_ratio: Number($('espGearRatio').value) || 1,
-      batt_cells: Number($('espBattCells').value) || 3
+      batt_cells: Number($('espBattCells').value) || 1
     };
     state.batt.cells = cfg.batt_cells;
     if (!state.serial.connected) {
@@ -4026,6 +4141,50 @@ function init() {
   $('importAllBtn').onclick = () => $('importAllFile').click();
   $('importAllFile').onchange = e => { if (e.target.files[0]) importAll(e.target.files[0]); e.target.value = ''; };
   $('resetAllBtn').onclick = resetAll;
+  // Settings sub-navigation
+  document.querySelectorAll('#tab-settings .settings-nav-item').forEach(btn => {
+    btn.onclick = () => showSettingsGroup(btn.dataset.sgroup);
+  });
+  // Task 7 – Settings search filter
+  const _settingsSearch = $('settingsSearch');
+  if (_settingsSearch) {
+    _settingsSearch.addEventListener('input', () => {
+      const res = RasiSettings.settingsFilter(_settingsSearch.value, RasiSettings.SETTINGS_INDEX);
+      const active = res.query !== '';
+
+      // Nav: passende Gruppen markieren / Rest dimmen
+      document.querySelectorAll('#tab-settings .settings-nav-item').forEach(b => {
+        b.classList.toggle('search-hit', active && res.groups.has(b.dataset.sgroup));
+        b.classList.toggle('search-dim', active && !res.groups.has(b.dataset.sgroup));
+      });
+
+      // Zeilen ein-/ausblenden (Zeilen ohne bekannte rowId bleiben immer sichtbar)
+      document.querySelectorAll('#tab-settings .settings-row').forEach(row => {
+        const ctrl = row.querySelector('[id]');
+        const rowId = ctrl ? ctrl.id : null;
+        const known = rowId && RasiSettings.SETTINGS_INDEX.some(e => e.rowId === rowId);
+        row.classList.toggle('row-hidden', active && known && !res.rows.has(rowId));
+        row.classList.toggle('row-hit', active && known && res.rows.has(rowId));
+      });
+
+      // Bei Treffer zur ersten passenden Gruppe springen
+      if (active && res.groups.size > 0) {
+        const first = RasiSettings.GROUPS.find(g => res.groups.has(g));
+        if (first) showSettingsGroup(first);
+      }
+    });
+  }
+  // Task 8 – Auto-save on change/blur for data-autosave controls
+  const _settingsTab = $('tab-settings');
+  if (_settingsTab) {
+    _settingsTab.addEventListener('change', (e) => {
+      if (e.target && e.target.closest && e.target.closest('[data-autosave]')) scheduleSettingsSave();
+    });
+    // Zahlenfelder zusätzlich bei Blur sofort sichern
+    _settingsTab.addEventListener('blur', (e) => {
+      if (e.target && e.target.matches && e.target.matches('input[type=number][data-autosave]')) scheduleSettingsSave();
+    }, true);
+  }
   $('gateWidth').onchange = () => {
     state.startGate.width = Number($('gateWidth').value) || 14;
     setText('gateSizeText', state.startGate.width + 'm');
