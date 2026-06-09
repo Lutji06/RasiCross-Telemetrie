@@ -182,6 +182,8 @@ Liegen im Ordner [`esp_libs/`](esp_libs/) — siehe auch [`esp_libs/README.md`](
 mpremote connect /dev/ttyUSB0 cp esp_libs/ssd1306.py :
 mpremote connect /dev/ttyUSB0 cp esp_libs/mpu6050.py :
 mpremote connect /dev/ttyUSB0 cp esp_libs/micropyGPS.py :
+mpremote connect /dev/ttyUSB0 cp esp_libs/frame.py :
+mpremote connect /dev/ttyUSB0 cp esp_libs/calc.py :
 mpremote connect /dev/ttyUSB0 cp sender.py :main.py
 ```
 
@@ -189,8 +191,13 @@ mpremote connect /dev/ttyUSB0 cp sender.py :main.py
 
 ```bash
 mpremote connect /dev/ttyUSB1 cp esp_libs/ssd1306.py :
+mpremote connect /dev/ttyUSB1 cp esp_libs/frame.py :
 mpremote connect /dev/ttyUSB1 cp bridge.py :main.py
 ```
+
+> ⚠️ `frame.py` (Binär-Protokoll) ist auf **beiden** ESPs Pflicht — ohne sie
+> startet die Bridge nicht und der Sender kann keine Telemetrie senden.
+> `calc.py` braucht nur der Sender (Batterie-Monitoring + Wheel-Speed-Fallback).
 
 Bei OLED-Problemen hilft das Diagnose-Skript [`esp_libs/oled_diagnose.py`](esp_libs/oled_diagnose.py): in Thonny laden und in der REPL ausführen — es prüft I²C, OLED-Adresse und schreibt am Ende ein Test-Bild.
 
@@ -300,7 +307,7 @@ Wenn der Sender mit `BATT_CELLS > 0` konfiguriert ist (3S/4S/etc.), erscheint im
 
 ## Konfiguration anpassen
 
-Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohne neu zu flashen. Permanente Werte stehen in der `Config`-Klasse oben in jedem Skript.
+Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohne neu zu flashen. Der Sender speichert sie im NVS-Flash — sie überleben also auch einen Neustart (z.B. Watchdog-Reset). Permanente Werte stehen in der `Config`-Klasse oben in jedem Skript.
 
 ### Sender (`sender.py`)
 
@@ -318,8 +325,8 @@ Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohn
 | `WIFI_TX_POWER_DBM` | Sendeleistung in dBm                     | `20` (EU-Max)      |
 | `WHEEL_CIRC_M`      | Radumfang in m (0 = nur GPS-Speed)       | `0`                |
 | `GEAR_RATIO`        | Wellenumdrehungen je Radumdrehung        | `1.0`              |
-| `BATT_ADC_PIN`      | ADC1-Pin fürs Batterie-Monitoring (`None` = aus) | `None`     |
-| `BATT_CELLS`        | LiPo-Zellen in Serie (Per-Cell + SOC)    | `3`                |
+| `BATT_ADC_PIN`      | ADC1-Pin fürs Batterie-Monitoring (`None` = aus) | `34`       |
+| `BATT_CELLS`        | LiPo-Zellen in Serie (Per-Cell + SOC)    | `1`                |
 
 Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`.
 
@@ -437,7 +444,7 @@ Die Bridge ergänzt vor dem USB-Versand `rssi`, `rx_count`, `lost`, `bridge_ms`,
 | `display`         | setzt Anzeigeseite (`speed`/`race`/`rpm`/`delta`/`diag`/`auto`)  |
 | `config`          | Live-Parameter (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`) |
 | `pit_call`        | löst Pit-Call-Override aus; `action: "cancel"` bricht ab         |
-| `imu_calibrate`   | misst Gx/Gy-Nullpunkt (`action: "auto"`, `duration_ms`) und speichert die Offsets im Sender |
+| `imu_calibrate`   | misst Gx/Gy-Nullpunkt (`action: "auto"`, `duration_ms`) und speichert die Offsets reboot-fest im Sender (NVS) |
 
 ---
 
