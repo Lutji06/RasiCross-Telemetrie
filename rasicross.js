@@ -918,6 +918,10 @@ function drawTrackOn(c) {
   ctx.stroke();
   // Heatmap
   if (state.heatmap.on) drawHeatmapOn(c, ctx);
+  // Ghost-Runde (beste Runde) — nur auf der Live-Karte
+  if (c.id === 'trackCanvas' && state.bestLapTrace && state.bestLapTrace.length > 1) {
+    drawGhostOn(c, ctx);
+  }
   // Start line
   const ep = lineEndpointsFromGate(state.startGate);
   if (ep) drawLineOn(ctx, c, ep, css('--green'), 'START', Date.now() < state.gateFlashUntil);
@@ -973,6 +977,39 @@ function drawLineOn(ctx, c, ep, color, label, flash) {
   ctx.font = `900 ${10 * dpr()}px monospace`;
   ctx.textAlign = 'center';
   ctx.fillText(flash && label === 'START' ? 'ZIEL' : label, mx, my - 8 * dpr());
+  ctx.restore();
+}
+// Ghost-Runde: Linie der besten Runde blass gestrichelt + Geister-Punkt an
+// der Position, die der Ghost bei gleicher verstrichener Rundenzeit hatte.
+// Punkt nur waehrend einer laufenden Runde; verschwindet, wenn der Ghost
+// die Runde beendet hat (ghostPointAt -> null).
+function drawGhostOn(c, ctx) {
+  const trace = state.bestLapTrace;
+  ctx.save();
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < trace.length; i++) {
+    const xy = gpsXYOnCanvas(trace[i].lat, trace[i].lon, c);
+    if (i) ctx.lineTo(xy.x, xy.y); else ctx.moveTo(xy.x, xy.y);
+  }
+  ctx.strokeStyle = 'rgba(187,154,247,.35)';
+  ctx.lineWidth = 2 * dpr();
+  ctx.setLineDash([5 * dpr(), 5 * dpr()]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  if (state.lapStart) {
+    const gp = ghostPointAt(trace, Date.now() - state.lapStart);
+    if (gp) {
+      const xy = gpsXYOnCanvas(gp.lat, gp.lon, c);
+      ctx.fillStyle = 'rgba(187,154,247,.9)';
+      ctx.shadowColor = 'rgba(187,154,247,.8)';
+      ctx.shadowBlur = 10 * dpr();
+      ctx.beginPath();
+      ctx.arc(xy.x, xy.y, 5.5 * dpr(), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
   ctx.restore();
 }
 function drawHeatmapOn(c, ctx) {
@@ -3550,6 +3587,21 @@ function saveRecording() {
   URL.revokeObjectURL(url);
   rcToast('Aufnahme gespeichert (' + buf.length + ' Pakete)');
 }
+function exportRecordingCsv() {
+  // Replay aktiv -> die geladene Aufnahme exportieren, sonst den Live-Mitschnitt.
+  const buf = state.replay.active ? state.replay.packets : state.recording.buf;
+  if (!buf.length) { rcToast('Keine Aufnahme vorhanden'); return; }
+  const text = RasiReplay.recordingToCsv(buf);
+  // UTF-8 BOM, damit Excel die Kodierung erkennt
+  const blob = new Blob(['\uFEFF' + text], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rasicross_rec_${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  rcToast('CSV exportiert (' + (text.split('\r\n').length - 1) + ' Zeilen)');
+}
 
 // Slices that processTelemetry / onGpsUpdate / lap-sector-race
 // detection mutate. Snapshot on enter, restore verbatim on exit.
@@ -4236,6 +4288,7 @@ function init() {
   _bind('dmCancelBtn', closeDriverModal);
   _bind('dmConfirmBtn', confirmDriverChange);
   _bind('recSaveBtn', saveRecording);
+  _bind('recCsvBtn', exportRecordingCsv);
   _bind('recLoadBtn', () => $('recLoadFile')?.click());
   const _rlf = $('recLoadFile');
   if (_rlf) _rlf.onchange = (e) => { if (e.target.files[0]) loadRecordingFile(e.target.files[0]); e.target.value = ''; };

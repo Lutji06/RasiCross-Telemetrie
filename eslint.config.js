@@ -13,7 +13,7 @@ const geoGlobals = {
   gpsDist: 'readonly', traceDistanceM: 'readonly',
   headingFromPoints: 'readonly', segmentsCross: 'readonly',
   crossingDirectionOk: 'readonly', lineEndpointsFromGate: 'readonly',
-  structuralRaceKey: 'readonly',
+  structuralRaceKey: 'readonly', ghostPointAt: 'readonly',
 };
 
 const bugRules = {

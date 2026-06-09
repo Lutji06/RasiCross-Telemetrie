@@ -22,11 +22,13 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 - **Demo-Modus** zum Ausprobieren ohne Hardware
 - **Plattformübergreifend** — Dashboard läuft im Browser oder als Desktop-App für Windows und macOS
 - **In-App-Replay** — Telemetrie als NDJSON aufzeichnen und im Dashboard mit virtueller Uhr abspielen (Scrubber, 0,25×–4× Speed, Pause/Resume)
+- **CSV-Export** — Aufnahmen als Excel-kompatible CSV exportieren (Semikolon-getrennt, ein Paket pro Zeile)
+- **Ghost-Runde** — die beste Runde läuft als blasse Linie + Geister-Punkt live auf der Track-Karte mit
 - **3D-Kart-Viewer** — Toggle zwischen 2D-G-Kreis und WebGL-3D-Kart, der sich live aus der IMU neigt (mit G-Vektor-Pfeil und Gz-Glow)
 - **Eigenes 3D-Modell** — `.glb`/`.gltf` für den 3D-Viewer hochladen (Settings-Tab), ersetzt das Standard-Kart, persistent gespeichert
 - **Batterie-Monitoring** — Live-Spannung/SOC/Zellenspannung, akustische Warnung bei niedrigem Stand
 - **GPS-Ausfall-Fallback** — bei GPS-Verlust automatisch auf Radumfang-basierte Geschwindigkeit umschalten
-- **Test-Suite** — 86 Unit-Tests (52 JS, 34 Python) laufen automatisch in CI bei jedem Push
+- **Test-Suite** — 145 Unit-Tests (107 JS, 38 Python) laufen automatisch in CI bei jedem Push
 
 ---
 
@@ -232,6 +234,7 @@ Jede Session lässt sich verlustfrei als NDJSON-Datei aufzeichnen und später im
 - **Auto-Arm:** Sobald die Bridge verbunden ist, beginnt die Aufnahme automatisch (in den Einstellungen abschaltbar).
 - **Speichern:** Im Connection-Tab → *"Aufnahme speichern"* lädt eine `.ndjson`-Datei herunter (eine Telemetrie-Zeile pro Paket, Header in Zeile 1).
 - **Laden:** Im selben Tab eine `.ndjson` auswählen → das Dashboard schaltet in den Replay-Modus.
+- **CSV-Export:** *"CSV exportieren"* lädt die Aufnahme als `.csv` herunter — Semikolon-getrennt mit Dezimal-Komma (öffnet direkt in deutschem Excel), eine Telemetrie-Zeile pro Paket. Läuft gerade ein Replay, wird die geladene Aufnahme exportiert.
 - **Transport-Leiste:** Unten am Bildschirm erscheint eine fixierte Leiste mit ⏵/⏸, Scrubber, Geschwindigkeitswahl (0,25× / 0,5× / 1× / 2× / 4×) und Beenden-Knopf. Live-Daten werden während Replay nicht aufgezeichnet (Session-State wird auf Replay-Enter sauber gesnapshotet und auf Exit restauriert).
 
 ### 3D-Kart-Viewer

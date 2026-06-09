@@ -83,6 +83,29 @@ function lineEndpointsFromGate(gate) {
   return { p1: { lat: gate.lat + dLat, lon: gate.lon + dLon }, p2: { lat: gate.lat - dLat, lon: gate.lon - dLon } };
 }
 
+// Ghost-Runde: Position auf einer Runden-Trace ({t,lat,lon,...}; t = ms seit
+// Rundenstart, monoton) zur verstrichenen Zeit elapsedMs — linear interpoliert.
+// null wenn Trace leer/ungueltig oder der Ghost die Runde schon beendet hat
+// (elapsed > letzter t). Vor dem ersten Punkt wird der erste Punkt geliefert.
+function ghostPointAt(trace, elapsedMs) {
+  if (!Array.isArray(trace) || !trace.length) return null;
+  const t = Number(elapsedMs);
+  if (!isFinite(t) || t < 0) return null;
+  const last = trace[trace.length - 1];
+  if (t > last.t) return null;                       // Ghost ist schon im Ziel
+  if (t <= trace[0].t) return { lat: trace[0].lat, lon: trace[0].lon };
+  // Binaersuche: groesster Index mit trace[lo].t <= t
+  let lo = 0, hi = trace.length - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (trace[mid].t <= t) lo = mid; else hi = mid;
+  }
+  const a = trace[lo], b = trace[hi];
+  const span = b.t - a.t;
+  const f = span > 0 ? (t - a.t) / span : 0;
+  return { lat: a.lat + (b.lat - a.lat) * f, lon: a.lon + (b.lon - a.lon) * f };
+}
+
 // Stabiler Schluessel ueber die *strukturellen* Felder einer Display-
 // Nachricht (alles ausser den staendig tickenden Live-Werten). Wird
 // vom Dashboard genutzt, um nur bei echten Aenderungen ein display-
@@ -105,7 +128,7 @@ function structuralRaceKey(d) {
     gpsDist: gpsDist, traceDistanceM: traceDistanceM,
     headingFromPoints: headingFromPoints, segmentsCross: segmentsCross,
     crossingDirectionOk: crossingDirectionOk, lineEndpointsFromGate: lineEndpointsFromGate,
-    structuralRaceKey: structuralRaceKey
+    structuralRaceKey: structuralRaceKey, ghostPointAt: ghostPointAt
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
   if (typeof window !== 'undefined') {
