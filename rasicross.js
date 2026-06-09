@@ -122,20 +122,41 @@ function logTime(ts = Date.now()) { return new Date(ts).toLocaleTimeString('de-D
 // 3. PERSISTENCE
 // ============================================================
 let _saveTimer = null;
+let _quotaWarned = false;
+// Races fuer die Persistenz verschlanken: speedTrace auf max. 1000 Punkte
+// downsamplen. Im RAM bleibt die volle Aufloesung erhalten — nur die
+// localStorage-Kopie wird kleiner (5-MB-Quota ueber eine Saison).
+const PERSIST_TRACE_MAX = 1000;
+function _persistRace(r) {
+  const t = r && r.speedTrace;
+  if (!Array.isArray(t) || t.length <= PERSIST_TRACE_MAX) return r;
+  const step = Math.ceil(t.length / PERSIST_TRACE_MAX);
+  return Object.assign({}, r, { speedTrace: t.filter((_, i) => i % step === 0) });
+}
 function saveData() {
   if (state.replay && state.replay.active) return;  // replay uses disposable state — never persist
   try {
     const payload = {
       version: '9.6', savedAt: new Date().toISOString(),
       settings: state.settings, calibration: state.calibration, theme: state.theme,
-      drivers: state.drivers, races: state.races, savedTracks: state.savedTracks,
+      drivers: state.drivers, races: state.races.map(_persistRace), savedTracks: state.savedTracks,
       activeRaceId: state.activeRaceId, selectedRaceId: state.selectedRaceId,
       activeTrackId: state.activeTrackId,
       track: state.track, startGate: state.startGate, sectors: { boundaries: state.sectors.boundaries, manual: state.sectors.manual, best: state.sectors.best }
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     setText('storageState', 'Gespeichert ' + logTime());
-  } catch (e) { console.warn('saveData:', e); setText('storageState', 'Fehler'); }
+  } catch (e) {
+    console.warn('saveData:', e);
+    const quota = e && (e.name === 'QuotaExceededError' || e.code === 22);
+    setText('storageState', quota ? 'Speicher voll!' : 'Fehler');
+    if (quota && !_quotaWarned) {
+      _quotaWarned = true;
+      rcAlert('Der lokale Speicher ist voll — Änderungen werden nicht mehr gespeichert! ' +
+              'Bitte alte Rennen löschen (Renn-Tab) oder vorher über Einstellungen → ' +
+              '"Alle Daten exportieren" sichern.', 'Speicher voll');
+    }
+  }
 }
 function saveDataDebounced() { clearTimeout(_saveTimer); _saveTimer = setTimeout(saveData, 400); }
 function loadData() {
