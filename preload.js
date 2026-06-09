@@ -3,10 +3,12 @@ const { contextBridge, ipcRenderer } = require("electron");
 let lineCb = null;
 let closeCb = null;
 let errorCb = null;
+let tileProgressCb = null;
 
 ipcRenderer.on("serial:line",  (_, line) => { if (lineCb)  try { lineCb(line);  } catch(e) { console.error(e); } });
 ipcRenderer.on("serial:close", ()        => { if (closeCb) try { closeCb();      } catch(e) { console.error(e); } });
 ipcRenderer.on("serial:error", (_, msg)  => { if (errorCb) try { errorCb(msg);   } catch(e) { console.error(e); } });
+ipcRenderer.on("rasi-tiles:progress", (_, p) => { if (tileProgressCb) try { tileProgressCb(p); } catch(e) { console.error(e); } });
 
 contextBridge.exposeInMainWorld("rasiSerial", {
   list: () => ipcRenderer.invoke("serial:list"),
@@ -30,5 +32,6 @@ contextBridge.exposeInMainWorld("rasiTiles", {
   cancel:     ()     => ipcRenderer.invoke("rasi-tiles:cancel"),
   areaStats:  (args) => ipcRenderer.invoke("rasi-tiles:areaStats", args),
   clearAll:   ()     => ipcRenderer.invoke("rasi-tiles:clearAll"),
-  onProgress: (cb) => { ipcRenderer.on("rasi-tiles:progress", (_, p) => { try { cb(p); } catch(e) { console.error(e); } }); },
+  // Ersetzt den Callback (wie onLine/onClose) statt Listener zu stapeln
+  onProgress: (cb) => { tileProgressCb = typeof cb === "function" ? cb : null; },
 });
