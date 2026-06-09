@@ -525,13 +525,17 @@ function processTelemetry(d) {
     state.connection.lastPacketAt = Date.now();
     if (d.from_mac) state.connection.kartMac = d.from_mac;
     if (typeof d.rssi === 'number') state.connection.rssi = d.rssi;
-    if (d.seq != null) {
-      if (state.connection.seq != null) {
-        const delta = (d.seq - state.connection.seq + 65536) % 65536;
-        if (delta > 1 && delta < 1000) state.connection.lost += delta - 1;
-      }
-      state.connection.seq = d.seq;
+    // Verlustzaehlung: eine Quelle. Die Bridge zaehlt ueber die ESP-NOW-
+    // Sequenznummern und liefert `lost` kumulativ in jedem Paket mit ->
+    // direkt uebernehmen. Eigene seq-Zaehlung nur als Fallback fuer
+    // Quellen ohne lost-Feld (Demo, alte Aufnahmen).
+    if (d.lost != null) {
+      state.connection.lost = Number(d.lost) || 0;
+    } else if (d.seq != null && state.connection.seq != null) {
+      const delta = (d.seq - state.connection.seq + 65536) % 65536;
+      if (delta > 1 && delta < 1000) state.connection.lost += delta - 1;
     }
+    if (d.seq != null) state.connection.seq = d.seq;
     state.hz++;
     // Calibrated values
     const speed = Math.max(0, Number(d.speed) || 0);
