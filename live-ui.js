@@ -361,6 +361,11 @@ function updateLiveUi() {
     document.body.classList.toggle('gps-warn', !!(gpsAge && gpsAge > 3000));
     // Race-Status (Countdown läuft im 60fps-Loop, hier nur Meta)
     const r = activeRace();
+    // Label ehrlich halten: nur Zeit-Rennen haben eine echte Restzeit;
+    // freie Rennen zaehlen die Fahrzeit hoch, Runden-Rennen Rest-Runden.
+    setText('countdownLabel', r
+      ? (r.lengthType === 'time' ? 'Restzeit' : r.lengthType === 'laps' ? 'Verbleibend' : 'Fahrzeit')
+      : 'Restzeit');
     if (r && (r.status === 'running' || r.status === 'paused')) {
       const elapsed = raceElapsedMs(r);
       if (r.lengthType === 'time') {

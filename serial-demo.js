@@ -188,7 +188,9 @@ function startDemo() {
   if (!r || (r.status !== 'running' && r.status !== 'paused')) {
     const demo = {
       id: uid(), name: 'Demo Race', trackId: state.activeTrackId,
-      lengthType: 'free', durationMs: 30 * 60000, targetLaps: 20,
+      // Zeit-Rennen (30 min): die Restzeit-Box im Live-Tab zaehlt runter
+      // und das Rennen endet automatisch -- demonstriert den Countdown.
+      lengthType: 'time', durationMs: 30 * 60000, targetLaps: 20,
       startDriverId: state.drivers[0].id, currentDriverId: state.drivers[0].id,
       status: 'created', createdAt: Date.now(),
       startedAt: null, endedAt: null, totalPausedMs: 0,
