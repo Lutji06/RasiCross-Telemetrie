@@ -13,6 +13,13 @@ try {
   console.error("serialport not available:", e.message);
 }
 
+let autoUpdater = null;
+try {
+  ({ autoUpdater } = require("electron-updater"));
+} catch(e) {
+  console.error("electron-updater not available:", e.message);
+}
+
 let currentPort = null;
 let mainWindow = null;
 
@@ -347,6 +354,65 @@ ipcMain.handle("rasi-tiles:clearAll", async function () {
   return { deleted, bytes };
 });
 
+// ──────────────────────────────────────────────────────────────
+// Auto-Update (Phase 25): prueft beim Start GitHub-Releases, laedt im
+// Hintergrund, installiert beim Beenden oder per Button (quitAndInstall).
+// Guards: Dev-Modus (nicht gepackt) und Portable-EXE koennen sich nicht
+// selbst updaten -- der manuelle Check meldet den Grund an den Renderer.
+// ──────────────────────────────────────────────────────────────
+function updateGuardReason() {
+  if (!autoUpdater) return "unavailable";
+  if (!app.isPackaged) return "dev";
+  if (process.env.PORTABLE_EXECUTABLE_FILE) return "portable";
+  return null;
+}
+
+function sendUpdateStatus(s) {
+  if (mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send("rasi-update:status", s);
+}
+
+function initAutoUpdate() {
+  if (updateGuardReason()) return;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on("update-available", (i) =>
+    sendUpdateStatus({ state: "downloading", version: i && i.version }));
+  autoUpdater.on("update-not-available", () =>
+    sendUpdateStatus({ state: "uptodate", version: app.getVersion() }));
+  autoUpdater.on("download-progress", (p) =>
+    sendUpdateStatus({ state: "downloading", percent: Math.round(p.percent || 0) }));
+  autoUpdater.on("update-downloaded", (i) =>
+    sendUpdateStatus({ state: "ready", version: i && i.version }));
+  autoUpdater.on("error", (e) =>
+    sendUpdateStatus({ state: "error", message: String(e && e.message || e).slice(0, 200) }));
+  setTimeout(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 5000);
+}
+
+ipcMain.handle("rasi-update:check", async () => {
+  const guard = updateGuardReason();
+  if (guard) return { ok: false, reason: guard };
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: "error", message: String(e && e.message || e).slice(0, 200) };
+  }
+});
+
+ipcMain.handle("rasi-update:install", async () => {
+  if (updateGuardReason()) return { ok: false };
+  // Installer wird VOR dem Quit gespawnt -- kompatibel mit dem
+  // before-quit-Handler unten (saveData + app.exit).
+  autoUpdater.quitAndInstall(false, true);
+  return { ok: true };
+});
+
+ipcMain.handle("rasi-update:version", async () => ({
+  version: app.getVersion(),
+  guard: updateGuardReason(),
+}));
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -368,6 +434,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  initAutoUpdate();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

@@ -3278,6 +3278,11 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <input type="file" id="importAllFile" accept=".json" style="display:none">
           <button class="btn danger" id="resetAllBtn" style="margin-top:8px">🗑 Alle Daten zurücksetzen</button>
         </div>
+        <div class="fieldset" style="margin-top:16px">
+          <p class="settings-block-note" style="margin-bottom:8px">App-Version <b id="updVersion">--</b> · <span id="updStatus">Updates: nicht geprüft</span></p>
+          <button class="btn ghost" id="updCheckBtn">🔄 Nach Updates suchen</button>
+          <button class="btn primary" id="updInstallBtn" style="display:none;margin-top:8px">⬇ Neustart &amp; Update installieren</button>
+        </div>
       </section>
 
     </div>

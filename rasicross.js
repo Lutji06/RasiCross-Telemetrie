@@ -476,6 +476,45 @@ function saveSettingsFromUi() {
   flashSettingsSaved();
 }
 
+// Auto-Update-UI (Phase 25): Version + Status in den Einstellungen, Toast
+// sobald ein Update heruntergeladen ist. Main-Prozess macht die Arbeit
+// (electron-updater); im Browser/Dev-Modus degradiert die Anzeige sauber.
+function initUpdateUi() {
+  const statusEl = $('updStatus'), installBtn = $('updInstallBtn');
+  const setStatus = (t) => { if (statusEl) statusEl.textContent = t; };
+  if (!window.rasiUpdate) { setStatus('Updates: nur in der installierten App'); const b = $('updCheckBtn'); if (b) b.disabled = true; return; }
+  window.rasiUpdate.version().then(v => {
+    setText('updVersion', v.version || '--');
+    if (v.guard === 'dev') setStatus('Updates: im Dev-Modus deaktiviert');
+    else if (v.guard === 'portable') setStatus('Updates: Portable-Version aktualisiert sich nicht selbst');
+  }).catch(() => {});
+  window.rasiUpdate.onStatus(s => {
+    if (!s) return;
+    if (s.state === 'downloading') {
+      setStatus('Update ' + (s.version ? 'auf ' + s.version + ' ' : '') + 'wird geladen' + (s.percent != null ? ' (' + s.percent + '%)' : '') + ' …');
+    } else if (s.state === 'uptodate') {
+      setStatus('Auf dem neuesten Stand (' + (s.version || '') + ')');
+    } else if (s.state === 'ready') {
+      setStatus('Update ' + (s.version || '') + ' bereit — wird beim Beenden installiert');
+      if (installBtn) installBtn.style.display = '';
+      rcToast('⬇ Update ' + (s.version || '') + ' bereit — Installation beim Beenden', 5000);
+    } else if (s.state === 'error') {
+      setStatus('Update-Fehler: ' + (s.message || '?'));
+    }
+  });
+  const checkBtn = $('updCheckBtn');
+  if (checkBtn) checkBtn.onclick = async () => {
+    setStatus('Suche nach Updates …');
+    const r = await window.rasiUpdate.check().catch(() => null);
+    if (r && r.ok === false) {
+      setStatus(r.reason === 'dev' ? 'Updates: im Dev-Modus deaktiviert'
+        : r.reason === 'portable' ? 'Updates: Portable-Version aktualisiert sich nicht selbst'
+        : 'Update-Fehler: ' + (r.message || r.reason || '?'));
+    }
+  };
+  if (installBtn) installBtn.onclick = () => window.rasiUpdate.install().catch(() => {});
+}
+
 // ============================================================
 // 7. TELEMETRY PIPELINE
 // ============================================================
@@ -1082,6 +1121,7 @@ function init() {
   $('importAllBtn').onclick = () => $('importAllFile').click();
   $('importAllFile').onchange = e => { if (e.target.files[0]) importAll(e.target.files[0]); e.target.value = ''; };
   $('resetAllBtn').onclick = resetAll;
+  initUpdateUi();
   // Settings sub-navigation
   document.querySelectorAll('#tab-settings .settings-nav-item').forEach(btn => {
     btn.onclick = () => showSettingsGroup(btn.dataset.sgroup);
