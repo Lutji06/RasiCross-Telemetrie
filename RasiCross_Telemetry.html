@@ -1390,15 +1390,17 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 #tab-live #yawSparkCanvas{height:22px}
 #tab-live .kpi-row{margin-bottom:12px}
 
-/* Live v2 — main body grid */
+/* Live v2 — main body grid.
+   WICHTIG: Die Flex-Hoehenverteilung (Karte/Laps fuellen den Viewport)
+   lebt NUR im Fit-Modus-Media unten — ohne definierte Containerhoehe
+   wuerde .map{flex;min-height:0} auf 0 kollabieren (Phone/Tablet-Bug). */
 .pw-live-body{display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:stretch}
+@media(max-width:1100px){.pw-live-body{grid-template-columns:1fr}}
 .pw-live-map{display:flex;flex-direction:column;gap:12px}
-.pw-live-map .pw-module{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
-.pw-live-map .pw-map-mod{flex:2 1 0}
-.pw-live-map .map{flex:1 1 auto;min-height:0}
-/* Live-Rundentabelle unter der Karte — scrollbar, Sticky-Header, fuellt den Restraum */
-.pw-live-map .pw-live-laps{flex:1 1 0}
-.pw-live-map .pw-live-laps .pw-laplist{flex:1 1 auto;min-height:0;overflow-y:auto;margin-top:8px}
+.pw-live-map .pw-module{display:flex;flex-direction:column}
+/* Live-Rundentabelle unter der Karte — scrollbar, Sticky-Header.
+   Ausserhalb des Fit-Modus: begrenzte Hoehe + eigener Scroll. */
+.pw-live-map .pw-live-laps .pw-laplist{overflow-y:auto;margin-top:8px;max-height:340px}
 .live-lap-table{width:100%;border-collapse:collapse;font-family:var(--mono)}
 .live-lap-table thead th{position:sticky;top:0;z-index:1;background:var(--surf);
   font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
@@ -1445,14 +1447,14 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
    Nur ab Viewport-Hoehe >=760px aktiv, sonst (Mobile/landscape klein)
    wuerde der Inhalt vertikal abgeschnitten werden.
    ------------------------------------------------------------ */
-@media (min-height:760px){
+@media (min-height:760px) and (min-width:1100px){
   html:has(body[data-tab="live"]),
   body[data-tab="live"]{
     height:100vh;overflow:hidden;
   }
   body[data-tab="live"] .main{height:100vh;min-height:0}
   body[data-tab="live"] main.content{
-    flex:1;min-height:0;overflow:hidden;
+    flex:1;min-height:0;overflow:auto;   /* faellt der Platz knapp aus: scrollen statt abschneiden */
     padding-top:18px;padding-bottom:14px;
     display:flex;flex-direction:column;justify-content:center;
   }
@@ -1464,7 +1466,13 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   body[data-tab="live"] #tab-live .pw-live-body{flex:1 1 auto;min-height:0}
   body[data-tab="live"] #tab-live .pw-live-map,
   body[data-tab="live"] #tab-live .pw-live-side{min-height:0}
-  body[data-tab="live"] #tab-live .pw-live-map .pw-module{min-height:0}
+  /* Flex-Hoehenverteilung: Karte (2x) + Rundentabelle (1x) fuellen den
+     Viewport. Lebt bewusst NUR hier — siehe Kommentar bei .pw-live-body. */
+  body[data-tab="live"] #tab-live .pw-live-map .pw-module{flex:1 1 auto;min-height:0}
+  body[data-tab="live"] #tab-live .pw-live-map .pw-map-mod{flex:2 1 0}
+  body[data-tab="live"] #tab-live .pw-live-map .map{flex:1 1 auto;min-height:180px}
+  body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps{flex:1 1 0}
+  body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps .pw-laplist{flex:1 1 auto;min-height:0;max-height:none}
 }
 
 /* Detail Diagnose block — 2-col label/value grid */
@@ -2621,7 +2629,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <span class="pw-eyebrow-dot"></span>
           <span>STRECKEN-MANAGEMENT</span>
         </div>
-        <h1 class="pw-hero-title">Pit Wall<span class="pw-hero-accent">.</span></h1>
+        <h1 class="pw-hero-title">Strecke<span class="pw-hero-accent">.</span></h1>
         <p class="pw-hero-sub">GPS-Aufnahme · Sektoren · Bibliothek</p>
       </div>
       <div class="pw-hero-telemetry">
