@@ -40,6 +40,7 @@
       "track.js",
       "laps-drivers.js",
       "live-ui.js",
+      "pit-wall.js",
       "geo.js",
       "replay.js",
       "drift.js",

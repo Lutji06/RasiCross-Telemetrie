@@ -25,6 +25,7 @@ const appCoreGlobals = {
   saveData: 'readonly', saveDataDebounced: 'readonly',
   rcAudio: 'readonly', formatBytes: 'readonly',
   setTextShared: 'readonly', setHtmlShared: 'readonly',
+  logTime: 'readonly',
 };
 // Schnittstelle map-draw.js -> Nutzer (rasicross.js u.a.)
 const mapDrawGlobals = {
@@ -84,6 +85,15 @@ const liveUiGlobals = {
   updateLiveDelta: 'readonly', updateLiveKPIs: 'readonly',
   updateDiagnostics: 'readonly', updateLiveUi: 'readonly', renderStints: 'readonly',
   animLoop: 'readonly', initLiveUiLoops: 'readonly',
+};
+// Schnittstelle pit-wall.js -> Nutzer (rasicross.js, serial-demo.js, live-ui.js)
+const pitWallGlobals = {
+  openPitWall: 'readonly', closePitWall: 'readonly', pwKeyHandler: 'readonly',
+  updatePitWall: 'readonly', renderConnectionTab: 'readonly',
+  pushPacketLog: 'readonly', toggleDiagnose: 'readonly',
+  buildRaceDataForKart: 'readonly', sendDisplayUpdate: 'readonly',
+  restartDisplayUpdateInterval: 'readonly', sendPitCall: 'readonly',
+  cancelPitCall: 'readonly', togglePitCall: 'readonly',
 };
 
 const bugRules = {
@@ -225,6 +235,18 @@ module.exports = [
     rules: bugRules,
   },
 
+  // pit-wall.js — klassisches App-Script, gemeinsamer Global-Scope
+  {
+    files: ['pit-wall.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...racesGlobals, ...lapsDriversGlobals, ...liveUiGlobals },
+    },
+    rules: bugRules,
+  },
+
   // Dashboard-Renderer (Browser) -- nutzt die UMD-Globals
   {
     files: ['rasicross.js'],
@@ -241,6 +263,7 @@ module.exports = [
         ...trackGlobals,
         ...lapsDriversGlobals,
         ...liveUiGlobals,
+        ...pitWallGlobals,
         THREE: 'readonly',
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',
