@@ -28,6 +28,7 @@ jobs:
           node --check races.js
           node --check serial-demo.js
           node --check gauges.js
+          node --check track.js
           node --check main.js
           node --check preload.js
       - name: Lint JS

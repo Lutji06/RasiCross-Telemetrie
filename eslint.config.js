@@ -23,6 +23,7 @@ const appCoreGlobals = {
   uid: 'readonly', esc: 'readonly', setText: 'readonly',
   rcAlert: 'readonly', rcConfirm: 'readonly', rcToast: 'readonly',
   saveData: 'readonly', saveDataDebounced: 'readonly',
+  rcAudio: 'readonly', formatBytes: 'readonly',
 };
 // Schnittstelle map-draw.js -> Nutzer (rasicross.js u.a.)
 const mapDrawGlobals = {
@@ -53,6 +54,19 @@ const serialDemoGlobals = {
 const gaugesGlobals = {
   renderDriftBadge: 'readonly', renderRollBar: 'readonly', lerp: 'readonly',
   renderGauges: 'readonly', drawGMeter: 'readonly',
+};
+// Schnittstelle track.js -> Nutzer (rasicross.js, serial-demo.js, races.js, recording.js)
+const trackGlobals = {
+  startTrackScan: 'readonly', finishTrackScan: 'readonly', clearTrack: 'readonly',
+  updateBounds: 'readonly', onGpsUpdate: 'readonly', saveCurrentTrack: 'readonly',
+  loadSavedTrack: 'readonly', deleteSavedTrack: 'readonly',
+  refreshTrackTileStatus: 'readonly', startTrackTileCache: 'readonly',
+  renderSavedTracks: 'readonly', openTrackEditor: 'readonly',
+  closeTrackEditor: 'readonly', editorClickTarget: 'readonly',
+  handleEditorClick: 'readonly', saveEditor: 'readonly',
+  calcAutoSectors: 'readonly', clearManualSectors: 'readonly',
+  activateSectorClick: 'readonly', handleTrackCanvasClick: 'readonly',
+  checkSectorCrossings: 'readonly', updateSectorPanel: 'readonly',
 };
 
 const bugRules = {
@@ -149,6 +163,19 @@ module.exports = [
     rules: bugRules,
   },
 
+  // track.js — klassisches App-Script, gemeinsamer Global-Scope
+  {
+    files: ['track.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...mapDrawGlobals, ...racesGlobals, RasiTiles: 'readonly',
+                 RasiTileRenderer: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
   // Dashboard-Renderer (Browser) -- nutzt die UMD-Globals
   {
     files: ['rasicross.js'],
@@ -162,6 +189,7 @@ module.exports = [
         ...racesGlobals,
         ...serialDemoGlobals,
         ...gaugesGlobals,
+        ...trackGlobals,
         THREE: 'readonly',
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',
