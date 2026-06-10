@@ -33,6 +33,7 @@
       "preload.js",
       "RasiCross_Telemetry.html",
       "rasicross.js",
+      "map-draw.js",
       "geo.js",
       "replay.js",
       "drift.js",

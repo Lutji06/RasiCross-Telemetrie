@@ -16,6 +16,22 @@ const geoGlobals = {
   structuralRaceKey: 'readonly', ghostPointAt: 'readonly',
 };
 
+// Kern-Helfer + State, die rasicross.js global definiert und die die
+// ausgelagerten App-Scripts (map-draw/races/serial-demo) mitbenutzen.
+const appCoreGlobals = {
+  state: 'readonly', $: 'readonly', css: 'readonly', dpr: 'readonly',
+  uid: 'readonly', esc: 'readonly', setText: 'readonly',
+  rcAlert: 'readonly', rcConfirm: 'readonly', rcToast: 'readonly',
+  saveData: 'readonly', saveDataDebounced: 'readonly',
+};
+// Schnittstelle map-draw.js -> Nutzer (rasicross.js u.a.)
+const mapDrawGlobals = {
+  initTrackCanvases: 'readonly', resizeCanvases: 'readonly',
+  gpsXYOnCanvas: 'readonly', drawTrack: 'readonly', drawTrackOn: 'readonly',
+  drawLineOn: 'readonly', drawGhostOn: 'readonly', drawHeatmapOn: 'readonly',
+  _trackCanvas: 'readonly', _scanCanvas: 'readonly',
+};
+
 const bugRules = {
   ...js.configs.recommended.rules,
   // Ungenutzte Funktionsargumente und catch-Bindungen sind hier
@@ -54,6 +70,18 @@ module.exports = [
     rules: bugRules,
   },
 
+  // map-draw.js — klassisches App-Script, gemeinsamer Global-Scope
+  {
+    files: ['map-draw.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 RasiTiles: 'readonly', RasiTileRenderer: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
   // Dashboard-Renderer (Browser) -- nutzt die UMD-Globals
   {
     files: ['rasicross.js'],
@@ -63,6 +91,7 @@ module.exports = [
       globals: {
         ...globals.browser,
         ...geoGlobals,
+        ...mapDrawGlobals,
         THREE: 'readonly',
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',
