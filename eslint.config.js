@@ -77,6 +77,7 @@ const lapsDriversGlobals = {
   getDriverStats: 'readonly', getTotalStats: 'readonly', fmtKm: 'readonly',
   addDriver: 'readonly', deleteDriver: 'readonly', renderTotalHero: 'readonly',
   renderDrivers: 'readonly', renderDriverOptions: 'readonly',
+  theoreticalBestMs: 'readonly',
 };
 // Schnittstelle live-ui.js -> Nutzer (rasicross.js, races.js, pit-wall.js, recording.js)
 const liveUiGlobals = {
@@ -207,7 +208,8 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
-                 ...mapDrawGlobals, ...racesGlobals, RasiTiles: 'readonly',
+                 ...mapDrawGlobals, ...racesGlobals,
+                 theoreticalBestMs: 'readonly', RasiTiles: 'readonly',
                  RasiTileRenderer: 'readonly' },
     },
     rules: bugRules,

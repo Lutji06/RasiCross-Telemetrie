@@ -2425,6 +2425,10 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
           <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
           <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
+          <div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--mut);padding:4px 2px 0">
+            <span>Theoretische Bestrunde <span style="opacity:.6">(beste Sektoren)</span></span>
+            <b id="theoBestTime" style="font-family:var(--mono);font-size:14px;color:var(--text,#fff)">--:--.---</b>
+          </div>
         </div>
       </div>
 
@@ -3319,6 +3323,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
       <div class="pw-side-val" id="pwLap" style="font-size:clamp(36px,6vw,64px)">--:--.---</div>
       <div class="pw-unit">Zeit</div>
       <div class="pw-side-sub">Best <b id="pwBestLap">--:--.---</b></div>
+      <div class="pw-side-sub">Theoretisch <b id="pwTheoLap">--:--.---</b></div>
     </div>
   </div>
   <div class="pw-sectors">

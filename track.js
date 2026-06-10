@@ -704,6 +704,9 @@ function updateSectorPanel() {
     if (card) card.classList.toggle('active', s.cur === i && !s.lapSectors[i]);
   };
   display(0); display(1); display(2);
+  // Theoretische Bestrunde (Phase 24): Summe der Sektor-Bests
+  const tb = theoreticalBestMs();
+  setText('theoBestTime', tb ? fmtMs(tb) : '--:--.---');
 }
 
 // Interface-Marker: von rasicross.js/serial-demo.js/races.js/recording.js

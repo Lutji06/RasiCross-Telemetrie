@@ -45,6 +45,8 @@ function updatePitWall() {
   // Lap
   setText('pwLap', state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---');
   setText('pwBestLap', state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---');
+  const _tb = theoreticalBestMs();
+  setText('pwTheoLap', _tb ? fmtMs(_tb) : '--:--.---');
   // Sectors
   const s = state.sectors;
   for (let i = 0; i < 3; i++) {
