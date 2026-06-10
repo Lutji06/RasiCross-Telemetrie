@@ -39,6 +39,7 @@
       "gauges.js",
       "track.js",
       "laps-drivers.js",
+      "live-ui.js",
       "geo.js",
       "replay.js",
       "drift.js",

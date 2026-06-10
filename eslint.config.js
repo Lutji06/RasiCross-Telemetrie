@@ -24,6 +24,7 @@ const appCoreGlobals = {
   rcAlert: 'readonly', rcConfirm: 'readonly', rcToast: 'readonly',
   saveData: 'readonly', saveDataDebounced: 'readonly',
   rcAudio: 'readonly', formatBytes: 'readonly',
+  setTextShared: 'readonly', setHtmlShared: 'readonly',
 };
 // Schnittstelle map-draw.js -> Nutzer (rasicross.js u.a.)
 const mapDrawGlobals = {
@@ -75,6 +76,14 @@ const lapsDriversGlobals = {
   getDriverStats: 'readonly', getTotalStats: 'readonly', fmtKm: 'readonly',
   addDriver: 'readonly', deleteDriver: 'readonly', renderTotalHero: 'readonly',
   renderDrivers: 'readonly', renderDriverOptions: 'readonly',
+};
+// Schnittstelle live-ui.js -> Nutzer (rasicross.js, races.js, pit-wall.js, recording.js)
+const liveUiGlobals = {
+  initLiveCharts: 'readonly', resizeChartCanvas: 'readonly', drawChart: 'readonly',
+  axisFmt: 'readonly', drawLiveCharts: 'readonly', drawYawSparkline: 'readonly',
+  updateLiveDelta: 'readonly', updateLiveKPIs: 'readonly',
+  updateDiagnostics: 'readonly', updateLiveUi: 'readonly', renderStints: 'readonly',
+  animLoop: 'readonly', initLiveUiLoops: 'readonly',
 };
 
 const bugRules = {
@@ -196,6 +205,26 @@ module.exports = [
     rules: bugRules,
   },
 
+  // live-ui.js — klassisches App-Script, gemeinsamer Global-Scope
+  {
+    files: ['live-ui.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...mapDrawGlobals, ...racesGlobals, ...trackGlobals,
+                 ...gaugesGlobals, ...lapsDriversGlobals,
+                 renderConnectionTab: 'readonly', updatePitWall: 'readonly',
+                 sendDisplayUpdate: 'readonly',
+                 // 3D-Viewer-Tick-State (deklariert in rasicross.js)
+                 _kart3dReady: 'writable', _kart3dLastTick: 'writable',
+                 _attLastMs: 'writable',
+                 RasiKart3D: 'readonly', RasiDrift: 'readonly',
+                 RasiAttitude: 'readonly', DomTargets: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
   // Dashboard-Renderer (Browser) -- nutzt die UMD-Globals
   {
     files: ['rasicross.js'],
@@ -211,6 +240,7 @@ module.exports = [
         ...gaugesGlobals,
         ...trackGlobals,
         ...lapsDriversGlobals,
+        ...liveUiGlobals,
         THREE: 'readonly',
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',

@@ -30,6 +30,7 @@ jobs:
           node --check gauges.js
           node --check track.js
           node --check laps-drivers.js
+          node --check live-ui.js
           node --check main.js
           node --check preload.js
       - name: Lint JS
