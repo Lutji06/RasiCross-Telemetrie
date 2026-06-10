@@ -25,7 +25,7 @@ const appCoreGlobals = {
   saveData: 'readonly', saveDataDebounced: 'readonly',
   rcAudio: 'readonly', formatBytes: 'readonly',
   setTextShared: 'readonly', setHtmlShared: 'readonly',
-  logTime: 'readonly',
+  logTime: 'readonly', SAVE_KEY: 'readonly',
 };
 // Schnittstelle map-draw.js -> Nutzer (rasicross.js u.a.)
 const mapDrawGlobals = {
@@ -94,6 +94,16 @@ const pitWallGlobals = {
   buildRaceDataForKart: 'readonly', sendDisplayUpdate: 'readonly',
   restartDisplayUpdateInterval: 'readonly', sendPitCall: 'readonly',
   cancelPitCall: 'readonly', togglePitCall: 'readonly',
+};
+// Schnittstelle recording.js -> Nutzer (rasicross.js, serial-demo.js)
+const recordingGlobals = {
+  exportAll: 'readonly', importAll: 'readonly', resetAll: 'readonly',
+  updateRecStatus: 'readonly', saveRecording: 'readonly',
+  exportRecordingCsv: 'readonly', loadRecordingFile: 'readonly',
+  enterReplay: 'readonly', exitReplay: 'readonly', replaySeek: 'readonly',
+  setReplaySpeed: 'readonly', toggleReplayPlay: 'readonly',
+  renderReplayBar: 'readonly', feedReplayPacket: 'readonly',
+  fastForwardTo: 'readonly',
 };
 
 const bugRules = {
@@ -247,6 +257,27 @@ module.exports = [
     rules: bugRules,
   },
 
+  // recording.js — klassisches App-Script, gemeinsamer Global-Scope
+  {
+    files: ['recording.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...mapDrawGlobals, ...racesGlobals, ...serialDemoGlobals,
+                 ...trackGlobals, ...lapsDriversGlobals, ...liveUiGlobals,
+                 ...gaugesGlobals, ...pitWallGlobals,
+                 RasiReplay: 'readonly', RasiDrift: 'readonly',
+                 RasiAttitude: 'readonly',
+                 processTelemetry: 'readonly', recordPacket: 'readonly',
+                 armRecording: 'readonly', driftInputs: 'readonly',
+                 // Attitude-Fusion-Tick (deklariert in rasicross.js) --
+                 // Replay-Reset setzt ihn zurueck.
+                 _attLastMs: 'writable' },
+    },
+    rules: bugRules,
+  },
+
   // Dashboard-Renderer (Browser) -- nutzt die UMD-Globals
   {
     files: ['rasicross.js'],
@@ -264,6 +295,7 @@ module.exports = [
         ...lapsDriversGlobals,
         ...liveUiGlobals,
         ...pitWallGlobals,
+        ...recordingGlobals,
         THREE: 'readonly',
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',

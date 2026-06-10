@@ -32,6 +32,7 @@ jobs:
           node --check laps-drivers.js
           node --check live-ui.js
           node --check pit-wall.js
+          node --check recording.js
           node --check main.js
           node --check preload.js
       - name: Lint JS

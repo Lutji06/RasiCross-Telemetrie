@@ -41,6 +41,7 @@
       "laps-drivers.js",
       "live-ui.js",
       "pit-wall.js",
+      "recording.js",
       "geo.js",
       "replay.js",
       "drift.js",
