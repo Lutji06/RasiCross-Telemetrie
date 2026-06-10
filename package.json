@@ -34,6 +34,7 @@
       "RasiCross_Telemetry.html",
       "rasicross.js",
       "map-draw.js",
+      "races.js",
       "geo.js",
       "replay.js",
       "drift.js",

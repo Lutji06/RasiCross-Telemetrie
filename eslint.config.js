@@ -31,6 +31,17 @@ const mapDrawGlobals = {
   drawLineOn: 'readonly', drawGhostOn: 'readonly', drawHeatmapOn: 'readonly',
   _trackCanvas: 'readonly', _scanCanvas: 'readonly',
 };
+// Schnittstelle races.js -> Nutzer (rasicross.js, serial-demo.js)
+const racesGlobals = {
+  activeRace: 'readonly', currentStint: 'readonly', raceValidLaps: 'readonly',
+  raceElapsedMs: 'readonly', createRace: 'readonly', startRace: 'readonly',
+  endRace: 'readonly', pauseRace: 'readonly', toggleRaceRun: 'readonly',
+  openDriverChange: 'readonly', confirmDriverChange: 'readonly',
+  closeDriverModal: 'readonly', selectRace: 'readonly', setActiveRace: 'readonly',
+  toggleRaceExpand: 'readonly', deleteRace: 'readonly',
+  drawRaceHistoryChart: 'readonly', renderRaces: 'readonly',
+  renderTrackOptions: 'readonly', updateRaceControls: 'readonly',
+};
 
 const bugRules = {
   ...js.configs.recommended.rules,
@@ -82,6 +93,19 @@ module.exports = [
     rules: bugRules,
   },
 
+  // races.js — klassisches App-Script, gemeinsamer Global-Scope
+  {
+    files: ['races.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 loadSavedTrack: 'readonly', updateSectorPanel: 'readonly',
+                 drawChart: 'readonly', renderDriverOptions: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
   // Dashboard-Renderer (Browser) -- nutzt die UMD-Globals
   {
     files: ['rasicross.js'],
@@ -92,6 +116,7 @@ module.exports = [
         ...globals.browser,
         ...geoGlobals,
         ...mapDrawGlobals,
+        ...racesGlobals,
         THREE: 'readonly',
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',

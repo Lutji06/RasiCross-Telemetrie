@@ -25,6 +25,7 @@ jobs:
           node --check karts3d.js
           node --check rasicross.js
           node --check map-draw.js
+          node --check races.js
           node --check main.js
           node --check preload.js
       - name: Lint JS
