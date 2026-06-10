@@ -916,6 +916,9 @@ function initKartModelUploader() {
 // ============================================================
 function init() {
   loadData();
+  // Persistierte Session-Bounds heilen: eng aus den Punkten neu ableiten
+  // (alte Daten koennen GPS-Ausreisser in den Bounds tragen, Phase 26).
+  if (state.track.points.length) recomputeTrackBounds();
   try {
     if (typeof RasiTileRenderer !== 'undefined') {
       RasiTileRenderer.init({

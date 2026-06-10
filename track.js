@@ -49,6 +49,8 @@ function finishTrackScan(auto) {
     // Auto-calculate sector boundaries (33% / 66%)
     if (!state.sectors.manual) calcAutoSectors();
   }
+  // Scan beendet: Bounds eng auf die Strecke ziehen (Anfahrt/Ausreisser raus).
+  if (state.track.closed) recomputeTrackBounds();
   drawTrack();
   saveDataDebounced();
 }
@@ -79,14 +81,37 @@ function updateBounds(lat, lon) {
   b.maxLon = Math.max(b.maxLon, lon);
   state.track.bounds = b;
 }
+// Bounds eng aus den Streckenpunkten ableiten (Phase 26) -- heilt verseuchte
+// Session-Bounds: GPS-Ausreisser (Kaltstart-Spruenge, Anfahrt) blaehten sie
+// frueher unbegrenzt auf und zerquetschten damit die Karten-Skalierung.
+function recomputeTrackBounds() {
+  const pts = state.track.points;
+  if (!pts || !pts.length) { state.track.bounds = null; return; }
+  const b = { minLat: pts[0].lat, maxLat: pts[0].lat, minLon: pts[0].lon, maxLon: pts[0].lon };
+  for (const p of pts) {
+    b.minLat = Math.min(b.minLat, p.lat); b.maxLat = Math.max(b.maxLat, p.lat);
+    b.minLon = Math.min(b.minLon, p.lon); b.maxLon = Math.max(b.maxLon, p.lon);
+  }
+  state.track.bounds = b;
+}
 function onGpsUpdate(lat, lon) {
   if (!lat || !lon) return;
   if (!state.track.scanning) {
+    // Geschlossene Strecke rahmt die Karte -- Bounds nicht weiter aufblaehen,
+    // der Live-Punkt wird einfach auf der Strecken-Skalierung gezeichnet.
+    if (state.track.closed) return;
+    // Vor dem Scan folgt die Karte dem GPS, aber Ausreisser (>10 km vom
+    // bisherigen Zentrum) bleiben draussen.
+    const b = state.track.bounds;
+    if (b && gpsDist(lat, lon, (b.minLat + b.maxLat) / 2, (b.minLon + b.maxLon) / 2) > 10000) return;
     updateBounds(lat, lon);
     return;
   }
   const last = state.track.points[state.track.points.length - 1];
   const dist = last ? gpsDist(last.lat, last.lon, lat, lon) : 999;
+  // GPS-Sprung beim Scannen (>500 m zwischen zwei Fixen ist physikalisch
+  // unmoeglich): Fix komplett verwerfen statt Strecke und Bounds zerstoeren.
+  if (last && dist >= 500) return;
   if (!last || dist > 2) {
     if (last) state.track.totalDistance += dist;
     state.track.points.push({ lat, lon });
@@ -712,6 +737,7 @@ function updateSectorPanel() {
 // Interface-Marker: von rasicross.js/serial-demo.js/races.js/recording.js
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
+      recomputeTrackBounds,
       saveCurrentTrack, loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
       startTrackTileCache, renderSavedTracks, openTrackEditor, closeTrackEditor,
       editorClickTarget, handleEditorClick, saveEditor, calcAutoSectors,
