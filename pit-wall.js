@@ -76,6 +76,42 @@ function updatePitWall() {
 // CONNECTION TAB Updates
 // ============================================================
 let _packetLog = [];
+// RSSI-Sparkline (Phase 24): 1Hz-Historie (max 3 min), gezeichnet im
+// Verbindungs-Tab. Kein Persist -- Session-Verlauf reicht fuer Funkloecher.
+const RSSI_HIST_MAX = 180;
+let _rssiHist = [];
+function drawRssiSparkline() {
+  const cv = $('rssiSpark');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  if (!ctx) return;
+  const w = cv.width, h = cv.height;
+  ctx.clearRect(0, 0, w, h);
+  if (_rssiHist.length < 2) return;
+  const MIN = -100, MAX = -30;            // dBm-Skala
+  const y = v => h - 2 - ((Math.max(MIN, Math.min(MAX, v)) - MIN) / (MAX - MIN)) * (h - 4);
+  // Schwellen-Linie (-85 dBm = "Schwach")
+  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, y(-85)); ctx.lineTo(w, y(-85)); ctx.stroke();
+  // Verlauf
+  const last = _rssiHist[_rssiHist.length - 1];
+  const color = last > -70 ? (css('--green') || '#5ad17a')
+              : last > -85 ? (css('--orange') || '#f0a050')
+              : (css('--red') || '#e05555');
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  for (let i = 0; i < _rssiHist.length; i++) {
+    const x = (i / (RSSI_HIST_MAX - 1)) * w;
+    if (i === 0) ctx.moveTo(x, y(_rssiHist[i])); else ctx.lineTo(x, y(_rssiHist[i]));
+  }
+  ctx.stroke();
+  // Endpunkt
+  const xe = ((_rssiHist.length - 1) / (RSSI_HIST_MAX - 1)) * w;
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(xe, y(last), 2.4, 0, Math.PI * 2); ctx.fill();
+}
 function renderConnectionTab() {
   try {
     const c = state.connection;
@@ -121,6 +157,12 @@ function renderConnectionTab() {
       setText('connQualityText', 'Keine Daten');
     }
     setText('connLatency', c.lastPacketAt ? Math.round(Date.now() - c.lastPacketAt) : '--');
+    // RSSI-Historie (1Hz, da dieser Renderer im 1Hz-Loop laeuft)
+    if (c.rssi != null && (c.source === 'serial' || c.source === 'demo')) {
+      _rssiHist.push(c.rssi);
+      if (_rssiHist.length > RSSI_HIST_MAX) _rssiHist.shift();
+    }
+    drawRssiSparkline();
     setText('connRawG', `${state.raw.gx.toFixed(2)} / ${state.raw.gy.toFixed(2)}`);
     setText('connPulseHz', state.raw.pulseHz?.toFixed(1) || '--');
     setText('connPulseCount', state.raw.pulseCount || '--');
