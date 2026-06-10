@@ -1,6 +1,6 @@
 {
   "name": "rasicross-telemetry",
-  "version": "9.6.0",
+  "version": "1.0.5",
   "description": "RasiCross Telemetry – ESP-NOW USB Dashboard",
   "main": "main.js",
   "author": "RasiCross",
