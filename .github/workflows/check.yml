@@ -24,6 +24,15 @@ jobs:
           node --check replay.js
           node --check karts3d.js
           node --check rasicross.js
+          node --check map-draw.js
+          node --check races.js
+          node --check serial-demo.js
+          node --check gauges.js
+          node --check track.js
+          node --check laps-drivers.js
+          node --check live-ui.js
+          node --check pit-wall.js
+          node --check recording.js
           node --check main.js
           node --check preload.js
       - name: Lint JS
