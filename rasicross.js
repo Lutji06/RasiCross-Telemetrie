@@ -583,7 +583,13 @@ function processTelemetry(d) {
     // Drift (Phase 20): gehaerteter + geglaetteter Gierraten-Index. di teilt die
     // Eingangs-Normalisierung mit dem Replay-Aggregat; smoothStep liefert
     // EMA-Index + entprellten/hysterese-stabilen Status.
-    const dRaw = RasiDrift.analyze(di, state.settings.drift);
+    // Hangkompensation (Phase 24): Schwerkraftanteil sin(roll) aus der Quer-g
+    // ziehen, damit Hangfahrt nicht als Unter-/Uebersteuern erscheint. Roll vom
+    // vorherigen Sample (Update folgt unten) -- bei 12 Hz vernachlaessigbar.
+    const dRaw = RasiDrift.analyze(
+      { yawRate: di.yawRate, speed: di.speed,
+        latAccel: RasiDrift.tiltCompLatG(di.latAccel, state.attitude.rollDeg) },
+      state.settings.drift);
     // settings.drift liefert tol (-> Hysterese-Baender); smooth/hyst/counterHold
     // sind nicht in den Settings und fallen in smoothStep auf SMOOTH_DEFAULTS zurueck.
     state.driftSmooth = RasiDrift.smoothStep(state.driftSmooth, dRaw, state.settings.drift);
