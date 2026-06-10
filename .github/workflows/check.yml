@@ -27,6 +27,7 @@ jobs:
           node --check map-draw.js
           node --check races.js
           node --check serial-demo.js
+          node --check gauges.js
           node --check main.js
           node --check preload.js
       - name: Lint JS

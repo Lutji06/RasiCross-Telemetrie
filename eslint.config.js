@@ -49,6 +49,11 @@ const serialDemoGlobals = {
   stopReconnect: 'readonly', scheduleReconnect: 'readonly',
   handleSerialLine: 'readonly', generateDemoTrack: 'readonly',
 };
+// Schnittstelle gauges.js -> Nutzer (rasicross.js, live-ui.js)
+const gaugesGlobals = {
+  renderDriftBadge: 'readonly', renderRollBar: 'readonly', lerp: 'readonly',
+  renderGauges: 'readonly', drawGMeter: 'readonly',
+};
 
 const bugRules = {
   ...js.configs.recommended.rules,
@@ -130,6 +135,20 @@ module.exports = [
     rules: bugRules,
   },
 
+  // gauges.js — klassisches App-Script, gemeinsamer Global-Scope
+  {
+    files: ['gauges.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 // 3D-Viewer-Tick-State (live-ui.js): drawGMeter treibt den
+                 // Kart-3D-Render-Tick mit an.
+                 _kart3dReady: 'readonly', _kart3dLastTick: 'writable' },
+    },
+    rules: bugRules,
+  },
+
   // Dashboard-Renderer (Browser) -- nutzt die UMD-Globals
   {
     files: ['rasicross.js'],
@@ -142,6 +161,7 @@ module.exports = [
         ...mapDrawGlobals,
         ...racesGlobals,
         ...serialDemoGlobals,
+        ...gaugesGlobals,
         THREE: 'readonly',
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',

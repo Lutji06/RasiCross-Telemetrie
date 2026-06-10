@@ -36,6 +36,7 @@
       "map-draw.js",
       "races.js",
       "serial-demo.js",
+      "gauges.js",
       "geo.js",
       "replay.js",
       "drift.js",
