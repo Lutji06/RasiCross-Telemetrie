@@ -122,20 +122,41 @@ function logTime(ts = Date.now()) { return new Date(ts).toLocaleTimeString('de-D
 // 3. PERSISTENCE
 // ============================================================
 let _saveTimer = null;
+let _quotaWarned = false;
+// Races fuer die Persistenz verschlanken: speedTrace auf max. 1000 Punkte
+// downsamplen. Im RAM bleibt die volle Aufloesung erhalten — nur die
+// localStorage-Kopie wird kleiner (5-MB-Quota ueber eine Saison).
+const PERSIST_TRACE_MAX = 1000;
+function _persistRace(r) {
+  const t = r && r.speedTrace;
+  if (!Array.isArray(t) || t.length <= PERSIST_TRACE_MAX) return r;
+  const step = Math.ceil(t.length / PERSIST_TRACE_MAX);
+  return Object.assign({}, r, { speedTrace: t.filter((_, i) => i % step === 0) });
+}
 function saveData() {
   if (state.replay && state.replay.active) return;  // replay uses disposable state — never persist
   try {
     const payload = {
       version: '9.6', savedAt: new Date().toISOString(),
       settings: state.settings, calibration: state.calibration, theme: state.theme,
-      drivers: state.drivers, races: state.races, savedTracks: state.savedTracks,
+      drivers: state.drivers, races: state.races.map(_persistRace), savedTracks: state.savedTracks,
       activeRaceId: state.activeRaceId, selectedRaceId: state.selectedRaceId,
       activeTrackId: state.activeTrackId,
       track: state.track, startGate: state.startGate, sectors: { boundaries: state.sectors.boundaries, manual: state.sectors.manual, best: state.sectors.best }
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     setText('storageState', 'Gespeichert ' + logTime());
-  } catch (e) { console.warn('saveData:', e); setText('storageState', 'Fehler'); }
+  } catch (e) {
+    console.warn('saveData:', e);
+    const quota = e && (e.name === 'QuotaExceededError' || e.code === 22);
+    setText('storageState', quota ? 'Speicher voll!' : 'Fehler');
+    if (quota && !_quotaWarned) {
+      _quotaWarned = true;
+      rcAlert('Der lokale Speicher ist voll — Änderungen werden nicht mehr gespeichert! ' +
+              'Bitte alte Rennen löschen (Renn-Tab) oder vorher über Einstellungen → ' +
+              '"Alle Daten exportieren" sichern.', 'Speicher voll');
+    }
+  }
 }
 function saveDataDebounced() { clearTimeout(_saveTimer); _saveTimer = setTimeout(saveData, 400); }
 function loadData() {
@@ -504,13 +525,17 @@ function processTelemetry(d) {
     state.connection.lastPacketAt = Date.now();
     if (d.from_mac) state.connection.kartMac = d.from_mac;
     if (typeof d.rssi === 'number') state.connection.rssi = d.rssi;
-    if (d.seq != null) {
-      if (state.connection.seq != null) {
-        const delta = (d.seq - state.connection.seq + 65536) % 65536;
-        if (delta > 1 && delta < 1000) state.connection.lost += delta - 1;
-      }
-      state.connection.seq = d.seq;
+    // Verlustzaehlung: eine Quelle. Die Bridge zaehlt ueber die ESP-NOW-
+    // Sequenznummern und liefert `lost` kumulativ in jedem Paket mit ->
+    // direkt uebernehmen. Eigene seq-Zaehlung nur als Fallback fuer
+    // Quellen ohne lost-Feld (Demo, alte Aufnahmen).
+    if (d.lost != null) {
+      state.connection.lost = Number(d.lost) || 0;
+    } else if (d.seq != null && state.connection.seq != null) {
+      const delta = (d.seq - state.connection.seq + 65536) % 65536;
+      if (delta > 1 && delta < 1000) state.connection.lost += delta - 1;
     }
+    if (d.seq != null) state.connection.seq = d.seq;
     state.hz++;
     // Calibrated values
     const speed = Math.max(0, Number(d.speed) || 0);
@@ -897,6 +922,10 @@ function drawTrackOn(c) {
   ctx.stroke();
   // Heatmap
   if (state.heatmap.on) drawHeatmapOn(c, ctx);
+  // Ghost-Runde (beste Runde) — nur auf der Live-Karte
+  if (c.id === 'trackCanvas' && state.bestLapTrace && state.bestLapTrace.length > 1) {
+    drawGhostOn(c, ctx);
+  }
   // Start line
   const ep = lineEndpointsFromGate(state.startGate);
   if (ep) drawLineOn(ctx, c, ep, css('--green'), 'START', Date.now() < state.gateFlashUntil);
@@ -952,6 +981,39 @@ function drawLineOn(ctx, c, ep, color, label, flash) {
   ctx.font = `900 ${10 * dpr()}px monospace`;
   ctx.textAlign = 'center';
   ctx.fillText(flash && label === 'START' ? 'ZIEL' : label, mx, my - 8 * dpr());
+  ctx.restore();
+}
+// Ghost-Runde: Linie der besten Runde blass gestrichelt + Geister-Punkt an
+// der Position, die der Ghost bei gleicher verstrichener Rundenzeit hatte.
+// Punkt nur waehrend einer laufenden Runde; verschwindet, wenn der Ghost
+// die Runde beendet hat (ghostPointAt -> null).
+function drawGhostOn(c, ctx) {
+  const trace = state.bestLapTrace;
+  ctx.save();
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < trace.length; i++) {
+    const xy = gpsXYOnCanvas(trace[i].lat, trace[i].lon, c);
+    if (i) ctx.lineTo(xy.x, xy.y); else ctx.moveTo(xy.x, xy.y);
+  }
+  ctx.strokeStyle = 'rgba(187,154,247,.35)';
+  ctx.lineWidth = 2 * dpr();
+  ctx.setLineDash([5 * dpr(), 5 * dpr()]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  if (state.lapStart) {
+    const gp = ghostPointAt(trace, Date.now() - state.lapStart);
+    if (gp) {
+      const xy = gpsXYOnCanvas(gp.lat, gp.lon, c);
+      ctx.fillStyle = 'rgba(187,154,247,.9)';
+      ctx.shadowColor = 'rgba(187,154,247,.8)';
+      ctx.shadowBlur = 10 * dpr();
+      ctx.beginPath();
+      ctx.arc(xy.x, xy.y, 5.5 * dpr(), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+  }
   ctx.restore();
 }
 function drawHeatmapOn(c, ctx) {
@@ -3529,6 +3591,21 @@ function saveRecording() {
   URL.revokeObjectURL(url);
   rcToast('Aufnahme gespeichert (' + buf.length + ' Pakete)');
 }
+function exportRecordingCsv() {
+  // Replay aktiv -> die geladene Aufnahme exportieren, sonst den Live-Mitschnitt.
+  const buf = state.replay.active ? state.replay.packets : state.recording.buf;
+  if (!buf.length) { rcToast('Keine Aufnahme vorhanden'); return; }
+  const text = RasiReplay.recordingToCsv(buf);
+  // UTF-8 BOM, damit Excel die Kodierung erkennt
+  const blob = new Blob(['\uFEFF' + text], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rasicross_rec_${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  rcToast('CSV exportiert (' + (text.split('\r\n').length - 1) + ' Zeilen)');
+}
 
 // Slices that processTelemetry / onGpsUpdate / lap-sector-race
 // detection mutate. Snapshot on enter, restore verbatim on exit.
@@ -4215,6 +4292,7 @@ function init() {
   _bind('dmCancelBtn', closeDriverModal);
   _bind('dmConfirmBtn', confirmDriverChange);
   _bind('recSaveBtn', saveRecording);
+  _bind('recCsvBtn', exportRecordingCsv);
   _bind('recLoadBtn', () => $('recLoadFile')?.click());
   const _rlf = $('recLoadFile');
   if (_rlf) _rlf.onchange = (e) => { if (e.target.files[0]) loadRecordingFile(e.target.files[0]); e.target.value = ''; };

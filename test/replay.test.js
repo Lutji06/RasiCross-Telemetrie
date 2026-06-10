@@ -113,3 +113,44 @@ test('seekTargetMs: clamps ratio to [0,1] and maps to ms', () => {
   assert.equal(R.seekTargetMs(1000, 9), 1000);
   assert.equal(R.seekTargetMs(1000, NaN), 0);
 });
+
+test('recordingToCsv: Header + Semikolon-Trenner + Dezimal-Komma + CRLF', () => {
+  const csv = R.recordingToCsv([{ t_rel: 0, speed: 42.3, rpm: 4280, gx: 0.12, spd_src: 'gps' }]);
+  const lines = csv.split('\r\n');
+  assert.equal(lines.length, 2);
+  assert.equal(lines[0], R.CSV_COLUMNS.map(c => c[0]).join(';'));
+  assert.ok(lines[0].startsWith('t_rel_ms;speed_kmh;rpm;gx_g;'));
+  assert.ok(lines[1].startsWith('0;42,3;4280;0,12;'));
+  assert.ok(lines[1].includes(';gps;'));
+});
+
+test('recordingToCsv: fehlende Felder -> leere Zellen, Spaltenzahl stabil', () => {
+  const csv = R.recordingToCsv([{ t_rel: 80 }]);
+  const cells = csv.split('\r\n')[1].split(';');
+  assert.equal(cells.length, R.CSV_COLUMNS.length);
+  assert.equal(cells[0], '80');
+  assert.equal(cells[1], '');          // speed fehlt
+});
+
+test('recordingToCsv: Status-/Steuerzeilen (type) und Junk werden uebersprungen', () => {
+  const csv = R.recordingToCsv([
+    { type: 'bridge_status', rate_hz: 12 },
+    null, 'junk', 42,
+    { t_rel: 0, speed: 1 }
+  ]);
+  assert.equal(csv.split('\r\n').length, 2);    // Header + 1 Datenzeile
+});
+
+test('recordingToCsv: Semikolon/Zeilenumbruch in Strings wird entschaerft', () => {
+  const csv = R.recordingToCsv([{ t_rel: 0, spd_src: 'a;b\nc' }]);
+  const cells = csv.split('\r\n')[1].split(';');
+  assert.equal(cells.length, R.CSV_COLUMNS.length);
+  assert.ok(cells.join(';').includes('a b c'));
+});
+
+test('recordingToCsv: leer/NaN -> nur Header bzw. leere Zelle', () => {
+  assert.equal(R.recordingToCsv([]).split('\r\n').length, 1);
+  assert.equal(R.recordingToCsv(null).split('\r\n').length, 1);
+  const cells = R.recordingToCsv([{ t_rel: 0, speed: NaN }]).split('\r\n')[1].split(';');
+  assert.equal(cells[1], '');
+});

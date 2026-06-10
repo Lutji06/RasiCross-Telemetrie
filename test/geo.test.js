@@ -147,3 +147,38 @@ test('structuralRaceKey: excludes live-ticking + delta fields', () => {
       'expected stable across ' + f);
   }
 });
+
+test('ghostPointAt: leere/ungueltige Trace oder negative Zeit -> null', () => {
+  assert.equal(geo.ghostPointAt(null, 0), null);
+  assert.equal(geo.ghostPointAt([], 0), null);
+  assert.equal(geo.ghostPointAt([{ t: 0, lat: 1, lon: 2 }], -5), null);
+  assert.equal(geo.ghostPointAt([{ t: 0, lat: 1, lon: 2 }], NaN), null);
+});
+
+test('ghostPointAt: vor dem ersten Punkt -> erster Punkt; nach dem Ziel -> null', () => {
+  const tr = [{ t: 100, lat: 1, lon: 2 }, { t: 200, lat: 3, lon: 4 }];
+  assert.deepEqual(geo.ghostPointAt(tr, 0), { lat: 1, lon: 2 });
+  assert.deepEqual(geo.ghostPointAt(tr, 100), { lat: 1, lon: 2 });
+  assert.equal(geo.ghostPointAt(tr, 201), null);   // Ghost ist im Ziel
+});
+
+test('ghostPointAt: lineare Interpolation zwischen Stuetzpunkten', () => {
+  const tr = [{ t: 0, lat: 0, lon: 0 }, { t: 1000, lat: 10, lon: 20 }];
+  approx(geo.ghostPointAt(tr, 500).lat, 5);
+  approx(geo.ghostPointAt(tr, 500).lon, 10);
+  approx(geo.ghostPointAt(tr, 250).lat, 2.5);
+  assert.deepEqual(geo.ghostPointAt(tr, 1000), { lat: 10, lon: 20 });
+});
+
+test('ghostPointAt: doppelte Zeitstempel (span 0) werfen nicht', () => {
+  const tr = [{ t: 0, lat: 0, lon: 0 }, { t: 0, lat: 1, lon: 1 }, { t: 100, lat: 2, lon: 2 }];
+  const p = geo.ghostPointAt(tr, 0);
+  assert.ok(p && isFinite(p.lat) && isFinite(p.lon));
+});
+
+test('ghostPointAt: Binaersuche trifft auch in langen Traces', () => {
+  const tr = [];
+  for (let i = 0; i <= 1000; i++) tr.push({ t: i * 100, lat: i, lon: -i });
+  approx(geo.ghostPointAt(tr, 55550).lat, 555.5);
+  approx(geo.ghostPointAt(tr, 55550).lon, -555.5);
+});

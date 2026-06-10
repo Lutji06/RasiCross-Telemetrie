@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const fsp = fs.promises;
+// Geteilte Tile-Mathe (Bbox -> Tile-Liste) — dieselbe wie im Renderer
+const RasiTiles = require("./tiles.js");
 
 let SerialPort, ReadlineParser;
 try {
@@ -160,104 +162,70 @@ function _expandUrl(template, z, x, y) {
   return template.replace("{z}", z).replace("{x}", x).replace("{y}", y);
 }
 
-ipcMain.handle("rasi-tiles:fetch", async function (_e, args) {
-  const host = String(args.host || "").trim();
-  const z = args.z | 0, x = args.x | 0, y = args.y | 0;
-  const template = String(args.urlTemplate || "");
-  if (!host || !template) return { ok: false, error: "missing host or urlTemplate" };
-
+// Gemeinsamer Kern fuer rasi-tiles:fetch und rasi-tiles:cacheArea:
+// Cache-Lookup, Rate-Limit-Gap, HTTP-GET, Best-Effort-Cache-Write.
+// -> { ok:true, buf, fromCache } | { ok:false, status }
+async function _fetchTileToCache(host, template, z, x, y) {
   const filePath = _tilePath(host, z, x, y);
   try {
-    const buf = await fs.promises.readFile(filePath);
-    return { ok: true, dataUrl: "data:image/png;base64," + buf.toString("base64"), fromCache: true };
+    const buf = await fsp.readFile(filePath);
+    return { ok: true, buf: buf, fromCache: true };
   } catch (_) { /* miss -> fetch */ }
 
-  // Rate-limit gap
   const sinceLast = Date.now() - _lastTileFetchAt;
   if (sinceLast < TILE_RATE_LIMIT_MS) {
     await new Promise(function (r) { setTimeout(r, TILE_RATE_LIMIT_MS - sinceLast); });
   }
   _lastTileFetchAt = Date.now();
 
-  const url = _expandUrl(template, z, x, y);
-  const res = await _httpGet(url);
-  if (!res.ok) {
-    if (res.status === 429) return { ok: false, retryAfterMs: TILE_429_PAUSE_MS };
-    return { ok: false, error: "http " + res.status };
-  }
+  const res = await _httpGet(_expandUrl(template, z, x, y));
+  if (!res.ok) return { ok: false, status: res.status };
   try {
-    await fs.promises.mkdir(_tileDir(host, z, x), { recursive: true });
-    await fs.promises.writeFile(filePath, res.buf);
-  } catch (e) { /* disk error -> still return the data so render works */ }
-  return { ok: true, dataUrl: "data:image/png;base64," + res.buf.toString("base64"), fromCache: false };
+    await fsp.mkdir(_tileDir(host, z, x), { recursive: true });
+    await fsp.writeFile(filePath, res.buf);
+  } catch (_) { /* disk error -> still return the data so render works */ }
+  return { ok: true, buf: res.buf, fromCache: false };
+}
+
+// Tile-Liste fuer einen Zoom-Bereich — dieselbe Mathe wie der Renderer
+// (RasiTiles.tilesForBbox, 1-Tile-Pad-Ring).
+function _tilesForArea(bbox, zMin, zMax) {
+  const out = [];
+  for (let z = zMin; z <= zMax; z++) {
+    const tiles = RasiTiles.tilesForBbox(bbox, z, 1);
+    for (const t of tiles) out.push(t);
+  }
+  return out;
+}
+
+ipcMain.handle("rasi-tiles:fetch", async function (_e, args) {
+  const host = String(args.host || "").trim();
+  const z = args.z | 0, x = args.x | 0, y = args.y | 0;
+  const template = String(args.urlTemplate || "");
+  if (!host || !template) return { ok: false, error: "missing host or urlTemplate" };
+  const r = await _fetchTileToCache(host, template, z, x, y);
+  if (!r.ok) {
+    if (r.status === 429) return { ok: false, retryAfterMs: TILE_429_PAUSE_MS };
+    return { ok: false, error: "http " + r.status };
+  }
+  return { ok: true, dataUrl: "data:image/png;base64," + r.buf.toString("base64"), fromCache: r.fromCache };
 });
 
 ipcMain.handle("rasi-tiles:cacheArea", async function (e, args) {
   _tileCancelFlag = false;
   const host = String(args.host || "");
   const template = String(args.urlTemplate || "");
-  const bbox = args.bbox || {};
-  const zMin = args.zMin | 0, zMax = args.zMax | 0;
-  // Build the tile list inline (same math as renderer's RasiTiles.tilesForBbox + 1-tile pad)
-  const tilesToFetch = [];
-  for (let z = zMin; z <= zMax; z++) {
-    const m = Math.pow(2, z);
-    const x0 = Math.floor(((bbox.minLon + 180) / 360) * 256 * m / 256) - 1;
-    const x1 = Math.floor(((bbox.maxLon + 180) / 360) * 256 * m / 256) + 1;
-    const lat2y = function (lat) {
-      const r = lat * Math.PI / 180;
-      return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * m);
-    };
-    const y0 = lat2y(bbox.maxLat) - 1;
-    const y1 = lat2y(bbox.minLat) + 1;
-    for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        if (x < 0 || y < 0 || x >= m || y >= m) continue;
-        tilesToFetch.push({ z, x, y });
-      }
-    }
-  }
+  const tilesToFetch = _tilesForArea(args.bbox || {}, args.zMin | 0, args.zMax | 0);
   let done = 0, errors = 0;
   const total = tilesToFetch.length;
   for (const t of tilesToFetch) {
     if (_tileCancelFlag) break;
-    const r = await new Promise(function (resolve) {
-      // Reuse the fetch handler logic by invoking the same internal path
-      (async function () {
-        const filePath = _tilePath(host, t.z, t.x, t.y);
-        try {
-          await fs.promises.access(filePath);
-          resolve({ ok: true, fromCache: true });
-          return;
-        } catch (_) {}
-        const sinceLast = Date.now() - _lastTileFetchAt;
-        if (sinceLast < TILE_RATE_LIMIT_MS) {
-          await new Promise(function (rr) { setTimeout(rr, TILE_RATE_LIMIT_MS - sinceLast); });
-        }
-        _lastTileFetchAt = Date.now();
-        const httpRes = await _httpGet(_expandUrl(template, t.z, t.x, t.y));
-        if (!httpRes.ok) {
-          if (httpRes.status === 429) {
-            await new Promise(function (rr) { setTimeout(rr, TILE_429_PAUSE_MS); });
-            const retry = await _httpGet(_expandUrl(template, t.z, t.x, t.y));
-            if (!retry.ok) { resolve({ ok: false }); return; }
-            try {
-              await fs.promises.mkdir(_tileDir(host, t.z, t.x), { recursive: true });
-              await fs.promises.writeFile(filePath, retry.buf);
-            } catch (_) {}
-            resolve({ ok: true, fromCache: false });
-            return;
-          }
-          resolve({ ok: false });
-          return;
-        }
-        try {
-          await fs.promises.mkdir(_tileDir(host, t.z, t.x), { recursive: true });
-          await fs.promises.writeFile(filePath, httpRes.buf);
-        } catch (_) {}
-        resolve({ ok: true, fromCache: false });
-      })();
-    });
+    let r = await _fetchTileToCache(host, template, t.z, t.x, t.y);
+    if (!r.ok && r.status === 429) {
+      // 429: Pause, dann genau ein Retry (wie bisher)
+      await new Promise(function (rr) { setTimeout(rr, TILE_429_PAUSE_MS); });
+      r = await _fetchTileToCache(host, template, t.z, t.x, t.y);
+    }
     if (r.ok) done++; else errors++;
     try { e.sender.send("rasi-tiles:progress", { done, total, errors }); } catch (_) {}
   }
@@ -271,34 +239,18 @@ ipcMain.handle("rasi-tiles:cancel", async function () {
 
 ipcMain.handle("rasi-tiles:areaStats", async function (_e, args) {
   const host = String(args.host || "");
-  const bbox = args.bbox || {};
-  const zMin = args.zMin | 0, zMax = args.zMax | 0;
-  let cached = 0, missing = 0, bytes = 0, total = 0;
-  for (let z = zMin; z <= zMax; z++) {
-    const m = Math.pow(2, z);
-    const x0 = Math.floor(((bbox.minLon + 180) / 360) * m) - 1;
-    const x1 = Math.floor(((bbox.maxLon + 180) / 360) * m) + 1;
-    const lat2y = function (lat) {
-      const r = lat * Math.PI / 180;
-      return Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * m);
-    };
-    const y0 = lat2y(bbox.maxLat) - 1;
-    const y1 = lat2y(bbox.minLat) + 1;
-    for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        if (x < 0 || y < 0 || x >= m || y >= m) continue;
-        total++;
-        try {
-          const st = await fs.promises.stat(_tilePath(host, z, x, y));
-          cached++;
-          bytes += st.size;
-        } catch (_) {
-          missing++;
-        }
-      }
+  const tiles = _tilesForArea(args.bbox || {}, args.zMin | 0, args.zMax | 0);
+  let cached = 0, missing = 0, bytes = 0;
+  for (const t of tiles) {
+    try {
+      const st = await fsp.stat(_tilePath(host, t.z, t.x, t.y));
+      cached++;
+      bytes += st.size;
+    } catch (_) {
+      missing++;
     }
   }
-  return { cached, missing, bytes, total };
+  return { cached, missing, bytes, total: tiles.length };
 });
 
 ipcMain.handle("rasi-tiles:clearAll", async function () {

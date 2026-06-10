@@ -89,6 +89,42 @@ function nextIndexFor(packets, virtualMs, fromIndex) {
   return i;
 }
 
+// ── CSV-Export ──────────────────────────────────────────────
+// Spalten: [Header, Paket-Feld]. Reihenfolge = Spaltenreihenfolge.
+var CSV_COLUMNS = [
+  ['t_rel_ms', 't_rel'], ['speed_kmh', 'speed'], ['rpm', 'rpm'],
+  ['gx_g', 'gx'], ['gy_g', 'gy'], ['gz_g', 'gz'],
+  ['yaw_dps', 'yaw'], ['roll_dps', 'roll'],
+  ['lat', 'lat'], ['lon', 'lon'], ['gps_fix', 'gps_fix'], ['spd_src', 'spd_src'],
+  ['rssi_dbm', 'rssi'], ['vbat_v', 'vbat'], ['soc_pct', 'soc'],
+  ['batt_warn', 'batt_warn'], ['mtemp_c', 'mtemp'], ['seq', 'seq'], ['lost', 'lost']
+];
+
+function _csvCell(v) {
+  if (v == null) return '';
+  if (typeof v === 'number') return isFinite(v) ? String(v).replace('.', ',') : '';
+  // Trennzeichen/Zeilenumbrueche in Strings entschaerfen (kein Quoting noetig)
+  return String(v).replace(/[;\r\n]/g, ' ');
+}
+
+// Aufnahme-Pakete -> CSV-Text im deutschen Excel-Format (Semikolon-Trenner,
+// Dezimal-Komma, CRLF). Steuer-/Statuszeilen (mit type-Feld, z.B.
+// bridge_status) werden uebersprungen; fehlende Felder -> leere Zelle.
+function recordingToCsv(packets) {
+  packets = packets || [];
+  var lines = [CSV_COLUMNS.map(function (c) { return c[0]; }).join(';')];
+  for (var i = 0; i < packets.length; i++) {
+    var p = packets[i];
+    if (!p || typeof p !== 'object' || p.type) continue;
+    var row = [];
+    for (var j = 0; j < CSV_COLUMNS.length; j++) {
+      row.push(_csvCell(p[CSV_COLUMNS[j][1]]));
+    }
+    lines.push(row.join(';'));
+  }
+  return lines.join('\r\n');
+}
+
 // Map a 0..1 scrubber ratio to a clamped ms position.
 function seekTargetMs(durationMs, ratio) {
   var r = Number(ratio);
@@ -102,7 +138,8 @@ function seekTargetMs(durationMs, ratio) {
   var api = {
     REC_MAX: REC_MAX, REC_VERSION: REC_VERSION,
     serializeRecording: serializeRecording, parseRecording: parseRecording,
-    pushCapped: pushCapped, nextIndexFor: nextIndexFor, seekTargetMs: seekTargetMs
+    pushCapped: pushCapped, nextIndexFor: nextIndexFor, seekTargetMs: seekTargetMs,
+    recordingToCsv: recordingToCsv, CSV_COLUMNS: CSV_COLUMNS
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
   if (typeof window !== 'undefined') { window.RasiReplay = api; }

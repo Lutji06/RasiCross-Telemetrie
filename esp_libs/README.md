@@ -7,10 +7,12 @@ Sie liefern die Schnittstellen für Sensoren und Display.
 
 ### Auf BEIDEN ESPs (Sender + Bridge)
 - **`ssd1306.py`** — OLED-Treiber für SSD1306 128x64
+- **`frame.py`** — Binär-Protokoll-Codec (Pflicht! Ohne sie startet die Bridge nicht und der Sender sendet keine Telemetrie)
 
 ### Nur auf dem Sender (Kart-ESP)
 - **`mpu6050.py`** — MPU-6050 IMU (Beschleunigungssensor)
 - **`micropyGPS.py`** — NMEA-Parser für das GPS-Modul
+- **`calc.py`** — Batterie-/Wheel-Speed-Mathe (ohne sie: kein Akku-Monitoring, kein GPS-Ausfall-Fallback)
 
 ## Installation
 
@@ -28,7 +30,7 @@ esptool.py --port COM3 --baud 460800 write_flash 0x1000 esp32-xxx.bin
 
 Download: https://micropython.org/download/ESP32_GENERIC/
 
-**Wichtig: MicroPython Version 1.20 oder neuer** — `espnow` ist erst ab dieser Version dabei.
+**Wichtig: MicroPython Version 1.21 oder neuer** — `espnow` und die RSSI-Auswertung (`peers_table`) sind erst ab dieser Version dabei.
 
 ### 2. Treiber-Files kopieren
 Mit einem Tool wie **Thonny** (Tools → Manage Packages oder einfach Datei → Speichern als → MicroPython Gerät) oder **mpremote**:
@@ -38,12 +40,15 @@ Mit einem Tool wie **Thonny** (Tools → Manage Packages oder einfach Datei → 
 /ssd1306.py
 /mpu6050.py
 /micropyGPS.py
+/frame.py
+/calc.py
 /main.py        ← der Inhalt von sender.py
 ```
 
 **Bridge-ESP (Boxen):**
 ```
 /ssd1306.py
+/frame.py
 /main.py        ← der Inhalt von bridge.py
 ```
 
@@ -53,10 +58,13 @@ Mit einem Tool wie **Thonny** (Tools → Manage Packages oder einfach Datei → 
 mpremote connect COM3 cp ssd1306.py :ssd1306.py
 mpremote connect COM3 cp mpu6050.py :mpu6050.py
 mpremote connect COM3 cp micropyGPS.py :micropyGPS.py
+mpremote connect COM3 cp frame.py :frame.py
+mpremote connect COM3 cp calc.py :calc.py
 mpremote connect COM3 cp ../sender.py :main.py
 
 # Bridge flashen
 mpremote connect COM4 cp ssd1306.py :ssd1306.py
+mpremote connect COM4 cp frame.py :frame.py
 mpremote connect COM4 cp ../bridge.py :main.py
 ```
 
