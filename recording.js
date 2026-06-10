@@ -62,7 +62,9 @@ function updateRecStatus() {
   el.textContent = state.recording.armed ? (n + ' Pakete aufgenommen') : 'Bereit';
 }
 function saveRecording() {
-  const buf = state.recording.buf;
+  // Replay aktiv -> die geladene Aufnahme speichern (z.B. nach Crash-Recovery),
+  // sonst den Live-Mitschnitt.
+  const buf = state.replay.active ? state.replay.packets : state.recording.buf;
   if (!buf.length) { rcToast('Keine Aufnahme vorhanden'); return; }
   const text = RasiReplay.serializeRecording(buf, { created: new Date().toISOString() });
   const blob = new Blob([text], { type: 'application/x-ndjson' });

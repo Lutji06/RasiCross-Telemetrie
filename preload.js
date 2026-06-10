@@ -26,6 +26,14 @@ contextBridge.exposeInMainWorld("rasiKart", {
   clearKartModel: ()      => ipcRenderer.invoke("rasi-kart:clear"),
 });
 
+contextBridge.exposeInMainWorld("rasiRec", {
+  start:  (headerLine) => ipcRenderer.invoke("rasi-rec:start", headerLine),
+  append: (text)       => ipcRenderer.invoke("rasi-rec:append", text),
+  check:  ()           => ipcRenderer.invoke("rasi-rec:check"),
+  read:   ()           => ipcRenderer.invoke("rasi-rec:read"),
+  clear:  ()           => ipcRenderer.invoke("rasi-rec:clear"),
+});
+
 contextBridge.exposeInMainWorld("rasiTiles", {
   fetchTile:  (args) => ipcRenderer.invoke("rasi-tiles:fetch", args),
   cacheArea:  (args) => ipcRenderer.invoke("rasi-tiles:cacheArea", args),

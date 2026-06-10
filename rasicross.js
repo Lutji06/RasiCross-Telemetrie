@@ -479,12 +479,36 @@ function saveSettingsFromUi() {
 // ============================================================
 // 7. TELEMETRY PIPELINE
 // ============================================================
+// Crash-Sicherung (Phase 24): recordPacket sammelt NDJSON-Zeilen und schiebt
+// sie gebuendelt an den Main-Prozess (alle ~25 Pakete oder 2s) — nach einem
+// Absturz bietet init() die Datei zur Wiederherstellung an. Nur in Electron
+// (window.rasiRec); im Browser bleibt alles wie bisher im RAM.
+const REC_FLUSH_N = 25, REC_FLUSH_MS = 2000;
+let _crashQ = [], _crashLastFlush = 0, _crashFailed = false;
+function _crashFlush(now) {
+  if (!window.rasiRec || _crashFailed || !_crashQ.length) return;
+  const batch = _crashQ.join('\n') + '\n';
+  _crashQ = [];
+  _crashLastFlush = now;
+  window.rasiRec.append(batch).then(r => {
+    if (r && r.ok === false && !_crashFailed) {
+      _crashFailed = true;
+      rcToast('⚠ Crash-Sicherung deaktiviert: ' + (r.error || 'Schreibfehler'), 4000);
+    }
+  }).catch(() => {});
+}
 function armRecording() {
   // Frische Aufnahme starten (auto bei Connect/Demo, wenn aktiviert).
   state.recording.buf = [];
   state.recording.startWall = null;
   state.recording.overflowed = false;
   state.recording.armed = true;
+  // Crash-Sicherungsdatei frisch beginnen (Header-Zeile, Pakete folgen).
+  _crashQ = []; _crashLastFlush = Date.now(); _crashFailed = false;
+  if (window.rasiRec) {
+    const header = RasiReplay.serializeRecording([], { created: new Date().toISOString() });
+    window.rasiRec.start(header).catch(() => {});
+  }
 }
 function recordPacket(d) {
   const now = Date.now();
@@ -494,6 +518,10 @@ function recordPacket(d) {
   if (dropped && !state.recording.overflowed) {
     state.recording.overflowed = true;
     rcToast('⚠ Aufnahme-Puffer voll — älteste Pakete werden verworfen', 4000);
+  }
+  if (window.rasiRec && !_crashFailed) {
+    _crashQ.push(JSON.stringify(rec));
+    if (_crashQ.length >= REC_FLUSH_N || now - _crashLastFlush >= REC_FLUSH_MS) _crashFlush(now);
   }
 }
 // Drift-Eingaenge aus einem (Roh-)Paket — identisch fuer Live und Replay-Aggregat.
@@ -1158,6 +1186,31 @@ function init() {
     const c = $(cid);
     if (c) c.addEventListener('click', handleActionClick);
   });
+
+  // Crash-Recovery (Phase 24): liegt die Sicherungsdatei vom letzten Lauf
+  // noch da, war es ein Absturz (regulaeres Beenden loescht sie in main.js).
+  if (window.rasiRec) {
+    window.rasiRec.check().then(async (c) => {
+      if (!c || !c.exists) return;
+      if (c.size < 1024) { window.rasiRec.clear().catch(() => {}); return; }
+      const when = c.mtimeMs ? new Date(c.mtimeMs).toLocaleString('de-DE') : 'unbekannt';
+      const ok = await rcConfirm(
+        `Unvollständige Aufnahme vom letzten Lauf gefunden\n(${when}, ${formatBytes(c.size)}).\nJetzt im Replay laden?`,
+        'Aufnahme wiederherstellen', 'Laden');
+      if (!ok) { window.rasiRec.clear().catch(() => {}); return; }
+      const r = await window.rasiRec.read();
+      if (!r.ok) { rcAlert('Wiederherstellung fehlgeschlagen:\n' + (r.error || '?')); return; }
+      const parsed = RasiReplay.parseRecording(r.text);
+      if (!parsed.ok || parsed.packets.length < 2) {
+        rcAlert('Sicherungsdatei unbrauchbar — wird verworfen.');
+        window.rasiRec.clear().catch(() => {});
+        return;
+      }
+      if (parsed.skipped) rcToast(parsed.skipped + ' fehlerhafte Zeilen übersprungen', 3000);
+      enterReplay(parsed);
+      window.rasiRec.clear().catch(() => {});
+    }).catch(() => {});
+  }
 }
 init();
 

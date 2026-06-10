@@ -108,6 +108,74 @@ ipcMain.handle("rasi-kart:clear", async () => {
   }
 });
 
+// ──────────────────────────────────────────────────────────────
+// Crash-sichere Aufnahme (Phase 24): der Renderer streamt NDJSON-
+// Zeilen, Main haengt sie an eine Datei im userData-Verzeichnis an.
+// before-quit loescht die Datei -- liegt sie beim naechsten Start
+// noch da, war es ein Absturz und init() bietet Recovery an.
+// ──────────────────────────────────────────────────────────────
+function recCrashPath() {
+  return path.join(app.getPath("userData"), "crash-recording.ndjson");
+}
+const REC_CRASH_MAX_BYTES = 256 * 1024 * 1024;
+let recCrashBytes = 0;
+
+ipcMain.handle("rasi-rec:start", async (event, headerLine) => {
+  try {
+    await fsp.writeFile(recCrashPath(), headerLine ? String(headerLine) + "\n" : "");
+    recCrashBytes = 0;
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle("rasi-rec:append", async (event, text) => {
+  try {
+    if (recCrashBytes > REC_CRASH_MAX_BYTES) return { ok: false, error: "limit" };
+    const t = String(text || "");
+    await fsp.appendFile(recCrashPath(), t);
+    recCrashBytes += t.length;
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle("rasi-rec:check", async () => {
+  try {
+    const p = recCrashPath();
+    if (!fs.existsSync(p)) return { exists: false };
+    const st = await fsp.stat(p);
+    return { exists: true, size: st.size, mtimeMs: st.mtimeMs };
+  } catch (e) {
+    return { exists: false };
+  }
+});
+
+ipcMain.handle("rasi-rec:read", async () => {
+  try {
+    return { ok: true, text: await fsp.readFile(recCrashPath(), "utf8") };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle("rasi-rec:clear", async () => {
+  try {
+    if (fs.existsSync(recCrashPath())) await fsp.unlink(recCrashPath());
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+app.on("before-quit", () => {
+  // Regulaeres Beenden: Crash-Datei entfernen. Nach einem Absturz
+  // laeuft dieser Handler nie -> Datei bleibt fuer die Recovery liegen.
+  try { fs.unlinkSync(recCrashPath()); } catch (e) {}
+});
+
 // ---------- OSM tile cache (Phase 17) ----------
 const TILE_FETCH_TIMEOUT_MS = 5000;
 const TILE_RATE_LIMIT_MS = 500;
