@@ -10,17 +10,17 @@
      6. Settings
      7. Telemetry Pipeline
      8. Tacho/RPM/G-Meter
-     9. Track Map (drawing)
+     9. Track Map (drawing)        -> map-draw.js (Phase 22)
     10. Track Scan
     11. Track Persistence (saved tracks)
     12. Track Editor
     13. Sectors
     14. Lap Detection
     15. Drivers
-    16. Races
+    16. Races                      -> races.js (Phase 22)
     17. Live UI
     18. Pit-Wall
-    19. Serial / Demo
+    19. Serial / Demo              -> serial-demo.js (Phase 22)
     20. Init
    ============================================================ */
 
