@@ -68,6 +68,14 @@ const trackGlobals = {
   activateSectorClick: 'readonly', handleTrackCanvasClick: 'readonly',
   checkSectorCrossings: 'readonly', updateSectorPanel: 'readonly',
 };
+// Schnittstelle laps-drivers.js -> Nutzer (rasicross.js, races.js, serial-demo.js)
+const lapsDriversGlobals = {
+  checkLapCrossing: 'readonly', triggerLap: 'readonly',
+  renderLapTable: 'readonly', renderLiveLapList: 'readonly',
+  getDriverStats: 'readonly', getTotalStats: 'readonly', fmtKm: 'readonly',
+  addDriver: 'readonly', deleteDriver: 'readonly', renderTotalHero: 'readonly',
+  renderDrivers: 'readonly', renderDriverOptions: 'readonly',
+};
 
 const bugRules = {
   ...js.configs.recommended.rules,
@@ -176,6 +184,18 @@ module.exports = [
     rules: bugRules,
   },
 
+  // laps-drivers.js — klassisches App-Script, gemeinsamer Global-Scope
+  {
+    files: ['laps-drivers.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...mapDrawGlobals, ...racesGlobals, ...trackGlobals },
+    },
+    rules: bugRules,
+  },
+
   // Dashboard-Renderer (Browser) -- nutzt die UMD-Globals
   {
     files: ['rasicross.js'],
@@ -190,6 +210,7 @@ module.exports = [
         ...serialDemoGlobals,
         ...gaugesGlobals,
         ...trackGlobals,
+        ...lapsDriversGlobals,
         THREE: 'readonly',
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',

@@ -38,6 +38,7 @@
       "serial-demo.js",
       "gauges.js",
       "track.js",
+      "laps-drivers.js",
       "geo.js",
       "replay.js",
       "drift.js",

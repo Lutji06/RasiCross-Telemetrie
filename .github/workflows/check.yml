@@ -29,6 +29,7 @@ jobs:
           node --check serial-demo.js
           node --check gauges.js
           node --check track.js
+          node --check laps-drivers.js
           node --check main.js
           node --check preload.js
       - name: Lint JS
