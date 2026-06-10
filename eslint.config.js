@@ -42,6 +42,13 @@ const racesGlobals = {
   drawRaceHistoryChart: 'readonly', renderRaces: 'readonly',
   renderTrackOptions: 'readonly', updateRaceControls: 'readonly',
 };
+// Schnittstelle serial-demo.js -> Nutzer (rasicross.js)
+const serialDemoGlobals = {
+  listSerialPorts: 'readonly', connectSerial: 'readonly',
+  disconnectSerial: 'readonly', startDemo: 'readonly', stopDemo: 'readonly',
+  stopReconnect: 'readonly', scheduleReconnect: 'readonly',
+  handleSerialLine: 'readonly', generateDemoTrack: 'readonly',
+};
 
 const bugRules = {
   ...js.configs.recommended.rules,
@@ -106,6 +113,23 @@ module.exports = [
     rules: bugRules,
   },
 
+  // serial-demo.js — klassisches App-Script, gemeinsamer Global-Scope
+  {
+    files: ['serial-demo.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...racesGlobals, drawTrack: 'readonly',
+                 armRecording: 'readonly', processTelemetry: 'readonly',
+                 onGpsUpdate: 'readonly', pushPacketLog: 'readonly',
+                 renderDrivers: 'readonly', renderDriverOptions: 'readonly',
+                 updateBounds: 'readonly', calcAutoSectors: 'readonly',
+                 updateSectorPanel: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
   // Dashboard-Renderer (Browser) -- nutzt die UMD-Globals
   {
     files: ['rasicross.js'],
@@ -117,6 +141,7 @@ module.exports = [
         ...geoGlobals,
         ...mapDrawGlobals,
         ...racesGlobals,
+        ...serialDemoGlobals,
         THREE: 'readonly',
         RasiReplay: 'readonly',
         RasiKart3D: 'readonly',

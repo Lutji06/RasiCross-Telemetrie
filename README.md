@@ -508,7 +508,7 @@ npm test                                                      # Unit-Tests (geo 
 npm run lint                                                  # ESLint (JS-Quellen)
 python -m unittest discover -s test -p "test_*.py"            # Unit-Tests (calc + frame)
 ruff check                                                     # Ruff (sender/bridge/esp_libs/test)
-node --check geo.js replay.js karts3d.js rasicross.js main.js preload.js map-draw.js races.js
+node --check geo.js replay.js karts3d.js rasicross.js main.js preload.js map-draw.js races.js serial-demo.js
 python -m py_compile sender.py bridge.py esp_libs/*.py
 ```
 
