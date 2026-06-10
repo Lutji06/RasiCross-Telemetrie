@@ -9,19 +9,20 @@
      5. Tab navigation + Theme
      6. Settings
      7. Telemetry Pipeline
-     8. Tacho/RPM/G-Meter
+     8. Tacho/RPM/G-Meter          -> gauges.js (Phase 23)
      9. Track Map (drawing)        -> map-draw.js (Phase 22)
-    10. Track Scan
-    11. Track Persistence (saved tracks)
-    12. Track Editor
-    13. Sectors
-    14. Lap Detection
-    15. Drivers
+    10. Track Scan                 -> track.js (Phase 23)
+    11. Track Persistence          -> track.js (Phase 23)
+    12. Track Editor               -> track.js (Phase 23)
+    13. Sectors                    -> track.js (Phase 23)
+    14. Lap Detection              -> laps-drivers.js (Phase 23)
+    15. Drivers                    -> laps-drivers.js (Phase 23)
     16. Races                      -> races.js (Phase 22)
-    17. Live UI
-    18. Pit-Wall
+    17. Live UI                    -> live-ui.js (Phase 23)
+    18. Pit-Wall                   -> pit-wall.js (Phase 23)
     19. Serial / Demo              -> serial-demo.js (Phase 22)
-    20. Init
+    19b. Recording/Replay          -> recording.js (Phase 23)
+    20. Init (+ G-View/Kart-Model-Glue)
    ============================================================ */
 
 // ============================================================
