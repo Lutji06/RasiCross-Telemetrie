@@ -355,6 +355,10 @@ function updateLiveUi() {
     const t = state.telemetry;
     setText('latText', t.lat ? t.lat.toFixed(6) : '--');
     setText('lonText', t.lon ? t.lon.toFixed(6) : '--');
+    // Koordinaten-Badge auf der Scan-Karte (Strecke-Tab) — live statt Deko
+    setText('scanCoordText', (t.lat && t.lon)
+      ? `${Math.abs(t.lat).toFixed(4)}°${t.lat >= 0 ? 'N' : 'S'} · ${Math.abs(t.lon).toFixed(4)}°${t.lon >= 0 ? 'E' : 'W'}`
+      : '--°N · --°E');
     setText('trackPoints', state.track.points.length);
     document.body.classList.toggle('rpm-warn', t.rpm >= state.settings.rpmWarning);
     const gpsAge = state.gps.lastAt ? Date.now() - state.gps.lastAt : null;

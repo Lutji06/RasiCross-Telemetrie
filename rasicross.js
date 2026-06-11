@@ -1394,9 +1394,10 @@ init();
     // verdrahtet. KEIN zweiter Listener hier — sonst zaehlt ein Klick doppelt
     // und ueberspringt jedes zweite Theme.
     // Audio-Cues toggle
-    const audioIconEl = $$('audioIcon');
+    const audioBtnEl = $$('audioBtn');
     const updateAudioIcon = () => {
-      if (audioIconEl) audioIconEl.textContent = rcAudio.isEnabled() ? '🔊' : '🔇';
+      // CSS blendet je nach .muted das passende SVG ein (statt Emoji-Swap)
+      audioBtnEl?.classList.toggle('muted', !rcAudio.isEnabled());
     };
     updateAudioIcon();
     $$('audioBtn')?.addEventListener('click',()=>{
