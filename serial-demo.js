@@ -20,6 +20,10 @@ async function listSerialPorts() {
       sel.innerHTML = ports.length
         ? ports.map(p => `<option value="${esc(p.path)}">${esc(p.path)} ${esc(p.friendlyName || p.manufacturer || '')}</option>`).join('')
         : '<option value="">Kein COM-Port gefunden</option>';
+      // Volle Portbezeichnung als Tooltip (das Select schneidet lange Namen ab)
+      const syncTitle = () => { sel.title = sel.selectedOptions[0]?.textContent || ''; };
+      sel.onchange = syncTitle;
+      syncTitle();
     } else if ('serial' in navigator) {
       sel.innerHTML = '<option value="webserial">Browser-Auswahl beim Verbinden</option>';
     } else {
@@ -199,6 +203,7 @@ function startDemo() {
     state.races.unshift(demo);
     state.activeRaceId = demo.id;
     state.selectedRaceId = demo.id;
+    state.demo.autoRaceId = demo.id;   // fuer Aufraeumen in stopDemo
     startRace();
     renderRaces();
   }
@@ -216,11 +221,19 @@ function stopDemo() {
   setText('demoModeText', 'Bereit');
   $('connectBtn').textContent = 'USB verbinden';
   $('connectBtn').className = 'btn primary w100';
-  // End demo race if running
+  // Demo-Race aufraeumen: das selbst angelegte ohne gueltige Runden ist
+  // wertlos und wuerde die Bibliothek vermuellen -> direkt loeschen.
   const r = activeRace();
-  if (r && r.name === 'Demo Race' && (r.status === 'running' || r.status === 'paused')) {
+  if (r && r.id === state.demo.autoRaceId && raceValidLaps(r).length === 0) {
+    state.races = state.races.filter(x => x.id !== r.id);
+    if (state.activeRaceId === r.id) state.activeRaceId = null;
+    if (state.selectedRaceId === r.id) state.selectedRaceId = null;
+    renderRaces();
+    saveDataDebounced();
+  } else if (r && r.name === 'Demo Race' && (r.status === 'running' || r.status === 'paused')) {
     endRace(false);
   }
+  state.demo.autoRaceId = null;
 }
 function demoTick() {
   try {

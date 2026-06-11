@@ -1376,6 +1376,7 @@ init();
   document.addEventListener('DOMContentLoaded',()=>{
     const titles = {
       live:['Live Telemetrie','Echtzeit-Daten von Mäher & Bridge'],
+      detail:['Detail','Verlauf, Stints & Rundentabelle des aktiven Rennens'],
       track:['Strecke','Aufnahme, Sektoren & gespeicherte Strecken'],
       races:['Rennen','Erstellen, starten und auswerten'],
       drivers:['Fahrer','Statistiken & Gesamtstrecke'],

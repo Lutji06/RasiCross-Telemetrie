@@ -88,7 +88,12 @@
   --bor:rgba(0,0,0,.07);
   --bor2:rgba(0,0,0,.13);
   --div:rgba(0,0,0,.05);
-  --pr-soft:rgba(200,255,61,.18);
+  /* Akzent abgedunkelt: Lime #c8ff3d ist als Textfarbe auf Weiss
+     unleserlich; #5a8a00 liest sich auf Weiss UND traegt dunklen Text. */
+  --pr:#5a8a00;
+  --pr-2:#4a7400;
+  --pr-glow:rgba(90,138,0,.30);
+  --pr-soft:rgba(90,138,0,.12);
   --sh-sm:0 1px 2px rgba(20,30,60,.05);
   --sh-md:0 8px 28px rgba(20,30,60,.08);
   --sh-lg:0 24px 60px rgba(20,30,60,.12);
@@ -2542,7 +2547,8 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
         <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>
       </div>
       <div class="kpi-v" id="kG">0.0<small>G</small></div>
-      <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s · MPU <b id="kMtemp">--</b>°C · Drift <b id="kDrift">–</b></div>
+      <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s</div>
+      <div class="kpi-sub">MPU <b id="kMtemp">--</b>°C · Drift <b id="kDrift">–</b></div>
       <canvas id="yawSparkCanvas" width="240" height="28"></canvas>
     </div>
     <div class="kpi">
