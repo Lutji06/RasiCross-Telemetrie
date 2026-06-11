@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, powerSaveBlocker } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const fsp = fs.promises;
@@ -11,6 +11,13 @@ try {
   ({ ReadlineParser } = require("@serialport/parser-readline"));
 } catch(e) {
   console.error("serialport not available:", e.message);
+}
+
+let autoUpdater = null;
+try {
+  ({ autoUpdater } = require("electron-updater"));
+} catch(e) {
+  console.error("electron-updater not available:", e.message);
 }
 
 let currentPort = null;
@@ -106,6 +113,74 @@ ipcMain.handle("rasi-kart:clear", async () => {
   } catch (e) {
     return { ok: false, error: e && e.message ? e.message : String(e) };
   }
+});
+
+// ──────────────────────────────────────────────────────────────
+// Crash-sichere Aufnahme (Phase 24): der Renderer streamt NDJSON-
+// Zeilen, Main haengt sie an eine Datei im userData-Verzeichnis an.
+// before-quit loescht die Datei -- liegt sie beim naechsten Start
+// noch da, war es ein Absturz und init() bietet Recovery an.
+// ──────────────────────────────────────────────────────────────
+function recCrashPath() {
+  return path.join(app.getPath("userData"), "crash-recording.ndjson");
+}
+const REC_CRASH_MAX_BYTES = 256 * 1024 * 1024;
+let recCrashBytes = 0;
+
+ipcMain.handle("rasi-rec:start", async (event, headerLine) => {
+  try {
+    await fsp.writeFile(recCrashPath(), headerLine ? String(headerLine) + "\n" : "");
+    recCrashBytes = 0;
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle("rasi-rec:append", async (event, text) => {
+  try {
+    if (recCrashBytes > REC_CRASH_MAX_BYTES) return { ok: false, error: "limit" };
+    const t = String(text || "");
+    await fsp.appendFile(recCrashPath(), t);
+    recCrashBytes += t.length;
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle("rasi-rec:check", async () => {
+  try {
+    const p = recCrashPath();
+    if (!fs.existsSync(p)) return { exists: false };
+    const st = await fsp.stat(p);
+    return { exists: true, size: st.size, mtimeMs: st.mtimeMs };
+  } catch (e) {
+    return { exists: false };
+  }
+});
+
+ipcMain.handle("rasi-rec:read", async () => {
+  try {
+    return { ok: true, text: await fsp.readFile(recCrashPath(), "utf8") };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle("rasi-rec:clear", async () => {
+  try {
+    if (fs.existsSync(recCrashPath())) await fsp.unlink(recCrashPath());
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+app.on("before-quit", () => {
+  // Regulaeres Beenden: Crash-Datei entfernen. Nach einem Absturz
+  // laeuft dieser Handler nie -> Datei bleibt fuer die Recovery liegen.
+  try { fs.unlinkSync(recCrashPath()); } catch (e) {}
 });
 
 // ---------- OSM tile cache (Phase 17) ----------
@@ -279,6 +354,81 @@ ipcMain.handle("rasi-tiles:clearAll", async function () {
   return { deleted, bytes };
 });
 
+// ──────────────────────────────────────────────────────────────
+// Auto-Update (Phase 25): prueft beim Start GitHub-Releases, laedt im
+// Hintergrund, installiert beim Beenden oder per Button (quitAndInstall).
+// Guards: Dev-Modus (nicht gepackt) und Portable-EXE koennen sich nicht
+// selbst updaten -- der manuelle Check meldet den Grund an den Renderer.
+// ──────────────────────────────────────────────────────────────
+function updateGuardReason() {
+  if (!autoUpdater) return "unavailable";
+  if (!app.isPackaged) return "dev";
+  if (process.env.PORTABLE_EXECUTABLE_FILE) return "portable";
+  return null;
+}
+
+function sendUpdateStatus(s) {
+  if (mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send("rasi-update:status", s);
+}
+
+function initAutoUpdate() {
+  if (updateGuardReason()) return;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on("update-available", (i) =>
+    sendUpdateStatus({ state: "downloading", version: i && i.version }));
+  autoUpdater.on("update-not-available", () =>
+    sendUpdateStatus({ state: "uptodate", version: app.getVersion() }));
+  autoUpdater.on("download-progress", (p) =>
+    sendUpdateStatus({ state: "downloading", percent: Math.round(p.percent || 0) }));
+  autoUpdater.on("update-downloaded", (i) =>
+    sendUpdateStatus({ state: "ready", version: i && i.version }));
+  autoUpdater.on("error", (e) =>
+    sendUpdateStatus({ state: "error", message: String(e && e.message || e).slice(0, 200) }));
+  setTimeout(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 5000);
+}
+
+ipcMain.handle("rasi-update:check", async () => {
+  const guard = updateGuardReason();
+  if (guard) return { ok: false, reason: guard };
+  try {
+    await autoUpdater.checkForUpdates();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: "error", message: String(e && e.message || e).slice(0, 200) };
+  }
+});
+
+ipcMain.handle("rasi-update:install", async () => {
+  if (updateGuardReason()) return { ok: false };
+  // Installer wird VOR dem Quit gespawnt -- kompatibel mit dem
+  // before-quit-Handler unten (saveData + app.exit).
+  autoUpdater.quitAndInstall(false, true);
+  return { ok: true };
+});
+
+ipcMain.handle("rasi-update:version", async () => ({
+  version: app.getVersion(),
+  guard: updateGuardReason(),
+}));
+
+// ============================================================
+//  Display-Standby unterdruecken (Pit-Wall-Modus)
+// ============================================================
+let powerBlockerId = null;
+ipcMain.handle("rasi-power:keepAwake", async (_e, on) => {
+  if (on) {
+    if (powerBlockerId == null || !powerSaveBlocker.isStarted(powerBlockerId)) {
+      powerBlockerId = powerSaveBlocker.start("prevent_display_sleep");
+    }
+  } else if (powerBlockerId != null) {
+    if (powerSaveBlocker.isStarted(powerBlockerId)) powerSaveBlocker.stop(powerBlockerId);
+    powerBlockerId = null;
+  }
+  return powerBlockerId != null;
+});
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -300,6 +450,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+  initAutoUpdate();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

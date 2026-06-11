@@ -62,7 +62,9 @@ function updateRecStatus() {
   el.textContent = state.recording.armed ? (n + ' Pakete aufgenommen') : 'Bereit';
 }
 function saveRecording() {
-  const buf = state.recording.buf;
+  // Replay aktiv -> die geladene Aufnahme speichern (z.B. nach Crash-Recovery),
+  // sonst den Live-Mitschnitt.
+  const buf = state.replay.active ? state.replay.packets : state.recording.buf;
   if (!buf.length) { rcToast('Keine Aufnahme vorhanden'); return; }
   const text = RasiReplay.serializeRecording(buf, { created: new Date().toISOString() });
   const blob = new Blob([text], { type: 'application/x-ndjson' });
@@ -193,17 +195,32 @@ function renderRollStrip(onsets, durationMs) {
   }
 }
 // Umkipp-Onsets über eine Aufnahme: Roll fusionieren + rolloverStep, Onset-ms sammeln.
-function rolloverOnsets(packets, cal, thr) {
-  const out = [];
-  let roll = 0, st = { active: false }, lastT = null;
+// Roll-Verlauf einer Aufnahme vorfusionieren -- identische Mathematik wie die
+// Live-Fusion in processTelemetry (kalibrierte Quer-g via driftInputs als
+// Gravitationsreferenz). Liefert den Null-bereinigten Rollwinkel je Paket;
+// genutzt fuer Roll-Strip UND Drift-Hangkompensation (Phase 24).
+function fusedRolls(packets, cal) {
+  const rolls = [];
+  let roll = 0, lastT = null;
   for (const p of (packets || [])) {
     const t = Number(p.t_rel) || 0;
     const dt = lastT == null ? 0.08 : Math.max(0, (t - lastT) / 1000);
     lastT = t;
+    const inp = driftInputs(p, cal);
     roll = RasiAttitude.rollStep(roll, (Number(p.roll) || 0) * (cal.invertRollRate ? -1 : 1),
-      (Number(p.gy) || 0) - (cal.gyZero || 0), Number(p.gz) || 0, dt, 0.98);
-    const r = RasiAttitude.rolloverStep(st, roll - (cal.rollZero || 0), thr);
-    if (r.onset) out.push(t);
+      inp.latAccel, Number(p.gz) || 0, dt, 0.98);
+    rolls.push(roll - (cal.rollZero || 0));
+  }
+  return rolls;
+}
+function rolloverOnsets(packets, cal, thr) {
+  const out = [];
+  const rolls = fusedRolls(packets, cal);
+  let st = { active: false };
+  const pk = packets || [];
+  for (let i = 0; i < pk.length; i++) {
+    const r = RasiAttitude.rolloverStep(st, rolls[i], thr);
+    if (r.onset) out.push(Number(pk[i].t_rel) || 0);
     st = r;
   }
   return out;
@@ -231,9 +248,13 @@ function enterReplay(parsed) {
   state.replay.packets = parsed.packets;
   // Drift-Aggregat mit DERSELBEN Kalibrierung wie Live (driftInputs): Pakete
   // normalisieren, summarize/driftSpans erwarten die Keys yaw/gy/speed/t_rel.
-  const _calPk = parsed.packets.map(p => {
+  // Hangkompensation (Phase 24) wie live: sin(roll) aus der Quer-g ziehen,
+  // Roll-Verlauf dafuer einmal vorfusionieren.
+  const _rolls = fusedRolls(parsed.packets, state.calibration);
+  const _calPk = parsed.packets.map((p, idx) => {
     const i = driftInputs(p, state.calibration);
-    return { yaw: i.yawRate, gy: i.latAccel, speed: i.speed, t_rel: p.t_rel };
+    return { yaw: i.yawRate, gy: RasiDrift.tiltCompLatG(i.latAccel, _rolls[idx]),
+             speed: i.speed, t_rel: p.t_rel };
   });
   const _ds = RasiDrift.summarize(_calPk, state.settings.drift);
   state.replay.driftSummary = _ds;

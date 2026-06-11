@@ -1,7 +1,7 @@
 {
   "name": "rasicross-telemetry",
-  "version": "9.6.0",
-  "description": "RasiCross Telemetry \u2013 ESP-NOW USB Dashboard",
+  "version": "1.0.5",
+  "description": "RasiCross Telemetry – ESP-NOW USB Dashboard",
   "main": "main.js",
   "author": "RasiCross",
   "license": "MIT",
@@ -25,6 +25,11 @@
   "build": {
     "appId": "com.rasicross.telemetry",
     "productName": "RasiCross Telemetry",
+    "publish": {
+      "provider": "github",
+      "owner": "Lutji06",
+      "repo": "RasiCross-Telemetrie"
+    },
     "directories": {
       "output": "dist"
     },
@@ -100,7 +105,13 @@
     },
     "mac": {
       "target": [
-        { "target": "zip", "arch": ["arm64", "x64"] }
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ],
       "category": "public.app-category.utilities",
       "identity": null,
@@ -109,8 +120,18 @@
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] },
-        { "target": "deb",      "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "category": "Utility",
       "synopsis": "Live-Telemetrie-Dashboard fuer ESP32-Kart-Sender"
@@ -118,7 +139,8 @@
     "npmRebuild": true
   },
   "dependencies": {
-    "serialport": "^13.0.0",
-    "@serialport/parser-readline": "^13.0.0"
+    "@serialport/parser-readline": "^13.0.0",
+    "electron-updater": "^6.8.9",
+    "serialport": "^13.0.0"
   }
 }

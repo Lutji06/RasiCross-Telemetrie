@@ -60,7 +60,8 @@ const gaugesGlobals = {
 // Schnittstelle track.js -> Nutzer (rasicross.js, serial-demo.js, races.js, recording.js)
 const trackGlobals = {
   startTrackScan: 'readonly', finishTrackScan: 'readonly', clearTrack: 'readonly',
-  updateBounds: 'readonly', onGpsUpdate: 'readonly', saveCurrentTrack: 'readonly',
+  updateBounds: 'readonly', onGpsUpdate: 'readonly', recomputeTrackBounds: 'readonly',
+  saveCurrentTrack: 'readonly', syncSectorBestToTrack: 'readonly',
   loadSavedTrack: 'readonly', deleteSavedTrack: 'readonly',
   refreshTrackTileStatus: 'readonly', startTrackTileCache: 'readonly',
   renderSavedTracks: 'readonly', openTrackEditor: 'readonly',
@@ -77,6 +78,7 @@ const lapsDriversGlobals = {
   getDriverStats: 'readonly', getTotalStats: 'readonly', fmtKm: 'readonly',
   addDriver: 'readonly', deleteDriver: 'readonly', renderTotalHero: 'readonly',
   renderDrivers: 'readonly', renderDriverOptions: 'readonly',
+  theoreticalBestMs: 'readonly',
 };
 // Schnittstelle live-ui.js -> Nutzer (rasicross.js, races.js, pit-wall.js, recording.js)
 const liveUiGlobals = {
@@ -207,7 +209,8 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
-                 ...mapDrawGlobals, ...racesGlobals, RasiTiles: 'readonly',
+                 ...mapDrawGlobals, ...racesGlobals,
+                 theoreticalBestMs: 'readonly', RasiTiles: 'readonly',
                  RasiTileRenderer: 'readonly' },
     },
     rules: bugRules,

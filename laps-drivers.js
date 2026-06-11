@@ -52,6 +52,7 @@ function triggerLap() {
         if (s.best[2] == null || s3Ms < s.best[2]) {
           s.best[2] = s3Ms;
           rcAudio.sectorBest();
+          syncSectorBestToTrack();
         }
       }
       lap.sectors = s.lapSectors.slice(0, 3);    // [s1,s2,s3] ms (null ohne Sektorgrenzen)
@@ -359,8 +360,15 @@ function renderDriverOptions() {
   if (sel2) sel2.innerHTML = opts;
 }
 
+// Theoretische Bestrunde (Phase 24): Summe der besten Sektorzeiten der
+// Session -- null solange nicht alle drei Sektor-Bests existieren.
+function theoreticalBestMs() {
+  const b = (state.sectors && state.sectors.best) || [];
+  return (b[0] && b[1] && b[2]) ? b[0] + b[1] + b[2] : null;
+}
+
 // Interface-Marker: von rasicross.js/races.js/serial-demo.js/recording.js
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [checkLapCrossing, triggerLap, renderLapTable, renderLiveLapList,
       getDriverStats, getTotalStats, fmtKm, addDriver, deleteDriver,
-      renderTotalHero, renderDrivers, renderDriverOptions];
+      renderTotalHero, renderDrivers, renderDriverOptions, theoreticalBestMs];

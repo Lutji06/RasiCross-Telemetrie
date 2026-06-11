@@ -14,6 +14,18 @@ var SMOOTH_DEFAULTS = { smooth: 0.6, hyst: 0.15, counterHold: 3 };
 
 function _num(x) { var v = Number(x); return isFinite(v) ? v : 0; }
 
+// Hangkompensation (Phase 24): zieht die Schwerkraftkomponente aus der
+// Querbeschleunigung (latG in g, rollDeg = fusionierter Rollwinkel aus
+// attitude.js). gy und roll teilen per rollStep-Konstruktion dieselbe
+// Vorzeichen-Konvention (roll = atan2(gy, gz)): statische Neigung theta
+// -> gy = sin(theta). Ungueltiger Rollwinkel -> Passthrough.
+// WICHTIG: Den kompensierten Wert NICHT in rollStep zurueckfuettern --
+// der braucht die rohe gy als Gravitationsreferenz (sonst Rueckkopplung).
+function tiltCompLatG(latG, rollDeg) {
+  if (!isFinite(Number(rollDeg))) return _num(latG);
+  return _num(latG) - Math.sin(_num(rollDeg) * Math.PI / 180);
+}
+
 // Expected steady-cornering yaw rate (deg/s) from lateral g + speed (km/h).
 function expectedYawRate(latAccelG, speedKmh) {
   var v = _num(speedKmh) / 3.6;            // m/s
@@ -135,7 +147,8 @@ function smoothStep(st, raw, opts) {
 (function () {
   var api = { expectedYawRate: expectedYawRate, analyze: analyze,
               summarize: summarize, driftSpans: driftSpans,
-              smoothInit: smoothInit, smoothStep: smoothStep };
+              smoothInit: smoothInit, smoothStep: smoothStep,
+              tiltCompLatG: tiltCompLatG };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
   if (typeof window !== 'undefined') { window.RasiDrift = api; }
 })();

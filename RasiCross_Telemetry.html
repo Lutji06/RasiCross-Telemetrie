@@ -88,7 +88,12 @@
   --bor:rgba(0,0,0,.07);
   --bor2:rgba(0,0,0,.13);
   --div:rgba(0,0,0,.05);
-  --pr-soft:rgba(200,255,61,.18);
+  /* Akzent abgedunkelt: Lime #c8ff3d ist als Textfarbe auf Weiss
+     unleserlich; #5a8a00 liest sich auf Weiss UND traegt dunklen Text. */
+  --pr:#5a8a00;
+  --pr-2:#4a7400;
+  --pr-glow:rgba(90,138,0,.30);
+  --pr-soft:rgba(90,138,0,.12);
   --sh-sm:0 1px 2px rgba(20,30,60,.05);
   --sh-md:0 8px 28px rgba(20,30,60,.08);
   --sh-lg:0 24px 60px rgba(20,30,60,.12);
@@ -1005,12 +1010,15 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   -webkit-mask-image:linear-gradient(135deg, black 0%, transparent 80%);
   pointer-events:none;
 }
+/* Kompakte Heros: einzeilige Leiste (Eyebrow + Stat-Kacheln). Den
+   grossen Titel + Sub-Zeile traegt seit dem Topbar-Fix die Topbar. */
 .pw-hero-content{
   position:relative;z-index:2;
-  display:flex;flex-direction:column;gap:24px;
-  padding:30px 36px;
+  display:flex;flex-direction:row;align-items:center;
+  flex-wrap:wrap;gap:14px 18px;
+  padding:14px 20px;
 }
-@media (max-width:900px){.pw-hero-content{padding:24px}}
+@media (max-width:900px){.pw-hero-content{padding:12px 14px}}
 .pw-hero-left{flex-shrink:0}
 .pw-eyebrow{
   display:inline-flex;align-items:center;gap:8px;
@@ -1018,29 +1026,21 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   background:rgba(200,255,61,.08);border:1px solid rgba(200,255,61,.25);
   font-family:var(--mono);font-size:10.5px;font-weight:800;
   color:var(--pr);letter-spacing:.14em;
-  margin-bottom:14px;
 }
 .pw-eyebrow-dot{
   width:6px;height:6px;border-radius:99px;background:var(--pr);
   box-shadow:0 0 8px var(--pr-glow);
   animation:pulse 2s ease-in-out infinite;
 }
-.pw-hero-title{
-  font-family:var(--sans);font-size:42px;font-weight:800;
-  letter-spacing:-.03em;line-height:1;color:var(--tx);
-  margin-bottom:8px;white-space:nowrap;
-}
+.pw-hero-title,.pw-hero-sub{display:none}
 .pw-hero-accent{color:var(--pr)}
-.pw-hero-sub{
-  color:var(--mut);font-size:13.5px;
-  font-family:var(--mono);font-weight:600;letter-spacing:.04em;
-}
 .pw-hero-telemetry{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
-  gap:12px;
+  flex:1;min-width:0;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:10px;
 }
 .pw-tel{
-  padding:14px 16px;border-radius:12px;
+  padding:9px 14px;border-radius:12px;
   background:rgba(255,255,255,.03);border:1px solid var(--bor);
 }
 .pw-tel-label{
@@ -1390,15 +1390,17 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 #tab-live #yawSparkCanvas{height:22px}
 #tab-live .kpi-row{margin-bottom:12px}
 
-/* Live v2 — main body grid */
+/* Live v2 — main body grid.
+   WICHTIG: Die Flex-Hoehenverteilung (Karte/Laps fuellen den Viewport)
+   lebt NUR im Fit-Modus-Media unten — ohne definierte Containerhoehe
+   wuerde .map{flex;min-height:0} auf 0 kollabieren (Phone/Tablet-Bug). */
 .pw-live-body{display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:stretch}
+@media(max-width:1100px){.pw-live-body{grid-template-columns:1fr}}
 .pw-live-map{display:flex;flex-direction:column;gap:12px}
-.pw-live-map .pw-module{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
-.pw-live-map .pw-map-mod{flex:2 1 0}
-.pw-live-map .map{flex:1 1 auto;min-height:0}
-/* Live-Rundentabelle unter der Karte — scrollbar, Sticky-Header, fuellt den Restraum */
-.pw-live-map .pw-live-laps{flex:1 1 0}
-.pw-live-map .pw-live-laps .pw-laplist{flex:1 1 auto;min-height:0;overflow-y:auto;margin-top:8px}
+.pw-live-map .pw-module{display:flex;flex-direction:column}
+/* Live-Rundentabelle unter der Karte — scrollbar, Sticky-Header.
+   Ausserhalb des Fit-Modus: begrenzte Hoehe + eigener Scroll. */
+.pw-live-map .pw-live-laps .pw-laplist{overflow-y:auto;margin-top:8px;max-height:340px}
 .live-lap-table{width:100%;border-collapse:collapse;font-family:var(--mono)}
 .live-lap-table thead th{position:sticky;top:0;z-index:1;background:var(--surf);
   font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
@@ -1445,14 +1447,14 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
    Nur ab Viewport-Hoehe >=760px aktiv, sonst (Mobile/landscape klein)
    wuerde der Inhalt vertikal abgeschnitten werden.
    ------------------------------------------------------------ */
-@media (min-height:760px){
+@media (min-height:760px) and (min-width:1100px){
   html:has(body[data-tab="live"]),
   body[data-tab="live"]{
     height:100vh;overflow:hidden;
   }
   body[data-tab="live"] .main{height:100vh;min-height:0}
   body[data-tab="live"] main.content{
-    flex:1;min-height:0;overflow:hidden;
+    flex:1;min-height:0;overflow:auto;   /* faellt der Platz knapp aus: scrollen statt abschneiden */
     padding-top:18px;padding-bottom:14px;
     display:flex;flex-direction:column;justify-content:center;
   }
@@ -1464,7 +1466,13 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   body[data-tab="live"] #tab-live .pw-live-body{flex:1 1 auto;min-height:0}
   body[data-tab="live"] #tab-live .pw-live-map,
   body[data-tab="live"] #tab-live .pw-live-side{min-height:0}
-  body[data-tab="live"] #tab-live .pw-live-map .pw-module{min-height:0}
+  /* Flex-Hoehenverteilung: Karte (2x) + Rundentabelle (1x) fuellen den
+     Viewport. Lebt bewusst NUR hier — siehe Kommentar bei .pw-live-body. */
+  body[data-tab="live"] #tab-live .pw-live-map .pw-module{flex:1 1 auto;min-height:0}
+  body[data-tab="live"] #tab-live .pw-live-map .pw-map-mod{flex:2 1 0}
+  body[data-tab="live"] #tab-live .pw-live-map .map{flex:1 1 auto;min-height:180px}
+  body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps{flex:1 1 0}
+  body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps .pw-laplist{flex:1 1 auto;min-height:0;max-height:none}
 }
 
 /* Detail Diagnose block — 2-col label/value grid */
@@ -1929,6 +1937,16 @@ body.diagnose-on .diagnose-only{display:block}
    ============================================================ */
 #pitwallOverlay{
   position:fixed;inset:0;z-index:300;
+  /* Buehne: rendert immer dark. Theme-Variablen lokal festgenagelt, sonst
+     unsichtbarer Text im Light-/Outdoor-Theme auf dem dunklen Grund. */
+  --surf:#0e1220;--surf2:#141a2c;--soft:#161c2e;--soft2:#1d2440;
+  --tx:#e8ecf6;--tx-dim:#b6bcd0;--mut:#6f7796;--dim:#444b66;
+  --bor:rgba(255,255,255,.07);--bor2:rgba(255,255,255,.13);
+  --pr:#c8ff3d;--pr-glow:rgba(200,255,61,.35);
+  --green:#3ee08a;--green-glow:rgba(62,224,138,.3);
+  --orange:#ffa336;
+  --red:#ff5470;--red-glow:rgba(255,84,112,.3);
+  --sh-md:0 8px 28px rgba(0,0,0,.35);
   background:radial-gradient(ellipse at center,#0d1224 0%,#03050b 80%);
   display:none;flex-direction:column;
   padding:18px 24px;
@@ -2004,6 +2022,9 @@ body.diagnose-on .diagnose-only{display:block}
   text-shadow:0 0 32px var(--pr-glow);
   text-align:center;
 }
+/* Lap-Hold: fertige Rundenzeit bleibt 5 s stehen -- weiss, bei PB gruen */
+.pw-side-val.hold{color:var(--tx);text-shadow:none}
+.pw-side-val.hold.pb{color:var(--green);text-shadow:0 0 32px var(--green-glow)}
 .pw-unit{font-family:var(--mono);font-size:13px;color:var(--mut);margin-top:6px;font-weight:500}
 .pw-side-sub{font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:14px;font-weight:500}
 .pw-side-sub b{color:var(--tx);font-weight:700}
@@ -2046,6 +2067,10 @@ body.diagnose-on .diagnose-only{display:block}
 }
 .pw-foot-l{font-family:var(--mono);font-size:9px;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
 .pw-foot-v{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--tx);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Verbindungsstatus aus Distanz lesbar: gruen/orange/rot */
+.pw-foot-v.ok{color:var(--green)}
+.pw-foot-v.warn{color:var(--orange)}
+.pw-foot-v.off{color:var(--red)}
 @media(max-width:1100px){
   #pitwallOverlay .pw-hero{grid-template-columns:1fr;gap:12px}
   .pw-footer{grid-template-columns:repeat(2,1fr)}
@@ -2313,7 +2338,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
   <!-- Race-control row: Restzeit + Buttons als getrennte Kästchen -->
   <div class="pw-liverow">
     <div class="pw-clockbox">
-      <div class="pw-clockbox-label">Restzeit</div>
+      <div class="pw-clockbox-label" id="countdownLabel">Restzeit</div>
       <div class="pw-clockbox-value" id="countdown">--:--</div>
     </div>
   <div class="pw-livebar">
@@ -2425,6 +2450,10 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <div class="sector-card" id="s1Card"><div class="sector-label">Sektor 1</div><div class="sector-time" id="s1Time">--:--.---</div><div class="sector-delta same" id="s1Delta">--</div></div>
           <div class="sector-card" id="s2Card"><div class="sector-label">Sektor 2</div><div class="sector-time" id="s2Time">--:--.---</div><div class="sector-delta same" id="s2Delta">--</div></div>
           <div class="sector-card" id="s3Card"><div class="sector-label">Sektor 3</div><div class="sector-time" id="s3Time">--:--.---</div><div class="sector-delta same" id="s3Delta">--</div></div>
+          <div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--mut);padding:4px 2px 0">
+            <span>Theoretische Bestrunde <span style="opacity:.6">(beste Sektoren)</span></span>
+            <b id="theoBestTime" style="font-family:var(--mono);font-size:14px;color:var(--text,#fff)">--:--.---</b>
+          </div>
         </div>
       </div>
 
@@ -2513,7 +2542,8 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
         <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg></span>
       </div>
       <div class="kpi-v" id="kG">0.0<small>G</small></div>
-      <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s · MPU <b id="kMtemp">--</b>°C · Drift <b id="kDrift">–</b></div>
+      <div class="kpi-sub">Max <b id="kGMax">0.0</b> · Gier <b id="kYaw">0</b>°/s</div>
+      <div class="kpi-sub">MPU <b id="kMtemp">--</b>°C · Drift <b id="kDrift">–</b></div>
       <canvas id="yawSparkCanvas" width="240" height="28"></canvas>
     </div>
     <div class="kpi">
@@ -2617,7 +2647,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <span class="pw-eyebrow-dot"></span>
           <span>STRECKEN-MANAGEMENT</span>
         </div>
-        <h1 class="pw-hero-title">Pit Wall<span class="pw-hero-accent">.</span></h1>
+        <h1 class="pw-hero-title">Strecke<span class="pw-hero-accent">.</span></h1>
         <p class="pw-hero-sub">GPS-Aufnahme · Sektoren · Bibliothek</p>
       </div>
       <div class="pw-hero-telemetry">
@@ -2982,6 +3012,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
             <div style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:3px"><span id="connRssi">--</span> · Latenz <span id="connLatency">--</span>ms</div>
           </div>
         </div>
+        <canvas id="rssiSpark" width="320" height="36" style="width:100%;height:36px;margin-top:10px;display:block" title="RSSI-Verlauf (letzte 3 Minuten)"></canvas>
       </div>
     </div>
 
@@ -3137,11 +3168,12 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
         <div class="toggle-row"><span class="label-text">Gx ↔ Gy tauschen</span><label class="toggle"><input type="checkbox" id="setSwapG" data-autosave><span class="toggle-knob"></span></label></div>
         <div class="toggle-row"><span class="label-text">Gier invertieren</span><label class="toggle"><input type="checkbox" id="setInvertYaw" data-autosave><span class="toggle-knob"></span></label></div>
         <div class="toggle-row"><span class="label-text">Roll-Rate invertieren</span><label class="toggle"><input type="checkbox" id="setInvertRollRate" data-autosave><span class="toggle-knob"></span></label></div>
-        <div class="row" style="gap:8px;margin:14px 0">
+        <div class="row" style="gap:8px;margin:14px 0 4px">
           <button class="btn primary" id="zeroImuBtn" style="flex:1">Nullpunkt setzen</button>
           <button class="btn ghost" id="resetImuBtn" style="flex:0 0 auto">Zurücksetzen</button>
-          <button class="btn ghost" id="zeroRollBtn" style="flex:0 0 auto" title="Aktuellen Rollwinkel als 0 setzen">Roll nullen</button>
+          <button class="btn ghost" id="zeroRollBtn" style="flex:0 0 auto" title="Aktuellen Rollwinkel als 0 setzen — Mäher dazu auf ebener Fläche abstellen">Roll nullen</button>
         </div>
+        <div style="font-size:11px;color:var(--mut);margin:0 0 14px">⚠ Nullen nur auf <b>ebener Fläche</b> — am Hang genullt wäre jede spätere Messung um die Hangneigung verschoben.</div>
         <div class="settings-row">
           <div class="settings-row-label"><span class="settings-row-name">Drift-Empfindlichkeit</span><span class="settings-row-desc">Toleranz des Drift-Index (kleiner = empfindlicher)</span></div>
           <input type="number" id="setDriftTol" value="0.25" min="0.05" max="1" step="0.05" data-autosave>
@@ -3272,6 +3304,11 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <input type="file" id="importAllFile" accept=".json" style="display:none">
           <button class="btn danger" id="resetAllBtn" style="margin-top:8px">🗑 Alle Daten zurücksetzen</button>
         </div>
+        <div class="fieldset" style="margin-top:16px">
+          <p class="settings-block-note" style="margin-bottom:8px">App-Version <b id="updVersion">--</b> · <span id="updStatus">Updates: nicht geprüft</span></p>
+          <button class="btn ghost" id="updCheckBtn">🔄 Nach Updates suchen</button>
+          <button class="btn primary" id="updInstallBtn" style="display:none;margin-top:8px">⬇ Neustart &amp; Update installieren</button>
+        </div>
       </section>
 
     </div>
@@ -3295,10 +3332,11 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
      ============================================================ -->
 <div id="pitwallOverlay">
   <div class="pw-top">
-    <span class="pw-logo"><svg viewBox="0 0 32 32" width="28" height="28" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-7px;margin-right:8px;display:inline-block"><path d="M6 19 L8 14 L20 14 L23 19 Z" fill="currentColor"/><rect x="5" y="19" width="19" height="3.5" rx=".8" fill="currentColor"/><rect x="10" y="10" width="2.5" height="4" fill="currentColor"/><path d="M22 17 L27 11 M25 10 L29 10" stroke-width="1.8"/><circle cx="9" cy="24" r="3.2" fill="currentColor"/><circle cx="9" cy="24" r="1.1" fill="#0a0e0a" stroke="none"/><circle cx="19" cy="24" r="3.2" fill="currentColor"/><circle cx="19" cy="24" r="1.1" fill="#0a0e0a" stroke="none"/></svg>RasiCross · Pit Wall</span>
+    <span class="pw-logo"><svg viewBox="4 4 58 52" width="30" height="27" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" style="vertical-align:-7px;margin-right:8px;display:inline-block"><path d="M 14 22 C 10 14, 24 8, 36 12 C 48 16, 56 18, 54 28 C 52 36, 44 34, 38 38 C 32 42, 28 50, 18 48 C 8 46, 8 38, 12 34 C 16 30, 18 28, 14 22 Z"/><circle cx="14" cy="22" r="2.5" fill="currentColor" stroke="none"/></svg>RasiCross · Pit Wall</span>
     <div class="pw-top-info">
       <span><b id="pwSession">00:00</b> Session</span>
       <span><b id="pwLapCount">0</b> Runden</span>
+      <span id="pwRemainWrap" style="display:none"><b id="pwRemain">--:--</b> Restzeit</span>
     </div>
     <button class="pw-close" id="pwCloseBtn">ESC · Schließen</button>
   </div>
@@ -3319,6 +3357,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
       <div class="pw-side-val" id="pwLap" style="font-size:clamp(36px,6vw,64px)">--:--.---</div>
       <div class="pw-unit">Zeit</div>
       <div class="pw-side-sub">Best <b id="pwBestLap">--:--.---</b></div>
+      <div class="pw-side-sub">Theoretisch <b id="pwTheoLap">--:--.---</b></div>
     </div>
   </div>
   <div class="pw-sectors">

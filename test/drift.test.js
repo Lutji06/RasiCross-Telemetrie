@@ -5,11 +5,26 @@ const drift = require('../drift.js');
 
 const approx = (a, b, tol = 1e-3) => assert.ok(Math.abs(a - b) <= tol, `${a} != ${b} (±${tol})`);
 
-test('module exports the 6 functions', () => {
+test('module exports the 7 functions', () => {
   for (const n of ['expectedYawRate', 'analyze', 'summarize', 'driftSpans',
-                   'smoothInit', 'smoothStep']) {
+                   'smoothInit', 'smoothStep', 'tiltCompLatG']) {
     assert.equal(typeof drift[n], 'function', `missing ${n}`);
   }
+});
+
+test('tiltCompLatG: entfernt die Schwerkraftkomponente sin(roll)', () => {
+  // Statisch am 20-Grad-Hang: gy = sin(20deg) = 0.342 -> kompensiert ~0
+  approx(drift.tiltCompLatG(0.342, 20), 0, 0.01);
+  // Ebene: keine Aenderung
+  assert.equal(drift.tiltCompLatG(0.5, 0), 0.5);
+  // Negativer Hang: Kompensation addiert
+  approx(drift.tiltCompLatG(0, -15), 0.2588, 0.001);
+});
+
+test('tiltCompLatG: ungueltiger Rollwinkel -> Passthrough', () => {
+  assert.equal(drift.tiltCompLatG(0.3, undefined), 0.3);
+  assert.equal(drift.tiltCompLatG(0.3, NaN), 0.3);
+  assert.equal(drift.tiltCompLatG(0.3, null), 0.3);
 });
 
 test('expectedYawRate: matches hand calc and guards v<=0', () => {

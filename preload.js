@@ -4,11 +4,13 @@ let lineCb = null;
 let closeCb = null;
 let errorCb = null;
 let tileProgressCb = null;
+let updateStatusCb = null;
 
 ipcRenderer.on("serial:line",  (_, line) => { if (lineCb)  try { lineCb(line);  } catch(e) { console.error(e); } });
 ipcRenderer.on("serial:close", ()        => { if (closeCb) try { closeCb();      } catch(e) { console.error(e); } });
 ipcRenderer.on("serial:error", (_, msg)  => { if (errorCb) try { errorCb(msg);   } catch(e) { console.error(e); } });
 ipcRenderer.on("rasi-tiles:progress", (_, p) => { if (tileProgressCb) try { tileProgressCb(p); } catch(e) { console.error(e); } });
+ipcRenderer.on("rasi-update:status", (_, s) => { if (updateStatusCb) try { updateStatusCb(s); } catch(e) { console.error(e); } });
 
 contextBridge.exposeInMainWorld("rasiSerial", {
   list: () => ipcRenderer.invoke("serial:list"),
@@ -24,6 +26,27 @@ contextBridge.exposeInMainWorld("rasiKart", {
   saveKartModel:  (uint8) => ipcRenderer.invoke("rasi-kart:save", uint8),
   loadKartModel:  ()      => ipcRenderer.invoke("rasi-kart:load"),
   clearKartModel: ()      => ipcRenderer.invoke("rasi-kart:clear"),
+});
+
+contextBridge.exposeInMainWorld("rasiUpdate", {
+  check:    () => ipcRenderer.invoke("rasi-update:check"),
+  install:  () => ipcRenderer.invoke("rasi-update:install"),
+  version:  () => ipcRenderer.invoke("rasi-update:version"),
+  // Ersetzt den Callback (wie onLine/onProgress) statt Listener zu stapeln
+  onStatus: (cb) => { updateStatusCb = typeof cb === "function" ? cb : null; },
+});
+
+contextBridge.exposeInMainWorld("rasiPower", {
+  // Display-Standby unterdruecken solange die Pit Wall offen ist
+  keepAwake: (on) => ipcRenderer.invoke("rasi-power:keepAwake", !!on),
+});
+
+contextBridge.exposeInMainWorld("rasiRec", {
+  start:  (headerLine) => ipcRenderer.invoke("rasi-rec:start", headerLine),
+  append: (text)       => ipcRenderer.invoke("rasi-rec:append", text),
+  check:  ()           => ipcRenderer.invoke("rasi-rec:check"),
+  read:   ()           => ipcRenderer.invoke("rasi-rec:read"),
+  clear:  ()           => ipcRenderer.invoke("rasi-rec:clear"),
 });
 
 contextBridge.exposeInMainWorld("rasiTiles", {

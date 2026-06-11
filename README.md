@@ -490,6 +490,19 @@ npm run build:mac        # macOS .dmg fuer arm64 + x64
 
 Unter Windows steht alternativ das Komfort-Skript [`BUILD_EXE.ps1`](BUILD_EXE.ps1) zur Verfügung — checkt Node.js, lädt fehlende USB-Treiber und ruft die Build-Pipeline auf.
 
+### Release publizieren (Auto-Update)
+
+Die installierte App (NSIS-Setup) prüft beim Start die GitHub-Releases und aktualisiert sich selbst (electron-updater). Damit das funktioniert, muss ein Release **mit `latest.yml`** publiziert werden — das übernimmt electron-builder:
+
+```powershell
+# 1. Version in package.json erhöhen (z.B. 9.7.0) und committen
+# 2. GitHub-Token mit repo-Scope setzen und publizieren:
+$env:GH_TOKEN = "ghp_..."
+npx electron-builder --win --x64 --publish always
+```
+
+Das erstellt einen Release-Draft `v<version>` mit Setup-EXE, Portable-EXE und `latest.yml` — Draft auf GitHub veröffentlichen, fertig. Bestehende Installationen melden das Update beim nächsten Start („Update bereit") und installieren es beim Beenden. Die Portable-EXE und der Dev-Modus (`npm start`) aktualisieren sich nicht selbst.
+
 ### Automatisierte Builds
 
 Bei jedem Tag-Push (`v*`) baut [`.github/workflows/build.yml`](.github/workflows/build.yml) Windows und macOS parallel und legt die Artefakte als GitHub-Release ab.

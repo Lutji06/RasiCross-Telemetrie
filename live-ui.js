@@ -361,6 +361,11 @@ function updateLiveUi() {
     document.body.classList.toggle('gps-warn', !!(gpsAge && gpsAge > 3000));
     // Race-Status (Countdown läuft im 60fps-Loop, hier nur Meta)
     const r = activeRace();
+    // Label ehrlich halten: nur Zeit-Rennen haben eine echte Restzeit;
+    // freie Rennen zaehlen die Fahrzeit hoch, Runden-Rennen Rest-Runden.
+    setText('countdownLabel', r
+      ? (r.lengthType === 'time' ? 'Restzeit' : r.lengthType === 'laps' ? 'Verbleibend' : 'Fahrzeit')
+      : 'Restzeit');
     if (r && (r.status === 'running' || r.status === 'paused')) {
       const elapsed = raceElapsedMs(r);
       if (r.lengthType === 'time') {
@@ -387,8 +392,6 @@ function updateLiveUi() {
     setText('detailHeroPackets', state.connection.packets);
     // Live delta
     updateLiveDelta();
-    // Pit-wall
-    updatePitWall();
   } catch (e) { console.warn('updateLiveUi:', e); }
 }
 function renderStints(r) {
@@ -418,6 +421,7 @@ function animLoop() {
   drawTrack();
   drawLiveCharts();
   updateLiveKPIs();   // KPI-Karten jetzt im 60fps-Loop für flüssige Updates
+  updatePitWall();    // Pit Wall ebenfalls 60fps (laufende Rundenzeit/Delta); no-op wenn zu
   requestAnimationFrame(animLoop);
 }
 // Beide UI-Loops (200ms-Backup-Tick + 1Hz-Loop) -- werden von init() in
@@ -425,7 +429,7 @@ function animLoop() {
 function initLiveUiLoops() {
 // Backup tick (läuft auch wenn rAF im Hintergrund-Iframe pausiert)
 setInterval(() => {
-  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); } catch(e){}
+  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); } catch(e){}
 }, 200);
 
 // 1Hz UI loop

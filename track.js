@@ -49,6 +49,8 @@ function finishTrackScan(auto) {
     // Auto-calculate sector boundaries (33% / 66%)
     if (!state.sectors.manual) calcAutoSectors();
   }
+  // Scan beendet: Bounds eng auf die Strecke ziehen (Anfahrt/Ausreisser raus).
+  if (state.track.closed) recomputeTrackBounds();
   drawTrack();
   saveDataDebounced();
 }
@@ -62,6 +64,7 @@ function clearTrack() {
   state.startGate = { enabled: false, lat: 0, lon: 0, heading: 0, width: 14 };
   state.sectors.boundaries = [null, null];
   state.sectors.manual = false;
+  state.sectors.best = [null, null, null];   // Bests gelten pro Strecke
   $('sectorPanel').style.display = 'none';
   setText('scanModePill', 'Manuell');
   setText('scanStateValue', 'Warte auf GPS');
@@ -79,14 +82,37 @@ function updateBounds(lat, lon) {
   b.maxLon = Math.max(b.maxLon, lon);
   state.track.bounds = b;
 }
+// Bounds eng aus den Streckenpunkten ableiten (Phase 26) -- heilt verseuchte
+// Session-Bounds: GPS-Ausreisser (Kaltstart-Spruenge, Anfahrt) blaehten sie
+// frueher unbegrenzt auf und zerquetschten damit die Karten-Skalierung.
+function recomputeTrackBounds() {
+  const pts = state.track.points;
+  if (!pts || !pts.length) { state.track.bounds = null; return; }
+  const b = { minLat: pts[0].lat, maxLat: pts[0].lat, minLon: pts[0].lon, maxLon: pts[0].lon };
+  for (const p of pts) {
+    b.minLat = Math.min(b.minLat, p.lat); b.maxLat = Math.max(b.maxLat, p.lat);
+    b.minLon = Math.min(b.minLon, p.lon); b.maxLon = Math.max(b.maxLon, p.lon);
+  }
+  state.track.bounds = b;
+}
 function onGpsUpdate(lat, lon) {
   if (!lat || !lon) return;
   if (!state.track.scanning) {
+    // Geschlossene Strecke rahmt die Karte -- Bounds nicht weiter aufblaehen,
+    // der Live-Punkt wird einfach auf der Strecken-Skalierung gezeichnet.
+    if (state.track.closed) return;
+    // Vor dem Scan folgt die Karte dem GPS, aber Ausreisser (>10 km vom
+    // bisherigen Zentrum) bleiben draussen.
+    const b = state.track.bounds;
+    if (b && gpsDist(lat, lon, (b.minLat + b.maxLat) / 2, (b.minLon + b.maxLon) / 2) > 10000) return;
     updateBounds(lat, lon);
     return;
   }
   const last = state.track.points[state.track.points.length - 1];
   const dist = last ? gpsDist(last.lat, last.lon, lat, lon) : 999;
+  // GPS-Sprung beim Scannen (>500 m zwischen zwei Fixen ist physikalisch
+  // unmoeglich): Fix komplett verwerfen statt Strecke und Bounds zerstoeren.
+  if (last && dist >= 500) return;
   if (!last || dist > 2) {
     if (last) state.track.totalDistance += dist;
     state.track.points.push({ lat, lon });
@@ -127,6 +153,7 @@ async function saveCurrentTrack() {
     points: [...state.track.points], bounds: { ...state.track.bounds },
     startGate: { ...state.startGate },
     sectorBoundaries: [...state.sectors.boundaries],
+    sectorBest: [...state.sectors.best],
     totalDistance: state.track.totalDistance,
     maxDistFromStart: state.track.maxDistFromStart,
     closed: state.track.closed
@@ -143,6 +170,12 @@ async function saveCurrentTrack() {
     }
   } catch (e) { /* silent — manual button is the fallback */ }
 }
+// Sektor-Bests gehoeren zur Strecke: nach jedem neuen Best in die aktive
+// gespeicherte Strecke spiegeln, damit sie Streckenwechsel ueberleben.
+function syncSectorBestToTrack() {
+  const t = state.savedTracks.find(x => x.id === state.activeTrackId);
+  if (t) t.sectorBest = [...state.sectors.best];
+}
 function loadSavedTrack(id) {
   const t = state.savedTracks.find(x => x.id === id);
   if (!t) return;
@@ -156,6 +189,8 @@ function loadSavedTrack(id) {
     state.sectors.boundaries = [...t.sectorBoundaries];
     state.sectors.manual = !!t.sectorBoundaries.some(b => b);
   }
+  // Sektor-Bests (und damit die theoretische Bestrunde) gelten pro Strecke
+  state.sectors.best = Array.isArray(t.sectorBest) ? [...t.sectorBest] : [null, null, null];
   state.activeTrackId = id;
   setText('gateSizeText', (state.startGate.width || 14) + 'm');
   setText('scanStateValue', 'Geladen: ' + t.name);
@@ -674,6 +709,8 @@ function checkSectorCrossings(lat, lon) {
         if (s.best[i] == null || sectorMs < s.best[i]) {
           s.best[i] = sectorMs;
           rcAudio.sectorBest();
+          syncSectorBestToTrack();
+          saveDataDebounced();
         }
         updateSectorPanel();
         break;
@@ -704,12 +741,16 @@ function updateSectorPanel() {
     if (card) card.classList.toggle('active', s.cur === i && !s.lapSectors[i]);
   };
   display(0); display(1); display(2);
+  // Theoretische Bestrunde (Phase 24): Summe der Sektor-Bests
+  const tb = theoreticalBestMs();
+  setText('theoBestTime', tb ? fmtMs(tb) : '--:--.---');
 }
 
 // Interface-Marker: von rasicross.js/serial-demo.js/races.js/recording.js
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
-      saveCurrentTrack, loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
+      recomputeTrackBounds,
+      saveCurrentTrack, syncSectorBestToTrack, loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
       startTrackTileCache, renderSavedTracks, openTrackEditor, closeTrackEditor,
       editorClickTarget, handleEditorClick, saveEditor, calcAutoSectors,
       clearManualSectors, activateSectorClick, handleTrackCanvasClick,

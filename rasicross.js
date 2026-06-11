@@ -476,15 +476,78 @@ function saveSettingsFromUi() {
   flashSettingsSaved();
 }
 
+// Auto-Update-UI (Phase 25): Version + Status in den Einstellungen, Toast
+// sobald ein Update heruntergeladen ist. Main-Prozess macht die Arbeit
+// (electron-updater); im Browser/Dev-Modus degradiert die Anzeige sauber.
+function initUpdateUi() {
+  const statusEl = $('updStatus'), installBtn = $('updInstallBtn');
+  const setStatus = (t) => { if (statusEl) statusEl.textContent = t; };
+  if (!window.rasiUpdate) { setStatus('Updates: nur in der installierten App'); const b = $('updCheckBtn'); if (b) b.disabled = true; return; }
+  window.rasiUpdate.version().then(v => {
+    setText('updVersion', v.version || '--');
+    if (v.guard === 'dev') setStatus('Updates: im Dev-Modus deaktiviert');
+    else if (v.guard === 'portable') setStatus('Updates: Portable-Version aktualisiert sich nicht selbst');
+  }).catch(() => {});
+  window.rasiUpdate.onStatus(s => {
+    if (!s) return;
+    if (s.state === 'downloading') {
+      setStatus('Update ' + (s.version ? 'auf ' + s.version + ' ' : '') + 'wird geladen' + (s.percent != null ? ' (' + s.percent + '%)' : '') + ' …');
+    } else if (s.state === 'uptodate') {
+      setStatus('Auf dem neuesten Stand (' + (s.version || '') + ')');
+    } else if (s.state === 'ready') {
+      setStatus('Update ' + (s.version || '') + ' bereit — wird beim Beenden installiert');
+      if (installBtn) installBtn.style.display = '';
+      rcToast('⬇ Update ' + (s.version || '') + ' bereit — Installation beim Beenden', 5000);
+    } else if (s.state === 'error') {
+      setStatus('Update-Fehler: ' + (s.message || '?'));
+    }
+  });
+  const checkBtn = $('updCheckBtn');
+  if (checkBtn) checkBtn.onclick = async () => {
+    setStatus('Suche nach Updates …');
+    const r = await window.rasiUpdate.check().catch(() => null);
+    if (r && r.ok === false) {
+      setStatus(r.reason === 'dev' ? 'Updates: im Dev-Modus deaktiviert'
+        : r.reason === 'portable' ? 'Updates: Portable-Version aktualisiert sich nicht selbst'
+        : 'Update-Fehler: ' + (r.message || r.reason || '?'));
+    }
+  };
+  if (installBtn) installBtn.onclick = () => window.rasiUpdate.install().catch(() => {});
+}
+
 // ============================================================
 // 7. TELEMETRY PIPELINE
 // ============================================================
+// Crash-Sicherung (Phase 24): recordPacket sammelt NDJSON-Zeilen und schiebt
+// sie gebuendelt an den Main-Prozess (alle ~25 Pakete oder 2s) — nach einem
+// Absturz bietet init() die Datei zur Wiederherstellung an. Nur in Electron
+// (window.rasiRec); im Browser bleibt alles wie bisher im RAM.
+const REC_FLUSH_N = 25, REC_FLUSH_MS = 2000;
+let _crashQ = [], _crashLastFlush = 0, _crashFailed = false;
+function _crashFlush(now) {
+  if (!window.rasiRec || _crashFailed || !_crashQ.length) return;
+  const batch = _crashQ.join('\n') + '\n';
+  _crashQ = [];
+  _crashLastFlush = now;
+  window.rasiRec.append(batch).then(r => {
+    if (r && r.ok === false && !_crashFailed) {
+      _crashFailed = true;
+      rcToast('⚠ Crash-Sicherung deaktiviert: ' + (r.error || 'Schreibfehler'), 4000);
+    }
+  }).catch(() => {});
+}
 function armRecording() {
   // Frische Aufnahme starten (auto bei Connect/Demo, wenn aktiviert).
   state.recording.buf = [];
   state.recording.startWall = null;
   state.recording.overflowed = false;
   state.recording.armed = true;
+  // Crash-Sicherungsdatei frisch beginnen (Header-Zeile, Pakete folgen).
+  _crashQ = []; _crashLastFlush = Date.now(); _crashFailed = false;
+  if (window.rasiRec) {
+    const header = RasiReplay.serializeRecording([], { created: new Date().toISOString() });
+    window.rasiRec.start(header).catch(() => {});
+  }
 }
 function recordPacket(d) {
   const now = Date.now();
@@ -494,6 +557,10 @@ function recordPacket(d) {
   if (dropped && !state.recording.overflowed) {
     state.recording.overflowed = true;
     rcToast('⚠ Aufnahme-Puffer voll — älteste Pakete werden verworfen', 4000);
+  }
+  if (window.rasiRec && !_crashFailed) {
+    _crashQ.push(JSON.stringify(rec));
+    if (_crashQ.length >= REC_FLUSH_N || now - _crashLastFlush >= REC_FLUSH_MS) _crashFlush(now);
   }
 }
 // Drift-Eingaenge aus einem (Roh-)Paket — identisch fuer Live und Replay-Aggregat.
@@ -555,7 +622,13 @@ function processTelemetry(d) {
     // Drift (Phase 20): gehaerteter + geglaetteter Gierraten-Index. di teilt die
     // Eingangs-Normalisierung mit dem Replay-Aggregat; smoothStep liefert
     // EMA-Index + entprellten/hysterese-stabilen Status.
-    const dRaw = RasiDrift.analyze(di, state.settings.drift);
+    // Hangkompensation (Phase 24): Schwerkraftanteil sin(roll) aus der Quer-g
+    // ziehen, damit Hangfahrt nicht als Unter-/Uebersteuern erscheint. Roll vom
+    // vorherigen Sample (Update folgt unten) -- bei 12 Hz vernachlaessigbar.
+    const dRaw = RasiDrift.analyze(
+      { yawRate: di.yawRate, speed: di.speed,
+        latAccel: RasiDrift.tiltCompLatG(di.latAccel, state.attitude.rollDeg) },
+      state.settings.drift);
     // settings.drift liefert tol (-> Hysterese-Baender); smooth/hyst/counterHold
     // sind nicht in den Settings und fallen in smoothStep auf SMOOTH_DEFAULTS zurueck.
     state.driftSmooth = RasiDrift.smoothStep(state.driftSmooth, dRaw, state.settings.drift);
@@ -843,6 +916,9 @@ function initKartModelUploader() {
 // ============================================================
 function init() {
   loadData();
+  // Persistierte Session-Bounds heilen: eng aus den Punkten neu ableiten
+  // (alte Daten koennen GPS-Ausreisser in den Bounds tragen, Phase 26).
+  if (state.track.points.length) recomputeTrackBounds();
   try {
     if (typeof RasiTileRenderer !== 'undefined') {
       RasiTileRenderer.init({
@@ -1048,6 +1124,7 @@ function init() {
   $('importAllBtn').onclick = () => $('importAllFile').click();
   $('importAllFile').onchange = e => { if (e.target.files[0]) importAll(e.target.files[0]); e.target.value = ''; };
   $('resetAllBtn').onclick = resetAll;
+  initUpdateUi();
   // Settings sub-navigation
   document.querySelectorAll('#tab-settings .settings-nav-item').forEach(btn => {
     btn.onclick = () => showSettingsGroup(btn.dataset.sgroup);
@@ -1158,6 +1235,31 @@ function init() {
     const c = $(cid);
     if (c) c.addEventListener('click', handleActionClick);
   });
+
+  // Crash-Recovery (Phase 24): liegt die Sicherungsdatei vom letzten Lauf
+  // noch da, war es ein Absturz (regulaeres Beenden loescht sie in main.js).
+  if (window.rasiRec) {
+    window.rasiRec.check().then(async (c) => {
+      if (!c || !c.exists) return;
+      if (c.size < 1024) { window.rasiRec.clear().catch(() => {}); return; }
+      const when = c.mtimeMs ? new Date(c.mtimeMs).toLocaleString('de-DE') : 'unbekannt';
+      const ok = await rcConfirm(
+        `Unvollständige Aufnahme vom letzten Lauf gefunden\n(${when}, ${formatBytes(c.size)}).\nJetzt im Replay laden?`,
+        'Aufnahme wiederherstellen', 'Laden');
+      if (!ok) { window.rasiRec.clear().catch(() => {}); return; }
+      const r = await window.rasiRec.read();
+      if (!r.ok) { rcAlert('Wiederherstellung fehlgeschlagen:\n' + (r.error || '?')); return; }
+      const parsed = RasiReplay.parseRecording(r.text);
+      if (!parsed.ok || parsed.packets.length < 2) {
+        rcAlert('Sicherungsdatei unbrauchbar — wird verworfen.');
+        window.rasiRec.clear().catch(() => {});
+        return;
+      }
+      if (parsed.skipped) rcToast(parsed.skipped + ' fehlerhafte Zeilen übersprungen', 3000);
+      enterReplay(parsed);
+      window.rasiRec.clear().catch(() => {});
+    }).catch(() => {});
+  }
 }
 init();
 
@@ -1183,7 +1285,10 @@ init();
         const unit = tk.querySelector('small')?.textContent?.trim() || 'km';
         if (numMatch) txt('footerKm', numMatch[0] + ' ' + unit);
       }
-      // Pit-Wall braucht zusätzliche Mappings (driver name)
+      // Fahrername im Haupt-Layout spiegeln. Die pw*-Felder gehoeren
+      // allein updatePitWall() (pit-wall.js) -- der fruehere Spiegel hier
+      // ueberschrieb sekuendlich Lap-Hold, Rundenziel und Status-Farbe
+      // (u.a. mit dem Race-Status statt der Verbindung).
       try {
         if (typeof activeRace === 'function') {
           const r = activeRace();
@@ -1192,27 +1297,7 @@ init();
             const last = stints[stints.length-1];
             if (last && !last.endAt) {
               const driver = state.drivers.find(d=>d.id===last.driverId);
-              txt('pwDriver', driver ? driver.name : '--');
               txt('currentDriverName', driver ? driver.name : '--');
-            }
-            const lapCount = stints.reduce((a,s)=>a + (s.laps?.length||0), 0);
-            txt('pwLapCount', lapCount);
-            txt('pwSession', $$('sessionText')?.textContent || '00:00');
-            // Pit-Wall RPM/G/Status
-            const t = state.telemetry;
-            txt('pwRpm', Math.round(t.rpm).toLocaleString('de-DE'));
-            const g = Math.sqrt(t.gx*t.gx + t.gy*t.gy).toFixed(1);
-            txt('pwG', g);
-            txt('pwSpeed', Math.round(t.speed));
-            txt('pwSpeedMax', Math.round(state.max.speed));
-            txt('pwLap', state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---');
-            txt('pwBestLap', state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---');
-            txt('pwStatus', r.status || '--');
-            // Sektoren
-            const lapSec = state.sectors?.lapSectors || [null,null,null];
-            for(let i=0;i<3;i++) {
-              const el = $$('pwS'+(i+1));
-              if (el) el.textContent = lapSec[i] != null ? fmtMs(lapSec[i]) : '--';
             }
           }
         }
@@ -1291,6 +1376,7 @@ init();
   document.addEventListener('DOMContentLoaded',()=>{
     const titles = {
       live:['Live Telemetrie','Echtzeit-Daten von Mäher & Bridge'],
+      detail:['Detail','Verlauf, Stints & Rundentabelle des aktiven Rennens'],
       track:['Strecke','Aufnahme, Sektoren & gespeicherte Strecken'],
       races:['Rennen','Erstellen, starten und auswerten'],
       drivers:['Fahrer','Statistiken & Gesamtstrecke'],
