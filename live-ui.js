@@ -392,8 +392,6 @@ function updateLiveUi() {
     setText('detailHeroPackets', state.connection.packets);
     // Live delta
     updateLiveDelta();
-    // Pit-wall
-    updatePitWall();
   } catch (e) { console.warn('updateLiveUi:', e); }
 }
 function renderStints(r) {
@@ -423,6 +421,7 @@ function animLoop() {
   drawTrack();
   drawLiveCharts();
   updateLiveKPIs();   // KPI-Karten jetzt im 60fps-Loop für flüssige Updates
+  updatePitWall();    // Pit Wall ebenfalls 60fps (laufende Rundenzeit/Delta); no-op wenn zu
   requestAnimationFrame(animLoop);
 }
 // Beide UI-Loops (200ms-Backup-Tick + 1Hz-Loop) -- werden von init() in
@@ -430,7 +429,7 @@ function animLoop() {
 function initLiveUiLoops() {
 // Backup tick (läuft auch wenn rAF im Hintergrund-Iframe pausiert)
 setInterval(() => {
-  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); } catch(e){}
+  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); } catch(e){}
 }, 200);
 
 // 1Hz UI loop
