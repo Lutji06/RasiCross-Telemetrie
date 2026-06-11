@@ -1285,7 +1285,10 @@ init();
         const unit = tk.querySelector('small')?.textContent?.trim() || 'km';
         if (numMatch) txt('footerKm', numMatch[0] + ' ' + unit);
       }
-      // Pit-Wall braucht zusätzliche Mappings (driver name)
+      // Fahrername im Haupt-Layout spiegeln. Die pw*-Felder gehoeren
+      // allein updatePitWall() (pit-wall.js) -- der fruehere Spiegel hier
+      // ueberschrieb sekuendlich Lap-Hold, Rundenziel und Status-Farbe
+      // (u.a. mit dem Race-Status statt der Verbindung).
       try {
         if (typeof activeRace === 'function') {
           const r = activeRace();
@@ -1294,27 +1297,7 @@ init();
             const last = stints[stints.length-1];
             if (last && !last.endAt) {
               const driver = state.drivers.find(d=>d.id===last.driverId);
-              txt('pwDriver', driver ? driver.name : '--');
               txt('currentDriverName', driver ? driver.name : '--');
-            }
-            const lapCount = stints.reduce((a,s)=>a + (s.laps?.length||0), 0);
-            txt('pwLapCount', lapCount);
-            txt('pwSession', $$('sessionText')?.textContent || '00:00');
-            // Pit-Wall RPM/G/Status
-            const t = state.telemetry;
-            txt('pwRpm', Math.round(t.rpm).toLocaleString('de-DE'));
-            const g = Math.sqrt(t.gx*t.gx + t.gy*t.gy).toFixed(1);
-            txt('pwG', g);
-            txt('pwSpeed', Math.round(t.speed));
-            txt('pwSpeedMax', Math.round(state.max.speed));
-            txt('pwLap', state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---');
-            txt('pwBestLap', state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---');
-            txt('pwStatus', r.status || '--');
-            // Sektoren
-            const lapSec = state.sectors?.lapSectors || [null,null,null];
-            for(let i=0;i<3;i++) {
-              const el = $$('pwS'+(i+1));
-              if (el) el.textContent = lapSec[i] != null ? fmtMs(lapSec[i]) : '--';
             }
           }
         }
