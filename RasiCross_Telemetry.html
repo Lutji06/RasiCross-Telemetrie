@@ -1937,6 +1937,16 @@ body.diagnose-on .diagnose-only{display:block}
    ============================================================ */
 #pitwallOverlay{
   position:fixed;inset:0;z-index:300;
+  /* Buehne: rendert immer dark. Theme-Variablen lokal festgenagelt, sonst
+     unsichtbarer Text im Light-/Outdoor-Theme auf dem dunklen Grund. */
+  --surf:#0e1220;--soft:#161c2e;--soft2:#1d2440;
+  --tx:#e8ecf6;--mut:#6f7796;
+  --bor:rgba(255,255,255,.07);
+  --pr:#c8ff3d;--pr-glow:rgba(200,255,61,.35);
+  --green:#3ee08a;--green-glow:rgba(62,224,138,.3);
+  --orange:#ffa336;
+  --red:#ff5470;--red-glow:rgba(255,84,112,.3);
+  --sh-md:0 8px 28px rgba(0,0,0,.35);
   background:radial-gradient(ellipse at center,#0d1224 0%,#03050b 80%);
   display:none;flex-direction:column;
   padding:18px 24px;
@@ -2012,6 +2022,9 @@ body.diagnose-on .diagnose-only{display:block}
   text-shadow:0 0 32px var(--pr-glow);
   text-align:center;
 }
+/* Lap-Hold: fertige Rundenzeit bleibt 5 s stehen -- weiss, bei PB gruen */
+.pw-side-val.hold{color:var(--tx);text-shadow:none}
+.pw-side-val.hold.pb{color:var(--green);text-shadow:0 0 32px var(--green-glow)}
 .pw-unit{font-family:var(--mono);font-size:13px;color:var(--mut);margin-top:6px;font-weight:500}
 .pw-side-sub{font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:14px;font-weight:500}
 .pw-side-sub b{color:var(--tx);font-weight:700}
@@ -2054,6 +2067,10 @@ body.diagnose-on .diagnose-only{display:block}
 }
 .pw-foot-l{font-family:var(--mono);font-size:9px;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
 .pw-foot-v{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--tx);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Verbindungsstatus aus Distanz lesbar: gruen/orange/rot */
+.pw-foot-v.ok{color:var(--green)}
+.pw-foot-v.warn{color:var(--orange)}
+.pw-foot-v.off{color:var(--red)}
 @media(max-width:1100px){
   #pitwallOverlay .pw-hero{grid-template-columns:1fr;gap:12px}
   .pw-footer{grid-template-columns:repeat(2,1fr)}
@@ -3318,6 +3335,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
     <div class="pw-top-info">
       <span><b id="pwSession">00:00</b> Session</span>
       <span><b id="pwLapCount">0</b> Runden</span>
+      <span id="pwRemainWrap" style="display:none"><b id="pwRemain">--:--</b> Restzeit</span>
     </div>
     <button class="pw-close" id="pwCloseBtn">ESC · Schließen</button>
   </div>

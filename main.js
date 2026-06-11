@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, powerSaveBlocker } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const fsp = fs.promises;
@@ -412,6 +412,22 @@ ipcMain.handle("rasi-update:version", async () => ({
   version: app.getVersion(),
   guard: updateGuardReason(),
 }));
+
+// ============================================================
+//  Display-Standby unterdruecken (Pit-Wall-Modus)
+// ============================================================
+let powerBlockerId = null;
+ipcMain.handle("rasi-power:keepAwake", async (_e, on) => {
+  if (on) {
+    if (powerBlockerId == null || !powerSaveBlocker.isStarted(powerBlockerId)) {
+      powerBlockerId = powerSaveBlocker.start("prevent_display_sleep");
+    }
+  } else if (powerBlockerId != null) {
+    if (powerSaveBlocker.isStarted(powerBlockerId)) powerSaveBlocker.stop(powerBlockerId);
+    powerBlockerId = null;
+  }
+  return powerBlockerId != null;
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({

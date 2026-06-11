@@ -13,20 +13,50 @@
 function openPitWall() {
   $('pitwallOverlay').classList.add('show');
   document.addEventListener('keydown', pwKeyHandler);
+  pwKeepAwake(true);
 }
 function closePitWall() {
   $('pitwallOverlay').classList.remove('show');
   document.removeEventListener('keydown', pwKeyHandler);
+  pwKeepAwake(false);
 }
 function pwKeyHandler(e) { if (e.key === 'Escape' || e.key === 'F11') closePitWall(); }
+// Bildschirm-Standby unterdruecken solange die Pit Wall offen ist:
+// Electron via powerSaveBlocker (rasiPower), Browser via Wake-Lock-API.
+let _pwWakeLock = null;
+async function pwKeepAwake(on) {
+  try {
+    if (window.rasiPower?.keepAwake) { await window.rasiPower.keepAwake(on); return; }
+    if (on && navigator.wakeLock?.request) {
+      _pwWakeLock = await navigator.wakeLock.request('screen');
+    } else if (!on && _pwWakeLock) {
+      await _pwWakeLock.release(); _pwWakeLock = null;
+    }
+  } catch (e) { /* Standby-Schutz ist nice-to-have -- still scheitern */ }
+}
+// Lap-Hold: nach Rundenende bleibt die fertige Zeit 5 s stehen (PB gruen)
+const PW_LAP_HOLD_MS = 5000;
+let _pwSeenRaceId = null;
+let _pwSeenLapCount = 0;
+let _pwHold = null;            // { text, pb, until }
 function updatePitWall() {
   const ov = $('pitwallOverlay');
   if (!ov || !ov.classList.contains('show')) return;
   const t = state.telemetry;
+  const now = Date.now();
   // Top info
-  setText('pwSession', fmtClock(Date.now() - state.sessionStart));
+  setText('pwSession', fmtClock(now - state.sessionStart));
   const r = activeRace();
-  setText('pwLapCount', r ? raceValidLaps(r).length : 0);
+  const validLaps = r ? raceValidLaps(r).length : 0;
+  setText('pwLapCount', r && r.lengthType === 'laps' && r.targetLaps
+    ? `${validLaps} / ${r.targetLaps}` : validLaps);
+  // Restzeit nur bei Zeit-Rennen
+  const remWrap = $('pwRemainWrap');
+  if (remWrap) {
+    const isTimeRace = r && r.lengthType === 'time' && r.durationMs > 0;
+    remWrap.style.display = isTimeRace ? '' : 'none';
+    if (isTimeRace) setText('pwRemain', fmtClock(Math.max(0, r.durationMs - raceElapsedMs(r))));
+  }
   // Speed
   setText('pwSpeed', Math.round(t.speed));
   setText('pwSpeedMax', Math.round(state.max.speed));
@@ -37,13 +67,32 @@ function updatePitWall() {
       dEl.textContent = (state.liveDelta >= 0 ? '+' : '') + (state.liveDelta / 1000).toFixed(3);
       dEl.className = 'pw-delta-val ' + (Math.abs(state.liveDelta) < 50 ? 'same' : state.liveDelta < 0 ? 'faster' : 'slower');
     } else {
-      dEl.textContent = '+0.000';
+      // Ohne Referenzrunde kein "+0.000" vorgaukeln
+      dEl.textContent = '—';
       dEl.className = 'pw-delta-val same';
     }
   }
   setText('pwDeltaRef', state.bestLapMs ? `vs. Runde ${state.bestLapNum} (${fmtMs(state.bestLapMs)})` : 'vs. beste Runde');
-  // Lap
-  setText('pwLap', state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---');
+  // Lap -- neue fertige Runde erkennen und 5 s halten
+  if (r && r.id === _pwSeenRaceId && r.laps.length > _pwSeenLapCount) {
+    const last = r.laps[r.laps.length - 1];
+    _pwHold = { text: fmtMs(last.timeMs), pb: state.bestLapNum === last.number, until: now + PW_LAP_HOLD_MS };
+  } else if (!r || r.id !== _pwSeenRaceId) {
+    _pwHold = null;
+  }
+  _pwSeenRaceId = r ? r.id : null;
+  _pwSeenLapCount = r ? r.laps.length : 0;
+  const lapEl = $('pwLap');
+  if (lapEl) {
+    if (_pwHold && now < _pwHold.until) {
+      lapEl.textContent = _pwHold.text;
+      lapEl.className = 'pw-side-val hold' + (_pwHold.pb ? ' pb' : '');
+    } else {
+      _pwHold = null;
+      lapEl.textContent = state.lapStart ? fmtMs(now - state.lapStart) : '--:--.---';
+      lapEl.className = 'pw-side-val';
+    }
+  }
   setText('pwBestLap', state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---');
   const _tb = theoreticalBestMs();
   setText('pwTheoLap', _tb ? fmtMs(_tb) : '--:--.---');
@@ -65,7 +114,13 @@ function updatePitWall() {
   setText('pwRpm', Math.round(t.rpm).toLocaleString('de-DE'));
   const g = Math.sqrt(t.gx * t.gx + t.gy * t.gy);
   setText('pwG', g.toFixed(1));
-  setText('pwStatus', state.connection.source === 'serial' ? 'USB' : state.connection.source === 'demo' ? 'DEMO' : 'OFF');
+  // Status farbcodiert -- aus Distanz ohne Lesen erkennbar
+  const stEl = $('pwStatus');
+  if (stEl) {
+    const src = state.connection.source;
+    stEl.textContent = src === 'serial' ? 'USB' : src === 'demo' ? 'DEMO' : 'OFF';
+    stEl.className = 'pw-foot-v ' + (src === 'serial' ? 'ok' : src === 'demo' ? 'warn' : 'off');
+  }
 }
 
 // ============================================================

@@ -36,6 +36,11 @@ contextBridge.exposeInMainWorld("rasiUpdate", {
   onStatus: (cb) => { updateStatusCb = typeof cb === "function" ? cb : null; },
 });
 
+contextBridge.exposeInMainWorld("rasiPower", {
+  // Display-Standby unterdruecken solange die Pit Wall offen ist
+  keepAwake: (on) => ipcRenderer.invoke("rasi-power:keepAwake", !!on),
+});
+
 contextBridge.exposeInMainWorld("rasiRec", {
   start:  (headerLine) => ipcRenderer.invoke("rasi-rec:start", headerLine),
   append: (text)       => ipcRenderer.invoke("rasi-rec:append", text),
