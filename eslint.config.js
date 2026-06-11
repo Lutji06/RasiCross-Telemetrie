@@ -106,6 +106,7 @@ const recordingGlobals = {
   setReplaySpeed: 'readonly', toggleReplayPlay: 'readonly',
   renderReplayBar: 'readonly', feedReplayPacket: 'readonly',
   fastForwardTo: 'readonly',
+  raceHasRecording: 'readonly', replayRace: 'readonly',
 };
 
 const bugRules = {
@@ -166,7 +167,8 @@ module.exports = [
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
                  loadSavedTrack: 'readonly', updateSectorPanel: 'readonly',
-                 drawChart: 'readonly', renderDriverOptions: 'readonly' },
+                 drawChart: 'readonly', renderDriverOptions: 'readonly',
+                 raceHasRecording: 'readonly' },
     },
     rules: bugRules,
   },

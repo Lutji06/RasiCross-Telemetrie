@@ -2226,6 +2226,14 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 #audioBtn.muted .ic-audio-on{display:none}
 #audioBtn.muted .ic-audio-off{display:block}
 
+/* Replay-Play-Button: Play/Pause als SVG, Zustand via .paused */
+#rpPlayBtn .ic-rp-play{display:none}
+#rpPlayBtn.paused .ic-rp-play{display:block}
+#rpPlayBtn.paused .ic-rp-pause{display:none}
+
+/* Hero-Kacheln im Light-Theme: weisse 3%-Fuellung waere unsichtbar */
+[data-theme=light] .pw-tel{background:var(--surf)}
+
 /* Statusbar-Icons (SVG statt Text-Symbole) */
 .statusbar svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-1.5px;margin-right:3px}
 
@@ -3556,7 +3564,10 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 </div>
 
 <div id="replayBar" class="replay-bar hidden">
-  <button class="btn ghost" id="rpPlayBtn">⏸</button>
+  <button class="btn ghost" id="rpPlayBtn" title="Wiedergabe / Pause">
+    <svg class="ic-rp-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" style="fill:currentColor"/></svg>
+    <svg class="ic-rp-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>
+  </button>
   <span class="rp-seek-wrap"><span id="rpDriftStrip" class="rp-drift-strip"></span><span id="rpRollStrip" class="rp-roll-strip"></span><input type="range" id="rpSeek" class="rp-seek" min="0" max="1000" value="0"></span>
   <span class="rp-time"><b id="rpElapsed">00:00</b> / <b id="rpTotal">00:00</b></span>
   <span class="rp-time" title="Drift-Zeitanteil · stärkster Index">Drift <b id="rpDrift">–</b></span>

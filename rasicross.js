@@ -1224,6 +1224,7 @@ function init() {
     endRace:          () => endRace(false),
     toggleRaceExpand: id => toggleRaceExpand(id),
     deleteRace:       id => deleteRace(id),
+    replayRace:       id => replayRace(id),
   };
   const handleActionClick = (e) => {
     const el = e.target.closest('[data-action]');

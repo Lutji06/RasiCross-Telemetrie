@@ -293,6 +293,7 @@ function renderRaces() {
         <div class="race-card-actions">
           ${!isActive ? `<button class="btn primary" data-action="setActiveRace" data-id="${r.id}" ${anotherRunning ? 'disabled title="Anderes Rennen läuft noch"' : ''}>Aktivieren</button>` : ''}
           ${(r.status === 'running' || r.status === 'paused') && isActive ? `<button class="btn danger" data-action="endRace">Beenden</button>` : ''}
+          ${(r.status === 'finished' || r.status === 'finished_auto') ? `<button class="btn blue" data-action="replayRace" data-id="${r.id}" ${raceHasRecording(r) ? '' : 'disabled title="Keine Aufnahme zu diesem Rennen in dieser Sitzung"'}><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" style="fill:currentColor"/></svg>Replay</button>` : ''}
           <button class="btn ghost expand-btn" data-action="toggleRaceExpand" data-id="${r.id}">
             ${isExpanded ? '▲ Weniger' : '▼ Details'}
           </button>
