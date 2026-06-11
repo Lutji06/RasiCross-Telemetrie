@@ -61,7 +61,7 @@ const gaugesGlobals = {
 const trackGlobals = {
   startTrackScan: 'readonly', finishTrackScan: 'readonly', clearTrack: 'readonly',
   updateBounds: 'readonly', onGpsUpdate: 'readonly', recomputeTrackBounds: 'readonly',
-  saveCurrentTrack: 'readonly',
+  saveCurrentTrack: 'readonly', syncSectorBestToTrack: 'readonly',
   loadSavedTrack: 'readonly', deleteSavedTrack: 'readonly',
   refreshTrackTileStatus: 'readonly', startTrackTileCache: 'readonly',
   renderSavedTracks: 'readonly', openTrackEditor: 'readonly',

@@ -64,6 +64,7 @@ function clearTrack() {
   state.startGate = { enabled: false, lat: 0, lon: 0, heading: 0, width: 14 };
   state.sectors.boundaries = [null, null];
   state.sectors.manual = false;
+  state.sectors.best = [null, null, null];   // Bests gelten pro Strecke
   $('sectorPanel').style.display = 'none';
   setText('scanModePill', 'Manuell');
   setText('scanStateValue', 'Warte auf GPS');
@@ -152,6 +153,7 @@ async function saveCurrentTrack() {
     points: [...state.track.points], bounds: { ...state.track.bounds },
     startGate: { ...state.startGate },
     sectorBoundaries: [...state.sectors.boundaries],
+    sectorBest: [...state.sectors.best],
     totalDistance: state.track.totalDistance,
     maxDistFromStart: state.track.maxDistFromStart,
     closed: state.track.closed
@@ -168,6 +170,12 @@ async function saveCurrentTrack() {
     }
   } catch (e) { /* silent — manual button is the fallback */ }
 }
+// Sektor-Bests gehoeren zur Strecke: nach jedem neuen Best in die aktive
+// gespeicherte Strecke spiegeln, damit sie Streckenwechsel ueberleben.
+function syncSectorBestToTrack() {
+  const t = state.savedTracks.find(x => x.id === state.activeTrackId);
+  if (t) t.sectorBest = [...state.sectors.best];
+}
 function loadSavedTrack(id) {
   const t = state.savedTracks.find(x => x.id === id);
   if (!t) return;
@@ -181,6 +189,8 @@ function loadSavedTrack(id) {
     state.sectors.boundaries = [...t.sectorBoundaries];
     state.sectors.manual = !!t.sectorBoundaries.some(b => b);
   }
+  // Sektor-Bests (und damit die theoretische Bestrunde) gelten pro Strecke
+  state.sectors.best = Array.isArray(t.sectorBest) ? [...t.sectorBest] : [null, null, null];
   state.activeTrackId = id;
   setText('gateSizeText', (state.startGate.width || 14) + 'm');
   setText('scanStateValue', 'Geladen: ' + t.name);
@@ -699,6 +709,8 @@ function checkSectorCrossings(lat, lon) {
         if (s.best[i] == null || sectorMs < s.best[i]) {
           s.best[i] = sectorMs;
           rcAudio.sectorBest();
+          syncSectorBestToTrack();
+          saveDataDebounced();
         }
         updateSectorPanel();
         break;
@@ -738,7 +750,7 @@ function updateSectorPanel() {
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
       recomputeTrackBounds,
-      saveCurrentTrack, loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
+      saveCurrentTrack, syncSectorBestToTrack, loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
       startTrackTileCache, renderSavedTracks, openTrackEditor, closeTrackEditor,
       editorClickTarget, handleEditorClick, saveEditor, calcAutoSectors,
       clearManualSectors, activateSectorClick, handleTrackCanvasClick,

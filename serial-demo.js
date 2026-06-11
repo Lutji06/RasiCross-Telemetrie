@@ -261,6 +261,7 @@ function generateDemoTrack() {
   state.track.points = pts;
   state.track.bounds = null;
   pts.forEach(p => updateBounds(p.lat, p.lon));
+  state.sectors.best = [null, null, null];   // neue (Demo-)Strecke -> eigene Bests
   state.track.closed = true;
   state.track.totalDistance = 0;
   for (let i = 1; i < pts.length; i++) {

@@ -52,6 +52,7 @@ function triggerLap() {
         if (s.best[2] == null || s3Ms < s.best[2]) {
           s.best[2] = s3Ms;
           rcAudio.sectorBest();
+          syncSectorBestToTrack();
         }
       }
       lap.sectors = s.lapSectors.slice(0, 3);    // [s1,s2,s3] ms (null ohne Sektorgrenzen)
