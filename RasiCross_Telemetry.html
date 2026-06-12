@@ -1449,7 +1449,9 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
    aspect-ratio aus der Basisregel), statt am Modulrand abgeschnitten zu
    werden. Unter der Mindesthoehe greift der Scroll-Fallback von
    main.content (siehe body[data-tab="live"]-Block). */
-.pw-live-side .pw-g3d canvas{flex:0 1 auto;height:200px;min-height:96px;width:auto;aspect-ratio:1/1;max-width:100%}
+/* :is(#id) hebt die Spezifitaet ueber die Basisregel #gMeterCanvas
+   (width:100%) -- sonst gewinnt deren Breite und der Gauge wird oval. */
+.pw-live-side .pw-g3d :is(#gMeterCanvas, #gMeter3dCanvas){flex:0 1 auto;height:200px;min-height:96px;width:auto;aspect-ratio:1/1;max-width:100%}
 
 /* ------------------------------------------------------------
    Live no-scroll: wenn Live-Tab aktiv (body[data-tab=live]),
@@ -1468,7 +1470,10 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   body[data-tab="live"] main.content{
     flex:1;min-height:0;overflow:auto;   /* faellt der Platz knapp aus: scrollen statt abschneiden */
     padding-top:18px;padding-bottom:14px;
-    display:flex;flex-direction:column;justify-content:center;
+    display:flex;flex-direction:column;
+    /* safe center: bei Ueberlauf auf start ausweichen, sonst wird der
+       obere Teil unscrollbar und unten schneidet es trotz overflow:auto ab */
+    justify-content:safe center;
   }
   body[data-tab="live"] #tab-live.active{
     display:flex;flex-direction:column;gap:12px;
