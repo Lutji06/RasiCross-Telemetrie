@@ -106,7 +106,7 @@ class Config:
     # Batterie (A3) — None = Feature aus. NUR ADC1-Pins (GPIO 32-39);
     # ADC2 ist bei aktivem WiFi/ESP-NOW gesperrt!
     BATT_ADC_PIN    = 34       # z.B. 34. None -> Battery-Klasse inert
-    BATT_DIVIDER    = 11.0       # externer Teiler Vin/Vadc (z.B. 100k/10k)
+    BATT_DIVIDER    = 2.0      # externer Teiler Vin/Vadc (2x 10k: halbiert)
     BATT_CELLS      = 1          # Zellen in SERIE (Pack-Spannung -> Per-Cell + SoC).
     #                              Parallel verschaltete Zellen zaehlen NICHT: 2x 18650
     #                              parallel = 1S = 1. Per Dashboard ueberschreibbar.
@@ -970,6 +970,17 @@ class ESPNowLink:
             self._sta.disconnect()
         except Exception:
             pass
+
+        # Modem-Powersave AUS: Seit IDF 5.x (MicroPython >= 1.28) legt das
+        # STA-Interface das Funkmodul ohne AP-Verbindung schlafen und
+        # verpasst dann eingehende ESP-NOW-Pakete -- Senden geht weiter,
+        # aber der Rueckkanal (config/display/pit_call) stirbt nach kurzer
+        # Zeit. PM_NONE haelt den Empfaenger dauerhaft wach.
+        try:
+            self._sta.config(pm=self._sta.PM_NONE)
+            log("init", "WiFi-Powersave aus (PM_NONE)")
+        except Exception as e:
+            log("init", "WARNUNG: PM_NONE nicht setzbar:", e)
 
         # Reiner Long-Range-Modus: WIFI_PROTOCOL_LR (8) ohne 11b/g/n.
         # Maximale Reichweite, ~250 kbit/s, immun gegen normalen WLAN-Verkehr.

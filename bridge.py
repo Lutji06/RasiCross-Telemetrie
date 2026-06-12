@@ -364,6 +364,16 @@ class Bridge:
         except Exception:
             pass
 
+        # Modem-Powersave AUS: Seit IDF 5.x (MicroPython >= 1.28) legt das
+        # STA-Interface das Funkmodul ohne AP-Verbindung schlafen und
+        # verpasst dann eingehende ESP-NOW-Pakete. PM_NONE haelt den
+        # Empfaenger dauerhaft wach (Telemetrie-Empfang = Kernaufgabe).
+        try:
+            self.wlan.config(pm=self.wlan.PM_NONE)
+            print("[init] WiFi-Powersave aus (PM_NONE)")
+        except Exception as e:
+            print("[init] WARNUNG: PM_NONE nicht setzbar:", e)
+
         # Reiner Long-Range-Modus (250 kbit/s, max Reichweite, LR-only)
         try:
             self.wlan.config(protocol=8)
@@ -623,22 +633,32 @@ class Bridge:
                         "detail": str(e)})
             return
 
-        # Steuer-Pakete an den Kart weiterleiten
+        # Steuer-Pakete an den Kart weiterleiten. WICHTIG: die rohe
+        # USB-Zeile durchreichen, nicht neu serialisieren -- ujson.dumps
+        # fuegt Leerzeichen ein und schiebt das 13-Felder-config ueber
+        # das 250-Byte-ESP-NOW-Limit (228 B kompakt -> 255 B ujson).
         if t in ("display", "config", "pit_call", "imu_calibrate", "config_get"):
-            self._forward_to_kart(t, data)
+            self._forward_to_kart(t, data, line)
             return
 
         # Unbekannter Typ
         jprint({"type": "bridge_error", "error": "unknown_type",
                 "received": str(t)})
 
-    def _forward_to_kart(self, kind, data):
+    def _forward_to_kart(self, kind, data, raw=None):
         if not self.kart_host:
             jprint({"type": "bridge_error", "error": "no_kart_known",
                     "kind": kind})
             return
+        # Rohe Dashboard-Zeile bevorzugen (kompaktes JSON.stringify);
+        # ujson.dumps nur als Fallback fuer intern erzeugte Pakete.
+        payload = raw if raw is not None else ujson.dumps(data)
+        if len(payload) > 250:
+            jprint({"type": "bridge_error", "error": "payload_too_long",
+                    "kind": kind, "bytes": len(payload)})
+            return
         try:
-            self.esp.send(self.kart_host, ujson.dumps(data), False)
+            self.esp.send(self.kart_host, payload, False)
             # Hinweis ans Dashboard dass weitergeleitet wurde (nur fuer 'display' optional)
             # Bridge-Display informieren bei Pit-Call
             if kind == "pit_call":
