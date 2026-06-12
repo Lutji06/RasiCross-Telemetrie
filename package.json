@@ -138,7 +138,7 @@
       "category": "Utility",
       "synopsis": "Live-Telemetrie-Dashboard fuer ESP32-Kart-Sender"
     },
-    "npmRebuild": true
+    "npmRebuild": false
   },
   "dependencies": {
     "@serialport/parser-readline": "^13.0.0",
