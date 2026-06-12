@@ -359,6 +359,17 @@ module.exports = [
     rules: bugRules,
   },
 
+  // rec-store.js — IndexedDB-Wrapper (window.RasiRecStore), reines IO
+  {
+    files: ['rec-store.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser },
+    },
+    rules: bugRules,
+  },
+
   // tile-renderer.js — UMD module, uses window/document/fetch + window.rasiTiles
   {
     files: ['tile-renderer.js'],
