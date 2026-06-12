@@ -1440,8 +1440,16 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .pw-live-side #sectorPanel .sector-delta{font-size:11px}
 
 /* G/3D card on Live — fills remaining vertical space */
-.pw-live-side .pw-g3d{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;overflow:hidden}
-.pw-live-side .pw-g3d canvas{max-width:100%;max-height:100%;height:auto}
+/* min-height = ehrliches Inhaltsminimum (Toggle + Canvas-Minimum + Roll +
+   Readout): darunter kollabiert das Modul nicht weiter, sondern die Seite
+   waechst und main.content scrollt (overflow:hidden wuerde sonst den
+   Canvas abschneiden, weil es das automatische Flex-Minimum auf 0 setzt). */
+.pw-live-side .pw-g3d{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:205px;overflow:hidden}
+/* Canvas schrumpft mit der verfuegbaren Spaltenhoehe (bleibt rund dank
+   aspect-ratio aus der Basisregel), statt am Modulrand abgeschnitten zu
+   werden. Unter der Mindesthoehe greift der Scroll-Fallback von
+   main.content (siehe body[data-tab="live"]-Block). */
+.pw-live-side .pw-g3d canvas{flex:0 1 auto;height:200px;min-height:96px;width:auto;aspect-ratio:1/1;max-width:100%}
 
 /* ------------------------------------------------------------
    Live no-scroll: wenn Live-Tab aktiv (body[data-tab=live]),
