@@ -86,6 +86,9 @@ const state = {
   expandedRaceIds: {},
   // UI
   gateFlashUntil: 0,
+  // Motorlaufzeit/Wartung (Phase 27): totalMs/lastServiceMs/serviceIntervalH
+  // werden persistiert; lastAt/_unsavedMs/_warned sind Session-Zustand.
+  engine: { totalMs: 0, lastServiceMs: 0, serviceIntervalH: 10, lastAt: null, _unsavedMs: 0, _warned: false },
   // Recording / Replay (NEVER persisted — see saveData guard)
   recording: { armed: false, buf: [], startWall: null, overflowed: false },
   replay: { active: false, packets: [], idx: 0, virtualMs: 0, durationMs: 0,
@@ -143,7 +146,8 @@ function saveData() {
       drivers: state.drivers, races: state.races.map(_persistRace), savedTracks: state.savedTracks,
       activeRaceId: state.activeRaceId, selectedRaceId: state.selectedRaceId,
       activeTrackId: state.activeTrackId,
-      track: state.track, startGate: state.startGate, sectors: { boundaries: state.sectors.boundaries, manual: state.sectors.manual, best: state.sectors.best }
+      track: state.track, startGate: state.startGate, sectors: { boundaries: state.sectors.boundaries, manual: state.sectors.manual, best: state.sectors.best },
+      engine: { totalMs: state.engine.totalMs, lastServiceMs: state.engine.lastServiceMs, serviceIntervalH: state.engine.serviceIntervalH }
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     setText('storageState', 'Gespeichert ' + logTime());
@@ -184,6 +188,11 @@ function loadData() {
       if (Array.isArray(d.sectors.boundaries)) state.sectors.boundaries = d.sectors.boundaries;
       if (typeof d.sectors.manual === 'boolean') state.sectors.manual = d.sectors.manual;
       if (Array.isArray(d.sectors.best)) state.sectors.best = d.sectors.best;
+    }
+    if (d.engine) {
+      state.engine.totalMs = Number(d.engine.totalMs) || 0;
+      state.engine.lastServiceMs = Number(d.engine.lastServiceMs) || 0;
+      if (d.engine.serviceIntervalH != null) state.engine.serviceIntervalH = Number(d.engine.serviceIntervalH) || 0;
     }
   } catch (e) { console.warn('loadData:', e); }
 }
@@ -413,6 +422,14 @@ const ESP_CFG_FIELDS = [
   ['espBattCal', 'bcal'], ['espRpmCeiling', 'rcl'], ['espRpmAlpha', 'ra'],
   ['espPageMs', 'pm'],
 ];
+// Motorlaufzeit-Anzeigen (Einstellungen -> ESP32/Hardware). Wird von
+// loadSettingsToUi und dem 1-Hz-UI-Loop (live-ui.js) aktualisiert.
+function updateEngineUi() {
+  setText('engineHoursText', RasiEngine.hoursText(state.engine.totalMs));
+  setText('engineSinceServiceText',
+    RasiEngine.hoursText(RasiEngine.sinceServiceMs(state.engine.totalMs, state.engine.lastServiceMs)));
+}
+
 let _espAckTimer = null;
 function applyEspConfigAck(d) {
   clearTimeout(_espAckTimer);
@@ -452,6 +469,8 @@ function loadSettingsToUi() {
     updateTilesUrlHint();
     applyTilesPresetFromUrl();
   }
+  if ($('setServiceIntervalH')) $('setServiceIntervalH').value = state.engine.serviceIntervalH;
+  updateEngineUi();
   if (typeof showSettingsGroup === 'function') {
     showSettingsGroup((state.settings && state.settings.uiActiveGroup) || 'dashboard');
   }
@@ -494,6 +513,7 @@ function saveSettingsFromUi() {
   if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
   if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
   if ($('setTilesUrl')) state.settings.tiles.urlTemplate = ($('setTilesUrl').value || '').trim();
+  state.engine.serviceIntervalH = Math.max(0, Math.min(500, Number($('setServiceIntervalH')?.value) || 0));
   loadSettingsToUi();
   saveData();
   flashSettingsSaved();
@@ -632,6 +652,25 @@ function processTelemetry(d) {
     // Calibrated values
     const speed = Math.max(0, Number(d.speed) || 0);
     const rpm = Math.max(0, Number(d.rpm) || 0);
+    // Motorlaufzeit (Phase 27): nur echte Hardware-Pakete zaehlen --
+    // Demo/Replay wuerden den Wartungszaehler verfaelschen.
+    if (state.connection.source === 'serial' && !state.replay.active) {
+      const _eng = RasiEngine.engineStep(state.engine, rpm, Date.now());
+      state.engine.totalMs = _eng.totalMs;
+      state.engine.lastAt = _eng.lastAt;
+      state.engine._unsavedMs += _eng.addedMs;
+      if (state.engine._unsavedMs >= 60000) {   // 1x pro Motor-Minute persistieren
+        state.engine._unsavedMs = 0;
+        saveDataDebounced();
+      }
+      if (!state.engine._warned
+          && RasiEngine.serviceDue(state.engine.totalMs, state.engine.lastServiceMs, state.engine.serviceIntervalH)) {
+        state.engine._warned = true;
+        rcToast('🔧 Wartung fällig — '
+          + RasiEngine.hoursText(RasiEngine.sinceServiceMs(state.engine.totalMs, state.engine.lastServiceMs))
+          + ' seit letzter Wartung', 6000);
+      }
+    }
     let gx = (Number(d.gx) || 0) - state.calibration.gxZero;
     let gy = (Number(d.gy) || 0) - state.calibration.gyZero;
     const gz = Number(d.gz) || 0;                  // Accel-Z (g), jedes Paket
@@ -1155,6 +1194,14 @@ function init() {
     } catch (e) {
       setText('espSendStatus', '✗ Fehler');
     }
+  };
+  $('serviceDoneBtn').onclick = async () => {
+    if (!await rcConfirm('Wartungszähler zurücksetzen? Seit-letzter-Wartung beginnt wieder bei 0.', 'Wartung', 'Zurücksetzen')) return;
+    state.engine.lastServiceMs = state.engine.totalMs;
+    state.engine._warned = false;
+    saveData();
+    updateEngineUi();
+    rcToast('🔧 Wartung vermerkt');
   };
   $('exportAllBtn').onclick = exportAll;
   $('importAllBtn').onclick = () => $('importAllFile').click();

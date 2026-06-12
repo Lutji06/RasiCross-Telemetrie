@@ -397,6 +397,8 @@ function updateLiveUi() {
     setText('detailHeroPackets', state.connection.packets);
     // Live delta
     updateLiveDelta();
+    // Motorlaufzeit-Anzeige (Einstellungen) im 1-Hz-Takt aktuell halten
+    updateEngineUi();
   } catch (e) { console.warn('updateLiveUi:', e); }
 }
 function renderStints(r) {

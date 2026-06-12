@@ -17,7 +17,8 @@ function exportAll() {
     drivers: state.drivers, races: state.races,
     savedTracks: state.savedTracks,
     track: state.track, startGate: state.startGate,
-    sectors: state.sectors
+    sectors: state.sectors,
+    engine: { totalMs: state.engine.totalMs, lastServiceMs: state.engine.lastServiceMs, serviceIntervalH: state.engine.serviceIntervalH }
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -39,6 +40,11 @@ function importAll(file) {
       if (Array.isArray(d.drivers)) state.drivers = d.drivers;
       if (Array.isArray(d.races)) state.races = d.races;
       if (Array.isArray(d.savedTracks)) state.savedTracks = d.savedTracks;
+      if (d.engine) {
+        state.engine.totalMs = Number(d.engine.totalMs) || 0;
+        state.engine.lastServiceMs = Number(d.engine.lastServiceMs) || 0;
+        if (d.engine.serviceIntervalH != null) state.engine.serviceIntervalH = Number(d.engine.serviceIntervalH) || 0;
+      }
       saveData();
       location.reload();
     } catch (e) { rcAlert('Import fehlgeschlagen:\n' + e.message); }
