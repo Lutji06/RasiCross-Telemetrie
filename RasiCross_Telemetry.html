@@ -3296,6 +3296,30 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <div class="settings-row-label"><span class="settings-row-name">Akkuzellen in Reihe</span><span class="settings-row-desc">Anzahl LiPo-Zellen (cells in series)</span></div>
           <input type="number" id="espBattCells" value="1" min="1" max="14">
         </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Akku Warn-Schwelle</span><span class="settings-row-desc">Warnung ab dieser Spannung pro Zelle (V)</span></div>
+          <input type="number" id="espBattWarnV" value="3.5" min="2.5" max="4.4" step="0.05">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Akku Kritisch-Schwelle</span><span class="settings-row-desc">Kritisch ab dieser Spannung pro Zelle (V)</span></div>
+          <input type="number" id="espBattCritV" value="3.3" min="2.0" max="4.4" step="0.05">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Akku Feinkalibrierung</span><span class="settings-row-desc">Multiplikator auf die gemessene Spannung (Abgleich mit Multimeter)</span></div>
+          <input type="number" id="espBattCal" value="1.0" min="0.5" max="2.0" step="0.01">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">RPM Glitch-Schwelle</span><span class="settings-row-desc">Flanken oberhalb dieser Drehzahl gelten als Störimpuls (Zünd-EMI); 0 = Filter aus</span></div>
+          <input type="number" id="espRpmCeiling" value="16000" min="0" max="30000" step="500">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">RPM-Glättung</span><span class="settings-row-desc">EMA-Gewicht des neuen Werts: 1 = ungefiltert, klein = träge</span></div>
+          <input type="number" id="espRpmAlpha" value="0.25" min="0.05" max="1" step="0.05">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">OLED Seitenwechsel</span><span class="settings-row-desc">Auto-Seitenwechsel des Kart-Displays (ms)</span></div>
+          <input type="number" id="espPageMs" value="4000" min="1000" max="20000" step="500">
+        </div>
         <div class="row" style="margin:6px 0 4px"><button class="btn primary" id="espSendBtn" style="flex:1">An ESP32 senden</button></div>
         <p id="espSendStatus" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:6px;text-align:center;min-height:14px"></p>
         <div class="settings-row" style="margin-top:8px">

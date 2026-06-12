@@ -130,7 +130,7 @@ class Config:
     MAX_RPM         = 6000       # Shift-Light Schwelle
     RPM_WARN        = 5500       # Vorwarnung
 
-    # Filter (0=keine Glättung, 1=eingefroren)
+    # Filter (EMA-Gewicht des neuen Werts: 1=ungefiltert, klein=traege)
     RPM_ALPHA       = 0.25
     RPM_ALPHA_FAST  = 0.60       # Schnellpfad bei grossen Spruengen (Peaks nicht kappen)
     RPM_FAST_DELTA  = 400.0      # ab dieser Abweichung (U/min) greift der Schnellpfad
@@ -263,6 +263,11 @@ class RPMCounter:
 
     def set_ppr(self, ppr):
         self._ppr = max(1, int(ppr))
+        self._min_period_us = self._calc_min_period()
+
+    def recalc_glitch_filter(self):
+        """Nach einer Aenderung von Config.RPM_CEILING aufrufen — die
+        Mindest-Periode ist gecacht, damit die ISR nicht rechnen muss."""
         self._min_period_us = self._calc_min_period()
 
     @property
@@ -1119,7 +1124,7 @@ class ConfigStore:
 
     NAMESPACE = "rasicross"
     KEY       = "config"
-    _BUF_SIZE = 256
+    _BUF_SIZE = 512   # Blob ist mit allen Live-Keys + IMU-Offsets ~300 B
 
     def __init__(self):
         self._nvs = None
@@ -1162,6 +1167,12 @@ class ConfigStore:
                 "wheel_circ_m":   Config.WHEEL_CIRC_M,
                 "gear_ratio":     Config.GEAR_RATIO,
                 "batt_cells":     Config.BATT_CELLS,
+                "rpm_ceiling":    Config.RPM_CEILING,
+                "rpm_alpha":      Config.RPM_ALPHA,
+                "batt_warn_v":    Config.BATT_CELL_WARN,
+                "batt_crit_v":    Config.BATT_CELL_CRIT,
+                "batt_cal":       Config.BATT_CAL,
+                "page_ms":        Config.PAGE_MS,
             }
             if imu is not None:
                 off = imu.offsets
@@ -1210,6 +1221,45 @@ def apply_config(cfg, rpm_counter, store=None, imu=None):
     if "batt_cells" in cfg:
         try:
             Config.BATT_CELLS = max(1, int(cfg["batt_cells"]))
+        except (TypeError, ValueError):
+            pass
+    if "rpm_ceiling" in cfg:
+        try:
+            Config.RPM_CEILING = max(0, int(cfg["rpm_ceiling"]))
+            rpm_counter.recalc_glitch_filter()
+        except (TypeError, ValueError):
+            pass
+    if "rpm_alpha" in cfg:
+        try:
+            a = float(cfg["rpm_alpha"])
+            if 0.01 <= a <= 1.0:
+                Config.RPM_ALPHA = a
+        except (TypeError, ValueError):
+            pass
+    if "batt_warn_v" in cfg:
+        try:
+            v = float(cfg["batt_warn_v"])
+            if 2.5 <= v <= 4.4:
+                Config.BATT_CELL_WARN = v
+        except (TypeError, ValueError):
+            pass
+    if "batt_crit_v" in cfg:
+        try:
+            v = float(cfg["batt_crit_v"])
+            if 2.0 <= v <= 4.4:
+                Config.BATT_CELL_CRIT = v
+        except (TypeError, ValueError):
+            pass
+    if "batt_cal" in cfg:
+        try:
+            v = float(cfg["batt_cal"])
+            if 0.5 <= v <= 2.0:
+                Config.BATT_CAL = v
+        except (TypeError, ValueError):
+            pass
+    if "page_ms" in cfg:
+        try:
+            Config.PAGE_MS = max(1000, int(cfg["page_ms"]))
         except (TypeError, ValueError):
             pass
     log("config", "übernommen:", cfg)
