@@ -97,7 +97,8 @@ var CSV_COLUMNS = [
   ['yaw_dps', 'yaw'], ['roll_dps', 'roll'],
   ['lat', 'lat'], ['lon', 'lon'], ['gps_fix', 'gps_fix'], ['spd_src', 'spd_src'],
   ['rssi_dbm', 'rssi'], ['vbat_v', 'vbat'], ['soc_pct', 'soc'],
-  ['batt_warn', 'batt_warn'], ['mtemp_c', 'mtemp'], ['seq', 'seq'], ['lost', 'lost']
+  ['batt_warn', 'batt_warn'], ['mtemp_c', 'mtemp'], ['glitch', 'glitch'],
+  ['seq', 'seq'], ['lost', 'lost']
 ];
 
 function _csvCell(v) {

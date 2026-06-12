@@ -2656,6 +2656,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
         <div class="pw-diag-row"><span class="pw-diag-label">Az</span>           <span class="pw-diag-val" id="diagAz">0.00</span></div>
         <div class="pw-diag-row"><span class="pw-diag-label">Yaw °/s</span>      <span class="pw-diag-val" id="diagYaw">0</span></div>
         <div class="pw-diag-row"><span class="pw-diag-label">MPU °C</span>       <span class="pw-diag-val" id="diagMpuTemp">--</span></div>
+        <div class="pw-diag-row"><span class="pw-diag-label">Hall-Glitches</span> <span class="pw-diag-val" id="diagGlitch">--</span></div>
         <div class="pw-diag-row"><span class="pw-diag-label">Vbat</span>         <span class="pw-diag-val" id="diagVbat">--</span></div>
         <div class="pw-diag-row"><span class="pw-diag-label">SoC %</span>        <span class="pw-diag-val" id="diagSoc">--</span></div>
         <div class="pw-diag-row"><span class="pw-diag-label">Batt Warn</span>    <span class="pw-diag-val" id="diagBattWarn">0</span></div>
@@ -3326,6 +3327,19 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <div class="settings-row-label"><span class="settings-row-name">OLED-Update Intervall</span><span class="settings-row-desc">Aktualisierungsrate des Bridge-Displays (ms)</span></div>
           <input type="number" id="setDisplayUpdateMs" value="500" min="100" max="2000" step="50" data-autosave>
         </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Motorlaufzeit</span><span class="settings-row-desc">Kumulierte Motorstunden (zählt bei USB-Verbindung und Drehzahl &gt; 500)</span></div>
+          <div class="n" id="engineHoursText" style="font-family:var(--mono)">0,0 h</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Wartungsintervall</span><span class="settings-row-desc">Hinweis nach so vielen Motorstunden seit letzter Wartung (0 = aus)</span></div>
+          <input type="number" id="setServiceIntervalH" value="10" min="0" max="500" step="0.5" data-autosave>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Seit letzter Wartung</span><span class="settings-row-desc">Motorstunden seit dem letzten Wartungs-Reset</span></div>
+          <div class="n" id="engineSinceServiceText" style="font-family:var(--mono)">0,0 h</div>
+        </div>
+        <div class="row" style="margin:6px 0 4px"><button class="btn ghost" id="serviceDoneBtn" style="flex:1">Wartung erledigt — Zähler nullen</button></div>
       </section>
 
       <!-- ── 3D-Modell ─────────────────────────────────────── -->
@@ -3615,6 +3629,8 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 <script src="tile-renderer.js"></script>
 <script src="dom-targets.js"></script>
 <script src="settings.js"></script>
+<script src="engine.js"></script>
+<script src="rec-store.js"></script>
 <script src="vendor/three.min.js"></script>
 <script src="vendor/three.gltf-loader.min.js"></script>
 <script src="karts3d.js"></script>

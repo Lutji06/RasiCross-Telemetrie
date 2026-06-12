@@ -262,7 +262,8 @@ class RPMCounter:
         return self._rpm_smooth
 
     def set_ppr(self, ppr):
-        self._ppr = max(1, int(ppr))
+        # Obergrenze haelt auch das config_ack-JSON kompakt (<250 B ESP-NOW)
+        self._ppr = max(1, min(99, int(ppr)))
         self._min_period_us = self._calc_min_period()
 
     def recalc_glitch_filter(self):
@@ -1047,6 +1048,16 @@ class ESPNowLink:
         self.tx_fail_run += 1
         return False
 
+    def send_json(self, obj):
+        """Kleines JSON-Steuerpaket an die Bridge (kein Binaer-Frame).
+        Die Bridge reicht JSON vom Kart unveraendert ans Dashboard durch."""
+        if not self._bridge_mac:
+            return False
+        try:
+            return bool(self._esp.send(self._bridge_mac, ujson.dumps(obj), True))
+        except Exception:
+            return False
+
     def recv(self):
         """Liest ein eingehendes Paket. Gibt (kind, data) zurueck oder None."""
         try:
@@ -1116,6 +1127,48 @@ class StatusLED:
             pass
 
 
+def config_snapshot(rpm_counter):
+    """Aktuelle Live-Config als dict — eine Quelle fuer den NVS-Blob
+    (ConfigStore) und das config_ack ans Dashboard. OHNE IMU-Offsets,
+    damit das Ack unter dem 250-B-ESP-NOW-Limit bleibt; ConfigStore.save
+    ergaenzt die Offsets selbst."""
+    return {
+        "max_rpm":        Config.MAX_RPM,
+        "warn_rpm":       Config.RPM_WARN,
+        "send_ms":        Config.SEND_MS,
+        "pulses_per_rev": rpm_counter.ppr,
+        "wheel_circ_m":   round(Config.WHEEL_CIRC_M, 4),
+        "gear_ratio":     round(Config.GEAR_RATIO, 3),
+        "batt_cells":     Config.BATT_CELLS,
+        "rpm_ceiling":    Config.RPM_CEILING,
+        "rpm_alpha":      round(Config.RPM_ALPHA, 2),
+        "batt_warn_v":    round(Config.BATT_CELL_WARN, 2),
+        "batt_crit_v":    round(Config.BATT_CELL_CRIT, 2),
+        "batt_cal":       round(Config.BATT_CAL, 3),
+        "page_ms":        Config.PAGE_MS,
+    }
+
+
+# Kompakte Funk-Keys fuers config_ack: die langen NVS-/Dashboard-Keys
+# sprengen das 250-B-ESP-NOW-Limit. Gegenstueck: ESP_CFG_FIELDS in
+# rasicross.js (Dashboard mappt sie zurueck auf die Formular-Inputs).
+_ACK_KEYS = {
+    "max_rpm": "mr", "warn_rpm": "wr", "send_ms": "sm",
+    "pulses_per_rev": "ppr", "wheel_circ_m": "wc", "gear_ratio": "gear",
+    "batt_cells": "bc", "rpm_ceiling": "rcl", "rpm_alpha": "ra",
+    "batt_warn_v": "bwv", "batt_crit_v": "bcv", "batt_cal": "bcal",
+    "page_ms": "pm",
+}
+
+
+def config_ack(rpm_counter):
+    """config_snapshot mit kompakten Funk-Keys + type, sendefertig."""
+    out = {"type": "config_ack"}
+    for k, v in config_snapshot(rpm_counter).items():
+        out[_ACK_KEYS[k]] = v
+    return out
+
+
 class ConfigStore:
     """Persistiert die live aenderbaren Config-Werte im ESP32-NVS, damit
     sie einen Reboot ueberleben (z.B. Watchdog-Reset mitten im Rennen).
@@ -1159,21 +1212,7 @@ class ConfigStore:
         if not self._nvs:
             return
         try:
-            data = {
-                "max_rpm":        Config.MAX_RPM,
-                "warn_rpm":       Config.RPM_WARN,
-                "send_ms":        Config.SEND_MS,
-                "pulses_per_rev": rpm_counter.ppr,
-                "wheel_circ_m":   Config.WHEEL_CIRC_M,
-                "gear_ratio":     Config.GEAR_RATIO,
-                "batt_cells":     Config.BATT_CELLS,
-                "rpm_ceiling":    Config.RPM_CEILING,
-                "rpm_alpha":      Config.RPM_ALPHA,
-                "batt_warn_v":    Config.BATT_CELL_WARN,
-                "batt_crit_v":    Config.BATT_CELL_CRIT,
-                "batt_cal":       Config.BATT_CAL,
-                "page_ms":        Config.PAGE_MS,
-            }
+            data = config_snapshot(rpm_counter)
             if imu is not None:
                 off = imu.offsets
                 data["imu_off_x"] = off[0]
@@ -1188,19 +1227,21 @@ def apply_config(cfg, rpm_counter, store=None, imu=None):
     """Übernimmt eine Config-Nachricht vom Dashboard. Mit store wird der
     neue Stand zusaetzlich ins NVS geschrieben (reboot-fest); imu liefert
     dabei die aktuellen Kalibrier-Offsets, damit sie im Blob erhalten bleiben."""
+    # Obergrenzen: physikalisch sinnvoll UND halten das config_ack-JSON
+    # unter dem 250-B-ESP-NOW-Limit (keine 10-stelligen Werte).
     if "max_rpm" in cfg:
         try:
-            Config.MAX_RPM = max(500, int(cfg["max_rpm"]))
+            Config.MAX_RPM = max(500, min(30000, int(cfg["max_rpm"])))
         except (TypeError, ValueError):
             pass
     if "warn_rpm" in cfg:
         try:
-            Config.RPM_WARN = max(500, int(cfg["warn_rpm"]))
+            Config.RPM_WARN = max(500, min(30000, int(cfg["warn_rpm"])))
         except (TypeError, ValueError):
             pass
     if "send_ms" in cfg:
         try:
-            Config.SEND_MS = max(20, int(cfg["send_ms"]))
+            Config.SEND_MS = max(20, min(5000, int(cfg["send_ms"])))
         except (TypeError, ValueError):
             pass
     if "pulses_per_rev" in cfg:
@@ -1210,22 +1251,22 @@ def apply_config(cfg, rpm_counter, store=None, imu=None):
             pass
     if "wheel_circ_m" in cfg:
         try:
-            Config.WHEEL_CIRC_M = max(0.0, float(cfg["wheel_circ_m"]))
+            Config.WHEEL_CIRC_M = max(0.0, min(10.0, float(cfg["wheel_circ_m"])))
         except (TypeError, ValueError):
             pass
     if "gear_ratio" in cfg:
         try:
-            Config.GEAR_RATIO = max(0.0, float(cfg["gear_ratio"]))
+            Config.GEAR_RATIO = max(0.0, min(100.0, float(cfg["gear_ratio"])))
         except (TypeError, ValueError):
             pass
     if "batt_cells" in cfg:
         try:
-            Config.BATT_CELLS = max(1, int(cfg["batt_cells"]))
+            Config.BATT_CELLS = max(1, min(24, int(cfg["batt_cells"])))
         except (TypeError, ValueError):
             pass
     if "rpm_ceiling" in cfg:
         try:
-            Config.RPM_CEILING = max(0, int(cfg["rpm_ceiling"]))
+            Config.RPM_CEILING = max(0, min(60000, int(cfg["rpm_ceiling"])))
             rpm_counter.recalc_glitch_filter()
         except (TypeError, ValueError):
             pass
@@ -1259,7 +1300,7 @@ def apply_config(cfg, rpm_counter, store=None, imu=None):
             pass
     if "page_ms" in cfg:
         try:
-            Config.PAGE_MS = max(1000, int(cfg["page_ms"]))
+            Config.PAGE_MS = max(1000, min(60000, int(cfg["page_ms"])))
         except (TypeError, ValueError):
             pass
     log("config", "übernommen:", cfg)
@@ -1349,6 +1390,10 @@ def main():
                 display.set_forced_page(page_choice)
             elif kind == "config":
                 apply_config(data, rpm_counter, cfg_store, imu)
+                link.send_json(config_ack(rpm_counter))
+            elif kind == "config_get":
+                # Dashboard will den Ist-Stand lesen (z.B. direkt nach Connect)
+                link.send_json(config_ack(rpm_counter))
             elif kind == "pit_call":
                 action = data.get("action", "trigger")
                 if action == "cancel":
@@ -1414,6 +1459,7 @@ def main():
                 "send_ms":  send_interval,   # Dashboard sieht degraded mode
                 "spd_src":  spd_src,         # 'gps'|'wheel'|'none'
                 "imu_cal":  1 if imu.calibrating else 0,
+                "glitch":   rpm_counter.glitches,  # verworfene Stoerflanken (kumulativ)
             }
             if battery.active:
                 packet["batt_warn"] = battery.warn          # 0|1|2

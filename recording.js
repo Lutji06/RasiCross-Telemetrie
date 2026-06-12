@@ -17,7 +17,8 @@ function exportAll() {
     drivers: state.drivers, races: state.races,
     savedTracks: state.savedTracks,
     track: state.track, startGate: state.startGate,
-    sectors: state.sectors
+    sectors: state.sectors,
+    engine: { totalMs: state.engine.totalMs, lastServiceMs: state.engine.lastServiceMs, serviceIntervalH: state.engine.serviceIntervalH }
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -39,6 +40,11 @@ function importAll(file) {
       if (Array.isArray(d.drivers)) state.drivers = d.drivers;
       if (Array.isArray(d.races)) state.races = d.races;
       if (Array.isArray(d.savedTracks)) state.savedTracks = d.savedTracks;
+      if (d.engine) {
+        state.engine.totalMs = Number(d.engine.totalMs) || 0;
+        state.engine.lastServiceMs = Number(d.engine.lastServiceMs) || 0;
+        if (d.engine.serviceIntervalH != null) state.engine.serviceIntervalH = Number(d.engine.serviceIntervalH) || 0;
+      }
       saveData();
       location.reload();
     } catch (e) { rcAlert('Import fehlgeschlagen:\n' + e.message); }
@@ -48,6 +54,9 @@ function importAll(file) {
 async function resetAll() {
   if (!await rcConfirm('Alle Daten unwiderruflich löschen?', 'Zurücksetzen', 'Löschen', true)) return;
   localStorage.removeItem(SAVE_KEY);
+  if (window.RasiRecStore && RasiRecStore.available()) {
+    await RasiRecStore.clear().catch(() => {});
+  }
   location.reload();
 }
 
@@ -354,10 +363,45 @@ function renderReplayBar() {
 // ============================================================
 // RENNEN-REPLAY: Replay direkt aus dem Sitzungs-Puffer
 // ============================================================
+// ── Persistente Rennen-Aufnahmen (IndexedDB, Phase 27) ──────
+// IDs der Rennen, zu denen eine Aufnahme im RasiRecStore liegt; beim
+// App-Start aus der DB geladen, haelt raceHasRecording synchron.
+let _recStoreIds = new Set();
+function initRecStore() {
+  if (!window.RasiRecStore || !RasiRecStore.available()) return;
+  RasiRecStore.keys().then(ids => {
+    const known = new Set(state.races.map(r => r.id));
+    for (const id of ids) {
+      if (known.has(String(id))) _recStoreIds.add(String(id));
+      else RasiRecStore.remove(id).catch(() => {});   // Waise (Rennen geloescht)
+    }
+    if (_recStoreIds.size) renderRaces();
+  }).catch(() => {});
+}
+// Beim Rennende den Sitzungs-Ausschnitt dauerhaft ablegen.
+function persistRaceRecording(r) {
+  if (!window.RasiRecStore || !RasiRecStore.available()) return;
+  const pk = raceRecordingSlice(r);
+  if (!pk) return;
+  RasiRecStore.put(r.id, pk, { name: r.name }).then(dropped => {
+    _recStoreIds.add(r.id);
+    for (const id of (dropped || [])) _recStoreIds.delete(id);
+    renderRaces();
+  }).catch(() => rcToast('⚠ Aufnahme konnte nicht dauerhaft gespeichert werden', 3500));
+}
+function discardRaceRecording(raceId) {
+  _recStoreIds.delete(raceId);
+  if (window.RasiRecStore && RasiRecStore.available()) {
+    RasiRecStore.remove(raceId).catch(() => {});
+  }
+}
+
 // Schneller Check fuer den Button-Zustand (laeuft bei jedem renderRaces):
-// nur Zeitfenster-Ueberlappung pruefen, NICHT den Puffer filtern.
+// Store-Treffer oder Zeitfenster-Ueberlappung pruefen, NICHT den Puffer filtern.
 function raceHasRecording(r) {
-  if (!r || !r.startedAt || state.replay.active) return false;
+  if (!r || state.replay.active) return false;
+  if (_recStoreIds.has(r.id)) return true;
+  if (!r.startedAt) return false;
   const buf = state.recording.buf;
   if (buf.length < 2) return false;
   const end = r.endedAt || Date.now();
@@ -372,21 +416,30 @@ function raceRecordingSlice(r) {
     !p.type && p._wall >= r.startedAt && p._wall <= end);
   return pk.length >= 2 ? pk : null;
 }
-function replayRace(raceId) {
+async function replayRace(raceId) {
   const r = state.races.find(x => x.id === raceId);
   if (!r) return;
   if (r.status === 'running' || r.status === 'paused') {
     rcToast('Rennen läuft noch — erst beenden', 3000);
     return;
   }
-  const pk = raceRecordingSlice(r);
+  let pk = raceRecordingSlice(r);
+  if (!pk && _recStoreIds.has(raceId)) {
+    const rec = await RasiRecStore.get(raceId).catch(() => null);
+    if (rec && Array.isArray(rec.packets) && rec.packets.length >= 2) pk = rec.packets;
+  }
   if (!pk) {
-    rcToast('Keine Aufnahme zu diesem Rennen in dieser Sitzung', 3000);
+    rcToast('Keine Aufnahme zu diesem Rennen vorhanden', 3000);
     return;
   }
   // t_rel auf den Rennstart rebasen, damit Seek/Dauer bei 0 beginnen.
+  // __t mitsetzen: nextIndexFor/fastForwardTo takten ueber __t (bei
+  // Datei-Replays setzt parseRecording das Feld; hier muessen wir es tun).
   const t0 = Number(pk[0].t_rel) || 0;
-  const packets = pk.map(p => Object.assign({}, p, { t_rel: (Number(p.t_rel) || 0) - t0 }));
+  const packets = pk.map(p => {
+    const t = (Number(p.t_rel) || 0) - t0;
+    return Object.assign({}, p, { t_rel: t, __t: t });
+  });
   enterReplay({ packets, durationMs: packets[packets.length - 1].t_rel });
 }
 
@@ -397,4 +450,5 @@ void [exportAll, importAll, resetAll, updateRecStatus, saveRecording,
       resetReplayDerived, feedReplayPacket, fastForwardTo, renderDriftStrip,
       renderRollStrip, rolloverOnsets, loadRecordingFile, enterReplay,
       replayTick, replaySeek, setReplaySpeed, toggleReplayPlay, exitReplay,
-      renderReplayBar, raceHasRecording, replayRace];
+      renderReplayBar, initRecStore, persistRaceRecording,
+      discardRaceRecording, raceHasRecording, replayRace];

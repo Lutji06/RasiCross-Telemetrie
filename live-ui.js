@@ -340,6 +340,7 @@ function updateDiagnostics() {
   setText('diagAz',      t.gz != null ? Number(t.gz).toFixed(2) : '0.00');
   setText('diagYaw',     imu.yaw != null ? String(Math.round(imu.yaw)) : '0');
   setText('diagMpuTemp', imu.mtemp != null ? String(imu.mtemp) : '--');
+  setText('diagGlitch', (state.raw && state.raw.glitch != null) ? String(state.raw.glitch) : '--');
 
   setText('diagVbat',    (b.present && b.vbat != null) ? b.vbat.toFixed(2) : '--');
   setText('diagSoc',     (b.present && b.soc != null)  ? String(b.soc)     : '--');
@@ -396,6 +397,8 @@ function updateLiveUi() {
     setText('detailHeroPackets', state.connection.packets);
     // Live delta
     updateLiveDelta();
+    // Motorlaufzeit-Anzeige (Einstellungen) im 1-Hz-Takt aktuell halten
+    updateEngineUi();
   } catch (e) { console.warn('updateLiveUi:', e); }
 }
 function renderStints(r) {

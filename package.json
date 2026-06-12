@@ -56,6 +56,8 @@
       "tile-renderer.js",
       "dom-targets.js",
       "settings.js",
+      "engine.js",
+      "rec-store.js",
       "vendor/**",
       "icon.ico"
     ],

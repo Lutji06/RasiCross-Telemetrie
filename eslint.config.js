@@ -106,6 +106,8 @@ const recordingGlobals = {
   setReplaySpeed: 'readonly', toggleReplayPlay: 'readonly',
   renderReplayBar: 'readonly', feedReplayPacket: 'readonly',
   fastForwardTo: 'readonly',
+  initRecStore: 'readonly', persistRaceRecording: 'readonly',
+  discardRaceRecording: 'readonly',
   raceHasRecording: 'readonly', replayRace: 'readonly',
 };
 
@@ -168,7 +170,9 @@ module.exports = [
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
                  loadSavedTrack: 'readonly', updateSectorPanel: 'readonly',
                  drawChart: 'readonly', renderDriverOptions: 'readonly',
-                 raceHasRecording: 'readonly' },
+                 raceHasRecording: 'readonly',
+                 persistRaceRecording: 'readonly',
+                 discardRaceRecording: 'readonly' },
     },
     rules: bugRules,
   },
@@ -245,7 +249,8 @@ module.exports = [
                  _kart3dReady: 'writable', _kart3dLastTick: 'writable',
                  _attLastMs: 'writable',
                  RasiKart3D: 'readonly', RasiDrift: 'readonly',
-                 RasiAttitude: 'readonly', DomTargets: 'readonly' },
+                 RasiAttitude: 'readonly', DomTargets: 'readonly',
+                 RasiEngine: 'readonly', updateEngineUi: 'readonly' },
     },
     rules: bugRules,
   },
@@ -273,7 +278,7 @@ module.exports = [
                  ...trackGlobals, ...lapsDriversGlobals, ...liveUiGlobals,
                  ...gaugesGlobals, ...pitWallGlobals,
                  RasiReplay: 'readonly', RasiDrift: 'readonly',
-                 RasiAttitude: 'readonly',
+                 RasiAttitude: 'readonly', RasiRecStore: 'readonly',
                  processTelemetry: 'readonly', recordPacket: 'readonly',
                  armRecording: 'readonly', driftInputs: 'readonly',
                  // Attitude-Fusion-Tick (deklariert in rasicross.js) --
@@ -310,6 +315,8 @@ module.exports = [
         RasiDrift: 'readonly',
         RasiAttitude: 'readonly',
         RasiSettings: 'readonly',
+        RasiEngine: 'readonly',
+        RasiRecStore: 'readonly',
       },
     },
     rules: bugRules,
@@ -355,6 +362,28 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, module: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
+  // engine.js setzt window.RasiEngine (UMD, Browser + node:test)
+  {
+    files: ['engine.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, module: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
+  // rec-store.js — IndexedDB-Wrapper (window.RasiRecStore), reines IO
+  {
+    files: ['rec-store.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser },
     },
     rules: bugRules,
   },
