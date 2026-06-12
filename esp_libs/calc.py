@@ -57,6 +57,98 @@ def speed_source(gps_fix, wheel_circ_m):
     return 'none'
 
 
+# ---- Drehzahl (Hall am Zuendmagnet) -----------------------------------------
+# Periodenmessung + Glitch-Schwelle + adaptive Glaettung. Reine Mathematik;
+# die ISR-/Timing-Seite lebt im RPMCounter (sender.py).
+
+
+def rpm_from_period_us(period_us, ppr):
+    """Drehzahl aus dem Flankenabstand (µs) der letzten zwei Hall-Pulse.
+
+    Periodenmessung statt Fensterzaehlung: ein 80-ms-Zaehlfenster hat
+    bei 1 Puls/U eine Aufloesung von 750 U/min pro Puls — der Flanken-
+    abstand ist dagegen im Leerlauf auf < 1 U/min genau.
+
+    Liefert 0.0 bei nicht-positiven oder nicht-numerischen Eingaben.
+    """
+    try:
+        period_us = float(period_us)
+        ppr = float(ppr)
+    except (TypeError, ValueError):
+        return 0.0
+    if not (period_us > 0.0) or not (ppr > 0.0):
+        return 0.0  # also maps NaN -> 0.0 (NaN comparisons are always False)
+    return 60000000.0 / (period_us * ppr)
+
+
+def hall_min_period_us(ceiling_rpm, ppr):
+    """Glitch-Schwelle fuer die Hall-ISR in µs.
+
+    Flanken, die schneller aufeinander folgen, als es die physikalisch
+    moegliche Hoechstdrehzahl (ceiling_rpm) erlaubt, sind Stoerimpulse —
+    typisch Zuend-EMI am Magnetschuh oder Prellen — und werden verworfen.
+
+    Liefert die Mindest-Periode als int; 0 = Filter aus (bei ungueltigen
+    Eingaben, damit ein Konfig-Fehler nie echte Pulse verwirft).
+    """
+    try:
+        ceiling_rpm = float(ceiling_rpm)
+        ppr = float(ppr)
+    except (TypeError, ValueError):
+        return 0
+    if not (ceiling_rpm > 0.0) or not (ppr > 0.0):
+        return 0
+    return int(60000000.0 / (ceiling_rpm * ppr))
+
+
+def rpm_ema_step(smooth, raw, alpha, fast_alpha=0.0, fast_delta=0.0):
+    """Ein EMA-Glaettungsschritt mit optionalem Schnellpfad.
+
+    Weicht raw um >= fast_delta vom geglaetteten Wert ab (Beschleunigen,
+    kurz angetippter Peak), folgt der Filter mit fast_alpha statt alpha —
+    so wird die Maximaldrehzahl nicht um Hunderte U/min gekappt, waehrend
+    der Leerlauf ruhig bleibt. fast_alpha/fast_delta <= 0 deaktiviert den
+    Schnellpfad (klassische EMA).
+
+    Robustheit: ungueltiges raw -> smooth (letzter guter Wert bleibt
+    stehen); ungueltiges smooth -> raw; beide ungueltig -> 0.0. alpha
+    wird auf 0..1 geklemmt.
+    """
+    try:
+        s = float(smooth)
+        if s != s:                 # NaN
+            s = None
+    except (TypeError, ValueError):
+        s = None
+    try:
+        r = float(raw)
+        if r != r:                 # NaN
+            r = None
+    except (TypeError, ValueError):
+        r = None
+    if r is None:
+        return s if s is not None else 0.0
+    if s is None:
+        return r
+    try:
+        a = float(alpha)
+    except (TypeError, ValueError):
+        a = 0.0
+    if not (a == a):               # NaN
+        a = 0.0
+    a = 0.0 if a < 0.0 else (1.0 if a > 1.0 else a)
+    try:
+        fa = float(fast_alpha)
+        fd = float(fast_delta)
+    except (TypeError, ValueError):
+        fa = 0.0
+        fd = 0.0
+    if fa > 0.0 and fd > 0.0 and abs(r - s) >= fd:
+        fa = 1.0 if fa > 1.0 else fa
+        a = fa if fa > a else a    # Schnellpfad glaettet nie STAERKER
+    return a * r + (1.0 - a) * s
+
+
 # ---- Batterie (LiPo/Li-ion) ------------------------------------------------
 # Reine Mathematik fuer die A3-Batterietelemetrie. Die ADC-Rohwerte
 # liest sender.py auf dem ESP32; hier nur die testbare Umrechnung.
