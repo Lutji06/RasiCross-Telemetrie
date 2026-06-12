@@ -56,6 +56,8 @@ async function connectSerial() {
       $('serialConnectBtn').textContent = 'Trennen';
       // Request status
       setTimeout(() => { try { window.rasiSerial.writeLine(JSON.stringify({ type: 'request_status' })); } catch {} }, 800);
+      // Ist-Config vom Kart anfragen -> config_ack fuellt das ESP-Formular
+      setTimeout(() => { try { window.rasiSerial.writeLine(JSON.stringify({ type: 'config_get' })); } catch {} }, 1600);
     } else if ('serial' in navigator) {
       const port = await navigator.serial.requestPort();
       await port.open({ baudRate: state.serial.baud });

@@ -402,6 +402,29 @@ function showSettingsGroup(id) {
     s.classList.toggle('active', s.dataset.sgroup === next));
 }
 
+// ESP-Config-Formular <- config_ack: [Input-ID, kompakter Funk-Key].
+// Der Kart bestaetigt jede Config (und antwortet auf config_get) mit den
+// TATSAECHLICH uebernommenen Werten — Gegenstueck: _ACK_KEYS in sender.py.
+// Kompakte Keys, weil die langen Namen das 250-B-ESP-NOW-Limit sprengen.
+const ESP_CFG_FIELDS = [
+  ['espMaxRpm', 'mr'], ['espWarnRpm', 'wr'], ['espSendMs', 'sm'],
+  ['espPulses', 'ppr'], ['espWheelCirc', 'wc'], ['espGearRatio', 'gear'],
+  ['espBattCells', 'bc'], ['espBattWarnV', 'bwv'], ['espBattCritV', 'bcv'],
+  ['espBattCal', 'bcal'], ['espRpmCeiling', 'rcl'], ['espRpmAlpha', 'ra'],
+  ['espPageMs', 'pm'],
+];
+let _espAckTimer = null;
+function applyEspConfigAck(d) {
+  clearTimeout(_espAckTimer);
+  _espAckTimer = null;
+  for (const [id, key] of ESP_CFG_FIELDS) {
+    const el = $(id);
+    if (el && d[key] != null) el.value = d[key];
+  }
+  if (d.bc != null) state.batt.cells = Number(d.bc) || state.batt.cells;
+  setText('espSendStatus', '✓ Vom Kart bestätigt ' + logTime());
+}
+
 function loadSettingsToUi() {
   $('setMaxSpeed').value = state.settings.maxSpeed;
   $('setMaxRpm').value = state.settings.maxRpm;
@@ -589,6 +612,7 @@ function processTelemetry(d) {
       if (d.kart_mac) state.connection.kartMac = d.kart_mac;
       return;
     }
+    if (d.type === 'config_ack') { applyEspConfigAck(d); return; }
     state.connection.packets++;
     state.connection.lastPacketAt = Date.now();
     if (d.from_mac) state.connection.kartMac = d.from_mac;
@@ -1121,7 +1145,11 @@ function init() {
     }
     try {
       window.rasiSerial.writeLine(JSON.stringify(cfg));
-      setText('espSendStatus', '✓ Gesendet');
+      setText('espSendStatus', '✓ Gesendet — warte auf Bestätigung…');
+      clearTimeout(_espAckTimer);
+      _espAckTimer = setTimeout(() => {
+        setText('espSendStatus', '⚠ Keine Bestätigung vom Kart — Funkverbindung prüfen');
+      }, 3000);
     } catch (e) {
       setText('espSendStatus', '✗ Fehler');
     }
