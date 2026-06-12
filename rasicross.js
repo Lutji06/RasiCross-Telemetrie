@@ -963,6 +963,8 @@ function init() {
   initKartModelUploader();
   // Display-Update an den Kart-ESP (Intervall in Settings konfigurierbar)
   restartDisplayUpdateInterval();
+  // Persistierte Rennen-Aufnahmen laden (Replay-Buttons nach Neustart)
+  initRecStore();
   window.addEventListener('resize', resizeCanvases);
   // Header buttons
   $('themeBtn').onclick = toggleTheme;

@@ -106,6 +106,8 @@ const recordingGlobals = {
   setReplaySpeed: 'readonly', toggleReplayPlay: 'readonly',
   renderReplayBar: 'readonly', feedReplayPacket: 'readonly',
   fastForwardTo: 'readonly',
+  initRecStore: 'readonly', persistRaceRecording: 'readonly',
+  discardRaceRecording: 'readonly',
   raceHasRecording: 'readonly', replayRace: 'readonly',
 };
 
@@ -168,7 +170,9 @@ module.exports = [
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
                  loadSavedTrack: 'readonly', updateSectorPanel: 'readonly',
                  drawChart: 'readonly', renderDriverOptions: 'readonly',
-                 raceHasRecording: 'readonly' },
+                 raceHasRecording: 'readonly',
+                 persistRaceRecording: 'readonly',
+                 discardRaceRecording: 'readonly' },
     },
     rules: bugRules,
   },
@@ -273,7 +277,7 @@ module.exports = [
                  ...trackGlobals, ...lapsDriversGlobals, ...liveUiGlobals,
                  ...gaugesGlobals, ...pitWallGlobals,
                  RasiReplay: 'readonly', RasiDrift: 'readonly',
-                 RasiAttitude: 'readonly',
+                 RasiAttitude: 'readonly', RasiRecStore: 'readonly',
                  processTelemetry: 'readonly', recordPacket: 'readonly',
                  armRecording: 'readonly', driftInputs: 'readonly',
                  // Attitude-Fusion-Tick (deklariert in rasicross.js) --
