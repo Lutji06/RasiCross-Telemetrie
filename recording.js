@@ -341,7 +341,7 @@ function exitReplay() {
 }
 function renderReplayBar() {
   const playBtn = $('rpPlayBtn');
-  if (playBtn) playBtn.textContent = state.replay.playing ? '⏸' : '▶';
+  if (playBtn) playBtn.classList.toggle('paused', !state.replay.playing);
   setText('rpElapsed', fmtClock(state.replay.virtualMs));
   setText('rpTotal', fmtClock(state.replay.durationMs));
   const sk = $('rpSeek');
@@ -351,6 +351,45 @@ function renderReplayBar() {
   }
 }
 
+// ============================================================
+// RENNEN-REPLAY: Replay direkt aus dem Sitzungs-Puffer
+// ============================================================
+// Schneller Check fuer den Button-Zustand (laeuft bei jedem renderRaces):
+// nur Zeitfenster-Ueberlappung pruefen, NICHT den Puffer filtern.
+function raceHasRecording(r) {
+  if (!r || !r.startedAt || state.replay.active) return false;
+  const buf = state.recording.buf;
+  if (buf.length < 2) return false;
+  const end = r.endedAt || Date.now();
+  return r.startedAt <= buf[buf.length - 1]._wall && end >= buf[0]._wall;
+}
+// Pakete eines Rennens per Wandzeit (_wall) ausschneiden; Status-/
+// Steuerzeilen (type) raus, wie es parseRecording bei Dateien tut.
+function raceRecordingSlice(r) {
+  if (!r || !r.startedAt) return null;
+  const end = r.endedAt || Date.now();
+  const pk = state.recording.buf.filter(p =>
+    !p.type && p._wall >= r.startedAt && p._wall <= end);
+  return pk.length >= 2 ? pk : null;
+}
+function replayRace(raceId) {
+  const r = state.races.find(x => x.id === raceId);
+  if (!r) return;
+  if (r.status === 'running' || r.status === 'paused') {
+    rcToast('Rennen läuft noch — erst beenden', 3000);
+    return;
+  }
+  const pk = raceRecordingSlice(r);
+  if (!pk) {
+    rcToast('Keine Aufnahme zu diesem Rennen in dieser Sitzung', 3000);
+    return;
+  }
+  // t_rel auf den Rennstart rebasen, damit Seek/Dauer bei 0 beginnen.
+  const t0 = Number(pk[0].t_rel) || 0;
+  const packets = pk.map(p => Object.assign({}, p, { t_rel: (Number(p.t_rel) || 0) - t0 }));
+  enterReplay({ packets, durationMs: packets[packets.length - 1].t_rel });
+}
+
 // Interface-Marker: von rasicross.js (init-Bindings)/serial-demo.js
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [exportAll, importAll, resetAll, updateRecStatus, saveRecording,
@@ -358,4 +397,4 @@ void [exportAll, importAll, resetAll, updateRecStatus, saveRecording,
       resetReplayDerived, feedReplayPacket, fastForwardTo, renderDriftStrip,
       renderRollStrip, rolloverOnsets, loadRecordingFile, enterReplay,
       replayTick, replaySeek, setReplaySpeed, toggleReplayPlay, exitReplay,
-      renderReplayBar];
+      renderReplayBar, raceHasRecording, replayRace];

@@ -72,6 +72,77 @@ class SpeedSource(unittest.TestCase):
         self.assertEqual(calc.speed_source(False, None), 'none')
 
 
+class RpmFromPeriodUs(unittest.TestCase):
+    def test_normal(self):
+        # 20 ms Flankenabstand bei 1 Puls/U -> 3000 U/min
+        self.assertAlmostEqual(calc.rpm_from_period_us(20000, 1), 3000.0, places=6)
+        # 2 Pulse/U halbieren die Drehzahl bei gleicher Periode
+        self.assertAlmostEqual(calc.rpm_from_period_us(20000, 2), 1500.0, places=6)
+        # Leerlauf: 33.333 ms -> 1800 U/min
+        self.assertAlmostEqual(calc.rpm_from_period_us(100000.0 / 3.0, 1),
+                               1800.0, places=3)
+
+    def test_zero_for_bad(self):
+        for bad in (0, -1, None, 'x', float('nan')):
+            self.assertEqual(calc.rpm_from_period_us(bad, 1), 0.0)
+            self.assertEqual(calc.rpm_from_period_us(20000, bad), 0.0)
+
+
+class HallMinPeriodUs(unittest.TestCase):
+    def test_normal(self):
+        # 16000 U/min bei 1 Puls/U -> 3750 µs Mindestabstand
+        self.assertEqual(calc.hall_min_period_us(16000, 1), 3750)
+        self.assertEqual(calc.hall_min_period_us(16000, 2), 1875)
+
+    def test_filter_off_for_bad(self):
+        # Konfig-Fehler duerfen NIE echte Pulse verwerfen -> 0 = Filter aus.
+        for bad in (0, -1, None, 'x', float('nan')):
+            self.assertEqual(calc.hall_min_period_us(bad, 1), 0)
+            self.assertEqual(calc.hall_min_period_us(16000, bad), 0)
+
+    def test_roundtrip_with_rpm(self):
+        # Eine Flanke genau an der Schwelle entspricht RPM_CEILING.
+        p = calc.hall_min_period_us(16000, 1)
+        self.assertAlmostEqual(calc.rpm_from_period_us(p, 1), 16000.0, places=0)
+
+
+class RpmEmaStep(unittest.TestCase):
+    def test_classic_ema(self):
+        self.assertAlmostEqual(calc.rpm_ema_step(1000.0, 2000.0, 0.25),
+                               1250.0, places=6)
+        # Schnellpfad per Default (0/0) deaktiviert
+        self.assertAlmostEqual(calc.rpm_ema_step(0.0, 6000.0, 0.25),
+                               1500.0, places=6)
+
+    def test_fast_path_on_big_jump(self):
+        # |raw - smooth| >= fast_delta -> fast_alpha greift
+        self.assertAlmostEqual(calc.rpm_ema_step(1000.0, 2000.0, 0.25, 0.6, 400.0),
+                               1600.0, places=6)
+        # kleiner Sprung -> klassisches alpha
+        self.assertAlmostEqual(calc.rpm_ema_step(1000.0, 1300.0, 0.25, 0.6, 400.0),
+                               1075.0, places=6)
+
+    def test_fast_path_never_smooths_harder(self):
+        # fast_alpha < alpha darf die Glaettung nicht verschaerfen
+        self.assertAlmostEqual(calc.rpm_ema_step(0.0, 1000.0, 0.5, 0.1, 100.0),
+                               500.0, places=6)
+
+    def test_alpha_clamped(self):
+        self.assertAlmostEqual(calc.rpm_ema_step(100.0, 200.0, 5.0), 200.0, places=6)
+        self.assertAlmostEqual(calc.rpm_ema_step(100.0, 200.0, -1.0), 100.0, places=6)
+
+    def test_junk_inputs(self):
+        # ungueltiges raw -> letzter guter Wert bleibt stehen
+        self.assertEqual(calc.rpm_ema_step(1234.0, None, 0.25), 1234.0)
+        self.assertEqual(calc.rpm_ema_step(1234.0, float('nan'), 0.25), 1234.0)
+        # ungueltiges smooth -> raw
+        self.assertEqual(calc.rpm_ema_step(None, 500.0, 0.25), 500.0)
+        # beides ungueltig -> 0.0
+        self.assertEqual(calc.rpm_ema_step('x', None, 0.25), 0.0)
+        # kaputtes alpha -> haelt den alten Wert (a=0)
+        self.assertEqual(calc.rpm_ema_step(100.0, 200.0, 'x'), 100.0)
+
+
 class BatteryPackV(unittest.TestCase):
     def test_normal(self):
         self.assertAlmostEqual(calc.battery_pack_v(1.0, 11.0, 1.0), 11.0, places=6)

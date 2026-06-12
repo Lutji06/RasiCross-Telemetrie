@@ -130,9 +130,16 @@ class Config:
     MAX_RPM         = 6000       # Shift-Light Schwelle
     RPM_WARN        = 5500       # Vorwarnung
 
-    # Filter (0=keine Glättung, 1=eingefroren)
+    # Filter (EMA-Gewicht des neuen Werts: 1=ungefiltert, klein=traege)
     RPM_ALPHA       = 0.25
+    RPM_ALPHA_FAST  = 0.60       # Schnellpfad bei grossen Spruengen (Peaks nicht kappen)
+    RPM_FAST_DELTA  = 400.0      # ab dieser Abweichung (U/min) greift der Schnellpfad
     G_ALPHA         = 0.30
+
+    # Hall-Glitch-Filter: Flanken oberhalb dieser Drehzahl sind physikalisch
+    # unmoeglich (Zuend-EMI am Magnetschuh, Prellen) -> ISR verwirft sie.
+    RPM_CEILING     = 16000
+    RPM_TIMEOUT_MS  = 600        # so lange keine Flanke -> Motor steht, Drehzahl 0
 
     # Sicherheit
     WATCHDOG_MS     = 8000       # 0 = WDT aus
@@ -156,11 +163,22 @@ def log(topic, *args):
 # ── RPM-Zähler ────────────────────────────────────────────────────────────
 
 class RPMCounter:
-    """Zählt Hall-Pulse via IRQ. Berechnet RPM mit exponentieller Glättung."""
+    """Hall-Pulse via IRQ — Drehzahl per Periodenmessung statt Fensterzaehlung.
+
+    Warum: ein 50-80-ms-Zaehlfenster quantisiert auf 750-1200 U/min pro
+    Puls (bei 1 Puls/U) — der Leerlauf wackelte dadurch um Hunderte U/min.
+    Der Flankenabstand der letzten zwei Pulse ist dagegen < 1 U/min genau.
+    Dazu ISR-seitiger Glitch-Filter gegen Zuend-EMI-Doppeltrigger
+    (RPM_CEILING) und adaptive EMA, damit kurz angetippte Drehzahl-Peaks
+    nicht weggeglaettet werden."""
 
     def __init__(self, pin_nr, pulses_per_rev=1):
-        self._count        = 0
+        self._count        = 0          # akzeptierte Flanken seit letztem update()
+        self._glitches     = 0          # verworfene Stoerflanken (kumulativ)
         self._ppr          = max(1, pulses_per_rev)
+        self._min_period_us = self._calc_min_period()
+        self._last_edge_us = utime.ticks_us()
+        self._period_us    = 0          # Abstand der letzten zwei echten Flanken
         self._last_calc_ms = utime.ticks_ms()
         self._rpm_raw      = 0.0
         self._rpm_smooth   = 0.0
@@ -169,7 +187,25 @@ class RPMCounter:
         self._pin = Pin(pin_nr, Pin.IN, Pin.PULL_UP)
         self._pin.irq(trigger=Pin.IRQ_FALLING, handler=self._isr)
 
+    def _calc_min_period(self):
+        if _HAS_CALC:
+            return calc.hall_min_period_us(Config.RPM_CEILING, self._ppr)
+        if Config.RPM_CEILING > 0:
+            return int(60000000 / (Config.RPM_CEILING * self._ppr))
+        return 0
+
     def _isr(self, _p):
+        # Soft-IRQ: kurz halten, nur Integer-Arithmetik.
+        now = utime.ticks_us()
+        dt = utime.ticks_diff(now, self._last_edge_us)
+        if 0 <= dt < self._min_period_us:
+            # Schneller als RPM_CEILING erlaubt -> Stoerimpuls (Zuend-EMI,
+            # Prellen). last_edge bleibt stehen: die naechste ECHTE Flanke
+            # misst weiter gegen die letzte echte.
+            self._glitches += 1
+            return
+        self._last_edge_us = now
+        self._period_us = dt            # dt < 0 nur nach ticks-Wrap -> update() faengt das
         self._count += 1
 
     def update(self, alpha=None):
@@ -182,34 +218,57 @@ class RPMCounter:
         if dt < 50:
             return self._rpm_smooth
 
-        # Atomarer Read+Reset: ein Hall-IRQ zwischen Lesen und
-        # Nullsetzen wuerde sonst einen Puls verschlucken (RPM
-        # systematisch zu niedrig bei hoher Pulsrate).
+        # Atomarer Read+Reset: ein Hall-IRQ zwischen den Zugriffen wuerde
+        # sonst Zaehler und Periode inkonsistent machen / Pulse verschlucken.
         _irq = disable_irq()
         cnt = self._count
         self._count = 0
+        period_us = self._period_us
+        last_edge_us = self._last_edge_us
         enable_irq(_irq)
         self._total_pulses += cnt
         self._last_calc_ms = now
 
-        if dt > 0 and cnt > 0:
-            self._pulse_hz_raw = cnt / (dt / 1000.0)
+        # Mittlere Pulsrate des Fensters: Semantik unveraendert, speist
+        # weiterhin die Rad-Geschwindigkeit (calc.wheel_speed_kmh).
+        self._pulse_hz_raw = cnt / (dt / 1000.0) if cnt > 0 else 0.0
+
+        if cnt > 0 and period_us > 0:
+            # Periodenmessung: Aufloesung im Leerlauf < 1 U/min statt
+            # 750-1200 U/min pro Fenster-Puls.
+            if _HAS_CALC:
+                self._rpm_raw = calc.rpm_from_period_us(period_us, self._ppr)
+            else:
+                self._rpm_raw = 60000000.0 / (period_us * self._ppr)
+        elif cnt > 0:
+            # period <= 0 (ticks_us-Wrap direkt nach langem Stillstand):
+            # einmalig auf die Fensterrate zurueckfallen.
             self._rpm_raw = (self._pulse_hz_raw / self._ppr) * 60.0
         else:
-            # Kein Puls in diesem Mess-Intervall -> Rohwert 0. dt ist hier im
-            # Normalbetrieb immer ~50 ms (Aufruf-Takt), nie >500 ms; die
-            # fruehere `elif dt > 500`-Bedingung griff darum praktisch nie,
-            # wodurch die RPM beim Anhalten auf dem letzten Wert einfror. Die
-            # EMA-Glaettung in update() laesst die Anzeige jetzt sauber gegen
-            # 0 abklingen.
-            self._rpm_raw = 0.0
-            self._pulse_hz_raw = 0.0
+            # Keine Flanke in diesem Fenster. Bei sehr niedriger Drehzahl
+            # liegt zwischen zwei Pulsen mehr als ein Fenster — den letzten
+            # Wert halten und erst nach RPM_TIMEOUT_MS auf 0 (Motor steht).
+            # Das alte Sofort-Null drueckte den Leerlauf systematisch runter.
+            age_ms = utime.ticks_diff(utime.ticks_us(), last_edge_us) // 1000
+            if age_ms < 0 or age_ms >= Config.RPM_TIMEOUT_MS:
+                self._rpm_raw = 0.0
 
-        self._rpm_smooth = alpha * self._rpm_raw + (1 - alpha) * self._rpm_smooth
+        if _HAS_CALC:
+            self._rpm_smooth = calc.rpm_ema_step(
+                self._rpm_smooth, self._rpm_raw, alpha,
+                Config.RPM_ALPHA_FAST, Config.RPM_FAST_DELTA)
+        else:
+            self._rpm_smooth = alpha * self._rpm_raw + (1 - alpha) * self._rpm_smooth
         return self._rpm_smooth
 
     def set_ppr(self, ppr):
         self._ppr = max(1, int(ppr))
+        self._min_period_us = self._calc_min_period()
+
+    def recalc_glitch_filter(self):
+        """Nach einer Aenderung von Config.RPM_CEILING aufrufen — die
+        Mindest-Periode ist gecacht, damit die ISR nicht rechnen muss."""
+        self._min_period_us = self._calc_min_period()
 
     @property
     def rpm(self):           return self._rpm_smooth
@@ -222,6 +281,9 @@ class RPMCounter:
 
     @property
     def total_pulses(self):  return self._total_pulses
+
+    @property
+    def glitches(self):      return self._glitches
 
 
 # ── Batterie (A3) ─────────────────────────────────────────────────────────
@@ -860,7 +922,14 @@ def page_diag(o, ctx):
     t = "OK" if ctx.get("tx_ok") else "--"
     o.text("GPS {}  TX {}".format(g, t), 0, 16, 1)
     o.text("SPD {:5.1f}".format(ctx.get("speed", 0)), 0, 28, 1)
-    o.text("RPM {:5d}".format(int(ctx.get("rpm", 0))), 0, 40, 1)
+    # !n = vom Glitch-Filter verworfene Stoerflanken (Zuend-EMI).
+    # Steigt der Zaehler im Betrieb stetig, koppelt die Zuendung in die
+    # Hall-Leitung ein -> Verkabelung pruefen (verdrillen, weg vom Zuendkabel).
+    gl = ctx.get("rpm_glitch", 0)
+    if gl:
+        o.text("RPM {:5d} !{}".format(int(ctx.get("rpm", 0)), min(gl, 9999)), 0, 40, 1)
+    else:
+        o.text("RPM {:5d}".format(int(ctx.get("rpm", 0))), 0, 40, 1)
     vbat = ctx.get("vbat")
     if vbat is not None:
         o.text("BAT {:4.1f}V".format(vbat), 0, 52, 1)
@@ -1055,7 +1124,7 @@ class ConfigStore:
 
     NAMESPACE = "rasicross"
     KEY       = "config"
-    _BUF_SIZE = 256
+    _BUF_SIZE = 512   # Blob ist mit allen Live-Keys + IMU-Offsets ~300 B
 
     def __init__(self):
         self._nvs = None
@@ -1098,6 +1167,12 @@ class ConfigStore:
                 "wheel_circ_m":   Config.WHEEL_CIRC_M,
                 "gear_ratio":     Config.GEAR_RATIO,
                 "batt_cells":     Config.BATT_CELLS,
+                "rpm_ceiling":    Config.RPM_CEILING,
+                "rpm_alpha":      Config.RPM_ALPHA,
+                "batt_warn_v":    Config.BATT_CELL_WARN,
+                "batt_crit_v":    Config.BATT_CELL_CRIT,
+                "batt_cal":       Config.BATT_CAL,
+                "page_ms":        Config.PAGE_MS,
             }
             if imu is not None:
                 off = imu.offsets
@@ -1146,6 +1221,45 @@ def apply_config(cfg, rpm_counter, store=None, imu=None):
     if "batt_cells" in cfg:
         try:
             Config.BATT_CELLS = max(1, int(cfg["batt_cells"]))
+        except (TypeError, ValueError):
+            pass
+    if "rpm_ceiling" in cfg:
+        try:
+            Config.RPM_CEILING = max(0, int(cfg["rpm_ceiling"]))
+            rpm_counter.recalc_glitch_filter()
+        except (TypeError, ValueError):
+            pass
+    if "rpm_alpha" in cfg:
+        try:
+            a = float(cfg["rpm_alpha"])
+            if 0.01 <= a <= 1.0:
+                Config.RPM_ALPHA = a
+        except (TypeError, ValueError):
+            pass
+    if "batt_warn_v" in cfg:
+        try:
+            v = float(cfg["batt_warn_v"])
+            if 2.5 <= v <= 4.4:
+                Config.BATT_CELL_WARN = v
+        except (TypeError, ValueError):
+            pass
+    if "batt_crit_v" in cfg:
+        try:
+            v = float(cfg["batt_crit_v"])
+            if 2.0 <= v <= 4.4:
+                Config.BATT_CELL_CRIT = v
+        except (TypeError, ValueError):
+            pass
+    if "batt_cal" in cfg:
+        try:
+            v = float(cfg["batt_cal"])
+            if 0.5 <= v <= 2.0:
+                Config.BATT_CAL = v
+        except (TypeError, ValueError):
+            pass
+    if "page_ms" in cfg:
+        try:
+            Config.PAGE_MS = max(1000, int(cfg["page_ms"]))
         except (TypeError, ValueError):
             pass
     log("config", "übernommen:", cfg)
@@ -1321,6 +1435,7 @@ def main():
                 "race_data": race_data,
                 "display":   display,
                 "vbat":      battery.vbat if battery.active else None,
+                "rpm_glitch": rpm_counter.glitches,
             })
 
             # LED

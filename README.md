@@ -331,7 +331,7 @@ Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohn
 | `BATT_ADC_PIN`      | ADC1-Pin fürs Batterie-Monitoring (`None` = aus) | `34`       |
 | `BATT_CELLS`        | LiPo-Zellen in Serie (Per-Cell + SOC)    | `1`                |
 
-Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`.
+Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`, `batt_warn_v`, `batt_crit_v`, `batt_cal`, `rpm_ceiling`, `rpm_alpha`, `page_ms`.
 
 ### Bridge (`bridge.py`)
 
@@ -445,7 +445,7 @@ Die Bridge ergänzt vor dem USB-Versand `rssi`, `rx_count`, `lost`, `bridge_ms`,
 | `type`            | Wirkung                                                          |
 | ----------------- | ---------------------------------------------------------------- |
 | `display`         | setzt Anzeigeseite (`speed`/`race`/`rpm`/`delta`/`diag`/`auto`)  |
-| `config`          | Live-Parameter (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`) |
+| `config`          | Live-Parameter (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`, `batt_warn_v`, `batt_crit_v`, `batt_cal`, `rpm_ceiling`, `rpm_alpha`, `page_ms`) |
 | `pit_call`        | löst Pit-Call-Override aus; `action: "cancel"` bricht ab         |
 | `imu_calibrate`   | misst Gx/Gy-Nullpunkt (`action: "auto"`, `duration_ms`) und speichert die Offsets reboot-fest im Sender (NVS) |
 

@@ -2226,6 +2226,14 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 #audioBtn.muted .ic-audio-on{display:none}
 #audioBtn.muted .ic-audio-off{display:block}
 
+/* Replay-Play-Button: Play/Pause als SVG, Zustand via .paused */
+#rpPlayBtn .ic-rp-play{display:none}
+#rpPlayBtn.paused .ic-rp-play{display:block}
+#rpPlayBtn.paused .ic-rp-pause{display:none}
+
+/* Hero-Kacheln im Light-Theme: weisse 3%-Fuellung waere unsichtbar */
+[data-theme=light] .pw-tel{background:var(--surf)}
+
 /* Statusbar-Icons (SVG statt Text-Symbole) */
 .statusbar svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-1.5px;margin-right:3px}
 
@@ -3288,6 +3296,30 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <div class="settings-row-label"><span class="settings-row-name">Akkuzellen in Reihe</span><span class="settings-row-desc">Anzahl LiPo-Zellen (cells in series)</span></div>
           <input type="number" id="espBattCells" value="1" min="1" max="14">
         </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Akku Warn-Schwelle</span><span class="settings-row-desc">Warnung ab dieser Spannung pro Zelle (V)</span></div>
+          <input type="number" id="espBattWarnV" value="3.5" min="2.5" max="4.4" step="0.05">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Akku Kritisch-Schwelle</span><span class="settings-row-desc">Kritisch ab dieser Spannung pro Zelle (V)</span></div>
+          <input type="number" id="espBattCritV" value="3.3" min="2.0" max="4.4" step="0.05">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">Akku Feinkalibrierung</span><span class="settings-row-desc">Multiplikator auf die gemessene Spannung (Abgleich mit Multimeter)</span></div>
+          <input type="number" id="espBattCal" value="1.0" min="0.5" max="2.0" step="0.01">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">RPM Glitch-Schwelle</span><span class="settings-row-desc">Flanken oberhalb dieser Drehzahl gelten als Störimpuls (Zünd-EMI); 0 = Filter aus</span></div>
+          <input type="number" id="espRpmCeiling" value="16000" min="0" max="30000" step="500">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">RPM-Glättung</span><span class="settings-row-desc">EMA-Gewicht des neuen Werts: 1 = ungefiltert, klein = träge</span></div>
+          <input type="number" id="espRpmAlpha" value="0.25" min="0.05" max="1" step="0.05">
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label"><span class="settings-row-name">OLED Seitenwechsel</span><span class="settings-row-desc">Auto-Seitenwechsel des Kart-Displays (ms)</span></div>
+          <input type="number" id="espPageMs" value="4000" min="1000" max="20000" step="500">
+        </div>
         <div class="row" style="margin:6px 0 4px"><button class="btn primary" id="espSendBtn" style="flex:1">An ESP32 senden</button></div>
         <p id="espSendStatus" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:6px;text-align:center;min-height:14px"></p>
         <div class="settings-row" style="margin-top:8px">
@@ -3556,7 +3588,10 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 </div>
 
 <div id="replayBar" class="replay-bar hidden">
-  <button class="btn ghost" id="rpPlayBtn">⏸</button>
+  <button class="btn ghost" id="rpPlayBtn" title="Wiedergabe / Pause">
+    <svg class="ic-rp-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" style="fill:currentColor"/></svg>
+    <svg class="ic-rp-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>
+  </button>
   <span class="rp-seek-wrap"><span id="rpDriftStrip" class="rp-drift-strip"></span><span id="rpRollStrip" class="rp-roll-strip"></span><input type="range" id="rpSeek" class="rp-seek" min="0" max="1000" value="0"></span>
   <span class="rp-time"><b id="rpElapsed">00:00</b> / <b id="rpTotal">00:00</b></span>
   <span class="rp-time" title="Drift-Zeitanteil · stärkster Index">Drift <b id="rpDrift">–</b></span>

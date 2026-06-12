@@ -1106,7 +1106,13 @@ function init() {
       pulses_per_rev: Number($('espPulses').value) || 1,
       wheel_circ_m: Number($('espWheelCirc').value) || 0,
       gear_ratio: Number($('espGearRatio').value) || 1,
-      batt_cells: Number($('espBattCells').value) || 1
+      batt_cells: Number($('espBattCells').value) || 1,
+      batt_warn_v: Number($('espBattWarnV').value) || 3.5,
+      batt_crit_v: Number($('espBattCritV').value) || 3.3,
+      batt_cal: Number($('espBattCal').value) || 1.0,
+      rpm_ceiling: Math.max(0, Number($('espRpmCeiling').value) || 0),
+      rpm_alpha: Number($('espRpmAlpha').value) || 0.25,
+      page_ms: Number($('espPageMs').value) || 4000,
     };
     state.batt.cells = cfg.batt_cells;
     if (!state.serial.connected) {
@@ -1224,6 +1230,7 @@ function init() {
     endRace:          () => endRace(false),
     toggleRaceExpand: id => toggleRaceExpand(id),
     deleteRace:       id => deleteRace(id),
+    replayRace:       id => replayRace(id),
   };
   const handleActionClick = (e) => {
     const el = e.target.closest('[data-action]');
