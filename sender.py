@@ -1414,6 +1414,7 @@ def main():
                 "send_ms":  send_interval,   # Dashboard sieht degraded mode
                 "spd_src":  spd_src,         # 'gps'|'wheel'|'none'
                 "imu_cal":  1 if imu.calibrating else 0,
+                "glitch":   rpm_counter.glitches,  # verworfene Stoerflanken (kumulativ)
             }
             if battery.active:
                 packet["batt_warn"] = battery.warn          # 0|1|2

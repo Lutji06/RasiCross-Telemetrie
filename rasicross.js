@@ -671,7 +671,7 @@ function processTelemetry(d) {
       state.batt._lastWarn = w;
       state.batt.warn = w;
     }
-    state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0, pulseHz: Number(d.pulse_hz) || 0 };
+    state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0, glitch: d.glitch != null ? (Number(d.glitch) || 0) : null, pulseHz: Number(d.pulse_hz) || 0 };
     state.telemetry = { speed, rpm, gx, gy, gz, lat: lat || 0, lon: lon || 0 };
     // Update max
     state.max.speed = Math.max(state.max.speed, speed);
