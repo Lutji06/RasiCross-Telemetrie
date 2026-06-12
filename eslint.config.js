@@ -363,6 +363,17 @@ module.exports = [
     rules: bugRules,
   },
 
+  // engine.js setzt window.RasiEngine (UMD, Browser + node:test)
+  {
+    files: ['engine.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, module: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
   // rec-store.js — IndexedDB-Wrapper (window.RasiRecStore), reines IO
   {
     files: ['rec-store.js'],
