@@ -32,41 +32,58 @@ Download: https://micropython.org/download/ESP32_GENERIC/
 
 **Wichtig: MicroPython Version 1.21 oder neuer** — `espnow` und die RSSI-Auswertung (`peers_table`) sind erst ab dieser Version dabei.
 
-### 2. Treiber-Files kopieren
-Mit einem Tool wie **Thonny** (Tools → Manage Packages oder einfach Datei → Speichern als → MicroPython Gerät) oder **mpremote**:
+### 2. Programme vorkompilieren (mpy-cross) — PFLICHT ab MicroPython 1.28
 
-**Sender-ESP (Kart):**
-```
-/ssd1306.py
-/mpu6050.py
-/micropyGPS.py
-/frame.py
-/calc.py
-/main.py        ← der Inhalt von sender.py
-```
+`sender.py` und `bridge.py` dürfen **nicht mehr als `.py` direkt aufs Gerät**.
+Grund: MicroPython kompiliert `main.py` beim Boot auf dem Chip. Bei so
+großen Dateien wächst der Python-Heap dabei in genau die DRAM-Region,
+aus der der WiFi-Treiber seine Buffer braucht → der Sender crasht beim
+Start mit `OSError: WiFi Out of Memory` und hängt in einer
+Watchdog-Bootschleife. Vorkompiliertes Bytecode (`.mpy`) braucht beim
+Laden nur einen Bruchteil des RAMs und umgeht das Problem komplett.
 
-**Bridge-ESP (Boxen):**
-```
-/ssd1306.py
-/frame.py
-/main.py        ← der Inhalt von bridge.py
-```
-
-### 3. Mit mpremote (CLI)
 ```bash
-# Sender flashen
+pip install mpy-cross
+python -m mpy_cross -o app.mpy sender.py     # fuer den Kart-ESP
+python -m mpy_cross -o app.mpy bridge.py     # fuer die Bridge (separat!)
+```
+
+Auf dem Gerät liegt dann `app.mpy` plus ein Mini-`main.py` mit nur:
+
+```python
+# Programm ist vorkompiliert (app.mpy, mpy-cross) -- der On-Device-Compile
+# der grossen .py wuerde dem WiFi-Treiber den RAM wegfressen.
+import app
+```
+
+### 3. Mit mpremote (CLI) — komplette Prozedur
+
+```bash
+# ── Sender (Kart-ESP) ──
+python -m mpy_cross -o app.mpy ../sender.py
 mpremote connect COM3 cp ssd1306.py :ssd1306.py
 mpremote connect COM3 cp mpu6050.py :mpu6050.py
 mpremote connect COM3 cp micropyGPS.py :micropyGPS.py
 mpremote connect COM3 cp frame.py :frame.py
 mpremote connect COM3 cp calc.py :calc.py
-mpremote connect COM3 cp ../sender.py :main.py
+mpremote connect COM3 cp app.mpy :app.mpy
+mpremote connect COM3 cp main_stub.py :main.py
 
-# Bridge flashen
+# ── Bridge (Boxen-ESP) ──
+python -m mpy_cross -o app.mpy ../bridge.py
 mpremote connect COM4 cp ssd1306.py :ssd1306.py
 mpremote connect COM4 cp frame.py :frame.py
-mpremote connect COM4 cp ../bridge.py :main.py
+mpremote connect COM4 cp app.mpy :app.mpy
+mpremote connect COM4 cp main_stub.py :main.py
 ```
+
+`main_stub.py` ist das Mini-`main.py` aus Schritt 2 (liegt in diesem Ordner).
+
+**Wenn der ESP in einer Crash-Schleife hängt** (Watchdog resettet alle
+paar Sekunden, mpremote meldet `could not enter raw repl`): Reset-Taste
+drücken und in den ersten ~2 s in einem seriellen Terminal mehrfach
+Strg-C senden — das unterbricht `main.py`, bevor der Watchdog scharf
+wird. Danach funktioniert mpremote wieder.
 
 ### 4. Mit Thonny (GUI)
 1. Thonny öffnen, ESP32 als Interpreter wählen
