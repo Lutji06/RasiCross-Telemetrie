@@ -14,17 +14,18 @@ def _base():
         "gps_fix": 1, "gps_health": "ok", "pulse_hz": 318.4,
         "send_ms": 80, "spd_src": "gps", "imu_cal": 0,
         "batt_warn": 1, "vbat": 11.84, "soc": 73, "mtemp": 34,
+        "glitch": 17,
     }
 
 
 class FrameLayout(unittest.TestCase):
     def test_size_and_ver(self):
-        self.assertEqual(frame.SIZE, 35)
-        self.assertEqual(frame.FMT, "<BHHHhhhhhiiHHHBbBB")
-        self.assertEqual(frame.FRAME_VER, 2)
+        self.assertEqual(frame.SIZE, 37)
+        self.assertEqual(frame.FMT, "<BHHHhhhhhiiHHHBbBBH")
+        self.assertEqual(frame.FRAME_VER, 3)
         b = frame.pack(_base(), 7)
         self.assertIsInstance(b, (bytes, bytearray))
-        self.assertEqual(len(b), 35)
+        self.assertEqual(len(b), 37)
         self.assertEqual(b[0], frame.FRAME_VER)
 
 
@@ -53,6 +54,7 @@ class RoundTrip(unittest.TestCase):
         self.assertAlmostEqual(out["vbat"], 11.84, places=2)
         self.assertEqual(out["soc"], 73)
         self.assertEqual(out["mtemp"], 34)
+        self.assertEqual(out["glitch"], 17)
 
     def test_negative_and_zero(self):
         d = _base()
@@ -71,7 +73,8 @@ class Saturation(unittest.TestCase):
     def test_overflow_clamps_not_raises(self):
         d = _base()
         d.update(speed=99999.0, rpm=999999, gx=1000.0, yaw=99999.0,
-                 pulse_hz=999999.0, vbat=9999.0, soc=250, mtemp=900)
+                 pulse_hz=999999.0, vbat=9999.0, soc=250, mtemp=900,
+                 glitch=999999)
         out = frame.unpack(frame.pack(d, 0))
         self.assertNotIn("_err", out)
         self.assertAlmostEqual(out["speed"], 655.35, places=2)   # u16/100
@@ -81,6 +84,7 @@ class Saturation(unittest.TestCase):
         self.assertAlmostEqual(out["vbat"], 655.35, places=2)
         self.assertEqual(out["soc"], 100)
         self.assertEqual(out["mtemp"], 127)
+        self.assertEqual(out["glitch"], 65535)
 
     def test_negative_underflow_clamps(self):
         d = _base()
@@ -166,6 +170,16 @@ class RollField(unittest.TestCase):
     def test_v1_frame_rejected_by_length(self):
         # 33-byte frame (old v1 SIZE) is rejected on length before the version check.
         self.assertEqual(frame.unpack(b"\x02" * 33)["_err"], "bad_len")
+
+
+class GlitchField(unittest.TestCase):
+    def test_glitch_absent_defaults_zero(self):
+        d = _base(); d.pop("glitch")
+        self.assertEqual(frame.unpack(frame.pack(d, 0))["glitch"], 0)
+
+    def test_v2_frame_rejected_by_length(self):
+        # 35-Byte-Frame (altes v2 SIZE) faellt auf Laenge, vor dem Versions-Check.
+        self.assertEqual(frame.unpack(b"\x02" * 35)["_err"], "bad_len")
 
 
 if __name__ == '__main__':

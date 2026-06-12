@@ -5,13 +5,14 @@
 #  (Unit-Tests / CI) und MicroPython (Kart-ESP packt, Bridge-ESP
 #  entpackt). Auf BEIDE ESPs flashen:
 #    mpremote connect <port> cp esp_libs/frame.py :
-#  35-Byte Little-Endian Frame (v2: +roll Gyro-X), siehe Spec 2026-05-19 D1 4.2.
+#  37-Byte Little-Endian Frame (v3: +glitch Stoerimpuls-Zaehler),
+#  siehe Spec 2026-05-19 D1 4.2.
 # ============================================================
 import struct
 
-FRAME_VER = 2
-FMT = "<BHHHhhhhhiiHHHBbBB"
-SIZE = struct.calcsize(FMT)            # 35
+FRAME_VER = 3
+FMT = "<BHHHhhhhhiiHHHBbBBH"
+SIZE = struct.calcsize(FMT)            # 37
 
 _GPS_HEALTH = ("ok", "searching", "lost", "disabled")
 _SPD_SRC = ("gps", "wheel", "none")
@@ -63,6 +64,7 @@ def pack(d, seq):
     vbat = _clamp(_i(_f(d.get("vbat")) * 100.0), 0, 65535)
     soc = _clamp(_i(d.get("soc")), 0, 100)
     mtemp = _clamp(_i(d.get("mtemp")), -128, 127)
+    glitch = _clamp(_i(d.get("glitch")), 0, 65535)
 
     try:
         gh = _GPS_HEALTH.index(d.get("gps_health"))
@@ -84,7 +86,7 @@ def pack(d, seq):
 
     return struct.pack(FMT, FRAME_VER, seq & 0xFFFF, speed, rpm,
                        gx, gy, gz, yaw, roll, lat, lon, pulse, send_ms,
-                       vbat, soc, mtemp, flags1, flags2)
+                       vbat, soc, mtemp, flags1, flags2, glitch)
 
 
 def unpack(buf):
@@ -99,7 +101,7 @@ def unpack(buf):
     if buf[0] != FRAME_VER:
         return {"_err": "bad_ver", "ver": buf[0]}
     (_ver, seq, speed, rpm, gx, gy, gz, yaw, roll, lat, lon, pulse,
-     send_ms, vbat, soc, mtemp, flags1, flags2) = struct.unpack(FMT, buf)
+     send_ms, vbat, soc, mtemp, flags1, flags2, glitch) = struct.unpack(FMT, buf)
     out = {
         "seq": seq,
         "speed": speed / 100.0,
@@ -117,6 +119,7 @@ def unpack(buf):
         "send_ms": send_ms,
         "spd_src": _SPD_SRC[min((flags1 >> 3) & 3, 2)],
         "imu_cal": (flags1 >> 5) & 1,
+        "glitch": glitch,
     }
     if flags2 & 1:                     # batt_present
         out["batt_warn"] = (flags1 >> 6) & 3
