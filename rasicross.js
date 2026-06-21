@@ -685,6 +685,20 @@ function processTelemetry(d) {
     if (d.type === 'bridge_status') {
       if (d.mac) state.connection.bridgeMac = d.mac;
       if (d.kart_mac) state.connection.kartMac = d.kart_mac;
+      // Hintergrund-Karts schon vor ihrem ersten Telemetrie-Paket befuellen,
+      // damit Chips RSSI/Hz/Lost anzeigen.
+      state._kartHz = state._kartHz || {};
+      if (Array.isArray(d.karts)) {
+        for (const ks of d.karts) {
+          if (!ks || !ks.mac) continue;
+          const kk = kartFor(ks.mac);
+          if (!kk) continue;
+          if (ks.rssi != null) kk.connection.rssi = ks.rssi;
+          if (ks.lost != null) kk.connection.lost = ks.lost;
+          state._kartHz[ks.mac] = ks.rate_hz;
+        }
+      }
+      if (window.RasiKartBar) RasiKartBar.render(state);
       return;
     }
     if (d.type === 'config_ack') { applyEspConfigAck(d); return; }

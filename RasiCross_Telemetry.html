@@ -1387,6 +1387,18 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   .pw-strip-delta-sectors{grid-template-columns:1fr}
 }
 
+/* Multi-Kart Chip-Leiste (Live-Tab). display wird per JS (none/flex) gesteuert. */
+.kart-bar{display:none;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.kart-chip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  background:var(--panel,#161a22);color:var(--fg,#e8edf4);
+  border:2px solid #3aa0e8;border-radius:999px;padding:5px 12px;
+  font-size:12px;line-height:1.2;white-space:nowrap;transition:transform .08s,box-shadow .12s}
+.kart-chip span{opacity:.75;font-variant-numeric:tabular-nums}
+.kart-chip:hover{transform:translateY(-1px)}
+.kart-chip.active{box-shadow:0 0 0 2px rgba(58,160,232,.35),0 0 12px rgba(58,160,232,.25);
+  background:rgba(58,160,232,.12)}
+.kart-chip.stale{opacity:.45;filter:grayscale(.6)}
+
 /* Live-only KPI tightening — keeps other tabs' KPI sizing intact */
 #tab-live .kpi{padding:12px 14px}
 #tab-live .kpi-v{font-size:clamp(24px,3vw,32px);margin-top:2px}
@@ -2382,6 +2394,9 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
      TAB: LIVE
      ============================================================ -->
 <section class="tab active" id="tab-live">
+
+  <!-- Multi-Kart: Chip-Leiste (nur sichtbar bei >1 Kart) -->
+  <div id="kartBar" class="kart-bar"></div>
 
   <!-- Race-control row: Restzeit + Buttons als getrennte Kästchen -->
   <div class="pw-liverow">
@@ -3658,5 +3673,6 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 <script src="recording.js"></script>
 <script src="kart-registry.js"></script>
 <script src="rasicross.js"></script>
+<script src="kart-bar.js"></script>
 </body>
 </html>
