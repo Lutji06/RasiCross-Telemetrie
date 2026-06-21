@@ -442,7 +442,9 @@ function applyEspConfigAck(d) {
     const el = $(id);
     if (el && d[key] != null) el.value = d[key];
   }
-  if (d.bc != null) state.batt.cells = Number(d.bc) || state.batt.cells;
+  // Akkuzellen-Zahl gehoert zum bestaetigenden Kart (per from_mac), sonst aktiver Kart.
+  const _k = kartFor(d.from_mac || KartRegistry.DEFAULT_MAC) || activeKart();
+  if (d.bc != null) _k.batt.cells = Number(d.bc) || _k.batt.cells;
   setText('espSendStatus', '✓ Vom Kart bestätigt ' + logTime());
 }
 
@@ -585,10 +587,12 @@ function _crashFlush(now) {
 }
 function armRecording() {
   // Frische Aufnahme starten (auto bei Connect/Demo, wenn aktiviert).
-  state.recording.buf = [];
-  state.recording.startWall = null;
-  state.recording.overflowed = false;
-  state.recording.armed = true;
+  // Aufnahme bezieht sich auf den aktuell ausgewaehlten Kart.
+  const k = activeKart();
+  k.recording.buf = [];
+  k.recording.startWall = null;
+  k.recording.overflowed = false;
+  k.recording.armed = true;
   // Crash-Sicherungsdatei frisch beginnen (Header-Zeile, Pakete folgen).
   _crashQ = []; _crashLastFlush = Date.now(); _crashFailed = false;
   if (window.rasiRec) {
@@ -597,12 +601,14 @@ function armRecording() {
   }
 }
 function recordPacket(d) {
+  const k = kartFor(d.from_mac || KartRegistry.DEFAULT_MAC);
+  if (!k) return;
   const now = Date.now();
-  if (state.recording.startWall == null) state.recording.startWall = now;
-  const rec = Object.assign({}, d, { t_rel: now - state.recording.startWall, _wall: now });
-  const dropped = RasiReplay.pushCapped(state.recording.buf, rec, RasiReplay.REC_MAX);
-  if (dropped && !state.recording.overflowed) {
-    state.recording.overflowed = true;
+  if (k.recording.startWall == null) k.recording.startWall = now;
+  const rec = Object.assign({}, d, { t_rel: now - k.recording.startWall, _wall: now });
+  const dropped = RasiReplay.pushCapped(k.recording.buf, rec, RasiReplay.REC_MAX);
+  if (dropped && !k.recording.overflowed) {
+    k.recording.overflowed = true;
     rcToast('⚠ Aufnahme-Puffer voll — älteste Pakete werden verworfen', 4000);
   }
   if (window.rasiRec && !_crashFailed) {
@@ -630,62 +636,70 @@ function driftInputs(d, cal) {
 function processTelemetry(d) {
   try {
     if (!d) return;
-    if (state.recording.armed && !state.replay.active) recordPacket(d);
     if (d.type === 'bridge_status') {
       if (d.mac) state.connection.bridgeMac = d.mac;
       if (d.kart_mac) state.connection.kartMac = d.kart_mac;
       return;
     }
     if (d.type === 'config_ack') { applyEspConfigAck(d); return; }
-    state.connection.packets++;
-    state.connection.lastPacketAt = Date.now();
-    if (d.from_mac) state.connection.kartMac = d.from_mac;
-    if (typeof d.rssi === 'number') state.connection.rssi = d.rssi;
+    // Ziel-Kart aufloesen (MAC = Identitaet). Schreibpfade laufen explizit
+    // ueber k statt ueber die aktive-Kart-Proxy-Fassade, damit Hintergrund-
+    // Karts ihren eigenen Zustand fuellen.
+    const _mac = d.from_mac || KartRegistry.DEFAULT_MAC;
+    const k = kartFor(_mac);
+    if (!k) { rcToast('Max. ' + KartRegistry.MAX_KARTS + ' Karts — ' + _mac + ' ignoriert', 4000); return; }
+    const isActive = (k === activeKart());
+    if (k.recording.armed && !k.replay.active) recordPacket(d);
+    if (state.serial.connected && !k.replay.active) k.connection.source = 'serial';
+    k.connection.packets++;
+    k.connection.lastPacketAt = Date.now();
+    k.connection.kartMac = _mac;
+    if (typeof d.rssi === 'number') k.connection.rssi = d.rssi;
     // Verlustzaehlung: eine Quelle. Die Bridge zaehlt ueber die ESP-NOW-
     // Sequenznummern und liefert `lost` kumulativ in jedem Paket mit ->
     // direkt uebernehmen. Eigene seq-Zaehlung nur als Fallback fuer
     // Quellen ohne lost-Feld (Demo, alte Aufnahmen).
     if (d.lost != null) {
-      state.connection.lost = Number(d.lost) || 0;
-    } else if (d.seq != null && state.connection.seq != null) {
-      const delta = (d.seq - state.connection.seq + 65536) % 65536;
-      if (delta > 1 && delta < 1000) state.connection.lost += delta - 1;
+      k.connection.lost = Number(d.lost) || 0;
+    } else if (d.seq != null && k.connection.seq != null) {
+      const delta = (d.seq - k.connection.seq + 65536) % 65536;
+      if (delta > 1 && delta < 1000) k.connection.lost += delta - 1;
     }
-    if (d.seq != null) state.connection.seq = d.seq;
+    if (d.seq != null) k.connection.seq = d.seq;
     state.hz++;
     // Calibrated values
     const speed = Math.max(0, Number(d.speed) || 0);
     const rpm = Math.max(0, Number(d.rpm) || 0);
     // Motorlaufzeit (Phase 27): nur echte Hardware-Pakete zaehlen --
     // Demo/Replay wuerden den Wartungszaehler verfaelschen.
-    if (state.connection.source === 'serial' && !state.replay.active) {
-      const _eng = RasiEngine.engineStep(state.engine, rpm, Date.now());
-      state.engine.totalMs = _eng.totalMs;
-      state.engine.lastAt = _eng.lastAt;
-      state.engine._unsavedMs += _eng.addedMs;
-      if (state.engine._unsavedMs >= 60000) {   // 1x pro Motor-Minute persistieren
-        state.engine._unsavedMs = 0;
+    if (k.connection.source === 'serial' && !k.replay.active) {
+      const _eng = RasiEngine.engineStep(k.engine, rpm, Date.now());
+      k.engine.totalMs = _eng.totalMs;
+      k.engine.lastAt = _eng.lastAt;
+      k.engine._unsavedMs += _eng.addedMs;
+      if (k.engine._unsavedMs >= 60000) {   // 1x pro Motor-Minute persistieren
+        k.engine._unsavedMs = 0;
         saveDataDebounced();
       }
-      if (!state.engine._warned
-          && RasiEngine.serviceDue(state.engine.totalMs, state.engine.lastServiceMs, state.engine.serviceIntervalH)) {
-        state.engine._warned = true;
+      if (!k.engine._warned
+          && RasiEngine.serviceDue(k.engine.totalMs, k.engine.lastServiceMs, k.engine.serviceIntervalH)) {
+        k.engine._warned = true;
         rcToast('🔧 Wartung fällig — '
-          + RasiEngine.hoursText(RasiEngine.sinceServiceMs(state.engine.totalMs, state.engine.lastServiceMs))
+          + RasiEngine.hoursText(RasiEngine.sinceServiceMs(k.engine.totalMs, k.engine.lastServiceMs))
           + ' seit letzter Wartung', 6000);
       }
     }
-    let gx = (Number(d.gx) || 0) - state.calibration.gxZero;
-    let gy = (Number(d.gy) || 0) - state.calibration.gyZero;
+    let gx = (Number(d.gx) || 0) - k.calibration.gxZero;
+    let gy = (Number(d.gy) || 0) - k.calibration.gyZero;
     const gz = Number(d.gz) || 0;                  // Accel-Z (g), jedes Paket
-    const di = driftInputs(d, state.calibration);  // geteilte Drift-Normalisierung (inkl. invertYaw)
+    const di = driftInputs(d, k.calibration);      // geteilte Drift-Normalisierung (inkl. invertYaw)
     const yawv = di.yawRate;                        // vorzeichen-korrigierte Gierrate (deg/s)
-    state.imu.yaw = yawv;
-    if (d.mtemp != null) state.imu.mtemp = Number(d.mtemp) || 0;  // langsam: letzten Wert halten
+    k.imu.yaw = yawv;
+    if (d.mtemp != null) k.imu.mtemp = Number(d.mtemp) || 0;  // langsam: letzten Wert halten
     // Apply axis transformations
-    if (state.calibration.swapG) { const tmp = gx; gx = gy; gy = tmp; }
-    if (state.calibration.invertGx) gx = -gx;
-    if (state.calibration.invertGy) gy = -gy;
+    if (k.calibration.swapG) { const tmp = gx; gx = gy; gy = tmp; }
+    if (k.calibration.invertGx) gx = -gx;
+    if (k.calibration.invertGy) gy = -gy;
     // Drift (Phase 20): gehaerteter + geglaetteter Gierraten-Index. di teilt die
     // Eingangs-Normalisierung mit dem Replay-Aggregat; smoothStep liefert
     // EMA-Index + entprellten/hysterese-stabilen Status.
@@ -694,101 +708,110 @@ function processTelemetry(d) {
     // vorherigen Sample (Update folgt unten) -- bei 12 Hz vernachlaessigbar.
     const dRaw = RasiDrift.analyze(
       { yawRate: di.yawRate, speed: di.speed,
-        latAccel: RasiDrift.tiltCompLatG(di.latAccel, state.attitude.rollDeg) },
+        latAccel: RasiDrift.tiltCompLatG(di.latAccel, k.attitude.rollDeg) },
       state.settings.drift);
     // settings.drift liefert tol (-> Hysterese-Baender); smooth/hyst/counterHold
     // sind nicht in den Settings und fallen in smoothStep auf SMOOTH_DEFAULTS zurueck.
-    state.driftSmooth = RasiDrift.smoothStep(state.driftSmooth, dRaw, state.settings.drift);
-    state.drift = { status: state.driftSmooth.status, index: state.driftSmooth.idxEma };
+    k.driftSmooth = RasiDrift.smoothStep(k.driftSmooth, dRaw, state.settings.drift);
+    k.drift = { status: k.driftSmooth.status, index: k.driftSmooth.idxEma };
     // Rollwinkel (Phase 19b): Roll-Rate (d.roll) + Accel-Schwerkraft-Referenz
     // -> Winkel (Komplementaerfilter), minus Null-Offset. di.latAccel = kalibrierte
     // Querbeschleunigung; gz = Accel-Z.
     const _attNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     const _attDt = _attLastMs ? (_attNow - _attLastMs) / 1000 : 0.08;
     _attLastMs = _attNow;
-    const _rollRate = (Number(d.roll) || 0) * (state.calibration.invertRollRate ? -1 : 1);
+    const _rollRate = (Number(d.roll) || 0) * (k.calibration.invertRollRate ? -1 : 1);
     const _rollRaw = RasiAttitude.rollStep(
-      state.attitude.rollDeg + state.calibration.rollZero,
+      k.attitude.rollDeg + k.calibration.rollZero,
       _rollRate, di.latAccel, Number(d.gz) || 0, _attDt, 0.98);
-    state.attitude.rollDeg = _rollRaw - state.calibration.rollZero;
-    state.attitude.overState = RasiAttitude.rolloverStep(
-      state.attitude.overState, state.attitude.rollDeg, state.settings.rollover);
-    state.attitude.over = state.attitude.overState.active;
-    if (state.attitude.overState.onset) {
+    k.attitude.rollDeg = _rollRaw - k.calibration.rollZero;
+    k.attitude.overState = RasiAttitude.rolloverStep(
+      k.attitude.overState, k.attitude.rollDeg, state.settings.rollover);
+    k.attitude.over = k.attitude.overState.active;
+    if (k.attitude.overState.onset) {
       rcToast('⚠ Mäher umgekippt!', 4000);
       rcAudio.rollover();
     }
     const lat = Number(d.lat);
     const lon = Number(d.lon);
     const hasGps = !!(d.gps_fix ?? d.fix ?? (lat && lon));
-    state.gps.fix = hasGps;
-    if (lat && lon) state.gps.lastAt = Date.now();
-    if (d.spd_src) state.spdSrc = d.spd_src;
+    k.gps.fix = hasGps;
+    if (lat && lon) k.gps.lastAt = Date.now();
+    if (d.spd_src) k.spdSrc = d.spd_src;
     // Batterie (A3): vbat/soc langsam -> nur bei Anwesenheit aktualisieren
     // (sonst letzten Wert behalten); batt_warn jedes Paket wenn aktiv.
-    if (d.vbat != null) { state.batt.vbat = Number(d.vbat) || 0; state.batt.present = true; }
-    if (d.soc != null)  { state.batt.soc = Number(d.soc) || 0;  state.batt.present = true; }
+    if (d.vbat != null) { k.batt.vbat = Number(d.vbat) || 0; k.batt.present = true; }
+    if (d.soc != null)  { k.batt.soc = Number(d.soc) || 0;  k.batt.present = true; }
     if (d.batt_warn != null) {
-      state.batt.present = true;
+      k.batt.present = true;
       const w = Number(d.batt_warn) || 0;
-      if (w > state.batt._lastWarn) {           // nur Aufwaerts-Transition
+      if (w > k.batt._lastWarn) {           // nur Aufwaerts-Transition
         if (w === 2) { rcToast('⛔ Akku kritisch!', 3500); rcAudio.battCrit(); }
         else if (w === 1) { rcToast('⚠ Akku schwach', 3000); rcAudio.battWarn(); }
       }
-      state.batt._lastWarn = w;
-      state.batt.warn = w;
+      k.batt._lastWarn = w;
+      k.batt.warn = w;
     }
-    state.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0, glitch: d.glitch != null ? (Number(d.glitch) || 0) : null, pulseHz: Number(d.pulse_hz) || 0 };
-    state.telemetry = { speed, rpm, gx, gy, gz, lat: lat || 0, lon: lon || 0 };
+    k.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0, glitch: d.glitch != null ? (Number(d.glitch) || 0) : null, pulseHz: Number(d.pulse_hz) || 0 };
+    k.telemetry = { speed, rpm, gx, gy, gz, lat: lat || 0, lon: lon || 0 };
     // Update max
-    state.max.speed = Math.max(state.max.speed, speed);
-    state.max.rpm = Math.max(state.max.rpm, rpm);
-    state.max.g = Math.max(state.max.g, Math.sqrt(gx*gx + gy*gy));
+    k.max.speed = Math.max(k.max.speed, speed);
+    k.max.rpm = Math.max(k.max.rpm, rpm);
+    k.max.g = Math.max(k.max.g, Math.sqrt(gx*gx + gy*gy));
     // Per-lap max
-    state.currentLapMax.speed = Math.max(state.currentLapMax.speed, speed);
-    state.currentLapMax.rpm = Math.max(state.currentLapMax.rpm, rpm);
-    state.heatmap.lapMaxSpeed = Math.max(state.heatmap.lapMaxSpeed, speed);
+    k.currentLapMax.speed = Math.max(k.currentLapMax.speed, speed);
+    k.currentLapMax.rpm = Math.max(k.currentLapMax.rpm, rpm);
+    k.heatmap.lapMaxSpeed = Math.max(k.heatmap.lapMaxSpeed, speed);
     // Charts (downsampled)
-    if (state.charts.speed.length === 0 || (state.connection.packets % 2 === 0)) {
-      state.charts.speed.push(speed);
-      state.charts.rpm.push(rpm);
-      state.charts.gx.push(gx);
-      state.charts.gy.push(gy);
-      state.charts.gz.push(gz);
-      state.charts.yaw.push(yawv);
-      state.charts.driftIndex.push(state.drift.index == null ? 0 : state.drift.index);
+    if (k.charts.speed.length === 0 || (k.connection.packets % 2 === 0)) {
+      k.charts.speed.push(speed);
+      k.charts.rpm.push(rpm);
+      k.charts.gx.push(gx);
+      k.charts.gy.push(gy);
+      k.charts.gz.push(gz);
+      k.charts.yaw.push(yawv);
+      k.charts.driftIndex.push(k.drift.index == null ? 0 : k.drift.index);
       const max = 600;
-      while (state.charts.speed.length > max) state.charts.speed.shift();
-      while (state.charts.rpm.length > max) state.charts.rpm.shift();
-      while (state.charts.gx.length > max) state.charts.gx.shift();
-      while (state.charts.gy.length > max) state.charts.gy.shift();
-      while (state.charts.gz.length > max) state.charts.gz.shift();
-      while (state.charts.yaw.length > max) state.charts.yaw.shift();
-      while (state.charts.driftIndex.length > max) state.charts.driftIndex.shift();
+      while (k.charts.speed.length > max) k.charts.speed.shift();
+      while (k.charts.rpm.length > max) k.charts.rpm.shift();
+      while (k.charts.gx.length > max) k.charts.gx.shift();
+      while (k.charts.gy.length > max) k.charts.gy.shift();
+      while (k.charts.gz.length > max) k.charts.gz.shift();
+      while (k.charts.yaw.length > max) k.charts.yaw.shift();
+      while (k.charts.driftIndex.length > max) k.charts.driftIndex.shift();
     }
     // Track current lap trace
-    if (state.lapStart && lat && lon) {
-      state.currentLapTrace.push({ t: Date.now() - state.lapStart, lat, lon, speed });
-      if (state.currentLapTrace.length > 5000) state.currentLapTrace.shift();
+    if (k.lapStart && lat && lon) {
+      k.currentLapTrace.push({ t: Date.now() - k.lapStart, lat, lon, speed });
+      if (k.currentLapTrace.length > 5000) k.currentLapTrace.shift();
     }
-    // Lap detection (only if track has start gate)
-    if (lat && lon && state.startGate.enabled && state.lapStart) {
-      checkLapCrossing(lat, lon);
-      checkSectorCrossings(lat, lon);
-    }
-    // Update prev for direction check
-    if (lat && lon) {
-      state.autoLap.prevLat = lat;
-      state.autoLap.prevLon = lon;
-    }
-    // Race speed trace (downsampled)
-    const r = activeRace();
-    if (r && r.status === 'running') {
-      r.speedTrace = r.speedTrace || [];
-      if (state.connection.packets % 5 === 0) {
-        r.speedTrace.push({ t: Date.now() - (r.startedAt || Date.now()), speed, rpm });
-        if (r.speedTrace.length > 4000) r.speedTrace.shift();
+    // Lap-/Sektorerkennung + Renn-Trace nutzen die aktive-Kart-Proxy-Helfer
+    // (state.lapStart/autoLap). Nur fuer den aktiven Kart ausfuehren, damit
+    // Hintergrund-Karts den Lap-Zustand des sichtbaren Karts nicht verfaelschen.
+    if (isActive) {
+      // Lap detection (only if track has start gate)
+      if (lat && lon && state.startGate.enabled && state.lapStart) {
+        checkLapCrossing(lat, lon);
+        checkSectorCrossings(lat, lon);
       }
+      // Update prev for direction check
+      if (lat && lon) {
+        state.autoLap.prevLat = lat;
+        state.autoLap.prevLon = lon;
+      }
+      // Race speed trace (downsampled)
+      const r = activeRace();
+      if (r && r.status === 'running') {
+        r.speedTrace = r.speedTrace || [];
+        if (k.connection.packets % 5 === 0) {
+          r.speedTrace.push({ t: Date.now() - (r.startedAt || Date.now()), speed, rpm });
+          if (r.speedTrace.length > 4000) r.speedTrace.shift();
+        }
+      }
+    } else if (lat && lon) {
+      // Hintergrund-Kart: nur eigenen Vorgaenger-GPS-Punkt pflegen.
+      k.autoLap.prevLat = lat;
+      k.autoLap.prevLon = lon;
     }
   } catch (e) { console.warn('processTelemetry:', e); }
 }
