@@ -86,7 +86,20 @@ function activeKart() {
 
 function kartFor(mac) {
   const key = mac || KartRegistry.DEFAULT_MAC;
+  const isNew = !state.karts.has(key);
   const k = state.karts.get(key);
+  if (k && isNew && key !== KartRegistry.DEFAULT_MAC && state.karts.has(KartRegistry.DEFAULT_MAC)) {
+    // 9.6-Migration: der erste reale Kart adoptiert den "default"-Bucket
+    // (Kalibrierung + Motorlaufzeit) und loescht den Platzhalter danach.
+    const dk = state.karts.get(KartRegistry.DEFAULT_MAC);
+    if (dk && dk !== k) {
+      Object.assign(k.calibration, dk.calibration);
+      Object.assign(k.engine, { totalMs: dk.engine.totalMs, lastServiceMs: dk.engine.lastServiceMs, serviceIntervalH: dk.engine.serviceIntervalH });
+      const wasDefaultActive = state.karts.activeMac() === KartRegistry.DEFAULT_MAC;
+      state.karts.forget(KartRegistry.DEFAULT_MAC);
+      if (wasDefaultActive) { state.karts.setActive(key); state.activeKartMac = key; }
+    }
+  }
   if (k && state.activeKartMac === null) state.activeKartMac = state.karts.activeMac();
   return k;   // null if over MAX_KARTS
 }
@@ -158,9 +171,18 @@ function _persistRace(r) {
 function saveData() {
   if (state.replay && state.replay.active) return;  // replay uses disposable state — never persist
   try {
+    // Per-Kart Kalibrierung + Motorlaufzeit (keyed by MAC). Legacy-Felder
+    // (calibration/engine) bleiben fuer Downgrade-Gnade aus dem aktiven Kart.
+    const _kartsCal = {}, _kartsEngine = {};
+    for (const mac of state.karts.macs()) {
+      const kk = state.karts.get(mac);
+      _kartsCal[mac] = kk.calibration;
+      _kartsEngine[mac] = { totalMs: kk.engine.totalMs, lastServiceMs: kk.engine.lastServiceMs, serviceIntervalH: kk.engine.serviceIntervalH };
+    }
     const payload = {
       version: '9.6', savedAt: new Date().toISOString(),
       settings: state.settings, calibration: state.calibration, theme: state.theme,
+      kartsCal: _kartsCal, kartsEngine: _kartsEngine,
       drivers: state.drivers, races: state.races.map(_persistRace), savedTracks: state.savedTracks,
       activeRaceId: state.activeRaceId, selectedRaceId: state.selectedRaceId,
       activeTrackId: state.activeTrackId,
@@ -188,7 +210,6 @@ function loadData() {
     if (!raw) return;
     const d = JSON.parse(raw);
     if (d.settings) Object.assign(state.settings, d.settings);
-    if (d.calibration) Object.assign(state.calibration, d.calibration);
     if (d.theme) state.theme = d.theme;
     if (Array.isArray(d.drivers)) state.drivers = d.drivers;
     if (Array.isArray(d.races)) {
@@ -207,11 +228,22 @@ function loadData() {
       if (typeof d.sectors.manual === 'boolean') state.sectors.manual = d.sectors.manual;
       if (Array.isArray(d.sectors.best)) state.sectors.best = d.sectors.best;
     }
-    if (d.engine) {
-      state.engine.totalMs = Number(d.engine.totalMs) || 0;
-      state.engine.lastServiceMs = Number(d.engine.lastServiceMs) || 0;
-      if (d.engine.serviceIntervalH != null) state.engine.serviceIntervalH = Number(d.engine.serviceIntervalH) || 0;
+    // Multi-Kart Migration (9.6 additiv): kartsCal/kartsEngine bevorzugen,
+    // sonst altes Single-Objekt in den "default"-Bucket legen (vom ersten
+    // realen Kart adoptiert, sobald er funkt — siehe kartFor()).
+    const _cal = d.kartsCal || (d.calibration ? { [KartRegistry.DEFAULT_MAC]: d.calibration } : {});
+    const _eng = d.kartsEngine || (d.engine ? { [KartRegistry.DEFAULT_MAC]: d.engine } : {});
+    for (const mac of new Set([...Object.keys(_cal), ...Object.keys(_eng)])) {
+      const kk = state.karts.get(mac);   // legt Bucket an (Cap beachtet)
+      if (!kk) continue;
+      if (_cal[mac]) Object.assign(kk.calibration, _cal[mac]);
+      if (_eng[mac]) Object.assign(kk.engine, {
+        totalMs: Number(_eng[mac].totalMs) || 0,
+        lastServiceMs: Number(_eng[mac].lastServiceMs) || 0,
+        serviceIntervalH: _eng[mac].serviceIntervalH != null ? (Number(_eng[mac].serviceIntervalH) || 10) : 10,
+      });
     }
+    state.activeKartMac = state.karts.activeMac();
   } catch (e) { console.warn('loadData:', e); }
 }
 window.addEventListener('beforeunload', saveData);
