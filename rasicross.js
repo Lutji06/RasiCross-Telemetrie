@@ -99,6 +99,20 @@ for (const f of PER_KART_FIELDS) {
   });
 }
 
+// Send a command line to the bridge, tagged with the active kart's MAC so the
+// bridge routes the downlink to the selected kart (target_mac is routing-only;
+// the kart firmware ignores the unknown key). Returns true if written.
+function bridgeSend(obj) {
+  if (!window.rasiSerial || !window.rasiSerial.writeLine) return false;
+  if (!state.serial || !state.serial.connected) return false;
+  const mac = state.activeKartMac;
+  const payload = Object.assign({}, obj);
+  if (mac && mac !== KartRegistry.DEFAULT_MAC && !payload.target_mac) payload.target_mac = mac;
+  try { window.rasiSerial.writeLine(JSON.stringify(payload)); return true; }
+  catch (e) { return false; }
+}
+window.rasiBridgeSend = bridgeSend;
+
 // ============================================================
 // 2. UTILITIES
 // ============================================================
@@ -1139,13 +1153,9 @@ function init() {
     if (btn.disabled) return;
     const original = btn.textContent;
     btn.disabled = true;
-    // Sender-seitige Kalibrierung mitstarten (falls Bridge verbunden)
+    // Sender-seitige Kalibrierung mitstarten (an den ausgewaehlten Kart)
     try {
-      if (window.rasiSerial && state.serial && state.serial.connected) {
-        window.rasiSerial.writeLine(JSON.stringify({
-          type: 'imu_calibrate', action: 'auto', duration_ms: 2000
-        }));
-      }
+      bridgeSend({ type: 'imu_calibrate', action: 'auto', duration_ms: 2000 });
     } catch(e) { console.warn('imu_calibrate send:', e); }
     // Client-seitig: 2 Sekunden lang Samples mitteln
     const samples = [];
@@ -1179,13 +1189,9 @@ function init() {
     state.calibration.gyZero = 0;
     loadSettingsToUi();
     saveData();
-    // Sender-Offsets ebenfalls zuruecksetzen
+    // Sender-Offsets ebenfalls zuruecksetzen (am ausgewaehlten Kart)
     try {
-      if (window.rasiSerial && state.serial && state.serial.connected) {
-        window.rasiSerial.writeLine(JSON.stringify({
-          type: 'imu_calibrate', action: 'reset'
-        }));
-      }
+      bridgeSend({ type: 'imu_calibrate', action: 'reset' });
     } catch(e) {}
     rcToast('IMU-Kalibrierung zurückgesetzt');
   };
@@ -1212,7 +1218,7 @@ function init() {
       return;
     }
     try {
-      window.rasiSerial.writeLine(JSON.stringify(cfg));
+      bridgeSend(cfg);
       setText('espSendStatus', '✓ Gesendet — warte auf Bestätigung…');
       clearTimeout(_espAckTimer);
       _espAckTimer = setTimeout(() => {
