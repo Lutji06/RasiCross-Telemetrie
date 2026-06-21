@@ -64,8 +64,8 @@ function startRace() {
         // Live-Renndaten noch im Speicher -> Lauf- und Sektor-Uhr um
         // die Pause vorruecken, damit die Zeit nahtlos weiterlaeuft.
         state.lapStart += pausedMs;
-        if (typeof state.sectors.sectorStart === 'number') {
-          state.sectors.sectorStart += pausedMs;
+        if (typeof state.sectorsLive.sectorStart === 'number') {
+          state.sectorsLive.sectorStart += pausedMs;
         }
       } else {
         // Nach App-Neustart sind die Live-Lap-Daten weg -> aktuelle
@@ -74,10 +74,10 @@ function startRace() {
         state.currentLapMax = { speed: 0, rpm: 0 };
         state.currentLapTrace = [];
         state.heatmap.lapMaxSpeed = 0;
-        state.sectors.cur = 0;
-        state.sectors.sectorStart = now;
-        state.sectors.lapSectors = [null, null, null];
-        state.sectors.lastLapSectors = null;
+        state.sectorsLive.cur = 0;
+        state.sectorsLive.sectorStart = now;
+        state.sectorsLive.lapSectors = [null, null, null];
+        state.sectorsLive.lastLapSectors = null;
       }
       // Stale GPS-Punkt verwerfen, sonst Geister-Durchfahrt moeglich.
       state.autoLap.prevLat = null;
@@ -98,10 +98,10 @@ function startRace() {
       state.bestLapNum = null;
       state.bestLapTrace = null;
       state.heatmap.lapMaxSpeed = 0;
-      state.sectors.cur = 0;
-      state.sectors.sectorStart = now;
-      state.sectors.lapSectors = [null, null, null];
-      state.sectors.lastLapSectors = null;
+      state.sectorsLive.cur = 0;
+      state.sectorsLive.sectorStart = now;
+      state.sectorsLive.lapSectors = [null, null, null];
+      state.sectorsLive.lastLapSectors = null;
       state.autoLap.prevLat = null;
       state.autoLap.prevLon = null;
     }
@@ -127,9 +127,9 @@ function endRace(auto = false) {
     if (st && !st.endAt) st.endAt = now;
     state.lapStart = null;
     state.currentLapMax = { speed: 0, rpm: 0 };
-    state.sectors.cur = 0;
-    state.sectors.sectorStart = null;
-    state.sectors.lapSectors = [null, null, null];
+    state.sectorsLive.cur = 0;
+    state.sectorsLive.sectorStart = null;
+    state.sectorsLive.lapSectors = [null, null, null];
     document.body.classList.add('flash');
     setTimeout(() => document.body.classList.remove('flash'), 2000);
     renderRaces();

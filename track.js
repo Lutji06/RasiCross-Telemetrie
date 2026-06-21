@@ -687,7 +687,8 @@ function checkSectorCrossings(lat, lon) {
   try {
     const r = activeRace();
     if (!r || r.status !== 'running' || !state.lapStart) return;
-    const s = state.sectors;
+    const s = state.sectors;          // Konfiguration (global)
+    const sl = state.sectorsLive;     // Live-Sektorzeiten (pro Kart)
     const bs = s.boundaries;
     if (!bs[0] && !bs[1]) return;
     if (!state.autoLap.prevLat) return; // wait for prev
@@ -695,16 +696,16 @@ function checkSectorCrossings(lat, lon) {
     const B = { lat, lon };
     const now = Date.now();
     // Cooldown (avoid double trigger)
-    if (s.sectorStart && (now - s.sectorStart) < 2000) return;
+    if (sl.sectorStart && (now - sl.sectorStart) < 2000) return;
     for (let i = 0; i < 2; i++) {
-      if (s.cur !== i) continue;
+      if (sl.cur !== i) continue;
       const ep = lineEndpointsFromGate(bs[i]);
       if (!ep) continue;
       if (segmentsCross(A, B, ep.p1, ep.p2) && crossingDirectionOk(A.lat, A.lon, lat, lon, bs[i].heading)) {
-        const sectorMs = now - (s.sectorStart || state.lapStart);
-        s.lapSectors[i] = sectorMs;
-        s.sectorStart = now;
-        s.cur = i + 1;
+        const sectorMs = now - (sl.sectorStart || state.lapStart);
+        sl.lapSectors[i] = sectorMs;
+        sl.sectorStart = now;
+        sl.cur = i + 1;
         // Update best
         if (s.best[i] == null || sectorMs < s.best[i]) {
           s.best[i] = sectorMs;
@@ -719,13 +720,14 @@ function checkSectorCrossings(lat, lon) {
   } catch (e) { console.warn('checkSectorCrossings:', e); }
 }
 function updateSectorPanel() {
-  const s = state.sectors;
+  const s = state.sectors;          // Konfiguration (global)
+  const sl = state.sectorsLive;     // Live-Sektorzeiten (pro Kart)
   const has = s.boundaries[0] || s.boundaries[1];
   $('sectorPanel').style.display = has ? 'grid' : 'none';
   if (!has) return;
   const display = i => {
-    let t = s.lapSectors[i];
-    if (!t && s.lastLapSectors) t = s.lastLapSectors[i];
+    let t = sl.lapSectors[i];
+    if (!t && sl.lastLapSectors) t = sl.lastLapSectors[i];
     const best = s.best[i];
     const delta = (t && best && t !== best) ? t - best : null;
     setText(`s${i+1}Time`, t ? fmtMs(t) : '--:--.---');
@@ -738,7 +740,7 @@ function updateSectorPanel() {
       }
     }
     const card = $(`s${i+1}Card`);
-    if (card) card.classList.toggle('active', s.cur === i && !s.lapSectors[i]);
+    if (card) card.classList.toggle('active', sl.cur === i && !sl.lapSectors[i]);
   };
   display(0); display(1); display(2);
   // Theoretische Bestrunde (Phase 24): Summe der Sektor-Bests

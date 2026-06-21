@@ -137,9 +137,11 @@ function resetReplayDerived() {
   state.attitude = { rollDeg: 0, over: false, overState: { active: false } };
   _attLastMs = 0;
   state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
-  state.sectors = { boundaries: state.sectors.boundaries, cur: 0, sectorStart: null,
-    lapSectors: [null, null, null], best: [null, null, null], lastLapSectors: null,
-    manual: state.sectors.manual, clickTarget: null };
+  // Sektor-Konfiguration (boundaries/manual) bleibt erhalten; Bests + Live-
+  // Sektorzeiten (pro Kart) zuruecksetzen.
+  state.sectors.best = [null, null, null];
+  state.sectors.clickTarget = null;
+  state.sectorsLive = { cur: 0, sectorStart: null, lapSectors: [null, null, null], lastLapSectors: null };
   state.lapStart = null;
   state.currentLapMax = { speed: 0, rpm: 0 };
   state.currentLapTrace = [];

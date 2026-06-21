@@ -40,44 +40,25 @@ const state = {
   sessionStart: Date.now(),
   hz: 0,
   _lastHz: 0,
-  // Connection
-  connection: { source: 'offline', packets: 0, lost: 0, rssi: null, bridgeMac: '--', kartMac: '--', lastPacketAt: null, seq: null, errors: 0 },
+  // Multi-Kart: per-Kart-Felder leben in der Registry; die unten installierte
+  // Proxy-Fassade spiegelt den aktiven Kart als state.<feld> in alle Lese-/
+  // Render-Pfade. Schreibpfade nutzen explizit kartFor(mac)/activeKart().
+  karts: KartRegistry.create(),
+  activeKartMac: null,
+  kartMeta: {},   // {mac: {name, color}} — gespiegelt aus localStorage
+  // Settings (global/shared)
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
-  // Settings
   settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, displayUpdateMs: 500, oledPage: 'auto', recordAutoArm: true, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 }, rollover: { angleDeg: 75 } },
-  calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false, invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0 },
   theme: 'dark',
-  // Telemetry
-  telemetry: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
-  raw: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
-  display: { speedLerp: 0, rpmLerp: 0, gxLerp: 0, gyLerp: 0 },
-  gps: { fix: false, lastAt: null },
-  spdSrc: 'gps',
-  batt: { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 },
-  max: { speed: 0, rpm: 0, g: 0 },
-  charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] },
-  imu: { yaw: 0, mtemp: null },
-  drift: { status: 'n/a', index: null },
-  attitude: { rollDeg: 0, over: false, overState: { active: false } },
-  driftSmooth: { idxEma: null, status: 'n/a', counterRun: 0 },
-  heatmap: { on: false, lapMaxSpeed: 0 },
-  // Track
+  // Track / sectors-config / races (global/shared)
   track: { points: [], bounds: null, scanning: false, totalDistance: 0, maxDistFromStart: 0, closed: false },
   startGate: { enabled: false, lat: 0, lon: 0, heading: 0, width: 14 },
   savedTracks: [],
   activeTrackId: null,
-  // Sectors
-  sectors: { boundaries: [null, null], cur: 0, sectorStart: null, lapSectors: [null, null, null], best: [null, null, null], lastLapSectors: null, manual: false, clickTarget: null },
-  // Laps & Races
-  lapStart: null,
-  currentLapMax: { speed: 0, rpm: 0 },
-  currentLapTrace: [],
-  bestLapTrace: null,
-  bestLapMs: null,
-  bestLapNum: null,
-  liveDelta: null,
-  autoLap: { prevLat: null, prevLon: null, lastTriggerAt: 0 },
+  // Sectors — nur Konfiguration ist global; die Live-Sektorzeiten
+  // (cur/sectorStart/lapSectors/lastLapSectors) liegen per Kart in sectorsLive.
+  sectors: { boundaries: [null, null], best: [null, null, null], manual: false, clickTarget: null },
   drivers: [],
   races: [],
   activeRaceId: null,
@@ -86,14 +67,37 @@ const state = {
   expandedRaceIds: {},
   // UI
   gateFlashUntil: 0,
-  // Motorlaufzeit/Wartung (Phase 27): totalMs/lastServiceMs/serviceIntervalH
-  // werden persistiert; lastAt/_unsavedMs/_warned sind Session-Zustand.
-  engine: { totalMs: 0, lastServiceMs: 0, serviceIntervalH: 10, lastAt: null, _unsavedMs: 0, _warned: false },
-  // Recording / Replay (NEVER persisted — see saveData guard)
-  recording: { armed: false, buf: [], startWall: null, overflowed: false },
-  replay: { active: false, packets: [], idx: 0, virtualMs: 0, durationMs: 0,
-            speed: 1, playing: false, raf: null, lastWall: null, snapshot: null },
 };
+
+// ── Multi-Kart facade ───────────────────────────────────────────────────
+// Per-kart fields are getters delegating to the active kart, so the entire
+// render/read path keeps using state.telemetry / state.charts / state.batt …
+// unchanged. Write paths use kartFor(mac) explicitly (see processTelemetry).
+const PER_KART_FIELDS = ['connection','telemetry','raw','display','gps','spdSrc',
+  'batt','max','charts','imu','drift','attitude','driftSmooth','heatmap','lapStart',
+  'currentLapMax','currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta',
+  'autoLap','sectorsLive','recording','replay','calibration','engine'];
+
+function activeKart() {
+  let k = state.karts.active();
+  if (!k) k = state.karts.get(KartRegistry.DEFAULT_MAC);   // single-source fallback
+  return k;
+}
+
+function kartFor(mac) {
+  const key = mac || KartRegistry.DEFAULT_MAC;
+  const k = state.karts.get(key);
+  if (k && state.activeKartMac === null) state.activeKartMac = state.karts.activeMac();
+  return k;   // null if over MAX_KARTS
+}
+
+for (const f of PER_KART_FIELDS) {
+  Object.defineProperty(state, f, {
+    get() { return activeKart()[f]; },
+    set(v) { activeKart()[f] = v; },
+    enumerable: false, configurable: true,
+  });
+}
 
 // ============================================================
 // 2. UTILITIES

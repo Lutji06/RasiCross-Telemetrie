@@ -18,6 +18,7 @@
   function makeKartState() {
     return {
       connection: { source: 'offline', packets: 0, lost: 0, rssi: null,
+                    bridgeMac: '--', kartMac: '--',
                     lastPacketAt: null, seq: null, errors: 0, degraded: false },
       telemetry: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
       raw: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },

@@ -97,10 +97,11 @@ function updatePitWall() {
   const _tb = theoreticalBestMs();
   setText('pwTheoLap', _tb ? fmtMs(_tb) : '--:--.---');
   // Sectors
-  const s = state.sectors;
+  const s = state.sectors;          // Konfiguration (global)
+  const sl = state.sectorsLive;     // Live-Sektorzeiten (pro Kart)
   for (let i = 0; i < 3; i++) {
-    let t2 = s.lapSectors[i];
-    if (!t2 && s.lastLapSectors) t2 = s.lastLapSectors[i];
+    let t2 = sl.lapSectors[i];
+    if (!t2 && sl.lastLapSectors) t2 = sl.lastLapSectors[i];
     const best = s.best[i];
     const el = $('pwS' + (i + 1));
     if (el) {
@@ -262,8 +263,8 @@ function buildRaceDataForKart() {
   }
   const drv = state.drivers.find(d => d.id === r.currentDriverId);
   // Sektor-States: 'done' bei abgeschlossenen, 'current' beim aktiven, 'open' sonst
-  const cur = state.sectors.cur || 0;
-  const lapSec = state.sectors.lapSectors || [null, null, null];
+  const cur = state.sectorsLive.cur || 0;
+  const lapSec = state.sectorsLive.lapSectors || [null, null, null];
   const sectorStates = ["open", "open", "open"];
   for (let i = 0; i < 3; i++) {
     if (lapSec[i] != null) sectorStates[i] = "done";
