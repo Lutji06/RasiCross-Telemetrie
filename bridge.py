@@ -83,6 +83,9 @@ class Config:
     # WICHTIG: Sender muss auch im LR-Mode laufen!
     WIFI_TX_POWER_DBM = 20       # Sendeleistung in dBm (20 = EU-Max)
 
+    # Multi-Kart
+    MAX_KARTS         = 4       # max gleichzeitig verwaltete Karts
+
     # Status-LED
     LED_ENABLED       = True
     LED_PIN           = 2
@@ -97,11 +100,12 @@ def jprint(obj):
 # ── Persistenz ────────────────────────────────────────────────────────────
 
 class PeerStore:
-    """Speichert die zuletzt bekannte Kart-MAC im ESP32-NVS, sodass die
-    Bridge nach einem Reboot ohne Neulernen direkt senden kann."""
+    """Speichert die bekannten Kart-MACs im ESP32-NVS (Liste, <= MAX_KARTS),
+    sodass die Bridge nach einem Reboot ohne Neulernen direkt senden kann."""
 
     NAMESPACE = "rasicross"
-    KEY       = "kart_mac"
+    KEY       = "kart_macs"          # neue Liste; alter Single-Key wird migriert
+    LEGACY_KEY = "kart_mac"
 
     def __init__(self):
         self._nvs = None
@@ -114,22 +118,32 @@ class PeerStore:
             self._nvs = None
 
     def load(self):
+        """-> list[bytes] (6-Byte MACs). Migriert alten Single-Key einmalig."""
         if not self._nvs:
-            return None
+            return []
+        macs = []
         try:
-            buf = bytearray(6)
+            buf = bytearray(6 * Config.MAX_KARTS)
             n = self._nvs.get_blob(self.KEY, buf)
-            if n == 6:
-                return bytes(buf)
+            for i in range(0, n - (n % 6), 6):
+                macs.append(bytes(buf[i:i + 6]))
         except Exception:
             pass
-        return None
+        if not macs:                              # Migration: alter Single-Slot
+            try:
+                lbuf = bytearray(6)
+                if self._nvs.get_blob(self.LEGACY_KEY, lbuf) == 6:
+                    macs.append(bytes(lbuf))
+            except Exception:
+                pass
+        return macs
 
-    def save(self, mac_bytes):
-        if not self._nvs or not mac_bytes or len(mac_bytes) != 6:
+    def save_list(self, mac_list):
+        if not self._nvs:
             return
         try:
-            self._nvs.set_blob(self.KEY, mac_bytes)
+            blob = b"".join(m for m in mac_list if m and len(m) == 6)[:6 * Config.MAX_KARTS]
+            self._nvs.set_blob(self.KEY, blob if blob else b"")
             self._nvs.commit()
         except Exception as e:
             print("[init] NVS save fehler:", e)
@@ -253,8 +267,10 @@ class BridgeDisplay:
             duration_ms = Config.PIT_MSG_DURATION_MS
         self._msg_until = utime.ticks_add(utime.ticks_ms(), duration_ms)
 
-    def update(self, stats, kart_mac, usb_connected):
+    def update(self, stats, kart_mac, kart_count, usb_connected):
         if not self._ok:
+            return
+        if not stats:
             return
         now = utime.ticks_ms()
         if utime.ticks_diff(now, self._last_draw) < Config.OLED_REFRESH_MS:
@@ -278,9 +294,7 @@ class BridgeDisplay:
         # ── Header ───────────────────────────────────────────────────────
         o.text("BRIDGE", 0, 0, 1)
         o.text("CH{}".format(Config.ESPNOW_CHANNEL), 56, 0, 1)
-        rx_str = "{:>5}".format(stats.rx_count) if stats.rx_count < 100000 \
-                 else "{:>5}".format(stats.rx_count % 100000)
-        o.text(rx_str, 88, 0, 1)
+        o.text("x{}".format(kart_count), 96, 0, 1)   # Anzahl Karts (Multi-Kart)
         # Aktivitätspunkt rechts
         age = stats.packet_age_ms
         if age < 500:
@@ -405,18 +419,18 @@ class Bridge:
             pass
 
         # State
-        self.stats        = Stats()
-        self.kart_host    = None      # MAC des Kart-ESP (auto-erkannt)
+        self.karts        = {}    # {mac_bytes: Stats} — Multi-Kart
+        self.kart_host    = None  # zuletzt gehoerte MAC (Legacy-Felder/Display)
         self.known_peers  = set()
         self.last_hb_ms   = utime.ticks_ms()
         self.last_hello_ms = 0
         self.last_usb_at  = 0
         self.usb_errors   = 0
 
-        # Persistente Peer-Liste: Kart-MAC ueberlebt Reboot
+        # Persistente Peer-Liste: bekannte Kart-MACs ueberleben Reboot
         self.peer_store = PeerStore()
-        saved_mac = self.peer_store.load()
-        if saved_mac:
+        for saved_mac in self.peer_store.load():
+            self.karts[saved_mac] = Stats()
             self.kart_host = saved_mac
             self._add_peer(saved_mac)
             print("[init] Kart-MAC aus NVS geladen:",
@@ -463,6 +477,15 @@ class Bridge:
             "oled":           self.display._ok,
         })
 
+    def _stats_for(self, mac):
+        st = self.karts.get(mac)
+        if st is None:
+            if len(self.karts) >= Config.MAX_KARTS:
+                return None
+            st = Stats()
+            self.karts[mac] = st
+        return st
+
     # ── Hauptschleife ─────────────────────────────────────────────────────
 
     def run(self):
@@ -489,15 +512,18 @@ class Bridge:
     # ── Status-Aktualisierungen (Display + LED + Stats-Tick) ──────────────
 
     def _update_status(self):
-        self.stats.tick()
+        for st in self.karts.values():
+            st.tick()
         usb_alive = self._usb_alive()
+        host_st = self.karts.get(self.kart_host)
+        recent = any(st.packet_age_ms < 2000 for st in self.karts.values())
         self.led.update(
-            packets_recent = self.stats.packet_age_ms < 2000,
+            packets_recent = recent,
             usb_connected  = usb_alive,
         )
         kart_mac_str = (ubinascii.hexlify(self.kart_host, ":").decode()
                         if self.kart_host else None)
-        self.display.update(self.stats, kart_mac_str, usb_alive)
+        self.display.update(host_st, kart_mac_str, len(self.karts), usb_alive)
 
     def _usb_alive(self):
         if not self.last_usb_at:
@@ -507,13 +533,9 @@ class Bridge:
     # ── Empfangen ─────────────────────────────────────────────────────────
 
     def _handle_packet(self, host, msg):
-        # Peer-Lernen
+        # Peer-Lernen (Routing/RSSI); Stats-Zuordnung erfolgt nach dem Parsen.
         if host:
             self._add_peer(host)
-            # Neue MAC -> persistent speichern, damit sie Reboots ueberlebt
-            if self.kart_host != host:
-                self.kart_host = host
-                self.peer_store.save(host)
 
         # Binaer-Frame (D1)? Erstes Byte == FRAME_VER und exakte Laenge.
         # JSON beginnt immer mit '{' (0x7B != 1) -> keine Kollision.
@@ -561,13 +583,23 @@ class Bridge:
         if rssi is not None:
             data["rssi"] = rssi
 
-        # Statistiken aktualisieren
-        self.stats.on_packet(data)
+        # Stats pro Kart-MAC fuehren + Peer-Liste persistieren
+        if host:
+            if host not in self.karts and len(self.karts) < Config.MAX_KARTS:
+                self.karts[host] = Stats()
+                self.peer_store.save_list(list(self.karts.keys()))
+            self.kart_host = host          # zuletzt gehoert (Legacy/Display)
+        st = self._stats_for(host) if host else None
+        if st is None:
+            jprint({"type": "bridge_info", "info": "kart_limit",
+                    "max": Config.MAX_KARTS})
+            return
+        st.on_packet(data)
 
         # Metadaten an Dashboard anreichern
         data["source"]    = "espnow_usb"
-        data["rx_count"]  = self.stats.rx_count
-        data["lost"]      = self.stats.lost
+        data["rx_count"]  = st.rx_count
+        data["lost"]      = st.lost
         data["bridge_ms"] = utime.ticks_ms()
         if host:
             data["from_mac"] = ubinascii.hexlify(host, ":").decode()
@@ -621,9 +653,12 @@ class Bridge:
                 clean = mac_str.replace(":", "").replace("-", "")
                 if len(clean) == 12:
                     mac_bytes = bytes.fromhex(clean)
+                    # Additiv registrieren (Multi-Kart) — nicht den Slot ueberschreiben
+                    if mac_bytes not in self.karts and len(self.karts) < Config.MAX_KARTS:
+                        self.karts[mac_bytes] = Stats()
                     self.kart_host = mac_bytes
                     self._add_peer(mac_bytes)
-                    self.peer_store.save(mac_bytes)
+                    self.peer_store.save_list(list(self.karts.keys()))
                     jprint({"type": "bridge_info",
                             "info": "kart_mac_set",
                             "kart_mac": mac_str})
@@ -631,6 +666,37 @@ class Bridge:
                 jprint({"type": "bridge_error",
                         "error": "set_kart_mac_failed",
                         "detail": str(e)})
+            return
+
+        # Einen bekannten Kart vergessen (aus Liste + NVS entfernen)
+        if t == "forget_kart_mac":
+            mac_str = data.get("mac", "")
+            try:
+                clean = mac_str.replace(":", "").replace("-", "")
+                if len(clean) == 12:
+                    mb = bytes.fromhex(clean)
+                    self.karts.pop(mb, None)
+                    try: self.esp.del_peer(mb)
+                    except Exception: pass
+                    self.known_peers.discard(ubinascii.hexlify(mb).decode())
+                    if self.kart_host == mb:
+                        self.kart_host = next(iter(self.karts), None)
+                    self.peer_store.save_list(list(self.karts.keys()))
+                    jprint({"type": "bridge_info", "info": "kart_forgotten", "mac": mac_str})
+            except Exception as e:
+                jprint({"type": "bridge_error", "error": "forget_failed", "detail": str(e)})
+            return
+
+        # Alle Karts vergessen (kompletter Reset der Peer-Liste)
+        if t == "reset_karts":
+            for mb in list(self.karts.keys()):
+                try: self.esp.del_peer(mb)
+                except Exception: pass
+            self.karts.clear()
+            self.known_peers.clear()
+            self.kart_host = None
+            self.peer_store.save_list([])
+            jprint({"type": "bridge_info", "info": "karts_reset"})
             return
 
         # Steuer-Pakete an den Kart weiterleiten. WICHTIG: die rohe
@@ -646,19 +712,33 @@ class Bridge:
                 "received": str(t)})
 
     def _forward_to_kart(self, kind, data, raw=None):
-        if not self.kart_host:
-            jprint({"type": "bridge_error", "error": "no_kart_known",
+        # Ziel-Kart bestimmen: target_mac (vom Dashboard gesetzt) hat Vorrang,
+        # sonst Fallback auf den zuletzt gehoerten Kart (Single-Kart-Verhalten).
+        target = None
+        tm = data.get("target_mac")
+        if tm:
+            try:
+                clean = tm.replace(":", "").replace("-", "")
+                if len(clean) == 12:
+                    target = bytes.fromhex(clean)
+            except Exception:
+                target = None
+        if target is None:
+            target = self.kart_host
+        if not target:
+            jprint({"type": "bridge_error", "error": "no_target",
                     "kind": kind})
             return
         # Rohe Dashboard-Zeile bevorzugen (kompaktes JSON.stringify);
         # ujson.dumps nur als Fallback fuer intern erzeugte Pakete.
+        # target_mac ist ein reines Routing-Feld; das Kart ignoriert es.
         payload = raw if raw is not None else ujson.dumps(data)
         if len(payload) > 250:
             jprint({"type": "bridge_error", "error": "payload_too_long",
                     "kind": kind, "bytes": len(payload)})
             return
         try:
-            self.esp.send(self.kart_host, payload, False)
+            self.esp.send(target, payload, False)
             # Hinweis ans Dashboard dass weitergeleitet wurde (nur fuer 'display' optional)
             # Bridge-Display informieren bei Pit-Call
             if kind == "pit_call":
@@ -683,18 +763,31 @@ class Bridge:
 
     def _send_status(self):
         mac = ubinascii.hexlify(self.wlan.config("mac"), ":").decode()
-        kart = (ubinascii.hexlify(self.kart_host, ":").decode()
-                if self.kart_host else None)
+        karts = []
+        agg_rx = 0
+        for m, st in self.karts.items():
+            agg_rx += st.rx_count
+            karts.append({
+                "mac":      ubinascii.hexlify(m, ":").decode(),
+                "rate_hz":  st.packets_per_sec,
+                "rssi":     st.last_rssi,
+                "lost":     st.lost,
+                "last_seq": st.last_seq,
+                "age":      st.packet_age_ms,
+            })
+        host = self.kart_host
+        host_st = self.karts.get(host) if host else None
         jprint({
             "type":      "bridge_status",
             "bridge":    "alive",
             "mac":       mac,
             "channel":   Config.ESPNOW_CHANNEL,
-            "rx_count":  self.stats.rx_count,
-            "lost":      self.stats.lost,
-            "last_seq":  self.stats.last_seq,
-            "kart_mac":  kart,
-            "rate_hz":   self.stats.packets_per_sec,
+            "rx_count":  agg_rx,
+            "lost":      host_st.lost if host_st else 0,
+            "last_seq":  host_st.last_seq if host_st else None,
+            "kart_mac":  ubinascii.hexlify(host, ":").decode() if host else None,
+            "rate_hz":   host_st.packets_per_sec if host_st else 0,
+            "karts":     karts,
             "usb_errors": self.usb_errors,
         })
 
@@ -709,16 +802,17 @@ class Bridge:
         if utime.ticks_diff(now, self.last_hello_ms) < Config.HELLO_MS:
             return
 
-        if self.kart_host:
-            # Nur senden wenn Kart laenger nichts geschickt hat
-            if self.stats.packet_age_ms < Config.HELLO_QUIET_MS:
-                return
+        if self.karts:
+            # Gerichtetes Hello an jedes Kart, das laenger nichts geschickt hat
             self.last_hello_ms = now
-            try:
-                self.esp.send(self.kart_host,
-                              ujson.dumps({"type": "bridge_hello"}), False)
-            except Exception:
-                pass
+            hello = ujson.dumps({"type": "bridge_hello"})
+            for mac, st in self.karts.items():
+                if st.packet_age_ms < Config.HELLO_QUIET_MS:
+                    continue
+                try:
+                    self.esp.send(mac, hello, False)
+                except Exception:
+                    pass
         else:
             # Pairing-Broadcast — kein Kart bekannt
             self.last_hello_ms = now
