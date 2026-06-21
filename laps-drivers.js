@@ -38,6 +38,7 @@ function triggerLap() {
         number: r.laps.length + 1,
         timeMs: lapMs,
         driverId: r.currentDriverId,
+        kartMac: r.kartMac || state.activeKartMac || KartRegistry.DEFAULT_MAC,
         maxSpeed: state.currentLapMax.speed,
         maxRpm: state.currentLapMax.rpm,
         distanceM: traceDistanceM(state.currentLapTrace),

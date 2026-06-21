@@ -33,6 +33,8 @@ function createRace() {
     durationMs: duration * 60000,
     targetLaps,
     startDriverId: driverId, currentDriverId: driverId,
+    // Multi-Kart: Rennen gehoert dem aktuell ausgewaehlten Kart.
+    kartMac: state.activeKartMac || KartRegistry.DEFAULT_MAC,
     status: 'created', createdAt: Date.now(),
     startedAt: null, endedAt: null, pausedAt: null, totalPausedMs: 0,
     laps: [], stints: [], speedTrace: []
@@ -206,6 +208,8 @@ async function setActiveRace(id) {
   state.activeRaceId = id;
   state.selectedRaceId = id;
   const r = activeRace();
+  // Per-Kart-Zeiger: das aktive Rennen gehoert dem aktuell ausgewaehlten Kart.
+  activeKart().activeRaceId = id;
   if (r && r.trackId) loadSavedTrack(r.trackId);
   renderRaces();
   updateRaceControls();
@@ -255,6 +259,17 @@ function drawRaceHistoryChart(raceId) {
   );
 }
 
+// Kleiner Kart-Badge (Name/Farbe) fuer eine Rennzeile — nur wenn das Rennen
+// einem benannten Kart zugeordnet ist (Multi-Kart). Default-Bucket = kein Badge.
+function kartBadge(r) {
+  const mac = r && r.kartMac;
+  if (!mac || mac === (window.KartRegistry && KartRegistry.DEFAULT_MAC)) return '';
+  const meta = state.kartMeta && state.kartMeta[mac];
+  if (!meta) return '';
+  const color = meta.color || '#3aa0e8';
+  return ` <span class="kart-badge" style="border-color:${esc(color)};color:${esc(color)}">${esc(meta.name || 'Kart')}</span>`;
+}
+
 function renderRaces() {
   const list = $('raceList');
   setText('raceListCount', state.races.length);
@@ -283,7 +298,7 @@ function renderRaces() {
     return `
       <div class="race-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}" data-action="selectRace" data-id="${r.id}">
         <div class="race-card-top">
-          <h3>${esc(r.name)}</h3>
+          <h3>${esc(r.name)}${kartBadge(r)}</h3>
           <span class="race-status ${r.status}">${({ created: 'Erstellt', running: 'Läuft', paused: 'Pausiert', finished: 'Beendet', finished_auto: 'Auto-End' }[r.status] || r.status)}</span>
         </div>
         <div class="race-meta">
