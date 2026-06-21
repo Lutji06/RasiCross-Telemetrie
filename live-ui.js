@@ -448,6 +448,10 @@ setInterval(() => {
   setText('sessionText', fmtClock(Date.now() - state.sessionStart));
   updateLiveUi();
 
+  // Multi-Kart Chip-Leiste auffrischen (auch ohne bridge_status, damit
+  // Stale-Markierung mit der Zeit greift).
+  if (window.RasiKartBar) RasiKartBar.render(state);
+
   // Status-Badge oben rechts
   if (state.connection.source === 'serial' && state.serial.connected) {
     (()=>{const e=$('topConnPill');if(e){e.className='pill green'};const e2=$('sideConnCard');if(e2){e2.className='conn-card connected'}})();

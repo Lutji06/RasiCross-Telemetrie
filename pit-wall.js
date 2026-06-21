@@ -97,10 +97,11 @@ function updatePitWall() {
   const _tb = theoreticalBestMs();
   setText('pwTheoLap', _tb ? fmtMs(_tb) : '--:--.---');
   // Sectors
-  const s = state.sectors;
+  const s = state.sectors;          // Konfiguration (global)
+  const sl = state.sectorsLive;     // Live-Sektorzeiten (pro Kart)
   for (let i = 0; i < 3; i++) {
-    let t2 = s.lapSectors[i];
-    if (!t2 && s.lastLapSectors) t2 = s.lastLapSectors[i];
+    let t2 = sl.lapSectors[i];
+    if (!t2 && sl.lastLapSectors) t2 = sl.lastLapSectors[i];
     const best = s.best[i];
     const el = $('pwS' + (i + 1));
     if (el) {
@@ -262,8 +263,8 @@ function buildRaceDataForKart() {
   }
   const drv = state.drivers.find(d => d.id === r.currentDriverId);
   // Sektor-States: 'done' bei abgeschlossenen, 'current' beim aktiven, 'open' sonst
-  const cur = state.sectors.cur || 0;
-  const lapSec = state.sectors.lapSectors || [null, null, null];
+  const cur = state.sectorsLive.cur || 0;
+  const lapSec = state.sectorsLive.lapSectors || [null, null, null];
   const sectorStates = ["open", "open", "open"];
   for (let i = 0; i < 3; i++) {
     if (lapSec[i] != null) sectorStates[i] = "done";
@@ -335,7 +336,7 @@ function sendDisplayUpdate() {
   const now = Date.now();
   if (key === _lastDisplayKey && (now - _lastDisplayAt) < RC_DISPLAY_KEEPALIVE_MS) return;
   try {
-    window.rasiSerial.writeLine(JSON.stringify(payload));
+    window.rasiBridgeSend(payload);   // an den ausgewaehlten Kart (target_mac)
     _lastDisplayKey = key;
     _lastDisplayAt = now;
   } catch (e) {
@@ -357,13 +358,12 @@ function sendPitCall(message, durationMs = 15000) {
     return false;
   }
   try {
-    const payload = JSON.stringify({
+    window.rasiBridgeSend({
       type: 'pit_call',
       action: 'trigger',
       message: (message || 'PIT STOP').slice(0, 14),
       duration_ms: durationMs
     });
-    window.rasiSerial.writeLine(payload);
     return true;
   } catch (e) {
     rcAlert('Pit-Call Senden fehlgeschlagen:\n' + (e?.message || e), 'Fehler');
@@ -373,7 +373,7 @@ function sendPitCall(message, durationMs = 15000) {
 function cancelPitCall() {
   if (state.connection.source !== 'serial' || !state.serial.connected) return false;
   try {
-    window.rasiSerial.writeLine(JSON.stringify({ type: 'pit_call', action: 'cancel' }));
+    window.rasiBridgeSend({ type: 'pit_call', action: 'cancel' });
     return true;
   } catch (e) { return false; }
 }

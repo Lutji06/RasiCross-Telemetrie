@@ -38,6 +38,7 @@ function triggerLap() {
         number: r.laps.length + 1,
         timeMs: lapMs,
         driverId: r.currentDriverId,
+        kartMac: r.kartMac || state.activeKartMac || KartRegistry.DEFAULT_MAC,
         maxSpeed: state.currentLapMax.speed,
         maxRpm: state.currentLapMax.rpm,
         distanceM: traceDistanceM(state.currentLapTrace),
@@ -45,17 +46,18 @@ function triggerLap() {
       };
       r.laps.push(lap);
       // Update sector best for last sector
-      const s = state.sectors;
-      if (s.boundaries[0] && s.boundaries[1] && s.cur === 2 && s.sectorStart) {
-        const s3Ms = now - s.sectorStart;
-        s.lapSectors[2] = s3Ms;
+      const s = state.sectors;            // Konfiguration (global)
+      const sl = state.sectorsLive;       // Live-Sektorzeiten (pro Kart)
+      if (s.boundaries[0] && s.boundaries[1] && sl.cur === 2 && sl.sectorStart) {
+        const s3Ms = now - sl.sectorStart;
+        sl.lapSectors[2] = s3Ms;
         if (s.best[2] == null || s3Ms < s.best[2]) {
           s.best[2] = s3Ms;
           rcAudio.sectorBest();
           syncSectorBestToTrack();
         }
       }
-      lap.sectors = s.lapSectors.slice(0, 3);    // [s1,s2,s3] ms (null ohne Sektorgrenzen)
+      lap.sectors = sl.lapSectors.slice(0, 3);    // [s1,s2,s3] ms (null ohne Sektorgrenzen)
       // Update best lap
       if (state.bestLapMs == null || lapMs < state.bestLapMs) {
         state.bestLapMs = lapMs;
@@ -64,11 +66,12 @@ function triggerLap() {
         rcAudio.lapBest();
       }
       // Save sector times for display
-      if (s.lapSectors.some(x => x)) {
-        s.lastLapSectors = [...s.lapSectors];
+      if (sl.lapSectors.some(x => x)) {
+        sl.lastLapSectors = [...sl.lapSectors];
         setTimeout(() => {
-          if (s.lastLapSectors && !s.lapSectors.some(x => x)) {
-            s.lastLapSectors = null;
+          const sl2 = state.sectorsLive;
+          if (sl2.lastLapSectors && !sl2.lapSectors.some(x => x)) {
+            sl2.lastLapSectors = null;
             updateSectorPanel();
           }
         }, 7000);
@@ -86,9 +89,9 @@ function triggerLap() {
     state.currentLapMax = { speed: 0, rpm: 0 };
     state.currentLapTrace = [];
     state.heatmap.lapMaxSpeed = 0;
-    state.sectors.cur = 0;
-    state.sectors.sectorStart = now;
-    state.sectors.lapSectors = [null, null, null];
+    state.sectorsLive.cur = 0;
+    state.sectorsLive.sectorStart = now;
+    state.sectorsLive.lapSectors = [null, null, null];
     updateSectorPanel();
     renderLapTable();
   } catch (e) { console.warn('triggerLap:', e); }

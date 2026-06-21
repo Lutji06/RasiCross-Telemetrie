@@ -70,6 +70,15 @@ function updateRecStatus() {
   const n = state.recording.buf.length;
   el.textContent = state.recording.armed ? (n + ' Pakete aufgenommen') : 'Bereit';
 }
+// Dateinamen-Praefix aus dem Namen des aktiven Karts (Multi-Kart-Export),
+// damit zwei Karts unterscheidbare Dateien ergeben.
+function activeKartSlug() {
+  const mac = state.activeKartMac;
+  const meta = mac && state.kartMeta ? state.kartMeta[mac] : null;
+  const name = meta && meta.name ? meta.name : '';
+  const slug = name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
+  return slug ? slug + '_' : '';
+}
 function saveRecording() {
   // Replay aktiv -> die geladene Aufnahme speichern (z.B. nach Crash-Recovery),
   // sonst den Live-Mitschnitt.
@@ -80,7 +89,7 @@ function saveRecording() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `rasicross_rec_${Date.now()}.ndjson`;
+  a.download = `rasicross_rec_${activeKartSlug()}${Date.now()}.ndjson`;
   a.click();
   URL.revokeObjectURL(url);
   rcToast('Aufnahme gespeichert (' + buf.length + ' Pakete)');
@@ -95,7 +104,7 @@ function exportRecordingCsv() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `rasicross_rec_${Date.now()}.csv`;
+  a.download = `rasicross_rec_${activeKartSlug()}${Date.now()}.csv`;
   a.click();
   URL.revokeObjectURL(url);
   rcToast('CSV exportiert (' + (text.split('\r\n').length - 1) + ' Zeilen)');
@@ -104,7 +113,7 @@ function exportRecordingCsv() {
 // Slices that processTelemetry / onGpsUpdate / lap-sector-race
 // detection mutate. Snapshot on enter, restore verbatim on exit.
 const REPLAY_KEYS = ['connection','hz','telemetry','raw','display','gps','spdSrc',
-  'batt','max','charts','imu','drift','driftSmooth','attitude','heatmap','sectors','lapStart','currentLapMax',
+  'batt','max','charts','imu','drift','driftSmooth','attitude','heatmap','sectors','sectorsLive','lapStart','currentLapMax',
   'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap',
   'drivers','races','activeRaceId','selectedRaceId','gateFlashUntil'];
 
@@ -137,9 +146,11 @@ function resetReplayDerived() {
   state.attitude = { rollDeg: 0, over: false, overState: { active: false } };
   _attLastMs = 0;
   state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
-  state.sectors = { boundaries: state.sectors.boundaries, cur: 0, sectorStart: null,
-    lapSectors: [null, null, null], best: [null, null, null], lastLapSectors: null,
-    manual: state.sectors.manual, clickTarget: null };
+  // Sektor-Konfiguration (boundaries/manual) bleibt erhalten; Bests + Live-
+  // Sektorzeiten (pro Kart) zuruecksetzen.
+  state.sectors.best = [null, null, null];
+  state.sectors.clickTarget = null;
+  state.sectorsLive = { cur: 0, sectorStart: null, lapSectors: [null, null, null], lastLapSectors: null };
   state.lapStart = null;
   state.currentLapMax = { speed: 0, rpm: 0 };
   state.currentLapTrace = [];
@@ -163,7 +174,12 @@ function resetReplayDerived() {
   state.selectedRaceId = race.id;
 }
 function feedReplayPacket(p) {
-  processTelemetry(p);
+  // Replay treibt immer den AKTIVEN Kart-Slot: processTelemetry routet nach
+  // from_mac, also auf die aktive MAC umstempeln (sonst landet die Wiedergabe
+  // im falschen/neuen Bucket).
+  const mac = state.activeKartMac || KartRegistry.DEFAULT_MAC;
+  const pkt = (p.from_mac === mac) ? p : Object.assign({}, p, { from_mac: mac });
+  processTelemetry(pkt);
   if (p.lat && p.lon) onGpsUpdate(p.lat, p.lon);
 }
 function fastForwardTo(targetMs) {

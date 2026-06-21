@@ -33,6 +33,8 @@ function createRace() {
     durationMs: duration * 60000,
     targetLaps,
     startDriverId: driverId, currentDriverId: driverId,
+    // Multi-Kart: Rennen gehoert dem aktuell ausgewaehlten Kart.
+    kartMac: state.activeKartMac || KartRegistry.DEFAULT_MAC,
     status: 'created', createdAt: Date.now(),
     startedAt: null, endedAt: null, pausedAt: null, totalPausedMs: 0,
     laps: [], stints: [], speedTrace: []
@@ -64,8 +66,8 @@ function startRace() {
         // Live-Renndaten noch im Speicher -> Lauf- und Sektor-Uhr um
         // die Pause vorruecken, damit die Zeit nahtlos weiterlaeuft.
         state.lapStart += pausedMs;
-        if (typeof state.sectors.sectorStart === 'number') {
-          state.sectors.sectorStart += pausedMs;
+        if (typeof state.sectorsLive.sectorStart === 'number') {
+          state.sectorsLive.sectorStart += pausedMs;
         }
       } else {
         // Nach App-Neustart sind die Live-Lap-Daten weg -> aktuelle
@@ -74,10 +76,10 @@ function startRace() {
         state.currentLapMax = { speed: 0, rpm: 0 };
         state.currentLapTrace = [];
         state.heatmap.lapMaxSpeed = 0;
-        state.sectors.cur = 0;
-        state.sectors.sectorStart = now;
-        state.sectors.lapSectors = [null, null, null];
-        state.sectors.lastLapSectors = null;
+        state.sectorsLive.cur = 0;
+        state.sectorsLive.sectorStart = now;
+        state.sectorsLive.lapSectors = [null, null, null];
+        state.sectorsLive.lastLapSectors = null;
       }
       // Stale GPS-Punkt verwerfen, sonst Geister-Durchfahrt moeglich.
       state.autoLap.prevLat = null;
@@ -98,10 +100,10 @@ function startRace() {
       state.bestLapNum = null;
       state.bestLapTrace = null;
       state.heatmap.lapMaxSpeed = 0;
-      state.sectors.cur = 0;
-      state.sectors.sectorStart = now;
-      state.sectors.lapSectors = [null, null, null];
-      state.sectors.lastLapSectors = null;
+      state.sectorsLive.cur = 0;
+      state.sectorsLive.sectorStart = now;
+      state.sectorsLive.lapSectors = [null, null, null];
+      state.sectorsLive.lastLapSectors = null;
       state.autoLap.prevLat = null;
       state.autoLap.prevLon = null;
     }
@@ -127,9 +129,9 @@ function endRace(auto = false) {
     if (st && !st.endAt) st.endAt = now;
     state.lapStart = null;
     state.currentLapMax = { speed: 0, rpm: 0 };
-    state.sectors.cur = 0;
-    state.sectors.sectorStart = null;
-    state.sectors.lapSectors = [null, null, null];
+    state.sectorsLive.cur = 0;
+    state.sectorsLive.sectorStart = null;
+    state.sectorsLive.lapSectors = [null, null, null];
     document.body.classList.add('flash');
     setTimeout(() => document.body.classList.remove('flash'), 2000);
     renderRaces();
@@ -206,6 +208,8 @@ async function setActiveRace(id) {
   state.activeRaceId = id;
   state.selectedRaceId = id;
   const r = activeRace();
+  // Per-Kart-Zeiger: das aktive Rennen gehoert dem aktuell ausgewaehlten Kart.
+  activeKart().activeRaceId = id;
   if (r && r.trackId) loadSavedTrack(r.trackId);
   renderRaces();
   updateRaceControls();
@@ -255,6 +259,17 @@ function drawRaceHistoryChart(raceId) {
   );
 }
 
+// Kleiner Kart-Badge (Name/Farbe) fuer eine Rennzeile — nur wenn das Rennen
+// einem benannten Kart zugeordnet ist (Multi-Kart). Default-Bucket = kein Badge.
+function kartBadge(r) {
+  const mac = r && r.kartMac;
+  if (!mac || mac === (window.KartRegistry && KartRegistry.DEFAULT_MAC)) return '';
+  const meta = state.kartMeta && state.kartMeta[mac];
+  if (!meta) return '';
+  const color = meta.color || '#3aa0e8';
+  return ` <span class="kart-badge" style="border-color:${esc(color)};color:${esc(color)}">${esc(meta.name || 'Kart')}</span>`;
+}
+
 function renderRaces() {
   const list = $('raceList');
   setText('raceListCount', state.races.length);
@@ -283,7 +298,7 @@ function renderRaces() {
     return `
       <div class="race-card ${isSelected ? 'selected' : ''} ${isExpanded ? 'expanded' : ''}" data-action="selectRace" data-id="${r.id}">
         <div class="race-card-top">
-          <h3>${esc(r.name)}</h3>
+          <h3>${esc(r.name)}${kartBadge(r)}</h3>
           <span class="race-status ${r.status}">${({ created: 'Erstellt', running: 'Läuft', paused: 'Pausiert', finished: 'Beendet', finished_auto: 'Auto-End' }[r.status] || r.status)}</span>
         </div>
         <div class="race-meta">
