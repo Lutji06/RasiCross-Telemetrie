@@ -70,14 +70,13 @@
       c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  let _editState = null, _editMac = null, _onDocClick = null;
+  let _onDocClick = null;
 
   function closeEditor() {
     const pop = document.getElementById('kartEditPopover');
     if (pop) pop.classList.add('hidden');
     if (_onDocClick) { document.removeEventListener('mousedown', _onDocClick, true);
       document.removeEventListener('keydown', _onEditKey, true); _onDocClick = null; }
-    _editState = null; _editMac = null;
   }
 
   function _onEditKey(ev) { if (ev.key === 'Escape') closeEditor(); }
@@ -85,7 +84,6 @@
   function openEditor(state, mac, anchorEl) {
     const pop = document.getElementById('kartEditPopover');
     if (!pop) return;
-    _editState = state; _editMac = mac;
     const macs = state.karts.macs();
     const idx = Math.max(0, macs.indexOf(mac));
     const m = metaForState(state, mac, idx);
