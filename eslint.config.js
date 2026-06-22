@@ -110,6 +110,10 @@ const recordingGlobals = {
   discardRaceRecording: 'readonly',
   raceHasRecording: 'readonly', replayRace: 'readonly',
 };
+// Schnittstelle kart-registry.js -> Nutzer (UMD: window.KartRegistry)
+const kartRegistryGlobals = { KartRegistry: 'readonly' };
+// Schnittstelle kart-bar.js -> Nutzer (window.RasiKartBar)
+const kartBarGlobals = { RasiKartBar: 'readonly' };
 
 const bugRules = {
   ...js.configs.recommended.rules,
@@ -140,11 +144,22 @@ module.exports = [
 
   // Pure UMD-Module -- laufen im Browser und unter node:test
   {
-    files: ['geo.js', 'replay.js', 'karts3d.js'],
+    files: ['geo.js', 'replay.js', 'karts3d.js', 'kart-registry.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, module: 'readonly', THREE: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
+  // kart-bar.js — Kart-Chip-Leiste (Browser-Script, window.RasiKartBar)
+  {
+    files: ['kart-bar.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...appCoreGlobals, ...kartRegistryGlobals },
     },
     rules: bugRules,
   },
@@ -168,6 +183,7 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...kartRegistryGlobals, activeKart: 'readonly',
                  loadSavedTrack: 'readonly', updateSectorPanel: 'readonly',
                  drawChart: 'readonly', renderDriverOptions: 'readonly',
                  raceHasRecording: 'readonly',
@@ -229,7 +245,8 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
-                 ...mapDrawGlobals, ...racesGlobals, ...trackGlobals },
+                 ...mapDrawGlobals, ...racesGlobals, ...trackGlobals,
+                 ...kartRegistryGlobals },
     },
     rules: bugRules,
   },
@@ -250,7 +267,8 @@ module.exports = [
                  _attLastMs: 'writable',
                  RasiKart3D: 'readonly', RasiDrift: 'readonly',
                  RasiAttitude: 'readonly', DomTargets: 'readonly',
-                 RasiEngine: 'readonly', updateEngineUi: 'readonly' },
+                 RasiEngine: 'readonly', updateEngineUi: 'readonly',
+                 ...kartBarGlobals },
     },
     rules: bugRules,
   },
@@ -262,7 +280,8 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
-                 ...racesGlobals, ...lapsDriversGlobals, ...liveUiGlobals },
+                 ...racesGlobals, ...lapsDriversGlobals, ...liveUiGlobals,
+                 ...kartBarGlobals },
     },
     rules: bugRules,
   },
@@ -283,7 +302,7 @@ module.exports = [
                  armRecording: 'readonly', driftInputs: 'readonly',
                  // Attitude-Fusion-Tick (deklariert in rasicross.js) --
                  // Replay-Reset setzt ihn zurueck.
-                 _attLastMs: 'writable' },
+                 _attLastMs: 'writable', ...kartRegistryGlobals },
     },
     rules: bugRules,
   },
@@ -317,6 +336,8 @@ module.exports = [
         RasiSettings: 'readonly',
         RasiEngine: 'readonly',
         RasiRecStore: 'readonly',
+        ...kartRegistryGlobals,
+        ...kartBarGlobals,
       },
     },
     rules: bugRules,
