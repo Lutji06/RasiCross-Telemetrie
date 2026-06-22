@@ -47,8 +47,14 @@
       chip.innerHTML = '<b style="color:' + m.color + '">' + escHtml(m.name) + '</b>'
         + ' <span>' + hz + 'Hz</span> <span>' + rssi + '</span>'
         + (k.batt && k.batt.present ? ' <span>' + (k.batt.soc | 0) + '%</span>' : '')
-        + rec;
-      chip.onclick = () => {
+        + rec
+        + ' <button class="kart-edit" title="Umbenennen / Farbe / Vergessen" data-mac="' + mac + '">✏</button>';
+      chip.onclick = (ev) => {
+        if (ev.target && ev.target.classList.contains('kart-edit')) {
+          ev.stopPropagation();
+          openEditor(state, mac, ev.target);
+          return;
+        }
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
           render(state);
@@ -64,5 +70,86 @@
       c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  window.RasiKartBar = { render };
+  let _editState = null, _editMac = null, _onDocClick = null;
+
+  function closeEditor() {
+    const pop = document.getElementById('kartEditPopover');
+    if (pop) pop.classList.add('hidden');
+    if (_onDocClick) { document.removeEventListener('mousedown', _onDocClick, true);
+      document.removeEventListener('keydown', _onEditKey, true); _onDocClick = null; }
+    _editState = null; _editMac = null;
+  }
+
+  function _onEditKey(ev) { if (ev.key === 'Escape') closeEditor(); }
+
+  function openEditor(state, mac, anchorEl) {
+    const pop = document.getElementById('kartEditPopover');
+    if (!pop) return;
+    _editState = state; _editMac = mac;
+    const macs = state.karts.macs();
+    const idx = Math.max(0, macs.indexOf(mac));
+    const m = metaForState(state, mac, idx);
+
+    const nameEl = document.getElementById('kartEditName');
+    nameEl.value = m.name || '';
+    nameEl.oninput = () => {
+      m.name = nameEl.value.trim() || ('Kart ' + (idx + 1));
+      state.kartMeta[mac] = m; saveMeta(state.kartMeta);
+      render(state);
+      if (window.renderConnectionTab) window.renderConnectionTab();
+    };
+
+    const sw = document.getElementById('kartEditSwatches');
+    sw.innerHTML = '';
+    PALETTE.forEach(col => {
+      const b = document.createElement('div');
+      b.className = 'sw' + (col === m.color ? ' active' : '');
+      b.style.background = col;
+      b.onclick = () => {
+        m.color = col; state.kartMeta[mac] = m; saveMeta(state.kartMeta);
+        sw.querySelectorAll('.sw').forEach(s => s.classList.remove('active'));
+        b.classList.add('active');
+        render(state);
+        if (window.renderConnectionTab) window.renderConnectionTab();
+      };
+      sw.appendChild(b);
+    });
+
+    const fb = document.getElementById('kartEditForget');
+    fb.onclick = () => { forgetKart(state, mac); closeEditor(); };
+
+    // Positionieren unter dem Anker
+    const r = anchorEl.getBoundingClientRect();
+    pop.style.left = Math.min(r.left, window.innerWidth - 220) + 'px';
+    pop.style.top = (r.bottom + 6) + 'px';
+    pop.classList.remove('hidden');
+
+    _onDocClick = (ev) => { if (!pop.contains(ev.target) && ev.target !== anchorEl) closeEditor(); };
+    document.addEventListener('mousedown', _onDocClick, true);
+    document.addEventListener('keydown', _onEditKey, true);
+  }
+
+  function forgetKart(state, mac) {
+    state.karts.forget(mac);
+    if (state._kartHz) delete state._kartHz[mac];
+    // Bridge-Kommando (Bridge-Ebene, nicht kart-geroutet) — nur falls verbunden.
+    if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {
+      try { window.rasiSerial.writeLine(JSON.stringify({ type: 'forget_kart_mac', mac })); } catch (e) {}
+    }
+    state.activeKartMac = state.karts.activeMac();   // Registry hat ggf. umgepointet
+    if (typeof rcToast === 'function') rcToast('Kart vergessen');
+    render(state);
+    if (window.renderConnectionTab) window.renderConnectionTab();
+  }
+
+  // state-basierter Wrapper, damit pit-wall.js dieselbe Meta-Quelle nutzt.
+  function metaForState(state, mac, idx) {
+    const meta = state.kartMeta && Object.keys(state.kartMeta).length ? state.kartMeta : loadMeta();
+    state.kartMeta = meta;
+    const m = metaFor(meta, mac, idx);
+    saveMeta(meta);
+    return m;
+  }
+
+  window.RasiKartBar = { render, metaFor: metaForState, openEditor, forgetKart };
 })();

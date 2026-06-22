@@ -1401,6 +1401,38 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .kart-badge{display:inline-block;font-size:10px;font-weight:600;vertical-align:middle;
   margin-left:8px;padding:1px 7px;border:1px solid #3aa0e8;border-radius:999px;line-height:1.5}
 
+/* Multi-Kart Verwaltung: Edit-Icon am Chip */
+.kart-chip .kart-edit{cursor:pointer;opacity:.6;margin-left:2px;font-size:11px;
+  background:none;border:none;color:inherit;padding:0 2px;line-height:1}
+.kart-chip .kart-edit:hover{opacity:1}
+
+/* Kart-Editor-Popover */
+#kartEditPopover{position:fixed;z-index:1200;min-width:200px;padding:12px;
+  background:var(--panel,#161a22);border:1px solid #2a3140;border-radius:12px;
+  box-shadow:0 12px 32px rgba(0,0,0,.5)}
+#kartEditPopover.hidden{display:none}
+#kartEditPopover .ke-row{margin-bottom:10px}
+#kartEditPopover label{display:block;font-size:11px;opacity:.7;margin-bottom:4px}
+#kartEditName{width:100%;box-sizing:border-box;padding:6px 8px;border-radius:8px;
+  border:1px solid #2a3140;background:#0e1117;color:var(--fg,#e8edf4);font-size:13px}
+#kartEditSwatches{display:flex;gap:8px}
+#kartEditSwatches .sw{width:22px;height:22px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent}
+#kartEditSwatches .sw.active{border-color:var(--fg,#e8edf4)}
+
+/* Connection-Tab: Per-Kart-Liste */
+#connKartList{display:none;flex-direction:column;gap:6px;margin:0 0 14px}
+.conn-kart-row{display:grid;grid-template-columns:14px 1fr auto;align-items:center;
+  gap:10px;cursor:pointer;padding:8px 12px;border:1px solid #2a3140;border-radius:10px;
+  background:var(--panel,#161a22)}
+.conn-kart-row.active{box-shadow:0 0 0 2px rgba(58,160,232,.35);border-color:#3aa0e8}
+.conn-kart-row.stale{opacity:.5}
+.conn-kart-row .ckr-dot{width:12px;height:12px;border-radius:50%}
+.conn-kart-row .ckr-name{font-weight:600;font-size:13px}
+.conn-kart-row .ckr-stats{font-size:11px;opacity:.8;font-variant-numeric:tabular-nums;
+  display:flex;gap:10px;white-space:nowrap}
+.conn-kart-row .ckr-rec{color:#e85a7a;font-weight:700}
+
 /* Live-only KPI tightening — keeps other tabs' KPI sizing intact */
 #tab-live .kpi{padding:12px 14px}
 #tab-live .kpi-v{font-size:clamp(24px,3vw,32px);margin-top:2px}
@@ -3062,6 +3094,13 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
     <button class="btn ghost" id="diagToggleBtn" style="padding:6px 12px;font-size:11px">Diagnose</button>
   </div>
 
+  <!-- Multi-Kart: Per-Kart-Statusliste + Reset (nur sichtbar bei >1 Kart) -->
+  <div id="connKartList"></div>
+  <button class="btn ghost" id="resetKartsBtn" style="display:none;margin:0 0 14px">
+    Alle Karts zurücksetzen
+  </button>
+  <div id="connDetailTitle" class="muted" style="margin:0 0 8px;font-size:12px"></div>
+
   <div class="mode-tabs">
     <button class="mode-tab active" id="modeSerialBtn">USB Serial</button>
     <button class="mode-tab" id="modeDemoBtn">Demo-Modus</button>
@@ -3673,6 +3712,17 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 <script src="live-ui.js"></script>
 <script src="pit-wall.js"></script>
 <script src="recording.js"></script>
+<div id="kartEditPopover" class="hidden">
+  <div class="ke-row">
+    <label for="kartEditName">Name</label>
+    <input id="kartEditName" type="text" maxlength="20" autocomplete="off">
+  </div>
+  <div class="ke-row">
+    <label>Farbe</label>
+    <div id="kartEditSwatches"></div>
+  </div>
+  <button id="kartEditForget" class="btn danger w100">Kart vergessen</button>
+</div>
 <script src="kart-registry.js"></script>
 <script src="rasicross.js"></script>
 <script src="kart-bar.js"></script>

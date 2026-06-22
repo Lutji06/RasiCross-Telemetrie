@@ -168,9 +168,70 @@ function drawRssiSparkline() {
   ctx.fillStyle = color;
   ctx.beginPath(); ctx.arc(xe, y(last), 2.4, 0, Math.PI * 2); ctx.fill();
 }
+function renderConnKartList() {
+  const list = $('connKartList');
+  const resetBtn = $('resetKartsBtn');
+  if (!list) return;
+  const macs = state.karts.macs();
+  const multi = macs.length > 1;
+  list.style.display = multi ? 'flex' : 'none';
+  if (resetBtn) resetBtn.style.display = multi ? 'inline-flex' : 'none';
+  if (resetBtn && !resetBtn._bound) { resetBtn._bound = true; resetBtn.onclick = resetKarts; }
+  if (!multi) { list.innerHTML = ''; return; }
+  const now = Date.now();
+  list.innerHTML = macs.map((mac, i) => {
+    const k = state.karts.get(mac);
+    if (!k) return '';
+    const m = window.RasiKartBar ? RasiKartBar.metaFor(state, mac, i) : { name: mac, color: '#3aa0e8' };
+    const age = k.connection.lastPacketAt ? (now - k.connection.lastPacketAt) : 99999;
+    const hz = (state._kartHz && state._kartHz[mac] != null) ? state._kartHz[mac] : '--';
+    const rssi = (k.connection.rssi != null) ? (k.connection.rssi + 'dBm') : '--';
+    const batt = (k.batt && k.batt.present) ? ((k.batt.soc | 0) + '%') : '--';
+    const rec = k.recording.armed ? '<span class="ckr-rec">●REC</span>' : '';
+    const ageStr = age < 99999 ? (age / 1000).toFixed(1) + 's' : '--';
+    const cls = 'conn-kart-row' + (mac === state.activeKartMac ? ' active' : '') + (age > 2000 ? ' stale' : '');
+    return '<div class="' + cls + '" data-mac="' + mac + '">'
+      + '<span class="ckr-dot" style="background:' + m.color + '"></span>'
+      + '<span class="ckr-name">' + esc(m.name) + '</span>'
+      + '<span class="ckr-stats">'
+      +   '<span>' + hz + 'Hz</span><span>' + rssi + '</span>'
+      +   '<span>L:' + (k.connection.lost || 0) + '</span><span>' + ageStr + '</span>'
+      +   '<span>' + batt + '</span>' + rec
+      + '</span></div>';
+  }).join('');
+  list.querySelectorAll('.conn-kart-row').forEach(row => {
+    row.onclick = () => {
+      const mac = row.getAttribute('data-mac');
+      if (state.karts.setActive(mac)) {
+        state.activeKartMac = mac;
+        renderConnKartList();
+        if (window.RasiKartBar) RasiKartBar.render(state);
+      }
+    };
+  });
+}
+
+async function resetKarts() {
+  if (!await rcConfirm('Alle bekannten Karts vergessen? Namen/Farben bleiben erhalten.',
+      'Karts zurücksetzen', 'Zurücksetzen', true)) return;
+  state.karts.reset();
+  state._kartHz = {};
+  state.activeKartMac = null;
+  if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {
+    try { window.rasiSerial.writeLine(JSON.stringify({ type: 'reset_karts' })); } catch (e) {}
+  }
+  if (typeof rcToast === 'function') rcToast('Alle Karts zurückgesetzt');
+  renderConnKartList();
+  if (window.RasiKartBar) RasiKartBar.render(state);
+}
+
 function renderConnectionTab() {
   try {
     const c = state.connection;
+    renderConnKartList();
+    const _am = state.activeKartMac;
+    const _meta = (window.RasiKartBar && _am) ? RasiKartBar.metaFor(state, _am, 0) : null;
+    setText('connDetailTitle', _meta ? ('Detail: ' + _meta.name) : '');
     // Pills oben
     setText('connModePill', c.source === 'serial' ? 'USB Serial' : c.source === 'demo' ? 'Demo' : 'Offline');
     setText('connBridgeState', state.serial.connected ? 'Online' : 'Offline');
@@ -424,4 +485,7 @@ function togglePitCall() {
 void [openPitWall, closePitWall, pwKeyHandler, updatePitWall,
       renderConnectionTab, pushPacketLog, toggleDiagnose,
       buildRaceDataForKart, sendDisplayUpdate, restartDisplayUpdateInterval,
-      sendPitCall, cancelPitCall, togglePitCall];
+      sendPitCall, cancelPitCall, togglePitCall,
+      renderConnKartList, resetKarts];
+
+window.renderConnectionTab = renderConnectionTab;
