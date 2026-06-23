@@ -64,6 +64,7 @@ race.participants[mac] = {
 ```
 
 **Live-State bleibt in der Registry** (`lapStart`, `autoLap`, `sectorsLive`,
+`sectorsBest` (**neu**, pro Kart, siehe §3.3),
 `currentLapMax`, `currentLapTrace`, `bestLapTrace`). Der Teilnehmer-Slot hält nur
 das, was persistiert/angezeigt wird (abgeschlossene Runden, Stints, Bestrunde,
 Speed-Trace). `bestLapMs`/`bestLapNum` werden sowohl in der Registry (für das
@@ -107,8 +108,14 @@ Alt-Rennen.
     `driverId = participant.currentDriverId`, `kartMac = mac`.
   - aktualisiert `participant.bestLapMs/bestLapNum` **und** `k.bestLapMs/bestLapNum`
     (Registry) synchron; setzt `k.bestLapTrace`.
-  - Sektor-Bestzeiten: `state.sectors.best` bleibt **geteilt** (eine Streckenbest-
-    zeit über alle Karts – Strecke ist geteilt); `k.sectorsLive` ist pro Kart.
+  - Sektor-Bestzeiten **pro Kart**: neues Registry-Feld `k.sectorsBest`
+    `[s1,s2,s3]` (Geschwister von `k.sectorsLive`), beim Rennstart je Kart
+    zurückgesetzt. `triggerLap` aktualisiert `k.sectorsBest` (nicht mehr global).
+    Sektor-Panel + `theoreticalBestMs()` lesen die Bests des **aktiven** Karts
+    (neue Fassade `state.sectorsBest` → aktiver Kart). `state.sectors.boundaries`
+    /`manual` bleiben **geteilt** (Strecken-Geometrie). Der persistente
+    **Strecken-Rekord** (`t.sectorBest`/`syncSectorBestToTrack`) bleibt erhalten
+    und wird als bestes Ergebnis **über alle Karts** (min je Sektor) aktualisiert.
   - resettet `k`s Live-Lap-Accumulatoren (`lapStart=now`, `currentLapMax`,
     `currentLapTrace`, `sectorsLive`).
 - In `processTelemetry` fällt das `if (isActive)`-Gate für die Lap-Erkennung
@@ -220,8 +227,9 @@ Fahrerwechsel (aktiver Kart)
    geprüft (kein Cross-Kart-Effekt).
 7. **Alt-Rennen aus Vor-Phase-30-Speicher:** Migration verpackt sie in einen
    Teilnehmer; Anzeige/Replay unverändert.
-8. **Sektor-Bestzeit:** bleibt geteilt pro Strecke (schnellster Sektor über alle
-   Karts), da Strecke geteilt ist.
+8. **Sektor-Bestzeit:** **pro Kart** (`k.sectorsBest`); das Sektor-Panel zeigt die
+   Bests des aktiven Karts. Der persistente Strecken-Rekord (`t.sectorBest`)
+   bleibt als bestes Ergebnis über alle Karts erhalten.
 
 ## 6. Tests / Verifikation
 
@@ -230,8 +238,9 @@ Fahrerwechsel (aktiver Kart)
   - `lap-engine.js` (Arbeitstitel): teilnehmer-lokale Rundenzuordnung
     (`commitLap(participant, {now, lapStart, …})` → korrekte `number`/`timeMs`/
     `valid`/`kartMac`), Bestrunden-Update, Armierungs-Logik (erste Durchfahrt
-    zählt nicht), `minLapSeconds`-Cooldown, sowie die **Migration** alter Rennen
-    (`migrateRace(r)` → `participants`-Map, idempotent).
+    zählt nicht), `minLapSeconds`-Cooldown, Per-Kart-Sektor-Best-Update +
+    Strecken-Rekord-Ableitung (min je Sektor über alle Karts), sowie die
+    **Migration** alter Rennen (`migrateRace(r)` → `participants`-Map, idempotent).
   - Ziel: die Zähl-/Zuordnungs-/Migrations-Logik ist ohne DOM testbar; die
     DOM-/Fassaden-Verdrahtung in `rasicross.js`/`races.js`/`laps-drivers.js`
     konsumiert diese reinen Funktionen.
@@ -249,9 +258,11 @@ Fahrerwechsel (aktiver Kart)
 |--------|-------|---------------|
 | Neu     | `lap-engine.js` | Dependency-freies UMD: teilnehmer-lokale `commitLap`/Bestrunde/Armierung + `migrateRace`. `node:test`-getestet, im Browser `window.RasiLapEngine`. |
 | Neu     | `test/lap-engine.test.js` | `node:test`-Suite für `lap-engine.js`. |
-| Ändern  | `kart-registry.js` | (ggf.) Hilfsfeld für „armiert/Teilnehmer"-Markierung, falls nötig; Live-Lap-State existiert bereits. |
+| Ändern  | `kart-registry.js` | Neues Feld `sectorsBest: [null,null,null]` (pro Kart) in `makeKartState()`; (ggf.) Hilfsfeld für „armiert/Teilnehmer"-Markierung. Übriger Live-Lap-State existiert bereits. |
 | Ändern  | `races.js` | `createRace`/`startRace`/`endRace`/`pauseRace`: `participants`-Map; Start armiert alle verbundenen Karts; Pause/Ende über alle Teilnehmer; `renderRaceDetails` pro Kart gruppiert; `kartBadge` Multi-Kart; `confirmDriverChange` auf aktiven Teilnehmer. Migration beim Rendern/Laden anwenden. |
-| Ändern  | `laps-drivers.js` | `checkLapCrossing(k,mac,…)`/`triggerLap(k,mac)`/`checkSectorCrossings(k,…)` auf explizite Kart-Parameter; `renderLapTable`/`renderLiveLapList` lesen Teilnehmer-Slot des aktiven Karts; Auto-Ende nur bei Single-Teilnehmer. |
+| Ändern  | `laps-drivers.js` | `checkLapCrossing(k,mac,…)`/`triggerLap(k,mac)`/`checkSectorCrossings(k,…)` auf explizite Kart-Parameter; Sektor-Bests in `k.sectorsBest` (pro Kart); `renderLapTable`/`renderLiveLapList`/`theoreticalBestMs` lesen Teilnehmer-Slot bzw. `k.sectorsBest` des aktiven Karts; Auto-Ende nur bei Single-Teilnehmer. |
+| Ändern  | `track.js` | `syncSectorBestToTrack`: Strecken-Rekord (`t.sectorBest`) aus den Per-Kart-Bests als min je Sektor über alle Karts ableiten. |
+| Ändern  | `rasicross.js` (Fassade) | `state.sectorsBest` als neues Per-Kart-Fassaden-Feld (`PER_KART_FIELDS`) → aktiver Kart, für Sektor-Panel/Theoretische-Best. |
 | Ändern  | `rasicross.js` | `processTelemetry`: Lap-/Sektor-Erkennung für **alle** Teilnehmer-Karts; Lazy-Join neuer Karts ins laufende Rennen; Migration beim Laden gespeicherter Rennen. |
 | Ändern  | `kart-overview.js` | Rundenzähler je Karte aus Teilnehmer-Slot. |
 | Ändern  | `pit-wall.js` | Runden/Best des aktiven Karts aus Teilnehmer-Slot. |
@@ -286,6 +297,10 @@ Fahrerwechsel (aktiver Kart)
   Felder), damit ältere App-Versionen die Datei lesen können (`SAVE_KEY` stabil).
 - **Pause-Korrektur über alle Karts:** muss konsistent angewandt werden, sonst
   Zeitdrift zwischen Karts nach Pause.
+- **Sektor-Best pro Kart vs. Strecken-Rekord:** Per-Kart-Bests (`k.sectorsBest`,
+  live, je Rennen zurückgesetzt) und persistenter Strecken-Rekord (`t.sectorBest`,
+  Allzeit, über alle Karts) sind zwei getrennte Größen. Anzeige/Reset dürfen sich
+  nicht vermischen; der Strecken-Rekord wird nur abgeleitet aktualisiert.
 
 ## 10. Bewusst nicht enthalten (Phase 31 / deferred)
 
