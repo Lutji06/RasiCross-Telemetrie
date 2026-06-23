@@ -114,6 +114,8 @@ const recordingGlobals = {
 const kartRegistryGlobals = { KartRegistry: 'readonly' };
 // Schnittstelle kart-bar.js -> Nutzer (window.RasiKartBar)
 const kartBarGlobals = { RasiKartBar: 'readonly' };
+// Schnittstelle kart-overview.js -> Nutzer (window.RasiKartOverview)
+const kartOverviewGlobals = { RasiKartOverview: 'readonly' };
 
 const bugRules = {
   ...js.configs.recommended.rules,
@@ -159,7 +161,21 @@ module.exports = [
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
-      globals: { ...globals.browser, ...appCoreGlobals, ...kartRegistryGlobals },
+      globals: { ...globals.browser, ...appCoreGlobals, ...kartRegistryGlobals,
+                 setLiveView: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
+  // kart-overview.js — Live-Übersicht-Grid (Browser-Script, window.RasiKartOverview)
+  {
+    files: ['kart-overview.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...kartRegistryGlobals, ...kartBarGlobals,
+                 setLiveView: 'readonly' },
     },
     rules: bugRules,
   },
@@ -268,7 +284,7 @@ module.exports = [
                  RasiKart3D: 'readonly', RasiDrift: 'readonly',
                  RasiAttitude: 'readonly', DomTargets: 'readonly',
                  RasiEngine: 'readonly', updateEngineUi: 'readonly',
-                 ...kartBarGlobals },
+                 ...kartBarGlobals, ...kartOverviewGlobals },
     },
     rules: bugRules,
   },
