@@ -1433,6 +1433,41 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   display:flex;gap:10px;white-space:nowrap}
 .conn-kart-row .ckr-rec{color:#e85a7a;font-weight:700}
 
+/* Multi-Kart: Übersicht-Button in der Chip-Leiste */
+.kart-overview-btn{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  background:var(--panel,#161a22);color:var(--fg,#e8edf4);
+  border:2px solid #5ad17a;border-radius:999px;padding:5px 12px;
+  font-size:12px;line-height:1.2;white-space:nowrap;transition:transform .08s,box-shadow .12s}
+.kart-overview-btn:hover{transform:translateY(-1px)}
+.kart-overview-btn.active{box-shadow:0 0 0 2px rgba(90,209,122,.35),0 0 12px rgba(90,209,122,.25);
+  background:rgba(90,209,122,.12)}
+
+/* Multi-Kart: Live-Übersicht-Grid (alle Karts auf einmal). Sichtbarkeit per
+   body[data-live-view]; im Single-Modus versteckt. */
+#liveOverview{display:none}
+body[data-live-view="overview"] #liveOverview{
+  display:grid;gap:12px;align-content:start;overflow:auto;min-height:0;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+body[data-live-view="overview"] #tab-live .pw-liverow,
+body[data-live-view="overview"] #tab-live .pw-live-body{display:none}
+.ko-card{cursor:pointer;border:2px solid #3aa0e8;border-radius:14px;padding:12px 14px;
+  background:var(--panel,#161a22);display:flex;flex-direction:column;gap:6px;
+  transition:transform .08s,box-shadow .12s}
+.ko-card:hover{transform:translateY(-1px)}
+.ko-card.active{box-shadow:0 0 0 2px rgba(58,160,232,.35),0 0 14px rgba(58,160,232,.25)}
+.ko-card.stale{opacity:.45;filter:grayscale(.6)}
+.ko-card .ko-head{display:flex;align-items:center;gap:8px}
+.ko-card .ko-dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+.ko-card .ko-name{font-weight:700;font-size:14px;flex:1;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.ko-card .ko-rec{color:#e85a7a;font-weight:700;font-size:11px}
+.ko-card .ko-speed{font-family:var(--mono);font-size:30px;font-weight:800;line-height:1}
+.ko-card .ko-speed small{font-size:13px;opacity:.6;font-weight:600;margin-left:3px}
+.ko-card .ko-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px}
+.ko-card .ko-l{color:var(--mut)}
+.ko-card .ko-v{font-family:var(--mono);font-size:15px;color:var(--tx)}
+.ko-card .ko-sub{font-size:11px;color:var(--mut)}
+
 /* Live-only KPI tightening — keeps other tabs' KPI sizing intact */
 #tab-live .kpi{padding:12px 14px}
 #tab-live .kpi-v{font-size:clamp(24px,3vw,32px);margin-top:2px}
@@ -1536,6 +1571,9 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   body[data-tab="live"] #tab-live .pw-live-map .map{flex:1 1 auto;min-height:180px}
   body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps{flex:1 1 0}
   body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps .pw-laplist{flex:1 1 auto;min-height:0;max-height:none}
+  /* Übersicht-Grid füllt im No-Scroll-Layout den Live-Raum (eigenes Scrolling). */
+  body[data-tab="live"][data-live-view="overview"] #tab-live #liveOverview{
+    flex:1 1 auto;min-height:0}
 }
 
 /* Detail Diagnose block — 2-col label/value grid */
@@ -2573,6 +2611,10 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 
     </div><!-- /pw-live-side -->
   </div><!-- /pw-live-body -->
+
+  <!-- Multi-Kart: Übersicht aller Karts (Renn-/Timing-Fokus). Sichtbar bei
+       liveView=overview; per JS aus kart-overview.js befüllt. -->
+  <div id="liveOverview"></div>
 
 </section>
 
@@ -3726,5 +3768,6 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 <script src="kart-registry.js"></script>
 <script src="rasicross.js"></script>
 <script src="kart-bar.js"></script>
+<script src="kart-overview.js"></script>
 </body>
 </html>
