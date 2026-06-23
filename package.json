@@ -49,6 +49,7 @@
       "recording.js",
       "kart-registry.js",
       "kart-bar.js",
+      "kart-overview.js",
       "geo.js",
       "replay.js",
       "drift.js",
