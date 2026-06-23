@@ -45,6 +45,9 @@ const state = {
   // Render-Pfade. Schreibpfade nutzen explizit kartFor(mac)/activeKart().
   karts: KartRegistry.create(),
   activeKartMac: null,
+  // Live-Tab-Ansicht: 'single' (aktiver Kart) oder 'overview' (alle Karts).
+  // Nicht persistiert; per setLiveView() in live-ui.js umgeschaltet.
+  liveView: 'single',
   kartMeta: {},   // {mac: {name, color}} — gespiegelt aus localStorage
   // Settings (global/shared)
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
@@ -296,6 +299,7 @@ function setupTabs() {
   // Initial: aktiven Tab am body markieren (CSS nutzt body[data-tab=live] fuer no-scroll-Layout)
   const _active = document.querySelector('.nav-item[data-tab].active');
   if (_active) document.body.dataset.tab = _active.dataset.tab;
+  document.body.dataset.liveView = state.liveView || 'single';
   document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.remove('active'));

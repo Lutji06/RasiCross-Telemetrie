@@ -431,12 +431,42 @@ function animLoop() {
   updatePitWall();    // Pit Wall ebenfalls 60fps (laufende Rundenzeit/Delta); no-op wenn zu
   requestAnimationFrame(animLoop);
 }
+// ============================================================
+// LIVE-VIEW-MODUS (Einzel-Kart vs. Übersicht aller Karts)
+// ============================================================
+// Schaltet den Live-Tab zwischen 'single' (aktiver Kart, klassische
+// Ansicht) und 'overview' (Grid aller Karts) um. Bei <=1 Kart immer
+// 'single' (Single-Kart-Regression). Steuert die Sichtbarkeit per
+// body[data-live-view]; CSS blendet .pw-liverow/.pw-live-body bzw.
+// #liveOverview entsprechend ein/aus.
+function setLiveView(mode) {
+  if (mode === 'overview' && state.karts.macs().length <= 1) mode = 'single';
+  state.liveView = mode;
+  document.body.dataset.liveView = mode;
+  if (window.RasiKartBar) RasiKartBar.render(state);
+  if (mode === 'overview') {
+    if (window.RasiKartOverview) RasiKartOverview.render(state);
+  } else {
+    // Zurück zur Einzelansicht: Canvas-Größen neu messen (waren ggf. hidden).
+    setTimeout(() => { try { resizeCanvases(); } catch (e) {} }, 50);
+  }
+}
+window.setLiveView = setLiveView;
+
+// Im 1-Hz-/200-ms-Loop aufgerufen: hält das Übersicht-Grid aktuell und
+// erzwingt bei auf <=1 gesunkener Kartzahl die Einzelansicht.
+function refreshOverview() {
+  if (state.liveView !== 'overview') return;
+  if (state.karts.macs().length <= 1) { setLiveView('single'); return; }
+  if (window.RasiKartOverview) RasiKartOverview.render(state);
+}
+
 // Beide UI-Loops (200ms-Backup-Tick + 1Hz-Loop) -- werden von init() in
 // rasicross.js via initLiveUiLoops() gestartet (Phase 23, kein Top-Level-Code).
 function initLiveUiLoops() {
 // Backup tick (läuft auch wenn rAF im Hintergrund-Iframe pausiert)
 setInterval(() => {
-  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); } catch(e){}
+  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); refreshOverview(); } catch(e){}
 }, 200);
 
 // 1Hz UI loop
@@ -451,6 +481,8 @@ setInterval(() => {
   // Multi-Kart Chip-Leiste auffrischen (auch ohne bridge_status, damit
   // Stale-Markierung mit der Zeit greift).
   if (window.RasiKartBar) RasiKartBar.render(state);
+  // Übersicht-Grid (falls aktiv) auffrischen; erzwingt single bei <=1 Kart.
+  refreshOverview();
 
   // Status-Badge oben rechts
   if (state.connection.source === 'serial' && state.serial.connected) {
@@ -488,4 +520,5 @@ setInterval(() => {
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [initLiveCharts, resizeChartCanvas, drawChart, axisFmt, drawLiveCharts,
       drawYawSparkline, updateLiveDelta, updateLiveKPIs, updateDiagnostics,
-      updateLiveUi, renderStints, animLoop, initLiveUiLoops];
+      updateLiveUi, renderStints, animLoop, initLiveUiLoops,
+      setLiveView, refreshOverview];
