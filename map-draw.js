@@ -152,13 +152,16 @@ function drawKartMarkersOn(c, ctx) {
       posByMac = {};
       RasiLapEngine.rankParticipants(r, cross).forEach(e => { posByMac[e.mac] = e.pos; });
     }
-    macs.forEach((mac, i) => {
+    macs.forEach(mac => {
       const k = state.karts.get(mac);
       if (!k) return;
       const t = k.telemetry;
       if (!t.lat || !t.lon) return;        // kein GPS-Fix -> kein Marker
       const xy = gpsXYOnCanvas(t.lat, t.lon, c);
-      const meta = (typeof RasiKartBar !== 'undefined') ? RasiKartBar.metaFor(state, mac, i) : { color: '#3aa0e8' };
+      // Phase 33: Kart-Farbe NUR lesen (state.kartMeta) — NICHT RasiKartBar.metaFor,
+      // das pro Aufruf in localStorage schreibt; drawKartMarkersOn laeuft im
+      // 60fps-Draw-Loop. Die Meta wird von kart-bar/overview gepflegt.
+      const meta = state.kartMeta && state.kartMeta[mac];
       const color = (meta && meta.color) || '#3aa0e8';
       const isActive = (mac === state.activeKartMac);
       const stale = k.connection.lastPacketAt ? (now - k.connection.lastPacketAt > 2000) : true;
