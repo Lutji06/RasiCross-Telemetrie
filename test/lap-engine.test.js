@@ -116,3 +116,10 @@ test('flatStints merges all participant stints', () => {
     AA: { stints: [{ id: 'a' }] }, BB: { stints: [{ id: 'b' }, { id: 'c' }] } } };
   assert.equal(E.flatStints(r).length, 3);
 });
+
+test('commitLap marks a lap shorter than minLapMs invalid', () => {
+  const part = { mac: 'AA', laps: [], bestLapMs: null, bestLapNum: null };
+  const res = E.commitLap(part, { now: 5000, lapStart: 0, minLapMs: 10000,
+    kartMac: 'AA', sectors: [] });
+  assert.equal(res.lap.valid, false);
+});

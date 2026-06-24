@@ -42,9 +42,9 @@
     var mac = r.kartMac || defaultMac;
     var p = makePart(mac, r.currentDriverId || r.startDriverId || null, r.startedAt || null);
     p.startDriverId = r.startDriverId || null;
-    p.laps = Array.isArray(r.laps) ? r.laps : [];
-    p.stints = Array.isArray(r.stints) ? r.stints : [];
-    p.speedTrace = Array.isArray(r.speedTrace) ? r.speedTrace : [];
+    p.laps = Array.isArray(r.laps) ? r.laps.slice() : [];
+    p.stints = Array.isArray(r.stints) ? r.stints.slice() : [];
+    p.speedTrace = Array.isArray(r.speedTrace) ? r.speedTrace.slice() : [];
     var b = bestFromLaps(p.laps);
     p.bestLapMs = b.ms; p.bestLapNum = b.num;
     r.participants = {};
@@ -91,8 +91,9 @@
 
   // Pushes a completed lap into part.laps. Per-kart lap number = count+1.
   function commitLap(part, o) {
+    if (!part.laps) part.laps = [];
     var lap = {
-      number: (part.laps ? part.laps.length : 0) + 1,
+      number: part.laps.length + 1,
       timeMs: o.now - o.lapStart,
       driverId: o.driverId != null ? o.driverId : part.currentDriverId,
       kartMac: o.kartMac,
@@ -100,9 +101,8 @@
       maxRpm: o.maxRpm || 0,
       distanceM: o.distanceM || 0,
       sectors: Array.isArray(o.sectors) ? o.sectors.slice(0, 3) : [null, null, null],
-      valid: true,
+      valid: (o.now - o.lapStart) >= (o.minLapMs || 0),
     };
-    if (!part.laps) part.laps = [];
     part.laps.push(lap);
     var isBest = part.bestLapMs == null || lap.timeMs < part.bestLapMs;
     if (isBest) { part.bestLapMs = lap.timeMs; part.bestLapNum = lap.number; }
