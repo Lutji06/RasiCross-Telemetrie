@@ -413,7 +413,7 @@ function renderRaceDetails(r, validLaps, best, avgLap, maxSpeed, maxRpm, elapsed
       <div class="stat"><div class="t">Durchschnitt</div><div class="n">${avgLap ? fmtMs(avgLap) : '--'}</div></div>
       <div class="stat"><div class="t">Max km/h</div><div class="n">${maxSpeed.toFixed(1)}</div></div>
       <div class="stat"><div class="t">Max RPM</div><div class="n">${Math.round(maxRpm).toLocaleString('de-DE')}</div></div>
-      <div class="stat"><div class="t">Stints</div><div class="n">${(r.stints || []).length}</div></div>
+      <div class="stat"><div class="t">Stints</div><div class="n">${RasiLapEngine.participantsOf(r).reduce((n, p) => n + (p.stints ? p.stints.length : 0), 0)}</div></div>
     </div>
     ${stintsHtml ? `<div class="race-detail-section">
       <h4>Stints</h4>
