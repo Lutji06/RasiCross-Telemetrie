@@ -129,6 +129,49 @@
     return rec;
   }
 
+  // Phase 31: Live-Positions-Ranking. lastCrossingByMac[mac] = k.lapStart
+  // (Zeitstempel der letzten Linien-Durchfahrt; null/undefined = unarmiert).
+  // Sortierung: gueltige Runden absteigend, Tiebreak frueheste Durchfahrt,
+  // unarmierte Karts stabil ans Ende.
+  function rankParticipants(race, lastCrossingByMac) {
+    var ps = participantsOf(race), cross = lastCrossingByMac || {};
+    var list = [];
+    for (var i = 0; i < ps.length; i++) {
+      var p = ps[i];
+      var c = cross[p.mac];
+      list.push({
+        mac: p.mac,
+        idx: i,
+        laps: partValidLaps(p).length,
+        cross: (c != null ? c : null),
+      });
+    }
+    list.sort(function (a, b) {
+      var aArmed = a.cross != null, bArmed = b.cross != null;
+      if (aArmed !== bArmed) return aArmed ? -1 : 1;   // armierte zuerst
+      if (!aArmed) return a.idx - b.idx;               // beide unarmiert: stabil
+      if (a.laps !== b.laps) return b.laps - a.laps;   // mehr Runden zuerst
+      return a.cross - b.cross;                         // frueher ueberquert zuerst
+    });
+    var leaderLaps = list.length ? list[0].laps : 0;
+    var leaderCross = list.length ? list[0].cross : null;
+    var out = [];
+    for (var j = 0; j < list.length; j++) {
+      var e = list[j];
+      var lapGap = leaderLaps - e.laps;
+      var timeGapMs = 0;
+      if (j > 0 && lapGap === 0 && e.cross != null && leaderCross != null) {
+        timeGapMs = e.cross - leaderCross;
+      }
+      out.push({ mac: e.mac, pos: j + 1, laps: e.laps, lapGap: lapGap, timeGapMs: timeGapMs });
+    }
+    return out;
+  }
+
+  function leaderReachedTarget(ranked, targetLaps) {
+    return !!(ranked && ranked.length && ranked[0].laps >= targetLaps);
+  }
+
   return {
     migrateRace: migrateRace,
     participantsOf: participantsOf,
@@ -141,5 +184,7 @@
     commitLap: commitLap,
     sectorBestUpdate: sectorBestUpdate,
     trackRecordFromKarts: trackRecordFromKarts,
+    rankParticipants: rankParticipants,
+    leaderReachedTarget: leaderReachedTarget,
   };
 }));

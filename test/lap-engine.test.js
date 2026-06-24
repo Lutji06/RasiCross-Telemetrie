@@ -6,7 +6,8 @@ const E = require('../lap-engine.js');
 test('module exports all helpers', () => {
   for (const name of ['migrateRace','participantsOf','getOrCreatePart','flatLaps',
                       'flatValidLaps','flatStints','partValidLaps','bestFromLaps',
-                      'commitLap','sectorBestUpdate','trackRecordFromKarts']) {
+                      'commitLap','sectorBestUpdate','trackRecordFromKarts',
+                      'rankParticipants','leaderReachedTarget']) {
     assert.equal(typeof E[name], 'function', `missing ${name}`);
   }
 });
@@ -122,4 +123,75 @@ test('commitLap marks a lap shorter than minLapMs invalid', () => {
   const res = E.commitLap(part, { now: 5000, lapStart: 0, minLapMs: 10000,
     kartMac: 'AA', sectors: [] });
   assert.equal(res.lap.valid, false);
+});
+
+test('rankParticipants orders by valid laps desc with positions', () => {
+  const r = { participants: {
+    AA: { mac: 'AA', laps: [{ valid: true }, { valid: true }] },
+    BB: { mac: 'BB', laps: [{ valid: true }, { valid: true }, { valid: true }] },
+  } };
+  const ranked = E.rankParticipants(r, { AA: 1000, BB: 1200 });
+  assert.equal(ranked[0].mac, 'BB');
+  assert.equal(ranked[0].pos, 1);
+  assert.equal(ranked[0].laps, 3);
+  assert.equal(ranked[1].mac, 'AA');
+  assert.equal(ranked[1].pos, 2);
+  assert.equal(ranked[1].lapGap, 1);
+});
+
+test('rankParticipants tiebreak: earliest last crossing leads on equal laps', () => {
+  const r = { participants: {
+    AA: { mac: 'AA', laps: [{ valid: true }, { valid: true }] },
+    BB: { mac: 'BB', laps: [{ valid: true }, { valid: true }] },
+  } };
+  const ranked = E.rankParticipants(r, { AA: 5200, BB: 5000 });
+  assert.equal(ranked[0].mac, 'BB');
+  assert.equal(ranked[0].timeGapMs, 0);
+  assert.equal(ranked[1].mac, 'AA');
+  assert.equal(ranked[1].lapGap, 0);
+  assert.equal(ranked[1].timeGapMs, 200);
+});
+
+test('rankParticipants unarmed karts sort last, stable order', () => {
+  const r = { participants: {
+    AA: { mac: 'AA', laps: [] },
+    BB: { mac: 'BB', laps: [{ valid: true }] },
+    CC: { mac: 'CC', laps: [] },
+  } };
+  const ranked = E.rankParticipants(r, { BB: 3000 });
+  assert.equal(ranked[0].mac, 'BB');
+  assert.equal(ranked[1].mac, 'AA');
+  assert.equal(ranked[2].mac, 'CC');
+});
+
+test('rankParticipants armed-with-zero-laps beats never-crossed', () => {
+  const r = { participants: {
+    AA: { mac: 'AA', laps: [] },
+    BB: { mac: 'BB', laps: [] },
+  } };
+  const ranked = E.rankParticipants(r, { AA: 8000 });
+  assert.equal(ranked[0].mac, 'AA');
+  assert.equal(ranked[1].mac, 'BB');
+});
+
+test('rankParticipants lapped kart shows lap gap, not time gap', () => {
+  const r = { participants: {
+    AA: { mac: 'AA', laps: [{ valid: true }, { valid: true }, { valid: true }] },
+    BB: { mac: 'BB', laps: [{ valid: true }] },
+  } };
+  const ranked = E.rankParticipants(r, { AA: 1000, BB: 1500 });
+  assert.equal(ranked[0].mac, 'AA');
+  assert.equal(ranked[1].lapGap, 2);
+  assert.equal(ranked[1].timeGapMs, 0);
+});
+
+test('rankParticipants empty participants returns []', () => {
+  assert.deepEqual(E.rankParticipants({ participants: {} }, {}), []);
+});
+
+test('leaderReachedTarget true once leader reaches target laps', () => {
+  const ranked = [{ mac: 'AA', pos: 1, laps: 5 }, { mac: 'BB', pos: 2, laps: 3 }];
+  assert.equal(E.leaderReachedTarget(ranked, 5), true);
+  assert.equal(E.leaderReachedTarget(ranked, 6), false);
+  assert.equal(E.leaderReachedTarget([], 5), false);
 });
