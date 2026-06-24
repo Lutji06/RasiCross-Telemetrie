@@ -47,7 +47,9 @@ function updatePitWall() {
   // Top info
   setText('pwSession', fmtClock(now - state.sessionStart));
   const r = activeRace();
-  const validLaps = r ? raceValidLaps(r).length : 0;
+  // Phase 30: Pit-Wall zeigt Runden des aktiven Karts (Teilnehmer-Slot).
+  const _pwPart = r ? RasiLapEngine.getOrCreatePart(r, state.activeKartMac || KartRegistry.DEFAULT_MAC, r.startDriverId, r.startedAt || Date.now()) : null;
+  const validLaps = _pwPart ? RasiLapEngine.partValidLaps(_pwPart).length : 0;
   setText('pwLapCount', r && r.lengthType === 'laps' && r.targetLaps
     ? `${validLaps} / ${r.targetLaps}` : validLaps);
   // Restzeit nur bei Zeit-Rennen
@@ -74,14 +76,15 @@ function updatePitWall() {
   }
   setText('pwDeltaRef', state.bestLapMs ? `vs. Runde ${state.bestLapNum} (${fmtMs(state.bestLapMs)})` : 'vs. beste Runde');
   // Lap -- neue fertige Runde erkennen und 5 s halten
-  if (r && r.id === _pwSeenRaceId && r.laps.length > _pwSeenLapCount) {
-    const last = r.laps[r.laps.length - 1];
+  const _pwLaps = _pwPart ? _pwPart.laps : [];
+  if (r && r.id === _pwSeenRaceId && _pwLaps.length > _pwSeenLapCount) {
+    const last = _pwLaps[_pwLaps.length - 1];
     _pwHold = { text: fmtMs(last.timeMs), pb: state.bestLapNum === last.number, until: now + PW_LAP_HOLD_MS };
   } else if (!r || r.id !== _pwSeenRaceId) {
     _pwHold = null;
   }
   _pwSeenRaceId = r ? r.id : null;
-  _pwSeenLapCount = r ? r.laps.length : 0;
+  _pwSeenLapCount = r ? _pwLaps.length : 0;
   const lapEl = $('pwLap');
   if (lapEl) {
     if (_pwHold && now < _pwHold.until) {

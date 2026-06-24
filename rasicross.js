@@ -45,6 +45,9 @@ const state = {
   // Render-Pfade. Schreibpfade nutzen explizit kartFor(mac)/activeKart().
   karts: KartRegistry.create(),
   activeKartMac: null,
+  // Live-Tab-Ansicht: 'single' (aktiver Kart) oder 'overview' (alle Karts).
+  // Nicht persistiert; per setLiveView() in live-ui.js umgeschaltet.
+  liveView: 'single',
   kartMeta: {},   // {mac: {name, color}} — gespiegelt aus localStorage
   // Settings (global/shared)
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null },
@@ -76,7 +79,7 @@ const state = {
 const PER_KART_FIELDS = ['connection','telemetry','raw','display','gps','spdSrc',
   'batt','max','charts','imu','drift','attitude','driftSmooth','heatmap','lapStart',
   'currentLapMax','currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta',
-  'autoLap','sectorsLive','recording','replay','calibration','engine'];
+  'autoLap','sectorsLive','sectorsBest','recording','replay','calibration','engine'];
 
 function activeKart() {
   let k = state.karts.active();
@@ -163,10 +166,28 @@ let _quotaWarned = false;
 // localStorage-Kopie wird kleiner (5-MB-Quota ueber eine Saison).
 const PERSIST_TRACE_MAX = 1000;
 function _persistRace(r) {
-  const t = r && r.speedTrace;
-  if (!Array.isArray(t) || t.length <= PERSIST_TRACE_MAX) return r;
-  const step = Math.ceil(t.length / PERSIST_TRACE_MAX);
-  return Object.assign({}, r, { speedTrace: t.filter((_, i) => i % step === 0) });
+  // Phase 30: speed traces live per-participant; downsample each for storage
+  // (legacy/no-participants races keep the old top-level path).
+  if (!r || !r.participants) {
+    const t = r && r.speedTrace;
+    if (!Array.isArray(t) || t.length <= PERSIST_TRACE_MAX) return r;
+    const step = Math.ceil(t.length / PERSIST_TRACE_MAX);
+    return Object.assign({}, r, { speedTrace: t.filter((_, i) => i % step === 0) });
+  }
+  let changed = false;
+  const parts = {};
+  for (const mac of Object.keys(r.participants)) {
+    const p = r.participants[mac];
+    const t = p && p.speedTrace;
+    if (Array.isArray(t) && t.length > PERSIST_TRACE_MAX) {
+      const step = Math.ceil(t.length / PERSIST_TRACE_MAX);
+      parts[mac] = Object.assign({}, p, { speedTrace: t.filter((_, i) => i % step === 0) });
+      changed = true;
+    } else {
+      parts[mac] = p;
+    }
+  }
+  return changed ? Object.assign({}, r, { participants: parts }) : r;
 }
 function saveData() {
   if (state.replay && state.replay.active) return;  // replay uses disposable state — never persist
@@ -214,6 +235,9 @@ function loadData() {
     if (Array.isArray(d.drivers)) state.drivers = d.drivers;
     if (Array.isArray(d.races)) {
       state.races = d.races;
+      // Phase 30: Alt-Rennen (ohne participants) in Teilnehmer-Modell migrieren
+      // (idempotent, additiv — Top-Level laps/stints bleiben erhalten).
+      state.races.forEach(r => RasiLapEngine.migrateRace(r, KartRegistry.DEFAULT_MAC));
       // Pause running races on reload
       state.races.forEach(r => { if (r.status === 'running') { r.status = 'paused'; r.pausedAt = Date.now(); } });
     }
@@ -296,6 +320,7 @@ function setupTabs() {
   // Initial: aktiven Tab am body markieren (CSS nutzt body[data-tab=live] fuer no-scroll-Layout)
   const _active = document.querySelector('.nav-item[data-tab].active');
   if (_active) document.body.dataset.tab = _active.dataset.tab;
+  document.body.dataset.liveView = state.liveView || 'single';
   document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.remove('active'));
@@ -708,7 +733,15 @@ function processTelemetry(d) {
     const _mac = d.from_mac || KartRegistry.DEFAULT_MAC;
     const k = kartFor(_mac);
     if (!k) { rcToast('Max. ' + KartRegistry.MAX_KARTS + ' Karts — ' + _mac + ' ignoriert', 4000); return; }
-    const isActive = (k === activeKart());
+    // Phase 30: Nachzuegler — sendet ein Kart waehrend eines laufenden Rennens
+    // erstmals und ist noch kein Teilnehmer, lege seinen Slot an (armiert bei
+    // erster Linie, da k.lapStart noch null ist).
+    {
+      const _r = activeRace();
+      if (_r && _r.status === 'running' && !(_r.participants && _r.participants[_mac])) {
+        RasiLapEngine.getOrCreatePart(_r, _mac, _r.currentDriverId, null);
+      }
+    }
     if (k.recording.armed && !k.replay.active) recordPacket(d);
     if (state.serial.connected && !k.replay.active) k.connection.source = 'serial';
     k.connection.packets++;
@@ -845,33 +878,32 @@ function processTelemetry(d) {
       k.currentLapTrace.push({ t: Date.now() - k.lapStart, lat, lon, speed });
       if (k.currentLapTrace.length > 5000) k.currentLapTrace.shift();
     }
-    // Lap-/Sektorerkennung + Renn-Trace nutzen die aktive-Kart-Proxy-Helfer
-    // (state.lapStart/autoLap). Nur fuer den aktiven Kart ausfuehren, damit
-    // Hintergrund-Karts den Lap-Zustand des sichtbaren Karts nicht verfaelschen.
-    if (isActive) {
-      // Lap detection (only if track has start gate)
-      if (lat && lon && state.startGate.enabled && state.lapStart) {
-        checkLapCrossing(lat, lon);
-        checkSectorCrossings(lat, lon);
-      }
-      // Update prev for direction check
-      if (lat && lon) {
-        state.autoLap.prevLat = lat;
-        state.autoLap.prevLon = lon;
-      }
-      // Race speed trace (downsampled)
-      const r = activeRace();
-      if (r && r.status === 'running') {
-        r.speedTrace = r.speedTrace || [];
-        if (k.connection.packets % 5 === 0) {
-          r.speedTrace.push({ t: Date.now() - (r.startedAt || Date.now()), speed, rpm });
-          if (r.speedTrace.length > 4000) r.speedTrace.shift();
-        }
-      }
-    } else if (lat && lon) {
-      // Hintergrund-Kart: nur eigenen Vorgaenger-GPS-Punkt pflegen.
+    // Phase 30: Lap-/Sektorerkennung laeuft PRO KART (k/mac explizit), nicht mehr
+    // nur fuer den aktiven. Geometrie (startGate/boundaries) ist geteilt.
+    const _r = activeRace();
+    const _isPart = !!(_r && _r.status === 'running' && _r.participants && _r.participants[_mac]);
+    if (_isPart && lat && lon && state.startGate.enabled) {
+      // Erste Durchfahrt armiert (k.lapStart==null -> checkLapCrossing setzt sie
+      // via triggerLap auf now, ohne Runde zu zaehlen). checkLapCrossing/-Sectors
+      // pruefen k.lapStart selbst.
+      checkLapCrossing(k, _mac, lat, lon);
+      checkSectorCrossings(k, lat, lon);
+      // Armierung: solange noch keine Runde laeuft, erste gueltige Linie startet
+      // die Uhr. triggerLap handhabt das (k.lapStart null -> nur Start-Zweig).
+    }
+    // Vorgaenger-GPS-Punkt dieses Karts immer pflegen (Richtungscheck).
+    if (lat && lon) {
       k.autoLap.prevLat = lat;
       k.autoLap.prevLon = lon;
+    }
+    // Renn-Speed-Trace pro Teilnehmer (downsampled).
+    if (_isPart) {
+      const part = _r.participants[_mac];
+      part.speedTrace = part.speedTrace || [];
+      if (k.connection.packets % 5 === 0) {
+        part.speedTrace.push({ t: Date.now() - (_r.startedAt || Date.now()), speed, rpm });
+        if (part.speedTrace.length > 4000) part.speedTrace.shift();
+      }
     }
   } catch (e) { console.warn('processTelemetry:', e); }
 }
@@ -1456,7 +1488,7 @@ init();
         if (typeof activeRace === 'function') {
           const r = activeRace();
           if (r) {
-            const stints = r.stints || [];
+            const stints = (typeof activePart === 'function' ? (activePart(r).stints || []) : (r.stints || []));
             const last = stints[stints.length-1];
             if (last && !last.endAt) {
               const driver = state.drivers.find(d=>d.id===last.driverId);

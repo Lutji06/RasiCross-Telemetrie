@@ -377,7 +377,11 @@ function updateLiveUi() {
         const rem = Math.max(0, r.durationMs - elapsed);
         if (r.status === 'running' && rem <= 0) endRace(true);
       } else if (r.lengthType === 'laps') {
-        const left = Math.max(0, r.targetLaps - raceValidLaps(r).length);
+        // Phase 31: Rest-Runden des FUEHRENDEN (meiste gueltige Runden),
+        // nicht die Summe aller Karts (raceValidLaps aggregiert seit Phase 30).
+        const _leaderLaps = RasiLapEngine.participantsOf(r)
+          .reduce((mx, p) => Math.max(mx, RasiLapEngine.partValidLaps(p).length), 0);
+        const left = Math.max(0, r.targetLaps - _leaderLaps);
         setText('countdown', `${left} LAPS`);
       }
       const drv = state.drivers.find(d => d.id === r.currentDriverId);
@@ -390,7 +394,8 @@ function updateLiveUi() {
     }
     // Stints
     renderStints(r);
-    setText('detailHeroStintCount', r && r.stints ? r.stints.length : 0);
+    const _heroPart = (r && typeof activePart === 'function') ? activePart(r) : null;
+    setText('detailHeroStintCount', _heroPart ? _heroPart.stints.length : 0);
     // Status badge
     setText('hzText', state.hz);
     setText('packetsText', state.connection.packets);
@@ -402,17 +407,21 @@ function updateLiveUi() {
   } catch (e) { console.warn('updateLiveUi:', e); }
 }
 function renderStints(r) {
+  // Phase 30: Stints des aktiven Karts (Teilnehmer-Slot).
+  const _sp = (r && typeof activePart === 'function') ? activePart(r) : null;
+  const _stints = _sp ? _sp.stints : (r && r.stints) || [];
+  const _laps = _sp ? _sp.laps : ((r && r.laps) || []);
   const list = $('stintsList');
   if (!list) return;
-  if (!r || !r.stints || !r.stints.length) {
+  if (!r || !_stints || !_stints.length) {
     list.innerHTML = '<div class="muted">Noch kein Stint.</div>';
     return;
   }
-  list.innerHTML = r.stints.map((st, i) => {
+  list.innerHTML = _stints.map((st, i) => {
     const d = state.drivers.find(x => x.id === st.driverId);
     const dur = (st.endAt || Date.now()) - st.startAt;
-    const stintLaps = r.laps.filter(l => l.driverId === st.driverId &&
-      (i === 0 || l.number > r.stints.slice(0, i).reduce((sum, s) => sum + r.laps.filter(ll => ll.driverId === s.driverId).length, 0))).length;
+    const stintLaps = _laps.filter(l => l.driverId === st.driverId &&
+      (i === 0 || l.number > _stints.slice(0, i).reduce((sum, s) => sum + _laps.filter(ll => ll.driverId === s.driverId).length, 0))).length;
     return `<div style="padding:10px;background:var(--soft);border-radius:10px;margin-bottom:6px">
       <div style="font-family:var(--mono);font-size:13px;color:var(--tx)">${esc(d?.name || '--')}</div>
       <div style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:4px">
@@ -431,12 +440,42 @@ function animLoop() {
   updatePitWall();    // Pit Wall ebenfalls 60fps (laufende Rundenzeit/Delta); no-op wenn zu
   requestAnimationFrame(animLoop);
 }
+// ============================================================
+// LIVE-VIEW-MODUS (Einzel-Kart vs. Übersicht aller Karts)
+// ============================================================
+// Schaltet den Live-Tab zwischen 'single' (aktiver Kart, klassische
+// Ansicht) und 'overview' (Grid aller Karts) um. Bei <=1 Kart immer
+// 'single' (Single-Kart-Regression). Steuert die Sichtbarkeit per
+// body[data-live-view]; CSS blendet .pw-liverow/.pw-live-body bzw.
+// #liveOverview entsprechend ein/aus.
+function setLiveView(mode) {
+  if (mode === 'overview' && state.karts.macs().length <= 1) mode = 'single';
+  state.liveView = mode;
+  document.body.dataset.liveView = mode;
+  if (window.RasiKartBar) RasiKartBar.render(state);
+  if (mode === 'overview') {
+    if (window.RasiKartOverview) RasiKartOverview.render(state);
+  } else {
+    // Zurück zur Einzelansicht: Canvas-Größen neu messen (waren ggf. hidden).
+    setTimeout(() => { try { resizeCanvases(); } catch (e) {} }, 50);
+  }
+}
+window.setLiveView = setLiveView;
+
+// Im 1-Hz-/200-ms-Loop aufgerufen: hält das Übersicht-Grid aktuell und
+// erzwingt bei auf <=1 gesunkener Kartzahl die Einzelansicht.
+function refreshOverview() {
+  if (state.liveView !== 'overview') return;
+  if (state.karts.macs().length <= 1) { setLiveView('single'); return; }
+  if (window.RasiKartOverview) RasiKartOverview.render(state);
+}
+
 // Beide UI-Loops (200ms-Backup-Tick + 1Hz-Loop) -- werden von init() in
 // rasicross.js via initLiveUiLoops() gestartet (Phase 23, kein Top-Level-Code).
 function initLiveUiLoops() {
 // Backup tick (läuft auch wenn rAF im Hintergrund-Iframe pausiert)
 setInterval(() => {
-  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); } catch(e){}
+  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); refreshOverview(); } catch(e){}
 }, 200);
 
 // 1Hz UI loop
@@ -451,6 +490,8 @@ setInterval(() => {
   // Multi-Kart Chip-Leiste auffrischen (auch ohne bridge_status, damit
   // Stale-Markierung mit der Zeit greift).
   if (window.RasiKartBar) RasiKartBar.render(state);
+  // Übersicht-Grid (falls aktiv) auffrischen; erzwingt single bei <=1 Kart.
+  refreshOverview();
 
   // Status-Badge oben rechts
   if (state.connection.source === 'serial' && state.serial.connected) {
@@ -488,4 +529,5 @@ setInterval(() => {
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [initLiveCharts, resizeChartCanvas, drawChart, axisFmt, drawLiveCharts,
       drawYawSparkline, updateLiveDelta, updateLiveKPIs, updateDiagnostics,
-      updateLiveUi, renderStints, animLoop, initLiveUiLoops];
+      updateLiveUi, renderStints, animLoop, initLiveUiLoops,
+      setLiveView, refreshOverview];

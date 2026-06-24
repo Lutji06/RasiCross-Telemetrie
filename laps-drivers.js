@@ -9,108 +9,109 @@
 // ============================================================
 // 14. LAP DETECTION
 // ============================================================
-function checkLapCrossing(lat, lon) {
+// Phase 30: pro Kart aufgerufen. Geometrie (startGate) ist geteilt; Lap-State
+// (lapStart/autoLap) kommt vom uebergebenen Kart k, nicht von der Fassade.
+function checkLapCrossing(k, mac, lat, lon) {
   try {
     if (!state.startGate.enabled) return;
-    if (!state.autoLap.prevLat) return;
+    if (!k.autoLap.prevLat) return;
     const ep = lineEndpointsFromGate(state.startGate);
     if (!ep) return;
     const now = Date.now();
-    // Cooldown: at least minLapSeconds
-    if (state.lapStart && (now - state.lapStart) < state.settings.minLapSeconds * 1000) return;
-    const A = { lat: state.autoLap.prevLat, lon: state.autoLap.prevLon };
+    // Cooldown: at least minLapSeconds (gegen k.lapStart dieses Karts)
+    if (k.lapStart && (now - k.lapStart) < state.settings.minLapSeconds * 1000) return;
+    const A = { lat: k.autoLap.prevLat, lon: k.autoLap.prevLon };
     const B = { lat, lon };
     if (segmentsCross(A, B, ep.p1, ep.p2) && crossingDirectionOk(A.lat, A.lon, lat, lon, state.startGate.heading)) {
-      triggerLap();
+      triggerLap(k, mac);
     }
   } catch (e) { console.warn('checkLapCrossing:', e); }
 }
-function triggerLap() {
+// Phase 30: pro Kart. Erste Durchfahrt (k.lapStart==null) armiert nur; weitere
+// Durchfahrten committen eine Runde in den Teilnehmer-Slot dieses Karts.
+function triggerLap(k, mac) {
   try {
     const r = activeRace();
     if (!r || r.status !== 'running') return;
     const now = Date.now();
-    if (state.lapStart) {
-      const lapMs = now - state.lapStart;
-      if (lapMs < state.settings.minLapSeconds * 1000) return;
-      const lap = {
-        id: uid(),
-        number: r.laps.length + 1,
-        timeMs: lapMs,
-        driverId: r.currentDriverId,
-        kartMac: r.kartMac || state.activeKartMac || KartRegistry.DEFAULT_MAC,
-        maxSpeed: state.currentLapMax.speed,
-        maxRpm: state.currentLapMax.rpm,
-        distanceM: traceDistanceM(state.currentLapTrace),
-        valid: true
-      };
-      r.laps.push(lap);
-      // Update sector best for last sector
-      const s = state.sectors;            // Konfiguration (global)
-      const sl = state.sectorsLive;       // Live-Sektorzeiten (pro Kart)
+    const isAct = (k === activeKart());
+    if (k.lapStart) {
+      const minMs = state.settings.minLapSeconds * 1000;
+      if (now - k.lapStart < minMs) return;
+      const part = RasiLapEngine.getOrCreatePart(r, mac, r.currentDriverId, now);
+      const sl = k.sectorsLive;           // Live-Sektorzeiten (pro Kart)
+      const s = state.sectors;            // Sektor-Konfiguration (global)
+      // Letzten Sektor (S3) abschliessen + Per-Kart-Best (k.sectorsBest).
       if (s.boundaries[0] && s.boundaries[1] && sl.cur === 2 && sl.sectorStart) {
         const s3Ms = now - sl.sectorStart;
         sl.lapSectors[2] = s3Ms;
-        if (s.best[2] == null || s3Ms < s.best[2]) {
-          s.best[2] = s3Ms;
-          rcAudio.sectorBest();
+        if (RasiLapEngine.sectorBestUpdate(k.sectorsBest, 2, s3Ms)) {
+          if (isAct) rcAudio.sectorBest();
           syncSectorBestToTrack();
         }
       }
-      lap.sectors = sl.lapSectors.slice(0, 3);    // [s1,s2,s3] ms (null ohne Sektorgrenzen)
-      // Update best lap
-      if (state.bestLapMs == null || lapMs < state.bestLapMs) {
-        state.bestLapMs = lapMs;
-        state.bestLapNum = lap.number;
-        state.bestLapTrace = [...state.currentLapTrace];
-        rcAudio.lapBest();
+      const res = RasiLapEngine.commitLap(part, {
+        now, lapStart: k.lapStart, driverId: part.currentDriverId, kartMac: mac,
+        maxSpeed: k.currentLapMax.speed, maxRpm: k.currentLapMax.rpm,
+        distanceM: traceDistanceM(k.currentLapTrace),
+        sectors: sl.lapSectors.slice(0, 3),
+      });
+      res.lap.id = uid();
+      // Registry-Best (fuer Uebersicht-Grid) mit Teilnehmer-Best synchron halten.
+      k.bestLapMs = part.bestLapMs;
+      k.bestLapNum = part.bestLapNum;
+      if (res.isBest) {
+        k.bestLapTrace = [...k.currentLapTrace];
+        if (isAct) rcAudio.lapBest();
       }
-      // Save sector times for display
+      // Sektorzeiten fuers Display merken (nur aktiver Kart treibt das Panel).
       if (sl.lapSectors.some(x => x)) {
         sl.lastLapSectors = [...sl.lapSectors];
         setTimeout(() => {
-          const sl2 = state.sectorsLive;
-          if (sl2.lastLapSectors && !sl2.lapSectors.some(x => x)) {
-            sl2.lastLapSectors = null;
-            updateSectorPanel();
+          if (k.sectorsLive.lastLapSectors && !k.sectorsLive.lapSectors.some(x => x)) {
+            k.sectorsLive.lastLapSectors = null;
+            if (k === activeKart()) updateSectorPanel();
           }
         }, 7000);
       }
-      // Flash gate
-      state.gateFlashUntil = now + 1500;
-      // Auto-end if lap-based race
-      if (r.lengthType === 'laps' && r.laps.filter(l => l.valid).length >= r.targetLaps) {
+      if (isAct) state.gateFlashUntil = now + 1500;
+      // Phase 31: Auto-Ende, sobald EIN Kart targetLaps erreicht. Der erste Kart,
+      // der das schafft, ist definitionsgemaess der Fuehrende (Leader-Auto-Ende).
+      // Single-Kart-Rennen verhalten sich dabei exakt wie bisher.
+      if (r.lengthType === 'laps'
+          && RasiLapEngine.partValidLaps(part).length >= r.targetLaps) {
         endRace(true);
       }
       saveDataDebounced();
     }
-    // Start new lap
-    state.lapStart = now;
-    state.currentLapMax = { speed: 0, rpm: 0 };
-    state.currentLapTrace = [];
-    state.heatmap.lapMaxSpeed = 0;
-    state.sectorsLive.cur = 0;
-    state.sectorsLive.sectorStart = now;
-    state.sectorsLive.lapSectors = [null, null, null];
-    updateSectorPanel();
-    renderLapTable();
+    // Neue Runde dieses Karts starten.
+    k.lapStart = now;
+    k.currentLapMax = { speed: 0, rpm: 0 };
+    k.currentLapTrace = [];
+    k.heatmap.lapMaxSpeed = 0;
+    k.sectorsLive.cur = 0;
+    k.sectorsLive.sectorStart = now;
+    k.sectorsLive.lapSectors = [null, null, null];
+    if (isAct) { updateSectorPanel(); renderLapTable(); }
   } catch (e) { console.warn('triggerLap:', e); }
 }
 function renderLapTable() {
   renderLiveLapList();
   const r = activeRace();
   const tbody = $('lapTable');
-  if (!r || !r.laps.length) {
+  // Phase 30: Runden des aktiven Karts (Teilnehmer-Slot).
+  const _p = r ? RasiLapEngine.getOrCreatePart(r, state.activeKartMac || KartRegistry.DEFAULT_MAC, r.startDriverId, r.startedAt || Date.now()) : null;
+  if (!r || !_p || !_p.laps.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="muted">Noch keine Runden — starte ein Rennen und fahre die erste Runde.</td></tr>';
     setText('lapCountText', '0 Runden');
     return;
   }
-  const valid = r.laps.filter(l => l.valid);
+  const valid = _p.laps.filter(l => l.valid);
   const best = valid.length ? Math.min(...valid.map(l => l.timeMs)) : null;
   setText('lapCountText', `${valid.length} Runden`);
-  tbody.innerHTML = [...r.laps].reverse().map(l => {
+  tbody.innerHTML = [..._p.laps].reverse().map(l => {
     const idx = l.number - 1;
-    const prev = idx > 0 ? r.laps[idx - 1].timeMs : null;
+    const prev = idx > 0 ? _p.laps[idx - 1].timeMs : null;
     const delta = prev ? l.timeMs - prev : null;
     const d = state.drivers.find(x => x.id === l.driverId);
     return `<tr class="${!l.valid ? 'invalid' : (l.timeMs === best ? 'best' : '')}">
@@ -130,18 +131,19 @@ function renderLiveLapList() {
   const tbody = $('liveLapList');
   if (!tbody) return;
   const r = activeRace();
-  if (!r || !r.laps.length) {
+  const _p = r ? RasiLapEngine.getOrCreatePart(r, state.activeKartMac || KartRegistry.DEFAULT_MAC, r.startDriverId, r.startedAt || Date.now()) : null;
+  if (!r || !_p || !_p.laps.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="muted">Noch keine Runden.</td></tr>';
     setText('liveLapCount', '0 Runden');
     return;
   }
   const fmtS = ms => (ms == null ? '--' : (ms / 1000).toFixed(2));
-  const valid = r.laps.filter(l => l.valid);
+  const valid = _p.laps.filter(l => l.valid);
   const best = valid.length ? Math.min(...valid.map(l => l.timeMs)) : null;
   setText('liveLapCount', `${valid.length} Runden`);
-  tbody.innerHTML = [...r.laps].reverse().map(l => {
+  tbody.innerHTML = [..._p.laps].reverse().map(l => {
     const idx = l.number - 1;
-    const prev = idx > 0 ? r.laps[idx - 1].timeMs : null;
+    const prev = idx > 0 ? _p.laps[idx - 1].timeMs : null;
     const delta = prev ? l.timeMs - prev : null;
     const sec = Array.isArray(l.sectors) ? l.sectors : [null, null, null];
     const d = state.drivers.find(x => x.id === l.driverId);
@@ -183,8 +185,8 @@ function getDriverStats(driverId) {
     // Streckenlaenge bestimmen (Fallback fuer alte Runden ohne distanceM)
     const trk = r.trackId ? state.savedTracks.find(t => t.id === r.trackId) : null;
     const fallbackLapM = trk?.totalDistance || 0;
-    // Laps pro Driver
-    r.laps.forEach(l => {
+    // Laps pro Driver (Phase 30: ueber alle Teilnehmer-Karts)
+    RasiLapEngine.flatLaps(r).forEach(l => {
       if (l.driverId !== driverId) return;
       if (!l.valid) return;
       driverWasInRace = true;
@@ -202,8 +204,8 @@ function getDriverStats(driverId) {
       if ((l.maxRpm || 0) > totalRpmMax) totalRpmMax = l.maxRpm;
       if (bestLapMs == null || l.timeMs < bestLapMs) bestLapMs = l.timeMs;
     });
-    // Stints des Fahrers
-    (r.stints || []).forEach(st => {
+    // Stints des Fahrers (Phase 30: ueber alle Teilnehmer-Karts)
+    RasiLapEngine.flatStints(r).forEach(st => {
       if (st.driverId === driverId) {
         const start = st.startAt;
         const end = st.endAt || Date.now();
@@ -242,7 +244,7 @@ function getTotalStats() {
   state.races.forEach(r => {
     const trk = r.trackId ? state.savedTracks.find(t => t.id === r.trackId) : null;
     const fallbackLapM = trk?.totalDistance || 0;
-    r.laps.forEach(l => {
+    RasiLapEngine.flatLaps(r).forEach(l => {
       if (!l.valid) return;
       totalLaps++;
       totalTimeMs += l.timeMs;
@@ -366,7 +368,8 @@ function renderDriverOptions() {
 // Theoretische Bestrunde (Phase 24): Summe der besten Sektorzeiten der
 // Session -- null solange nicht alle drei Sektor-Bests existieren.
 function theoreticalBestMs() {
-  const b = (state.sectors && state.sectors.best) || [];
+  // Phase 30: Sektor-Bests sind pro Kart -> aktiver Kart (Fassade state.sectorsBest).
+  const b = state.sectorsBest || [];
   return (b[0] && b[1] && b[2]) ? b[0] + b[1] + b[2] : null;
 }
 

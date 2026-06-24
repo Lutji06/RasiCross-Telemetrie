@@ -12,8 +12,17 @@
 // 16. RACES
 // ============================================================
 function activeRace() { return state.races.find(r => r.id === state.activeRaceId); }
-function currentStint(r) { return r && r.stints && r.stints.length ? r.stints[r.stints.length - 1] : null; }
-function raceValidLaps(r) { return r ? r.laps.filter(l => l.valid) : []; }
+function currentStint(r) {
+  const p = r ? activePart(r) : null;
+  return p && p.stints && p.stints.length ? p.stints[p.stints.length - 1] : null;
+}
+function raceValidLaps(r) { return r ? RasiLapEngine.flatValidLaps(r) : []; }
+// Teilnehmer-Slot des aktuell aktiven Karts (legt bei Bedarf an).
+function activePart(r) {
+  if (!r) return null;
+  const mac = state.activeKartMac || KartRegistry.DEFAULT_MAC;
+  return RasiLapEngine.getOrCreatePart(r, mac, r.startDriverId, r.startedAt || Date.now());
+}
 function raceElapsedMs(r) {
   if (!r || !r.startedAt) return 0;
   const end = r.endedAt || (r.status === 'paused' ? r.pausedAt : Date.now());
@@ -37,7 +46,9 @@ function createRace() {
     kartMac: state.activeKartMac || KartRegistry.DEFAULT_MAC,
     status: 'created', createdAt: Date.now(),
     startedAt: null, endedAt: null, pausedAt: null, totalPausedMs: 0,
-    laps: [], stints: [], speedTrace: []
+    // Phase 30: Teilnehmer je kartMac (laps/stints/speedTrace/best pro Kart).
+    // Top-Level laps/stints/speedTrace bleiben leer (Migrations-/Downgrade-Gnade).
+    participants: {}, laps: [], stints: [], speedTrace: []
   };
   state.races.unshift(race);
   // Nicht mehr automatisch aktivieren — User muss explizit "Aktivieren" klicken
@@ -85,27 +96,42 @@ function startRace() {
       state.autoLap.prevLat = null;
       state.autoLap.prevLon = null;
     } else {
-      // Frischer Start: kompletter Reset wie bisher.
+      // Frischer Start: kompletter Reset. Phase 30: alle aktuell verbundenen
+      // Karts werden Teilnehmer; jeder startet UNarmiert (lapStart=null) und
+      // armiert bei seiner ersten Linien-Durchfahrt (rolling start).
       r.status = 'running';
       r.startedAt = now;
       r.endedAt = null;
       r.totalPausedMs = 0;
-      r.stints = [{ id: uid(), driverId: r.currentDriverId, startAt: now, endAt: null }];
+      r.participants = {};
       r.laps = [];
       r.speedTrace = [];
-      state.lapStart = now;
-      state.currentLapMax = { speed: 0, rpm: 0 };
-      state.currentLapTrace = [];
-      state.bestLapMs = null;
-      state.bestLapNum = null;
-      state.bestLapTrace = null;
-      state.heatmap.lapMaxSpeed = 0;
-      state.sectorsLive.cur = 0;
-      state.sectorsLive.sectorStart = now;
-      state.sectorsLive.lapSectors = [null, null, null];
-      state.sectorsLive.lastLapSectors = null;
-      state.autoLap.prevLat = null;
-      state.autoLap.prevLon = null;
+      const _macs = state.karts.macs();
+      const _list = _macs.length ? _macs : [state.activeKartMac || KartRegistry.DEFAULT_MAC];
+      _list.forEach(mac => {
+        const p = RasiLapEngine.getOrCreatePart(r, mac, r.currentDriverId, null);
+        p.startDriverId = r.currentDriverId;
+        p.currentDriverId = r.currentDriverId;
+        p.stints = [{ id: uid(), driverId: r.currentDriverId, startAt: now, endAt: null }];
+        p.laps = [];
+        p.speedTrace = [];
+        p.bestLapMs = null; p.bestLapNum = null; p.joinedAt = null;
+        const k = state.karts.get(mac);
+        if (k) {
+          k.lapStart = null;                 // UNarmiert -> erste Linie armiert
+          k.currentLapMax = { speed: 0, rpm: 0 };
+          k.currentLapTrace = [];
+          k.bestLapMs = null; k.bestLapNum = null; k.bestLapTrace = null;
+          k.heatmap.lapMaxSpeed = 0;
+          k.sectorsBest = [null, null, null];
+          k.sectorsLive.cur = 0;
+          k.sectorsLive.sectorStart = null;
+          k.sectorsLive.lapSectors = [null, null, null];
+          k.sectorsLive.lastLapSectors = null;
+          k.autoLap.prevLat = null;
+          k.autoLap.prevLon = null;
+        }
+      });
     }
     renderRaces();
     updateRaceControls();
@@ -125,13 +151,19 @@ function endRace(auto = false) {
     }
     r.status = auto ? 'finished_auto' : 'finished';
     r.endedAt = now;
-    const st = currentStint(r);
-    if (st && !st.endAt) st.endAt = now;
-    state.lapStart = null;
-    state.currentLapMax = { speed: 0, rpm: 0 };
-    state.sectorsLive.cur = 0;
-    state.sectorsLive.sectorStart = null;
-    state.sectorsLive.lapSectors = [null, null, null];
+    // Phase 30: offene Stints ALLER Teilnehmer schließen + Live-State je Kart reset.
+    RasiLapEngine.participantsOf(r).forEach(p => {
+      const open = p.stints && p.stints.length ? p.stints[p.stints.length - 1] : null;
+      if (open && !open.endAt) open.endAt = now;
+      const k = state.karts.has(p.mac) ? state.karts.get(p.mac) : null;
+      if (k) {
+        k.lapStart = null;
+        k.currentLapMax = { speed: 0, rpm: 0 };
+        k.sectorsLive.cur = 0;
+        k.sectorsLive.sectorStart = null;
+        k.sectorsLive.lapSectors = [null, null, null];
+      }
+    });
     document.body.classList.add('flash');
     setTimeout(() => document.body.classList.remove('flash'), 2000);
     renderRaces();
@@ -179,10 +211,12 @@ function confirmDriverChange() {
     return;
   }
   const now = Date.now();
-  const old = currentStint(r);
+  // Phase 30: Fahrerwechsel gilt fuer den aktuell per Chip gewaehlten Kart.
+  const p = activePart(r);
+  const old = p.stints && p.stints.length ? p.stints[p.stints.length - 1] : null;
   if (old && !old.endAt) old.endAt = now;
-  r.currentDriverId = newId;
-  r.stints.push({ id: uid(), driverId: newId, startAt: now, endAt: null });
+  p.currentDriverId = newId;
+  p.stints.push({ id: uid(), driverId: newId, startAt: now, endAt: null });
   $('driverModal').classList.remove('show');
   renderRaces();
   saveDataDebounced();
@@ -246,8 +280,11 @@ function drawRaceHistoryChart(raceId) {
   const canvas = document.querySelector(`canvas[data-race-chart="${raceId}"]`);
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const speeds = (r.speedTrace || []).map(p => p.speed);
-  const rpms = (r.speedTrace || []).map(p => p.rpm);
+  // Phase 30: speed trace is per-participant; combine across karts for the
+  // race-history chart (single-kart = that kart's trace; multi-kart = concatenated).
+  const _trace = RasiLapEngine.participantsOf(r).reduce((a, pp) => a.concat(pp.speedTrace || []), []);
+  const speeds = _trace.map(p => p.speed);
+  const rpms = _trace.map(p => p.rpm);
   const max = Math.max(state.settings.maxSpeed, ...speeds, 10);
   drawChart(ctx, canvas,
     [
@@ -262,12 +299,16 @@ function drawRaceHistoryChart(raceId) {
 // Kleiner Kart-Badge (Name/Farbe) fuer eine Rennzeile — nur wenn das Rennen
 // einem benannten Kart zugeordnet ist (Multi-Kart). Default-Bucket = kein Badge.
 function kartBadge(r) {
-  const mac = r && r.kartMac;
-  if (!mac || mac === (window.KartRegistry && KartRegistry.DEFAULT_MAC)) return '';
-  const meta = state.kartMeta && state.kartMeta[mac];
-  if (!meta) return '';
-  const color = meta.color || '#3aa0e8';
-  return ` <span class="kart-badge" style="border-color:${esc(color)};color:${esc(color)}">${esc(meta.name || 'Kart')}</span>`;
+  // Phase 30: ein Badge je Teilnehmer-Kart (Default-Bucket ohne Badge).
+  const parts = RasiLapEngine.participantsOf(r)
+    .filter(p => p.mac && p.mac !== (window.KartRegistry && KartRegistry.DEFAULT_MAC));
+  if (!parts.length) return '';
+  return parts.map(p => {
+    const meta = state.kartMeta && state.kartMeta[p.mac];
+    const color = (meta && meta.color) || '#3aa0e8';
+    const name = (meta && meta.name) || 'Kart';
+    return ` <span class="kart-badge" style="border-color:${esc(color)};color:${esc(color)}">${esc(name)}</span>`;
+  }).join('');
 }
 
 function renderRaces() {
@@ -323,27 +364,48 @@ function renderRaces() {
 }
 
 function renderRaceDetails(r, validLaps, best, avgLap, maxSpeed, maxRpm, elapsedMs, startDriver) {
-  const stintsHtml = (r.stints || []).map((st, i) => {
-    const d = state.drivers.find(x => x.id === st.driverId);
-    const dur = (st.endAt || Date.now()) - st.startAt;
-    return `<div class="stint-row">
-      <span class="stint-num">#${i+1}</span>
-      <span class="stint-name">${esc(d?.name || '--')}</span>
-      <span class="stint-dur">${fmtClock(dur)}</span>
-    </div>`;
+  // Phase 30: Stints aller Teilnehmer (mit Kart-Praefix bei >1 Kart).
+  const _multi = RasiLapEngine.participantsOf(r).length > 1;
+  const stintsHtml = RasiLapEngine.participantsOf(r).map(p => {
+    const meta = state.kartMeta && state.kartMeta[p.mac];
+    const kname = (meta && meta.name) || (p.mac === KartRegistry.DEFAULT_MAC ? '' : p.mac);
+    return (p.stints || []).map((st, i) => {
+      const d = state.drivers.find(x => x.id === st.driverId);
+      const dur = (st.endAt || Date.now()) - st.startAt;
+      const tag = _multi && kname ? `${esc(kname)} · ` : '';
+      return `<div class="stint-row">
+        <span class="stint-num">#${i+1}</span>
+        <span class="stint-name">${tag}${esc(d?.name || '--')}</span>
+        <span class="stint-dur">${fmtClock(dur)}</span>
+      </div>`;
+    }).join('');
   }).join('');
 
-  const lapsHtml = r.laps.length
-    ? r.laps.map(l => {
-        const d = state.drivers.find(x => x.id === l.driverId);
-        const isBest = best && l.timeMs === best;
-        return `<tr class="${!l.valid ? 'invalid' : (isBest ? 'best' : '')}">
-          <td>${l.number}</td>
-          <td>${fmtMs(l.timeMs)}</td>
-          <td>${esc(d?.name || '--')}</td>
-          <td>${(l.maxSpeed||0).toFixed(1)}</td>
-          <td>${Math.round(l.maxRpm||0)}</td>
-        </tr>`;
+  // Phase 30: Runden pro Teilnehmer-Kart gruppiert. Bei einem Teilnehmer wie bisher.
+  const _parts = RasiLapEngine.participantsOf(r);
+  const lapsHtml = RasiLapEngine.flatLaps(r).length
+    ? _parts.map(p => {
+        if (!p.laps.length) return '';
+        const meta = state.kartMeta && state.kartMeta[p.mac];
+        const color = (meta && meta.color) || '#3aa0e8';
+        const kname = (meta && meta.name) || (p.mac === KartRegistry.DEFAULT_MAC ? 'Kart' : p.mac);
+        const pv = RasiLapEngine.partValidLaps(p);
+        const pBest = pv.length ? Math.min(...pv.map(l => l.timeMs)) : null;
+        const head = _parts.length > 1
+          ? `<tr class="kart-group"><td colspan="5" style="color:${esc(color)};font-weight:700">${esc(kname)} — ${pv.length} Runden</td></tr>`
+          : '';
+        const rows = p.laps.map(l => {
+          const d = state.drivers.find(x => x.id === l.driverId);
+          const isBest = pBest && l.timeMs === pBest;
+          return `<tr class="${!l.valid ? 'invalid' : (isBest ? 'best' : '')}">
+            <td>${l.number}</td>
+            <td>${fmtMs(l.timeMs)}</td>
+            <td>${esc(d?.name || '--')}</td>
+            <td>${(l.maxSpeed||0).toFixed(1)}</td>
+            <td>${Math.round(l.maxRpm||0)}</td>
+          </tr>`;
+        }).join('');
+        return head + rows;
       }).join('')
     : '<tr><td colspan="5" class="muted">Keine Runden</td></tr>';
 
@@ -354,14 +416,14 @@ function renderRaceDetails(r, validLaps, best, avgLap, maxSpeed, maxRpm, elapsed
       <div class="stat"><div class="t">Durchschnitt</div><div class="n">${avgLap ? fmtMs(avgLap) : '--'}</div></div>
       <div class="stat"><div class="t">Max km/h</div><div class="n">${maxSpeed.toFixed(1)}</div></div>
       <div class="stat"><div class="t">Max RPM</div><div class="n">${Math.round(maxRpm).toLocaleString('de-DE')}</div></div>
-      <div class="stat"><div class="t">Stints</div><div class="n">${(r.stints || []).length}</div></div>
+      <div class="stat"><div class="t">Stints</div><div class="n">${RasiLapEngine.participantsOf(r).reduce((n, p) => n + (p.stints ? p.stints.length : 0), 0)}</div></div>
     </div>
     ${stintsHtml ? `<div class="race-detail-section">
       <h4>Stints</h4>
       <div class="stints-list">${stintsHtml}</div>
     </div>` : ''}
     <div class="race-detail-section">
-      <h4>Runden (${r.laps.length})</h4>
+      <h4>Runden (${RasiLapEngine.flatLaps(r).length})</h4>
       <div class="tbl-wrap" style="max-height:240px">
         <table>
           <thead><tr><th>#</th><th>Zeit</th><th>Fahrer</th><th>Max km/h</th><th>Max RPM</th></tr></thead>
@@ -418,4 +480,4 @@ void [activeRace, currentStint, raceValidLaps, raceElapsedMs, createRace,
       startRace, endRace, pauseRace, toggleRaceRun, openDriverChange,
       confirmDriverChange, closeDriverModal, selectRace, setActiveRace,
       toggleRaceExpand, deleteRace, drawRaceHistoryChart, renderRaces,
-      renderRaceDetails, renderTrackOptions, updateRaceControls];
+      renderRaceDetails, renderTrackOptions, updateRaceControls, activePart];

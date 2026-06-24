@@ -30,12 +30,19 @@
     // Einzelner Kart ohne echte MAC (default-Bucket): keine Chip-Leiste noetig.
     el.style.display = macs.length <= 1 ? 'none' : 'flex';
     el.innerHTML = '';
+    // Übersicht-Button (alle Karts auf einmal) — erstes Element in der Leiste.
+    const ovBtn = document.createElement('button');
+    ovBtn.type = 'button';
+    ovBtn.className = 'kart-overview-btn' + (state.liveView === 'overview' ? ' active' : '');
+    ovBtn.innerHTML = '⊞ Übersicht';
+    ovBtn.onclick = () => { if (window.setLiveView) window.setLiveView('overview'); };
+    el.appendChild(ovBtn);
     macs.forEach((mac, i) => {
       const k = state.karts.get(mac);
       if (!k) return;
       const m = metaFor(meta, mac, i);
       const chip = document.createElement('button');
-      let cls = 'kart-chip' + (mac === state.activeKartMac ? ' active' : '');
+      let cls = 'kart-chip' + (mac === state.activeKartMac && state.liveView !== 'overview' ? ' active' : '');
       chip.style.borderColor = m.color;
       const age = k.connection.lastPacketAt ? (Date.now() - k.connection.lastPacketAt) : 99999;
       const rec = k.recording.armed ? ' ●REC' : '';
@@ -57,7 +64,8 @@
         }
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
-          render(state);
+          // Chip-Klick wählt immer die Einzelansicht dieses Karts.
+          if (window.setLiveView) window.setLiveView('single'); else render(state);
         }
       };
       el.appendChild(chip);

@@ -173,8 +173,11 @@ async function saveCurrentTrack() {
 // Sektor-Bests gehoeren zur Strecke: nach jedem neuen Best in die aktive
 // gespeicherte Strecke spiegeln, damit sie Streckenwechsel ueberleben.
 function syncSectorBestToTrack() {
+  // Phase 30: Strecken-Rekord = bestes Ergebnis ueber alle Karts (min je Sektor).
   const t = state.savedTracks.find(x => x.id === state.activeTrackId);
-  if (t) t.sectorBest = [...state.sectors.best];
+  if (!t) return;
+  const bests = state.karts.macs().map(mac => state.karts.get(mac).sectorsBest || [null, null, null]);
+  t.sectorBest = RasiLapEngine.trackRecordFromKarts(bests);
 }
 function loadSavedTrack(id) {
   const t = state.savedTracks.find(x => x.id === id);
@@ -189,8 +192,8 @@ function loadSavedTrack(id) {
     state.sectors.boundaries = [...t.sectorBoundaries];
     state.sectors.manual = !!t.sectorBoundaries.some(b => b);
   }
-  // Sektor-Bests (und damit die theoretische Bestrunde) gelten pro Strecke
-  state.sectors.best = Array.isArray(t.sectorBest) ? [...t.sectorBest] : [null, null, null];
+  // Phase 30: Strecken-Rekord in den aktiven Kart laden (Per-Kart-Sektor-Bests).
+  state.sectorsBest = Array.isArray(t.sectorBest) ? [...t.sectorBest] : [null, null, null];
   state.activeTrackId = id;
   setText('gateSizeText', (state.startGate.width || 14) + 'm');
   setText('scanStateValue', 'Geladen: ' + t.name);
@@ -683,18 +686,21 @@ function handleTrackCanvasClick(e) {
   saveDataDebounced();
   rcToast(`S${idx + 2} Grenze gesetzt`);
 }
-function checkSectorCrossings(lat, lon) {
+// Phase 30: pro Kart. Grenzen (boundaries) sind geteilt; Live-Sektorzeiten +
+// Sektor-Bestzeiten kommen vom uebergebenen Kart k.
+function checkSectorCrossings(k, lat, lon) {
   try {
     const r = activeRace();
-    if (!r || r.status !== 'running' || !state.lapStart) return;
+    if (!r || r.status !== 'running' || !k.lapStart) return;
     const s = state.sectors;          // Konfiguration (global)
-    const sl = state.sectorsLive;     // Live-Sektorzeiten (pro Kart)
+    const sl = k.sectorsLive;         // Live-Sektorzeiten dieses Karts
     const bs = s.boundaries;
     if (!bs[0] && !bs[1]) return;
-    if (!state.autoLap.prevLat) return; // wait for prev
-    const A = { lat: state.autoLap.prevLat, lon: state.autoLap.prevLon };
+    if (!k.autoLap.prevLat) return;   // wait for prev
+    const A = { lat: k.autoLap.prevLat, lon: k.autoLap.prevLon };
     const B = { lat, lon };
     const now = Date.now();
+    const isAct = (k === activeKart());
     // Cooldown (avoid double trigger)
     if (sl.sectorStart && (now - sl.sectorStart) < 2000) return;
     for (let i = 0; i < 2; i++) {
@@ -702,18 +708,17 @@ function checkSectorCrossings(lat, lon) {
       const ep = lineEndpointsFromGate(bs[i]);
       if (!ep) continue;
       if (segmentsCross(A, B, ep.p1, ep.p2) && crossingDirectionOk(A.lat, A.lon, lat, lon, bs[i].heading)) {
-        const sectorMs = now - (sl.sectorStart || state.lapStart);
+        const sectorMs = now - (sl.sectorStart || k.lapStart);
         sl.lapSectors[i] = sectorMs;
         sl.sectorStart = now;
         sl.cur = i + 1;
-        // Update best
-        if (s.best[i] == null || sectorMs < s.best[i]) {
-          s.best[i] = sectorMs;
-          rcAudio.sectorBest();
+        // Update per-kart best
+        if (RasiLapEngine.sectorBestUpdate(k.sectorsBest, i, sectorMs)) {
+          if (isAct) rcAudio.sectorBest();
           syncSectorBestToTrack();
           saveDataDebounced();
         }
-        updateSectorPanel();
+        if (isAct) updateSectorPanel();
         break;
       }
     }
@@ -721,14 +726,15 @@ function checkSectorCrossings(lat, lon) {
 }
 function updateSectorPanel() {
   const s = state.sectors;          // Konfiguration (global)
-  const sl = state.sectorsLive;     // Live-Sektorzeiten (pro Kart)
+  const sl = state.sectorsLive;     // Live-Sektorzeiten (aktiver Kart, Fassade)
+  const sb = state.sectorsBest || [null, null, null];  // Sektor-Bests aktiver Kart
   const has = s.boundaries[0] || s.boundaries[1];
   $('sectorPanel').style.display = has ? 'grid' : 'none';
   if (!has) return;
   const display = i => {
     let t = sl.lapSectors[i];
     if (!t && sl.lastLapSectors) t = sl.lastLapSectors[i];
-    const best = s.best[i];
+    const best = sb[i];
     const delta = (t && best && t !== best) ? t - best : null;
     setText(`s${i+1}Time`, t ? fmtMs(t) : '--:--.---');
     const dEl = $(`s${i+1}Delta`);
