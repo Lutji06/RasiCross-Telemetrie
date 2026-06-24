@@ -39,6 +39,9 @@
       bestLapTrace: null, bestLapMs: null, bestLapNum: null, liveDelta: null,
       autoLap: { prevLat: null, prevLon: null, lastTriggerAt: 0 },
       sectorsLive: { cur: 0, sectorStart: null, lapSectors: [null, null, null], lastLapSectors: null },
+      // Sektor-Bestzeiten pro Kart (Phase 30). Strecken-Geometrie/Grenzen
+      // bleiben global in state.sectors.boundaries; nur die Bests sind je Kart.
+      sectorsBest: [null, null, null],
       recording: { armed: false, buf: [], startWall: null, overflowed: false },
       replay: { active: false, packets: [], idx: 0, virtualMs: 0, durationMs: 0,
                 speed: 1, playing: false, raf: null, lastWall: null, snapshot: null },
