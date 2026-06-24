@@ -44,6 +44,12 @@
          + ' · Int ' + fmtDelta(e.intervalLapGap, e.intervalMs);
   }
 
+  // Phase 33: Overtake-Highlight — vorherige Positionen + Aufstiegs-Zeitstempel
+  // je Kart (modul-lokal). Statischer Glow fuer OVERTAKE_MS, rebuild-sicher.
+  const OVERTAKE_MS = 1200;
+  let prevPosByMac = {};
+  let overtakeAtByMac = {};
+
   function render(state) {
     const el = document.getElementById('liveOverview');
     if (!el) return;
@@ -63,6 +69,15 @@
       ranking.forEach(e => { posByMac[e.mac] = e; });
       orderedMacs = ranking.map(e => e.mac).filter(m => macs.includes(m))
         .concat(macs.filter(m => !(m in posByMac)));
+      // Phase 33: Aufsteiger erkennen -> Glow-Zeitstempel; Vorpositionen merken.
+      RasiLapEngine.positionGains(prevPosByMac, ranking).forEach(mac => { overtakeAtByMac[mac] = now; });
+      const _np = {};
+      ranking.forEach(e => { _np[e.mac] = e.pos; });
+      prevPosByMac = _np;
+    } else {
+      // Kein aktives Ranking -> Overtake-State zuruecksetzen (frischer Start).
+      prevPosByMac = {};
+      overtakeAtByMac = {};
     }
     el.innerHTML = orderedMacs.map(mac => {
       const k = state.karts.get(mac);
@@ -88,7 +103,9 @@
       const isFL = !!(flHolder && flHolder.mac === mac);
       const flBadge = isFL ? '<span class="ko-fl">⚡FL</span>' : '';
       const bestCls = 'ko-v' + (isFL ? ' ko-v-fl' : '');
-      const cls = 'ko-card' + (mac === state.activeKartMac ? ' active' : '') + (stale ? ' stale' : '');
+      const isOvertake = !!(overtakeAtByMac[mac] && (now - overtakeAtByMac[mac] < OVERTAKE_MS));
+      const cls = 'ko-card' + (mac === state.activeKartMac ? ' active' : '') + (stale ? ' stale' : '')
+        + (isOvertake ? ' ko-overtake' : '');
       return '<div class="' + cls + '" data-mac="' + mac + '" style="border-color:' + m.color + '">'
         + '<div class="ko-head">' + posBadge + '<span class="ko-dot" style="background:' + m.color + '"></span>'
         +   '<span class="ko-name" style="color:' + m.color + '">' + esc(m.name) + '</span>' + rec + flBadge + '</div>'
