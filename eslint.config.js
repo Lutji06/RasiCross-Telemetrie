@@ -116,6 +116,8 @@ const kartRegistryGlobals = { KartRegistry: 'readonly' };
 const kartBarGlobals = { RasiKartBar: 'readonly' };
 // Schnittstelle kart-overview.js -> Nutzer (window.RasiKartOverview)
 const kartOverviewGlobals = { RasiKartOverview: 'readonly' };
+// Schnittstelle lap-engine.js -> Nutzer (window.RasiLapEngine)
+const lapEngineGlobals = { RasiLapEngine: 'readonly' };
 
 const bugRules = {
   ...js.configs.recommended.rules,
@@ -146,7 +148,7 @@ module.exports = [
 
   // Pure UMD-Module -- laufen im Browser und unter node:test
   {
-    files: ['geo.js', 'replay.js', 'karts3d.js', 'kart-registry.js'],
+    files: ['geo.js', 'replay.js', 'lap-engine.js', 'karts3d.js', 'kart-registry.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
@@ -199,7 +201,7 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
-                 ...kartRegistryGlobals, activeKart: 'readonly',
+                 ...kartRegistryGlobals, ...lapEngineGlobals, activeKart: 'readonly',
                  loadSavedTrack: 'readonly', updateSectorPanel: 'readonly',
                  drawChart: 'readonly', renderDriverOptions: 'readonly',
                  raceHasRecording: 'readonly',
@@ -247,6 +249,7 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...lapEngineGlobals, ...kartRegistryGlobals,
                  ...mapDrawGlobals, ...racesGlobals,
                  theoreticalBestMs: 'readonly', RasiTiles: 'readonly',
                  RasiTileRenderer: 'readonly' },
@@ -261,8 +264,8 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
-                 ...mapDrawGlobals, ...racesGlobals, ...trackGlobals,
-                 ...kartRegistryGlobals },
+                 ...lapEngineGlobals, ...kartRegistryGlobals, activeKart: 'readonly',
+                 ...mapDrawGlobals, ...racesGlobals, ...trackGlobals },
     },
     rules: bugRules,
   },
@@ -331,7 +334,7 @@ module.exports = [
       sourceType: 'script',
       globals: {
         ...globals.browser,
-        ...geoGlobals,
+        ...geoGlobals, ...lapEngineGlobals,
         ...mapDrawGlobals,
         ...racesGlobals,
         ...serialDemoGlobals,

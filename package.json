@@ -52,6 +52,7 @@
       "kart-overview.js",
       "geo.js",
       "replay.js",
+      "lap-engine.js",
       "drift.js",
       "attitude.js",
       "karts3d.js",
