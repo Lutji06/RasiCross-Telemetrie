@@ -29,12 +29,19 @@
     return out;
   }
 
-  // Phase 31: Gap-Text — Fuehrender "Leader", gleiche Runde "+x.xs",
-  // ueberrundet "+N Runde(n)".
+  // Phase 32: ein Delta formatieren ("+N Runde(n)" bei Runden-Rueckstand,
+  // sonst "+x.xs"). Genutzt fuer Gap (zum Fuehrenden) und Int (zum Vordermann).
+  function fmtDelta(lapGap, ms) {
+    if (lapGap > 0) return '+' + lapGap + (lapGap === 1 ? ' Runde' : ' Runden');
+    return '+' + (ms / 1000).toFixed(1) + 's';
+  }
+
+  // Phase 32: Gap·Int-Zeile — Fuehrender "Leader", sonst "Gap <zumFuehrenden> ·
+  // Int <zumVordermann>". Fuer P2 sind Gap und Int identisch (Vordermann = Fuehrender).
   function fmtGap(e) {
     if (!e || e.pos === 1) return 'Leader';
-    if (e.lapGap > 0) return '+' + e.lapGap + (e.lapGap === 1 ? ' Runde' : ' Runden');
-    return '+' + (e.timeGapMs / 1000).toFixed(1) + 's';
+    return 'Gap ' + fmtDelta(e.lapGap, e.timeGapMs)
+         + ' · Int ' + fmtDelta(e.intervalLapGap, e.intervalMs);
   }
 
   function render(state) {
@@ -48,6 +55,8 @@
                      && RasiLapEngine.participantsOf(r).length >= 2)
       ? RasiLapEngine.rankParticipants(r, buildCrossings(state, r))
       : null;
+    // Phase 32: Halter der schnellsten Runde (lila Markierung), nur bei aktivem Ranking.
+    const flHolder = ranking ? RasiLapEngine.fastestLapHolder(r) : null;
     const posByMac = {};
     let orderedMacs = macs;
     if (ranking) {
@@ -72,17 +81,20 @@
         ? ('Runde ' + lapCount + ' · Best R' + k.bestLapNum)
         : (lapCount ? ('Runde ' + lapCount) : 'Noch keine Rundenzeit');
       const rec = k.recording.armed ? '<span class="ko-rec">●REC</span>' : '';
-      // Phase 31: Positions-Badge + Gap (nur wenn Ranking aktiv).
+      // Phase 31: Positions-Badge + Gap. Phase 32: Gap·Int + Fastest-Lap-Markierung.
       const pe = posByMac[mac];
       const posBadge = pe ? '<span class="ko-pos">P' + pe.pos + '</span>' : '';
       const gapRow = pe ? '<div class="ko-gap">' + fmtGap(pe) + '</div>' : '';
+      const isFL = !!(flHolder && flHolder.mac === mac);
+      const flBadge = isFL ? '<span class="ko-fl">⚡FL</span>' : '';
+      const bestCls = 'ko-v' + (isFL ? ' ko-v-fl' : '');
       const cls = 'ko-card' + (mac === state.activeKartMac ? ' active' : '') + (stale ? ' stale' : '');
       return '<div class="' + cls + '" data-mac="' + mac + '" style="border-color:' + m.color + '">'
         + '<div class="ko-head">' + posBadge + '<span class="ko-dot" style="background:' + m.color + '"></span>'
-        +   '<span class="ko-name" style="color:' + m.color + '">' + esc(m.name) + '</span>' + rec + '</div>'
+        +   '<span class="ko-name" style="color:' + m.color + '">' + esc(m.name) + '</span>' + rec + flBadge + '</div>'
         + '<div class="ko-speed">' + speed + '<small>km/h</small></div>'
         + '<div class="ko-row"><span class="ko-l">Aktuelle Runde</span><span class="ko-v">' + lapCur + '</span></div>'
-        + '<div class="ko-row"><span class="ko-l">Beste Runde</span><span class="ko-v">' + lapBest + '</span></div>'
+        + '<div class="ko-row"><span class="ko-l">Beste Runde</span><span class="' + bestCls + '">' + lapBest + '</span></div>'
         + '<div class="ko-sub">' + bestNum + '</div>' + gapRow
         + '</div>';
     }).join('');
