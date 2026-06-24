@@ -7,7 +7,8 @@ test('module exports all helpers', () => {
   for (const name of ['migrateRace','participantsOf','getOrCreatePart','flatLaps',
                       'flatValidLaps','flatStints','partValidLaps','bestFromLaps',
                       'commitLap','sectorBestUpdate','trackRecordFromKarts',
-                      'rankParticipants','leaderReachedTarget','fastestLapHolder']) {
+                      'rankParticipants','leaderReachedTarget','fastestLapHolder',
+                      'positionGains']) {
     assert.equal(typeof E[name], 'function', `missing ${name}`);
   }
 });
@@ -255,4 +256,34 @@ test('fastestLapHolder tie resolves to first participant', () => {
     BB: { mac: 'BB', bestLapMs: 25000, bestLapNum: 2 },
   } };
   assert.equal(E.fastestLapHolder(r).mac, 'AA');
+});
+
+test('positionGains returns macs that moved up', () => {
+  const prev = { AA: 1, BB: 2, CC: 3 };
+  const ranked = [{ mac: 'CC', pos: 1 }, { mac: 'AA', pos: 2 }, { mac: 'BB', pos: 3 }];
+  assert.deepEqual(E.positionGains(prev, ranked), ['CC']);
+});
+
+test('positionGains ignores unchanged positions, detects a swap winner only', () => {
+  const prev = { AA: 1, BB: 2 };
+  assert.deepEqual(E.positionGains(prev, [{ mac: 'AA', pos: 1 }, { mac: 'BB', pos: 2 }]), []);
+  // BB up 2->1, AA down 1->2 (drop ignored)
+  assert.deepEqual(E.positionGains(prev, [{ mac: 'BB', pos: 1 }, { mac: 'AA', pos: 2 }]), ['BB']);
+});
+
+test('positionGains ignores new entrants without a previous position', () => {
+  const prev = { AA: 1 };
+  // BB has no prev -> ignored; AA dropped -> ignored
+  assert.deepEqual(E.positionGains(prev, [{ mac: 'BB', pos: 1 }, { mac: 'AA', pos: 2 }]), []);
+});
+
+test('positionGains detects multiple simultaneous gainers', () => {
+  const prev = { AA: 1, BB: 2, CC: 3, DD: 4 };
+  const ranked = [{ mac: 'CC', pos: 1 }, { mac: 'DD', pos: 2 },
+                  { mac: 'AA', pos: 3 }, { mac: 'BB', pos: 4 }];
+  assert.deepEqual(E.positionGains(prev, ranked), ['CC', 'DD']);
+});
+
+test('positionGains with empty prev (first ranking) yields no gains', () => {
+  assert.deepEqual(E.positionGains({}, [{ mac: 'AA', pos: 1 }, { mac: 'BB', pos: 2 }]), []);
 });
