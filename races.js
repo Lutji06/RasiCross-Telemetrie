@@ -192,35 +192,59 @@ function toggleRaceRun() {
   if (r && r.status === 'running') pauseRace();
   else startRace();
 }
+// Phase 35: <option>-Liste aller Fahrer; selectedId markiert den aktuellen.
+function driverOptionsHtml(selectedId) {
+  if (!state.drivers.length) return '<option value="">Keine Fahrer</option>';
+  return state.drivers.map(d =>
+    `<option value="${esc(d.id)}"${d.id === selectedId ? ' selected' : ''}>${esc(d.name)}${d.number ? ' #' + esc(d.number) : ''}</option>`
+  ).join('');
+}
 function openDriverChange() {
   const r = activeRace();
   if (!r || r.status !== 'running') return;
-  renderDriverOptions();
-  // Pre-select non-current driver if possible
-  const sel = $('driverModalSelect');
-  const others = state.drivers.filter(d => d.id !== r.currentDriverId);
-  if (others.length && sel) sel.value = others[0].id;
+  // Phase 35: eine Zeile je Teilnehmer-Kart (Farbe/Name + Fahrer-Dropdown,
+  // vorbelegt mit dem aktuellen Fahrer).
+  const list = $('driverModalList');
+  if (list) {
+    list.innerHTML = RasiLapEngine.participantsOf(r).map(p => {
+      const meta = state.kartMeta && state.kartMeta[p.mac];
+      const color = (meta && meta.color) || '#3aa0e8';
+      const name = (meta && meta.name) || 'Kart';
+      return `<div class="dc-row">
+        <span class="dc-dot" style="background:${esc(color)}"></span>
+        <span class="dc-name">${esc(name)}</span>
+        <select class="dc-sel" data-mac="${esc(p.mac)}">${driverOptionsHtml(p.currentDriverId)}</select>
+      </div>`;
+    }).join('');
+  }
   $('driverModal').classList.add('show');
 }
 function confirmDriverChange() {
   const r = activeRace();
   if (!r) return;
-  const newId = $('driverModalSelect').value;
-  if (!newId || newId === r.currentDriverId) {
-    $('driverModal').classList.remove('show');
-    return;
-  }
   const now = Date.now();
-  // Phase 30: Fahrerwechsel gilt fuer den aktuell per Chip gewaehlten Kart.
-  const p = activePart(r);
-  const old = p.stints && p.stints.length ? p.stints[p.stints.length - 1] : null;
-  if (old && !old.endAt) old.endAt = now;
-  p.currentDriverId = newId;
-  p.stints.push({ id: uid(), driverId: newId, startAt: now, endAt: null });
+  // Phase 35: nur Teilnehmer mit abweichender Auswahl bekommen einen neuen Stint.
+  let changed = 0;
+  const list = $('driverModalList');
+  const sels = list ? list.querySelectorAll('.dc-sel') : [];
+  sels.forEach(sel => {
+    const mac = sel.getAttribute('data-mac');
+    const p = r.participants && r.participants[mac];
+    if (!p) return;
+    const newId = sel.value;
+    if (!newId || newId === p.currentDriverId) return;
+    const stint = RasiLapEngine.applyDriverChange(p, newId, now);
+    stint.id = uid();
+    changed++;
+  });
   $('driverModal').classList.remove('show');
-  renderRaces();
-  saveDataDebounced();
-  rcToast('Fahrer gewechselt');
+  if (changed) {
+    renderRaces();
+    saveDataDebounced();
+    rcToast(changed === 1 ? 'Fahrer gewechselt' : changed + ' Fahrer gewechselt');
+  } else {
+    rcToast('Keine Änderung');
+  }
 }
 function closeDriverModal() { $('driverModal').classList.remove('show'); }
 

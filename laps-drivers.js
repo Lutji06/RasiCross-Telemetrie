@@ -353,16 +353,15 @@ function renderDrivers() {
   }).join('');
 }
 function renderDriverOptions() {
+  // Phase 35: #driverModalSelect entfiel mit dem kombinierten Dialog; nur noch
+  // das Neues-Rennen-Formular (#newRaceDriver) wird hier befuellt.
   const sel1 = $('newRaceDriver');
-  const sel2 = $('driverModalSelect');
   if (!state.drivers.length) {
     if (sel1) sel1.innerHTML = '<option value="">Bitte zuerst Fahrer anlegen</option>';
-    if (sel2) sel2.innerHTML = '<option value="">Keine Fahrer</option>';
     return;
   }
   const opts = state.drivers.map(d => `<option value="${d.id}">${esc(d.name)} ${d.number ? '#' + esc(d.number) : ''}</option>`).join('');
   if (sel1) sel1.innerHTML = opts;
-  if (sel2) sel2.innerHTML = opts;
 }
 
 // Theoretische Bestrunde (Phase 24): Summe der besten Sektorzeiten der
