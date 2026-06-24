@@ -251,6 +251,7 @@ module.exports = [
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
                  ...lapEngineGlobals, ...kartRegistryGlobals,
                  ...mapDrawGlobals, ...racesGlobals,
+                 activeKart: 'readonly',
                  theoreticalBestMs: 'readonly', RasiTiles: 'readonly',
                  RasiTileRenderer: 'readonly' },
     },
