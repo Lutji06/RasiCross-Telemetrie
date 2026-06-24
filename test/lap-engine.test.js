@@ -7,7 +7,7 @@ test('module exports all helpers', () => {
   for (const name of ['migrateRace','participantsOf','getOrCreatePart','flatLaps',
                       'flatValidLaps','flatStints','partValidLaps','bestFromLaps',
                       'commitLap','sectorBestUpdate','trackRecordFromKarts',
-                      'rankParticipants','leaderReachedTarget']) {
+                      'rankParticipants','leaderReachedTarget','fastestLapHolder']) {
     assert.equal(typeof E[name], 'function', `missing ${name}`);
   }
 });
@@ -194,4 +194,65 @@ test('leaderReachedTarget true once leader reaches target laps', () => {
   assert.equal(E.leaderReachedTarget(ranked, 5), true);
   assert.equal(E.leaderReachedTarget(ranked, 6), false);
   assert.equal(E.leaderReachedTarget([], 5), false);
+});
+
+test('rankParticipants adds interval to the car directly ahead', () => {
+  const r = { participants: {
+    AA: { mac: 'AA', laps: [{ valid: true }] },
+    BB: { mac: 'BB', laps: [{ valid: true }] },
+    CC: { mac: 'CC', laps: [{ valid: true }] },
+  } };
+  const ranked = E.rankParticipants(r, { AA: 1000, BB: 1300, CC: 1500 });
+  assert.equal(ranked[0].mac, 'AA');
+  assert.equal(ranked[0].intervalMs, 0);
+  assert.equal(ranked[0].intervalLapGap, 0);
+  assert.equal(ranked[1].mac, 'BB');
+  assert.equal(ranked[1].timeGapMs, 300);     // gap to leader
+  assert.equal(ranked[1].intervalMs, 300);    // interval to ahead (== leader for P2)
+  assert.equal(ranked[2].mac, 'CC');
+  assert.equal(ranked[2].timeGapMs, 500);     // gap to leader (1500-1000)
+  assert.equal(ranked[2].intervalMs, 200);    // interval to ahead BB (1500-1300)
+});
+
+test('rankParticipants interval shows lap gap when car ahead is on another lap', () => {
+  const r = { participants: {
+    AA: { mac: 'AA', laps: [{ valid: true }, { valid: true }, { valid: true }] },
+    BB: { mac: 'BB', laps: [{ valid: true }, { valid: true }] },
+    CC: { mac: 'CC', laps: [{ valid: true }] },
+  } };
+  const ranked = E.rankParticipants(r, { AA: 1000, BB: 1100, CC: 1200 });
+  assert.equal(ranked[1].mac, 'BB');
+  assert.equal(ranked[1].intervalLapGap, 1);  // 1 lap behind AA
+  assert.equal(ranked[1].intervalMs, 0);
+  assert.equal(ranked[2].mac, 'CC');
+  assert.equal(ranked[2].intervalLapGap, 1);  // 1 lap behind BB
+  assert.equal(ranked[2].lapGap, 2);          // 2 laps behind leader
+});
+
+test('fastestLapHolder returns participant with smallest bestLapMs', () => {
+  const r = { participants: {
+    AA: { mac: 'AA', bestLapMs: 30000, bestLapNum: 2 },
+    BB: { mac: 'BB', bestLapMs: 28000, bestLapNum: 3 },
+    CC: { mac: 'CC', bestLapMs: null, bestLapNum: null },
+  } };
+  const h = E.fastestLapHolder(r);
+  assert.equal(h.mac, 'BB');
+  assert.equal(h.ms, 28000);
+  assert.equal(h.num, 3);
+});
+
+test('fastestLapHolder returns null when no participant has a best lap', () => {
+  const r = { participants: {
+    AA: { mac: 'AA', bestLapMs: null },
+    BB: { mac: 'BB', bestLapMs: null },
+  } };
+  assert.equal(E.fastestLapHolder(r), null);
+});
+
+test('fastestLapHolder tie resolves to first participant', () => {
+  const r = { participants: {
+    AA: { mac: 'AA', bestLapMs: 25000, bestLapNum: 1 },
+    BB: { mac: 'BB', bestLapMs: 25000, bestLapNum: 2 },
+  } };
+  assert.equal(E.fastestLapHolder(r).mac, 'AA');
 });

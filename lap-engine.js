@@ -143,7 +143,7 @@
         mac: p.mac,
         idx: i,
         laps: partValidLaps(p).length,
-        cross: (c != null ? c : null),
+        cross: c,
       });
     }
     list.sort(function (a, b) {
@@ -163,13 +163,37 @@
       if (j > 0 && lapGap === 0 && e.cross != null && leaderCross != null) {
         timeGapMs = e.cross - leaderCross;
       }
-      out.push({ mac: e.mac, pos: j + 1, laps: e.laps, lapGap: lapGap, timeGapMs: timeGapMs });
+      // Phase 32: Intervall zum Vordermann (Position n-1), analog zu lapGap/timeGapMs.
+      var intervalLapGap = 0, intervalMs = 0;
+      if (j > 0) {
+        var ahead = list[j - 1];
+        intervalLapGap = ahead.laps - e.laps;
+        if (intervalLapGap === 0 && e.cross != null && ahead.cross != null) {
+          intervalMs = e.cross - ahead.cross;
+        }
+      }
+      out.push({ mac: e.mac, pos: j + 1, laps: e.laps, lapGap: lapGap, timeGapMs: timeGapMs,
+                 intervalLapGap: intervalLapGap, intervalMs: intervalMs });
     }
     return out;
   }
 
   function leaderReachedTarget(ranked, targetLaps) {
     return !!(ranked && ranked.length && ranked[0].laps >= targetLaps);
+  }
+
+  // Phase 32: Teilnehmer mit der absolut schnellsten gueltigen Runde im Rennen.
+  // Rein abgeleitet aus participant.bestLapMs (von commitLap gepflegt).
+  function fastestLapHolder(race) {
+    var ps = participantsOf(race), bestMs = null, mac = null, num = null;
+    for (var i = 0; i < ps.length; i++) {
+      var p = ps[i];
+      if (p.bestLapMs == null) continue;
+      if (bestMs == null || p.bestLapMs < bestMs) {
+        bestMs = p.bestLapMs; mac = p.mac; num = p.bestLapNum != null ? p.bestLapNum : null;
+      }
+    }
+    return bestMs == null ? null : { mac: mac, ms: bestMs, num: num };
   }
 
   return {
@@ -186,5 +210,6 @@
     trackRecordFromKarts: trackRecordFromKarts,
     rankParticipants: rankParticipants,
     leaderReachedTarget: leaderReachedTarget,
+    fastestLapHolder: fastestLapHolder,
   };
 }));
