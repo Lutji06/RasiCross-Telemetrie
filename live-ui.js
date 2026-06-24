@@ -402,17 +402,20 @@ function updateLiveUi() {
   } catch (e) { console.warn('updateLiveUi:', e); }
 }
 function renderStints(r) {
+  // Phase 30: Stints des aktiven Karts (Teilnehmer-Slot).
+  const _sp = (r && typeof activePart === 'function') ? activePart(r) : null;
+  const _stints = _sp ? _sp.stints : (r && r.stints) || [];
   const list = $('stintsList');
   if (!list) return;
-  if (!r || !r.stints || !r.stints.length) {
+  if (!r || !_stints || !_stints.length) {
     list.innerHTML = '<div class="muted">Noch kein Stint.</div>';
     return;
   }
-  list.innerHTML = r.stints.map((st, i) => {
+  list.innerHTML = _stints.map((st, i) => {
     const d = state.drivers.find(x => x.id === st.driverId);
     const dur = (st.endAt || Date.now()) - st.startAt;
     const stintLaps = r.laps.filter(l => l.driverId === st.driverId &&
-      (i === 0 || l.number > r.stints.slice(0, i).reduce((sum, s) => sum + r.laps.filter(ll => ll.driverId === s.driverId).length, 0))).length;
+      (i === 0 || l.number > _stints.slice(0, i).reduce((sum, s) => sum + r.laps.filter(ll => ll.driverId === s.driverId).length, 0))).length;
     return `<div style="padding:10px;background:var(--soft);border-radius:10px;margin-bottom:6px">
       <div style="font-family:var(--mono);font-size:13px;color:var(--tx)">${esc(d?.name || '--')}</div>
       <div style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:4px">

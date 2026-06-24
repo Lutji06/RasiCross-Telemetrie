@@ -44,6 +44,7 @@ const racesGlobals = {
   toggleRaceExpand: 'readonly', deleteRace: 'readonly',
   drawRaceHistoryChart: 'readonly', renderRaces: 'readonly',
   renderTrackOptions: 'readonly', updateRaceControls: 'readonly',
+  activePart: 'readonly',
 };
 // Schnittstelle serial-demo.js -> Nutzer (rasicross.js)
 const serialDemoGlobals = {
@@ -176,8 +177,8 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
-                 ...kartRegistryGlobals, ...kartBarGlobals,
-                 setLiveView: 'readonly' },
+                 ...kartRegistryGlobals, ...kartBarGlobals, ...racesGlobals,
+                 ...lapEngineGlobals, setLiveView: 'readonly' },
     },
     rules: bugRules,
   },
@@ -288,7 +289,8 @@ module.exports = [
                  RasiKart3D: 'readonly', RasiDrift: 'readonly',
                  RasiAttitude: 'readonly', DomTargets: 'readonly',
                  RasiEngine: 'readonly', updateEngineUi: 'readonly',
-                 ...kartBarGlobals, ...kartOverviewGlobals },
+                 ...kartBarGlobals, ...kartOverviewGlobals,
+                 activePart: 'readonly', ...lapEngineGlobals },
     },
     rules: bugRules,
   },
@@ -301,7 +303,7 @@ module.exports = [
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
                  ...racesGlobals, ...lapsDriversGlobals, ...liveUiGlobals,
-                 ...kartBarGlobals },
+                 ...kartBarGlobals, ...kartRegistryGlobals, ...lapEngineGlobals },
     },
     rules: bugRules,
   },

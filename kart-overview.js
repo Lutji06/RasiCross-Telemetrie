@@ -33,7 +33,13 @@
       const speed = (k.telemetry.speed || 0).toFixed(0);
       const lapCur = k.lapStart ? lap(now - k.lapStart) : '--:--.---';
       const lapBest = lap(k.bestLapMs);
-      const bestNum = k.bestLapNum ? ('Bestrunde · Runde ' + k.bestLapNum) : 'Noch keine Rundenzeit';
+      // Phase 30: Rundenzahl dieses Karts im aktiven Rennen (Teilnehmer-Slot).
+      const _r = (typeof activeRace === 'function') ? activeRace() : null;
+      const _part = (_r && _r.participants) ? _r.participants[mac] : null;
+      const lapCount = _part ? RasiLapEngine.partValidLaps(_part).length : 0;
+      const bestNum = k.bestLapNum
+        ? ('Runde ' + lapCount + ' · Best R' + k.bestLapNum)
+        : (lapCount ? ('Runde ' + lapCount) : 'Noch keine Rundenzeit');
       const rec = k.recording.armed ? '<span class="ko-rec">●REC</span>' : '';
       const cls = 'ko-card' + (mac === state.activeKartMac ? ' active' : '') + (stale ? ' stale' : '');
       return '<div class="' + cls + '" data-mac="' + mac + '" style="border-color:' + m.color + '">'

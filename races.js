@@ -477,4 +477,4 @@ void [activeRace, currentStint, raceValidLaps, raceElapsedMs, createRace,
       startRace, endRace, pauseRace, toggleRaceRun, openDriverChange,
       confirmDriverChange, closeDriverModal, selectRace, setActiveRace,
       toggleRaceExpand, deleteRace, drawRaceHistoryChart, renderRaces,
-      renderRaceDetails, renderTrackOptions, updateRaceControls];
+      renderRaceDetails, renderTrackOptions, updateRaceControls, activePart];

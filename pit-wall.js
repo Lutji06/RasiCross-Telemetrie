@@ -47,7 +47,9 @@ function updatePitWall() {
   // Top info
   setText('pwSession', fmtClock(now - state.sessionStart));
   const r = activeRace();
-  const validLaps = r ? raceValidLaps(r).length : 0;
+  // Phase 30: Pit-Wall zeigt Runden des aktiven Karts (Teilnehmer-Slot).
+  const _pwPart = r ? RasiLapEngine.getOrCreatePart(r, state.activeKartMac || KartRegistry.DEFAULT_MAC, r.startDriverId, r.startedAt || Date.now()) : null;
+  const validLaps = _pwPart ? RasiLapEngine.partValidLaps(_pwPart).length : 0;
   setText('pwLapCount', r && r.lengthType === 'laps' && r.targetLaps
     ? `${validLaps} / ${r.targetLaps}` : validLaps);
   // Restzeit nur bei Zeit-Rennen
