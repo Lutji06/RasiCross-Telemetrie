@@ -117,18 +117,9 @@ function drawTrackOn(c) {
     const sep = lineEndpointsFromGate(b);
     if (sep) drawLineOn(ctx, c, sep, i === 0 ? css('--blue') : css('--orange'), 'S' + (i + 2), false);
   });
-  // GPS dot
-  const t = state.telemetry;
-  if (t.lat && t.lon) {
-    const xy = gpsXYOnCanvas(t.lat, t.lon, c);
-    ctx.fillStyle = css('--blue');
-    ctx.shadowColor = css('--blue');
-    ctx.shadowBlur = 16 * dpr();
-    ctx.beginPath();
-    ctx.arc(xy.x, xy.y, 7 * dpr(), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  }
+  // Phase 33: Live-Positions-Overlay statt einzelnem GPS-Punkt. Nur auf der
+  // Live-Karte; scanCanvas/editorCanvas bekommen keine Kart-Marker.
+  if (c.id === 'trackCanvas') drawKartMarkersOn(c, ctx);
   // ---- Attribution overlay (OSM Tile Usage Policy) ----
   if (_tilesPaintedAtZ !== null) {
     ctx.save();
@@ -139,6 +130,54 @@ function drawTrackOn(c) {
     ctx.fillText('© OpenStreetMap-Mitwirkende', w - 6 * dpr(), h - 4 * dpr());
     ctx.restore();
   }
+}
+// Phase 33: Live-Positions-Overlay — jeder verbundene Kart als farbiger Marker
+// an seiner GPS-Position. Aktiver Kart groesser+Glow, stale gedimmt; P-Nummer
+// oberhalb des Markers nur bei laufendem Rennen mit >=2 Teilnehmern.
+function drawKartMarkersOn(c, ctx) {
+  try {
+    const now = Date.now();
+    const macs = state.karts.macs();
+    // Positionsnummern nur bei laufendem Rennen mit >=2 Teilnehmern.
+    const r = (typeof activeRace === 'function') ? activeRace() : null;
+    let posByMac = null;
+    if (r && r.status === 'running' && RasiLapEngine.participantsOf(r).length >= 2) {
+      const cross = {};
+      RasiLapEngine.participantsOf(r).forEach(p => {
+        const kk = state.karts.has(p.mac) ? state.karts.get(p.mac) : null;
+        cross[p.mac] = kk ? kk.lapStart : null;
+      });
+      posByMac = {};
+      RasiLapEngine.rankParticipants(r, cross).forEach(e => { posByMac[e.mac] = e.pos; });
+    }
+    macs.forEach((mac, i) => {
+      const k = state.karts.get(mac);
+      if (!k) return;
+      const t = k.telemetry;
+      if (!t.lat || !t.lon) return;        // kein GPS-Fix -> kein Marker
+      const xy = gpsXYOnCanvas(t.lat, t.lon, c);
+      const meta = (typeof RasiKartBar !== 'undefined') ? RasiKartBar.metaFor(state, mac, i) : { color: '#3aa0e8' };
+      const color = (meta && meta.color) || '#3aa0e8';
+      const isActive = (mac === state.activeKartMac);
+      const stale = k.connection.lastPacketAt ? (now - k.connection.lastPacketAt > 2000) : true;
+      const rad = (isActive ? 7 : 5) * dpr();
+      ctx.save();
+      ctx.globalAlpha = stale ? 0.4 : 1;
+      ctx.fillStyle = color;
+      if (isActive) { ctx.shadowColor = color; ctx.shadowBlur = 16 * dpr(); }
+      ctx.beginPath();
+      ctx.arc(xy.x, xy.y, rad, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      if (posByMac && posByMac[mac] != null) {
+        ctx.fillStyle = '#fff';
+        ctx.font = `900 ${11 * dpr()}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText('P' + posByMac[mac], xy.x, xy.y - (rad + 6 * dpr()));
+      }
+      ctx.restore();
+    });
+  } catch (e) { console.warn('drawKartMarkersOn:', e); }
 }
 function drawLineOn(ctx, c, ep, color, label, flash) {
   const xy1 = gpsXYOnCanvas(ep.p1.lat, ep.p1.lon, c);

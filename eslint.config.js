@@ -190,6 +190,7 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...racesGlobals, ...lapEngineGlobals, ...kartBarGlobals,
                  RasiTiles: 'readonly', RasiTileRenderer: 'readonly' },
     },
     rules: bugRules,
