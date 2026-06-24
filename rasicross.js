@@ -79,7 +79,7 @@ const state = {
 const PER_KART_FIELDS = ['connection','telemetry','raw','display','gps','spdSrc',
   'batt','max','charts','imu','drift','attitude','driftSmooth','heatmap','lapStart',
   'currentLapMax','currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta',
-  'autoLap','sectorsLive','recording','replay','calibration','engine'];
+  'autoLap','sectorsLive','sectorsBest','recording','replay','calibration','engine'];
 
 function activeKart() {
   let k = state.karts.active();
@@ -217,6 +217,9 @@ function loadData() {
     if (Array.isArray(d.drivers)) state.drivers = d.drivers;
     if (Array.isArray(d.races)) {
       state.races = d.races;
+      // Phase 30: Alt-Rennen (ohne participants) in Teilnehmer-Modell migrieren
+      // (idempotent, additiv — Top-Level laps/stints bleiben erhalten).
+      state.races.forEach(r => RasiLapEngine.migrateRace(r, KartRegistry.DEFAULT_MAC));
       // Pause running races on reload
       state.races.forEach(r => { if (r.status === 'running') { r.status = 'paused'; r.pausedAt = Date.now(); } });
     }
