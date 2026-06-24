@@ -5,10 +5,10 @@ const geo = require('../geo.js');
 
 const approx = (a, b, tol = 1e-3) => assert.ok(Math.abs(a - b) <= tol, `${a} != ${b} (±${tol})`);
 
-test('module exports all 9 helpers', () => {
+test('module exports all 10 helpers', () => {
   for (const name of ['fmtMs','fmtClock','fmtDelta','traceDistanceM','gpsDist',
                        'headingFromPoints','segmentsCross','crossingDirectionOk',
-                       'lineEndpointsFromGate']) {
+                       'lineEndpointsFromGate','declutterLabels']) {
     assert.equal(typeof geo[name], 'function', `missing ${name}`);
   }
 });
@@ -181,4 +181,31 @@ test('ghostPointAt: Binaersuche trifft auch in langen Traces', () => {
   for (let i = 0; i <= 1000; i++) tr.push({ t: i * 100, lat: i, lon: -i });
   approx(geo.ghostPointAt(tr, 55550).lat, 555.5);
   approx(geo.ghostPointAt(tr, 55550).lon, -555.5);
+});
+
+test('declutterLabels leaves non-colliding labels unchanged', () => {
+  const pts = [{ x: 0, y: 0 }, { x: 0, y: 100 }];
+  assert.deepEqual(geo.declutterLabels(pts, 12, 20), [0, 100]);
+});
+
+test('declutterLabels pushes y-near, x-near labels apart by minGapY', () => {
+  const pts = [{ x: 0, y: 0 }, { x: 5, y: 4 }];   // dx=5<20, dy=4<12 -> collide
+  assert.deepEqual(geo.declutterLabels(pts, 12, 20), [0, 12]);
+});
+
+test('declutterLabels does not move x-far labels even if y is near', () => {
+  const pts = [{ x: 0, y: 0 }, { x: 100, y: 4 }]; // dx=100>=20 -> no collision
+  assert.deepEqual(geo.declutterLabels(pts, 12, 20), [0, 4]);
+});
+
+test('declutterLabels stacks three near labels in y-order', () => {
+  const pts = [{ x: 0, y: 0 }, { x: 2, y: 3 }, { x: 1, y: 6 }];
+  assert.deepEqual(geo.declutterLabels(pts, 12, 20), [0, 12, 24]);
+});
+
+test('declutterLabels returns results in input order', () => {
+  const pts = [{ x: 0, y: 10 }, { x: 1, y: 0 }]; // 2nd label is higher (y=0)
+  const out = geo.declutterLabels(pts, 12, 20);
+  assert.equal(out[1], 0);   // input index 1 (y=0) unchanged
+  assert.equal(out[0], 12);  // input index 0 (y=10) pushed to 12
 });

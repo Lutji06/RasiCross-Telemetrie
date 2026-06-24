@@ -121,6 +121,36 @@ function structuralRaceKey(d) {
   ]);
 }
 
+// Phase 34: Vertikales Label-Declutter. points=[{x,y}] (Canvas-Pixel). Liefert
+// angepasste y-Werte (Eingabe-Reihenfolge), sodass zwei Labels mit x-Abstand
+// < minGapX nicht naeher als minGapY in y stehen. Greedy von oben, nur nach
+// unten geschoben; stabile Sortierung -> kein Frame-zu-Frame-Springen.
+function declutterLabels(points, minGapY, minGapX) {
+  var n = points.length;
+  var order = [];
+  for (var i = 0; i < n; i++) order.push(i);
+  order.sort(function (a, b) { return (points[a].y - points[b].y) || (a - b); });
+  var outY = new Array(n);
+  var placed = [];
+  for (var k = 0; k < n; k++) {
+    var idx = order[k];
+    var px = points[idx].x, py = points[idx].y;
+    var moved = true;
+    while (moved) {
+      moved = false;
+      for (var j = 0; j < placed.length; j++) {
+        if (Math.abs(placed[j].x - px) < minGapX && Math.abs(placed[j].y - py) < minGapY) {
+          py = placed[j].y + minGapY;
+          moved = true;
+        }
+      }
+    }
+    placed.push({ x: px, y: py });
+    outY[idx] = py;
+  }
+  return outY;
+}
+
 // ── UMD-style export ────────────────────────────────────────
 (function () {
   var api = {
@@ -128,7 +158,8 @@ function structuralRaceKey(d) {
     gpsDist: gpsDist, traceDistanceM: traceDistanceM,
     headingFromPoints: headingFromPoints, segmentsCross: segmentsCross,
     crossingDirectionOk: crossingDirectionOk, lineEndpointsFromGate: lineEndpointsFromGate,
-    structuralRaceKey: structuralRaceKey, ghostPointAt: ghostPointAt
+    structuralRaceKey: structuralRaceKey, ghostPointAt: ghostPointAt,
+    declutterLabels: declutterLabels
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
   if (typeof window !== 'undefined') {
