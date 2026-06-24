@@ -196,6 +196,18 @@
     return bestMs == null ? null : { mac: mac, ms: bestMs, num: num };
   }
 
+  // Phase 33: Karts, die gegenueber prevPosByMac aufgestiegen sind (kleinere
+  // pos-Zahl = weiter vorn). Neueinsteiger (keine Vorposition) und Abstiege
+  // werden ignoriert. Rein, kein DOM, kein State.
+  function positionGains(prevPosByMac, ranked) {
+    var prev = prevPosByMac || {}, out = [];
+    for (var i = 0; i < (ranked || []).length; i++) {
+      var e = ranked[i], pv = prev[e.mac];
+      if (pv != null && e.pos < pv) out.push(e.mac);
+    }
+    return out;
+  }
+
   return {
     migrateRace: migrateRace,
     participantsOf: participantsOf,
@@ -211,5 +223,6 @@
     rankParticipants: rankParticipants,
     leaderReachedTarget: leaderReachedTarget,
     fastestLapHolder: fastestLapHolder,
+    positionGains: positionGains,
   };
 }));

@@ -117,18 +117,9 @@ function drawTrackOn(c) {
     const sep = lineEndpointsFromGate(b);
     if (sep) drawLineOn(ctx, c, sep, i === 0 ? css('--blue') : css('--orange'), 'S' + (i + 2), false);
   });
-  // GPS dot
-  const t = state.telemetry;
-  if (t.lat && t.lon) {
-    const xy = gpsXYOnCanvas(t.lat, t.lon, c);
-    ctx.fillStyle = css('--blue');
-    ctx.shadowColor = css('--blue');
-    ctx.shadowBlur = 16 * dpr();
-    ctx.beginPath();
-    ctx.arc(xy.x, xy.y, 7 * dpr(), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-  }
+  // Phase 33: Live-Positions-Overlay statt einzelnem GPS-Punkt. Nur auf der
+  // Live-Karte; scanCanvas/editorCanvas bekommen keine Kart-Marker.
+  if (c.id === 'trackCanvas') drawKartMarkersOn(c, ctx);
   // ---- Attribution overlay (OSM Tile Usage Policy) ----
   if (_tilesPaintedAtZ !== null) {
     ctx.save();
@@ -139,6 +130,93 @@ function drawTrackOn(c) {
     ctx.fillText('© OpenStreetMap-Mitwirkende', w - 6 * dpr(), h - 4 * dpr());
     ctx.restore();
   }
+}
+// Phase 34: Marker-Overtake-Ring — eigener modul-lokaler Overtake-State
+// (unabhaengig von kart-overview.js; map-draw rechnet die Rangfolge jeden Frame).
+let _prevPosByMac = {};
+let _overtakeAtByMac = {};
+const MARKER_OVERTAKE_MS = 1200;
+// Phase 33: Live-Positions-Overlay — jeder verbundene Kart als farbiger Marker
+// an seiner GPS-Position. Aktiver Kart groesser+Glow, stale gedimmt; P-Nummer
+// oberhalb des Markers nur bei laufendem Rennen mit >=2 Teilnehmern.
+function drawKartMarkersOn(c, ctx) {
+  try {
+    const now = Date.now();
+    const macs = state.karts.macs();
+    // Positionsnummern nur bei laufendem Rennen mit >=2 Teilnehmern.
+    const r = (typeof activeRace === 'function') ? activeRace() : null;
+    let posByMac = null;
+    const _parts = (r && r.status === 'running' && typeof RasiLapEngine !== 'undefined')
+      ? RasiLapEngine.participantsOf(r) : [];
+    if (_parts.length >= 2) {
+      const cross = {};
+      _parts.forEach(p => {
+        const kk = state.karts.has(p.mac) ? state.karts.get(p.mac) : null;
+        cross[p.mac] = kk ? kk.lapStart : null;
+      });
+      const ranked = RasiLapEngine.rankParticipants(r, cross);
+      posByMac = {};
+      ranked.forEach(e => { posByMac[e.mac] = e.pos; });
+      // Phase 34: Aufsteiger -> Overtake-Ring-Zeitstempel; Vorpositionen merken.
+      RasiLapEngine.positionGains(_prevPosByMac, ranked).forEach(mac => { _overtakeAtByMac[mac] = now; });
+      const _np = {};
+      ranked.forEach(e => { _np[e.mac] = e.pos; });
+      _prevPosByMac = _np;
+    } else {
+      // Kein aktives Ranking -> Overtake-State zuruecksetzen.
+      _prevPosByMac = {};
+      _overtakeAtByMac = {};
+    }
+    const labels = [];   // Phase 34: Label-Anker sammeln, nach der Schleife entzerren.
+    macs.forEach(mac => {
+      const k = state.karts.get(mac);
+      if (!k) return;
+      const t = k.telemetry;
+      if (!t.lat || !t.lon) return;        // kein GPS-Fix -> kein Marker
+      const xy = gpsXYOnCanvas(t.lat, t.lon, c);
+      // Kart-Farbe NUR lesen (state.kartMeta) — kein localStorage-Write im Draw-Loop.
+      const meta = state.kartMeta && state.kartMeta[mac];
+      const color = (meta && meta.color) || '#3aa0e8';
+      const isActive = (mac === state.activeKartMac);
+      const stale = k.connection.lastPacketAt ? (now - k.connection.lastPacketAt > 2000) : true;
+      const rad = (isActive ? 7 : 5) * dpr();
+      ctx.save();
+      ctx.globalAlpha = stale ? 0.4 : 1;
+      ctx.fillStyle = color;
+      if (isActive) { ctx.shadowColor = color; ctx.shadowBlur = 16 * dpr(); }
+      ctx.beginPath();
+      ctx.arc(xy.x, xy.y, rad, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      // Phase 34: goldener Overtake-Ring fuer kurz zuvor aufgestiegene Karts.
+      const _otAge = _overtakeAtByMac[mac] != null ? (now - _overtakeAtByMac[mac]) : Infinity;
+      if (_otAge < MARKER_OVERTAKE_MS) {
+        ctx.strokeStyle = 'rgba(255,200,60,.9)';
+        ctx.lineWidth = 2 * dpr();
+        ctx.beginPath();
+        ctx.arc(xy.x, xy.y, rad + 4 * dpr(), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+      // Phase 34: Label nicht sofort zeichnen — Anker fuer Declutter sammeln.
+      if (posByMac && posByMac[mac] != null) {
+        labels.push({ x: xy.x, y: xy.y - (rad + 6 * dpr()), text: 'P' + posByMac[mac], alpha: stale ? 0.4 : 1 });
+      }
+    });
+    // Phase 34: ueberlappende Labels vertikal entzerren, dann zeichnen.
+    if (labels.length) {
+      const ys = declutterLabels(labels.map(l => ({ x: l.x, y: l.y })), 13 * dpr(), 22 * dpr());
+      ctx.save();
+      ctx.font = `900 ${11 * dpr()}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < labels.length; i++) {
+        ctx.globalAlpha = labels[i].alpha;
+        ctx.fillText(labels[i].text, labels[i].x, ys[i]);
+      }
+      ctx.restore();
+    }
+  } catch (e) { console.warn('drawKartMarkersOn:', e); }
 }
 function drawLineOn(ctx, c, ep, color, label, flash) {
   const xy1 = gpsXYOnCanvas(ep.p1.lat, ep.p1.lon, c);

@@ -14,6 +14,7 @@ const geoGlobals = {
   headingFromPoints: 'readonly', segmentsCross: 'readonly',
   crossingDirectionOk: 'readonly', lineEndpointsFromGate: 'readonly',
   structuralRaceKey: 'readonly', ghostPointAt: 'readonly',
+  declutterLabels: 'readonly',
 };
 
 // Kern-Helfer + State, die rasicross.js global definiert und die die
@@ -190,6 +191,7 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
+                 ...racesGlobals, ...lapEngineGlobals,
                  RasiTiles: 'readonly', RasiTileRenderer: 'readonly' },
     },
     rules: bugRules,
