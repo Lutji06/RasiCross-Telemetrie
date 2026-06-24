@@ -166,10 +166,28 @@ let _quotaWarned = false;
 // localStorage-Kopie wird kleiner (5-MB-Quota ueber eine Saison).
 const PERSIST_TRACE_MAX = 1000;
 function _persistRace(r) {
-  const t = r && r.speedTrace;
-  if (!Array.isArray(t) || t.length <= PERSIST_TRACE_MAX) return r;
-  const step = Math.ceil(t.length / PERSIST_TRACE_MAX);
-  return Object.assign({}, r, { speedTrace: t.filter((_, i) => i % step === 0) });
+  // Phase 30: speed traces live per-participant; downsample each for storage
+  // (legacy/no-participants races keep the old top-level path).
+  if (!r || !r.participants) {
+    const t = r && r.speedTrace;
+    if (!Array.isArray(t) || t.length <= PERSIST_TRACE_MAX) return r;
+    const step = Math.ceil(t.length / PERSIST_TRACE_MAX);
+    return Object.assign({}, r, { speedTrace: t.filter((_, i) => i % step === 0) });
+  }
+  let changed = false;
+  const parts = {};
+  for (const mac of Object.keys(r.participants)) {
+    const p = r.participants[mac];
+    const t = p && p.speedTrace;
+    if (Array.isArray(t) && t.length > PERSIST_TRACE_MAX) {
+      const step = Math.ceil(t.length / PERSIST_TRACE_MAX);
+      parts[mac] = Object.assign({}, p, { speedTrace: t.filter((_, i) => i % step === 0) });
+      changed = true;
+    } else {
+      parts[mac] = p;
+    }
+  }
+  return changed ? Object.assign({}, r, { participants: parts }) : r;
 }
 function saveData() {
   if (state.replay && state.replay.active) return;  // replay uses disposable state — never persist
@@ -1470,7 +1488,7 @@ init();
         if (typeof activeRace === 'function') {
           const r = activeRace();
           if (r) {
-            const stints = r.stints || [];
+            const stints = (typeof activePart === 'function' ? (activePart(r).stints || []) : (r.stints || []));
             const last = stints[stints.length-1];
             if (last && !last.endAt) {
               const driver = state.drivers.find(d=>d.id===last.driverId);

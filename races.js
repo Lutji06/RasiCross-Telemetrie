@@ -280,8 +280,11 @@ function drawRaceHistoryChart(raceId) {
   const canvas = document.querySelector(`canvas[data-race-chart="${raceId}"]`);
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const speeds = (r.speedTrace || []).map(p => p.speed);
-  const rpms = (r.speedTrace || []).map(p => p.rpm);
+  // Phase 30: speed trace is per-participant; combine across karts for the
+  // race-history chart (single-kart = that kart's trace; multi-kart = concatenated).
+  const _trace = RasiLapEngine.participantsOf(r).reduce((a, pp) => a.concat(pp.speedTrace || []), []);
+  const speeds = _trace.map(p => p.speed);
+  const rpms = _trace.map(p => p.rpm);
   const max = Math.max(state.settings.maxSpeed, ...speeds, 10);
   drawChart(ctx, canvas,
     [
