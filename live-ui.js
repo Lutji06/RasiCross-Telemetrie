@@ -377,7 +377,11 @@ function updateLiveUi() {
         const rem = Math.max(0, r.durationMs - elapsed);
         if (r.status === 'running' && rem <= 0) endRace(true);
       } else if (r.lengthType === 'laps') {
-        const left = Math.max(0, r.targetLaps - raceValidLaps(r).length);
+        // Phase 31: Rest-Runden des FUEHRENDEN (meiste gueltige Runden),
+        // nicht die Summe aller Karts (raceValidLaps aggregiert seit Phase 30).
+        const _leaderLaps = RasiLapEngine.participantsOf(r)
+          .reduce((mx, p) => Math.max(mx, RasiLapEngine.partValidLaps(p).length), 0);
+        const left = Math.max(0, r.targetLaps - _leaderLaps);
         setText('countdown', `${left} LAPS`);
       }
       const drv = state.drivers.find(d => d.id === r.currentDriverId);
