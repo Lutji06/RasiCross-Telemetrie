@@ -349,8 +349,12 @@ function buildRaceDataForKart() {
   }
   // Bestzeit als string
   const bestStr = state.bestLapMs ? fmtMs(state.bestLapMs) : "--";
-  // Runden-Counter
-  const validLaps = raceValidLaps(r).length;
+  // Runden-Counter — Phase 32: Runden des AKTIVEN Karts (Teilnehmer-Slot),
+  // nicht die Summe aller Karts (raceValidLaps aggregiert seit Phase 30).
+  const _oledPart = RasiLapEngine.getOrCreatePart(
+    r, state.activeKartMac || KartRegistry.DEFAULT_MAC, r.startDriverId,
+    r.startedAt || Date.now());
+  const validLaps = RasiLapEngine.partValidLaps(_oledPart).length;
   let target = "--";
   if (r.lengthType === 'laps') target = r.targetLaps;
   else if (r.lengthType === 'time') target = "T";
