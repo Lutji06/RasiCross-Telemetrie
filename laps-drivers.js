@@ -75,9 +75,10 @@ function triggerLap(k, mac) {
         }, 7000);
       }
       if (isAct) state.gateFlashUntil = now + 1500;
-      // Auto-Ende nur bei Single-Teilnehmer-Rennen (Multi-Kart -> Phase 31).
+      // Phase 31: Auto-Ende, sobald EIN Kart targetLaps erreicht. Der erste Kart,
+      // der das schafft, ist definitionsgemaess der Fuehrende (Leader-Auto-Ende).
+      // Single-Kart-Rennen verhalten sich dabei exakt wie bisher.
       if (r.lengthType === 'laps'
-          && RasiLapEngine.participantsOf(r).length <= 1
           && RasiLapEngine.partValidLaps(part).length >= r.targetLaps) {
         endRace(true);
       }
