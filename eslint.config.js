@@ -14,6 +14,7 @@ const geoGlobals = {
   headingFromPoints: 'readonly', segmentsCross: 'readonly',
   crossingDirectionOk: 'readonly', lineEndpointsFromGate: 'readonly',
   structuralRaceKey: 'readonly', ghostPointAt: 'readonly',
+  declutterLabels: 'readonly',
 };
 
 // Kern-Helfer + State, die rasicross.js global definiert und die die
