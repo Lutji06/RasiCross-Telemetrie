@@ -141,9 +141,11 @@ function drawKartMarkersOn(c, ctx) {
     // Positionsnummern nur bei laufendem Rennen mit >=2 Teilnehmern.
     const r = (typeof activeRace === 'function') ? activeRace() : null;
     let posByMac = null;
-    if (r && r.status === 'running' && RasiLapEngine.participantsOf(r).length >= 2) {
+    const _parts = (r && r.status === 'running' && typeof RasiLapEngine !== 'undefined')
+      ? RasiLapEngine.participantsOf(r) : [];
+    if (_parts.length >= 2) {
       const cross = {};
-      RasiLapEngine.participantsOf(r).forEach(p => {
+      _parts.forEach(p => {
         const kk = state.karts.has(p.mac) ? state.karts.get(p.mac) : null;
         cross[p.mac] = kk ? kk.lapStart : null;
       });
