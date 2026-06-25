@@ -151,6 +151,41 @@ function declutterLabels(points, minGapY, minGapX) {
   return outY;
 }
 
+// Phase 36: Projiziert point={lat,lon} auf die Polyline trackPoints und liefert
+// die aufsummierte Distanz (Meter) vom Strecken-Anfang bis zur naechstgelegenen
+// Projektion. Lokale equirektangulaere Meter-Naeherung je Segment. 0 bei <2 Pkt.
+function trackProgressM(point, trackPoints) {
+  if (!point || !trackPoints || trackPoints.length < 2) return 0;
+  var best = Infinity, bestDist = 0, cum = 0;
+  for (var i = 1; i < trackPoints.length; i++) {
+    var a = trackPoints[i - 1], b = trackPoints[i];
+    var segLen = gpsDist(a.lat, a.lon, b.lat, b.lon);
+    var t = 0;
+    if (segLen > 0) {
+      var mLat = 111320, mLon = 111320 * Math.cos(a.lat * Math.PI / 180);
+      var bx = (b.lon - a.lon) * mLon, by = (b.lat - a.lat) * mLat;
+      var px = (point.lon - a.lon) * mLon, py = (point.lat - a.lat) * mLat;
+      var len2 = bx * bx + by * by;
+      t = len2 > 0 ? (px * bx + py * by) / len2 : 0;
+      if (t < 0) t = 0; else if (t > 1) t = 1;
+    }
+    var projLat = a.lat + (b.lat - a.lat) * t;
+    var projLon = a.lon + (b.lon - a.lon) * t;
+    var d = gpsDist(point.lat, point.lon, projLat, projLon);
+    if (d < best) { best = d; bestDist = cum + segLen * t; }
+    cum += segLen;
+  }
+  return bestDist;
+}
+
+// Phase 36: runden-lokaler Fortschritt ab Start/Ziel — verschiebt den
+// Roh-Fortschritt um die Gate-Projektion und nimmt modulo Streckenlaenge.
+// null wenn keine Strecke (trackLen<=0).
+function lapProgressM(rawProgress, gateOff, trackLen) {
+  if (!(trackLen > 0)) return null;
+  return ((rawProgress - gateOff) % trackLen + trackLen) % trackLen;
+}
+
 // ── UMD-style export ────────────────────────────────────────
 (function () {
   var api = {
@@ -159,7 +194,8 @@ function declutterLabels(points, minGapY, minGapX) {
     headingFromPoints: headingFromPoints, segmentsCross: segmentsCross,
     crossingDirectionOk: crossingDirectionOk, lineEndpointsFromGate: lineEndpointsFromGate,
     structuralRaceKey: structuralRaceKey, ghostPointAt: ghostPointAt,
-    declutterLabels: declutterLabels
+    declutterLabels: declutterLabels,
+    trackProgressM: trackProgressM, lapProgressM: lapProgressM
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
   if (typeof window !== 'undefined') {
