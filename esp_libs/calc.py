@@ -235,3 +235,46 @@ def battery_warn(vcell, warn_v, crit_v):
     if v <= w:
         return 1
     return 0
+
+
+# ---- IMU (MPU-9250) --------------------------------------------------------
+# Reine Umrechnung der Chip-Temperatur. Den Rohwert (TEMP_OUT, Reg 0x41)
+# liest der MPU-Treiber; hier nur die testbare Kennlinie.
+
+
+def mpu9250_temp_c(raw):
+    """Chip-Temperatur in Grad Celsius aus dem rohen TEMP_OUT-Wort.
+
+    Der MPU-9250 nutzt eine andere Kennlinie als der 6050: raw/333.87 +
+    21.0 (Datenblatt, RoomTemp_Offset = 0). Liefert 0.0 bei nicht-
+    numerischen Eingaben (NaN-Vergleiche sind immer False).
+    """
+    try:
+        r = float(raw)
+    except (TypeError, ValueError):
+        return 0.0
+    if not (r == r):          # NaN
+        return 0.0
+    return r / 333.87 + 21.0
+
+
+# ---- u-blox UBX (GPS-Konfiguration NEO-M8N) --------------------------------
+# Baut ein komplettes UBX-Konfig-Paket, das sender.py per UART an das GPS-
+# Modul schickt (Mess-Rate, NMEA-Satz-Auswahl). Reine Byte-Logik -> unter
+# CPython testbar.
+
+
+def ubx_frame(msg_class, msg_id, payload=b''):
+    """UBX-Paket: Sync (0xB5 0x62) + Class + ID + Laenge (16 bit, little-
+    endian) + Payload + 8-bit-Fletcher-Pruefsumme (CK_A/CK_B ueber
+    Class..Payload). Gibt die sendefertigen Bytes zurueck.
+    """
+    payload = bytes(payload)
+    body = bytes((msg_class & 0xFF, msg_id & 0xFF,
+                  len(payload) & 0xFF, (len(payload) >> 8) & 0xFF)) + payload
+    ck_a = 0
+    ck_b = 0
+    for b in body:
+        ck_a = (ck_a + b) & 0xFF
+        ck_b = (ck_b + ck_a) & 0xFF
+    return b'\xb5\x62' + body + bytes((ck_a, ck_b))
