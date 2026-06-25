@@ -323,9 +323,10 @@ function setupTabs() {
   document.body.dataset.liveView = state.liveView || 'single';
   document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
     btn.onclick = () => {
-      document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.nav-item[data-tab]').forEach(b => { b.classList.remove('active'); b.removeAttribute('aria-current'); });
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       btn.classList.add('active');
+      btn.setAttribute('aria-current', 'page');
       const tab = btn.dataset.tab;
       const panel = $('tab-' + tab);
       if (panel) panel.classList.add('active');

@@ -344,7 +344,7 @@ function renderRaces() {
     ? ({ created: 'Bereit', running: 'Läuft', paused: 'Pausiert', finished: 'Beendet', finished_auto: 'Auto-Ende' }[_ar.status] || _ar.status)
     : 'Bereit');
   if (!state.races.length) {
-    list.innerHTML = '<div class="muted">Noch keine Rennen.</div>';
+    list.innerHTML = '<div class="muted">Noch keine Rennen — oben mit „Neues Rennen“ anlegen.</div>';
     return;
   }
   list.innerHTML = state.races.map(r => {
