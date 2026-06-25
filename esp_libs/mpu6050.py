@@ -1,8 +1,20 @@
-# MicroPython MPU-6050 Driver fuer RasiCross
+# MicroPython MPU-6050/9250 Driver fuer RasiCross
 # Vereinfachte Version, gibt accel als (gx, gy, gz) in g-Einheiten zurueck.
 # Auf den Sender-ESP in das Root-Verzeichnis flashen.
+#
+# Phase 37: Die Karts tragen jetzt den MPU-9250. Accel- und Gyro-Register
+# (0x3B/0x43) sowie die Skalierungen (+-2 g, +-250 deg/s) sind register-
+# kompatibel zum 6050 -> unveraendert. NUR die Temperatur-Kennlinie ist
+# anders (siehe temperature_c). Modul-/Klassenname bleiben, damit Import in
+# sender.py und die Flash-Prozedur unangetastet bleiben.
 
 import ustruct
+
+try:
+    import calc
+    _HAS_CALC = True
+except ImportError:
+    _HAS_CALC = False
 
 
 class MPU6050:
@@ -77,6 +89,11 @@ class MPU6050:
 
     @property
     def temperature_c(self):
-        """Chip-Temperatur in Grad Celsius."""
+        """Chip-Temperatur in Grad Celsius (MPU-9250-Kennlinie).
+
+        Pure Umrechnung liegt in calc.mpu9250_temp_c (getestet); der
+        Inline-Fallback muss damit identisch bleiben."""
         raw = self._read_word_signed(0x41)
-        return raw / 340.0 + 36.53
+        if _HAS_CALC:
+            return calc.mpu9250_temp_c(raw)
+        return raw / 333.87 + 21.0
