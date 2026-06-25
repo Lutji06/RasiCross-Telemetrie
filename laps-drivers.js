@@ -321,7 +321,7 @@ function renderDrivers() {
   const list = $('driverStatsList');
   setText('driverCount', state.drivers.length);
   if (!state.drivers.length) {
-    list.innerHTML = '<div class="muted">Noch keine Fahrer.</div>';
+    list.innerHTML = '<div class="muted">Noch keine Fahrer — sie entstehen automatisch beim ersten Fahrerwechsel.</div>';
     return;
   }
   list.innerHTML = state.drivers.map(d => {
