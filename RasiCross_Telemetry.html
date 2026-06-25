@@ -1347,6 +1347,11 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 /* Redesign: create-forms hosted in a .dialog */
 .dialog .field{margin-bottom:12px}
 .dialog .field:last-of-type{margin-bottom:0}
+.driver-change-list{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto}
+.driver-change-list .dc-row{display:flex;align-items:center;gap:8px}
+.driver-change-list .dc-dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+.driver-change-list .dc-name{flex:0 0 90px;font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.driver-change-list .dc-sel{flex:1}
 
 /* Redesign: Live race-control row (Restzeit + Buttons als getrennte Kaestchen) */
 .pw-liverow{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:18px;align-items:stretch}
@@ -3702,7 +3707,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 <div id="driverModal" class="overlay">
   <div class="dialog">
     <h3>Fahrerwechsel</h3>
-    <div class="field"><label>Nächster Fahrer</label><select id="driverModalSelect"></select></div>
+    <div id="driverModalList" class="driver-change-list"></div>
     <div class="dialog-btns">
       <button class="btn ghost" id="dmCancelBtn">Abbrechen</button>
       <button class="btn primary" id="dmConfirmBtn">Wechseln</button>

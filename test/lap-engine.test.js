@@ -8,7 +8,7 @@ test('module exports all helpers', () => {
                       'flatValidLaps','flatStints','partValidLaps','bestFromLaps',
                       'commitLap','sectorBestUpdate','trackRecordFromKarts',
                       'rankParticipants','leaderReachedTarget','fastestLapHolder',
-                      'positionGains']) {
+                      'positionGains','applyDriverChange']) {
     assert.equal(typeof E[name], 'function', `missing ${name}`);
   }
 });
@@ -286,4 +286,39 @@ test('positionGains detects multiple simultaneous gainers', () => {
 
 test('positionGains with empty prev (first ranking) yields no gains', () => {
   assert.deepEqual(E.positionGains({}, [{ mac: 'AA', pos: 1 }, { mac: 'BB', pos: 2 }]), []);
+});
+
+test('applyDriverChange closes open stint and opens a new one', () => {
+  const part = { currentDriverId: 'd1',
+    stints: [{ id: 's1', driverId: 'd1', startAt: 100, endAt: null }] };
+  const st = E.applyDriverChange(part, 'd2', 500);
+  assert.equal(part.stints[0].endAt, 500);
+  assert.equal(part.currentDriverId, 'd2');
+  assert.equal(part.stints.length, 2);
+  assert.equal(st.driverId, 'd2');
+  assert.equal(st.startAt, 500);
+  assert.equal(st.endAt, null);
+  assert.equal(part.stints[1], st);
+});
+
+test('applyDriverChange on empty stints just opens a stint', () => {
+  const part = { currentDriverId: null, stints: [] };
+  const st = E.applyDriverChange(part, 'd1', 200);
+  assert.equal(part.stints.length, 1);
+  assert.equal(part.currentDriverId, 'd1');
+  assert.equal(st.driverId, 'd1');
+});
+
+test('applyDriverChange does not re-close an already closed last stint', () => {
+  const part = { currentDriverId: 'd1',
+    stints: [{ id: 's1', driverId: 'd1', startAt: 100, endAt: 300 }] };
+  E.applyDriverChange(part, 'd2', 500);
+  assert.equal(part.stints[0].endAt, 300);
+  assert.equal(part.stints.length, 2);
+});
+
+test('applyDriverChange creates a stint without an id (caller assigns)', () => {
+  const part = { currentDriverId: 'd1', stints: [] };
+  const st = E.applyDriverChange(part, 'd2', 10);
+  assert.equal(st.id, undefined);
 });

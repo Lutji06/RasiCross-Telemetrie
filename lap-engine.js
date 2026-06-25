@@ -208,6 +208,20 @@
     return out;
   }
 
+  // Phase 35: Fahrerwechsel auf einen Teilnehmer anwenden (analog commitLap):
+  // offenen Stint schliessen, currentDriverId setzen, neuen Stint oeffnen.
+  // Stint ohne id -> Aufrufer setzt stint.id = uid(). Idempotent gegen bereits
+  // geschlossene Stints.
+  function applyDriverChange(part, newDriverId, now) {
+    if (!part.stints) part.stints = [];
+    var open = part.stints.length ? part.stints[part.stints.length - 1] : null;
+    if (open && !open.endAt) open.endAt = now;
+    part.currentDriverId = newDriverId;
+    var stint = { driverId: newDriverId, startAt: now, endAt: null };
+    part.stints.push(stint);
+    return stint;
+  }
+
   return {
     migrateRace: migrateRace,
     participantsOf: participantsOf,
@@ -224,5 +238,6 @@
     leaderReachedTarget: leaderReachedTarget,
     fastestLapHolder: fastestLapHolder,
     positionGains: positionGains,
+    applyDriverChange: applyDriverChange,
   };
 }));
