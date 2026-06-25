@@ -131,7 +131,7 @@ test('rankParticipants orders by valid laps desc with positions', () => {
     AA: { mac: 'AA', laps: [{ valid: true }, { valid: true }] },
     BB: { mac: 'BB', laps: [{ valid: true }, { valid: true }, { valid: true }] },
   } };
-  const ranked = E.rankParticipants(r, { AA: 1000, BB: 1200 });
+  const ranked = E.rankParticipants(r, { AA: 100, BB: 50 });
   assert.equal(ranked[0].mac, 'BB');
   assert.equal(ranked[0].pos, 1);
   assert.equal(ranked[0].laps, 3);
@@ -140,50 +140,50 @@ test('rankParticipants orders by valid laps desc with positions', () => {
   assert.equal(ranked[1].lapGap, 1);
 });
 
-test('rankParticipants tiebreak: earliest last crossing leads on equal laps', () => {
+test('rankParticipants tiebreak: more track progress leads on equal laps', () => {
   const r = { participants: {
     AA: { mac: 'AA', laps: [{ valid: true }, { valid: true }] },
     BB: { mac: 'BB', laps: [{ valid: true }, { valid: true }] },
   } };
-  const ranked = E.rankParticipants(r, { AA: 5200, BB: 5000 });
+  const ranked = E.rankParticipants(r, { AA: 100, BB: 300 });
   assert.equal(ranked[0].mac, 'BB');
-  assert.equal(ranked[0].timeGapMs, 0);
+  assert.equal(ranked[0].distGapM, 0);
   assert.equal(ranked[1].mac, 'AA');
   assert.equal(ranked[1].lapGap, 0);
-  assert.equal(ranked[1].timeGapMs, 200);
+  assert.equal(ranked[1].distGapM, 200);   // 300 - 100
 });
 
-test('rankParticipants unarmed karts sort last, stable order', () => {
+test('rankParticipants karts without progress sort last, stable order', () => {
   const r = { participants: {
     AA: { mac: 'AA', laps: [] },
     BB: { mac: 'BB', laps: [{ valid: true }] },
     CC: { mac: 'CC', laps: [] },
   } };
-  const ranked = E.rankParticipants(r, { BB: 3000 });
+  const ranked = E.rankParticipants(r, { BB: 100 });
   assert.equal(ranked[0].mac, 'BB');
   assert.equal(ranked[1].mac, 'AA');
   assert.equal(ranked[2].mac, 'CC');
 });
 
-test('rankParticipants armed-with-zero-laps beats never-crossed', () => {
+test('rankParticipants kart with progress beats one without (equal laps)', () => {
   const r = { participants: {
     AA: { mac: 'AA', laps: [] },
     BB: { mac: 'BB', laps: [] },
   } };
-  const ranked = E.rankParticipants(r, { AA: 8000 });
+  const ranked = E.rankParticipants(r, { AA: 0 });
   assert.equal(ranked[0].mac, 'AA');
   assert.equal(ranked[1].mac, 'BB');
 });
 
-test('rankParticipants lapped kart shows lap gap, not time gap', () => {
+test('rankParticipants lapped kart shows lap gap, not distance gap', () => {
   const r = { participants: {
     AA: { mac: 'AA', laps: [{ valid: true }, { valid: true }, { valid: true }] },
     BB: { mac: 'BB', laps: [{ valid: true }] },
   } };
-  const ranked = E.rankParticipants(r, { AA: 1000, BB: 1500 });
+  const ranked = E.rankParticipants(r, { AA: 100, BB: 500 });
   assert.equal(ranked[0].mac, 'AA');
   assert.equal(ranked[1].lapGap, 2);
-  assert.equal(ranked[1].timeGapMs, 0);
+  assert.equal(ranked[1].distGapM, 0);
 });
 
 test('rankParticipants empty participants returns []', () => {
@@ -197,22 +197,22 @@ test('leaderReachedTarget true once leader reaches target laps', () => {
   assert.equal(E.leaderReachedTarget([], 5), false);
 });
 
-test('rankParticipants adds interval to the car directly ahead', () => {
+test('rankParticipants adds interval (meters) to the car directly ahead', () => {
   const r = { participants: {
     AA: { mac: 'AA', laps: [{ valid: true }] },
     BB: { mac: 'BB', laps: [{ valid: true }] },
     CC: { mac: 'CC', laps: [{ valid: true }] },
   } };
-  const ranked = E.rankParticipants(r, { AA: 1000, BB: 1300, CC: 1500 });
+  const ranked = E.rankParticipants(r, { AA: 1500, BB: 1300, CC: 1000 });
   assert.equal(ranked[0].mac, 'AA');
-  assert.equal(ranked[0].intervalMs, 0);
+  assert.equal(ranked[0].distIntM, 0);
   assert.equal(ranked[0].intervalLapGap, 0);
   assert.equal(ranked[1].mac, 'BB');
-  assert.equal(ranked[1].timeGapMs, 300);     // gap to leader
-  assert.equal(ranked[1].intervalMs, 300);    // interval to ahead (== leader for P2)
+  assert.equal(ranked[1].distGapM, 200);   // 1500 - 1300 to leader
+  assert.equal(ranked[1].distIntM, 200);   // to ahead (== leader for P2)
   assert.equal(ranked[2].mac, 'CC');
-  assert.equal(ranked[2].timeGapMs, 500);     // gap to leader (1500-1000)
-  assert.equal(ranked[2].intervalMs, 200);    // interval to ahead BB (1500-1300)
+  assert.equal(ranked[2].distGapM, 500);   // 1500 - 1000 to leader
+  assert.equal(ranked[2].distIntM, 300);   // 1300 - 1000 to ahead BB
 });
 
 test('rankParticipants interval shows lap gap when car ahead is on another lap', () => {
@@ -221,13 +221,13 @@ test('rankParticipants interval shows lap gap when car ahead is on another lap',
     BB: { mac: 'BB', laps: [{ valid: true }, { valid: true }] },
     CC: { mac: 'CC', laps: [{ valid: true }] },
   } };
-  const ranked = E.rankParticipants(r, { AA: 1000, BB: 1100, CC: 1200 });
+  const ranked = E.rankParticipants(r, { AA: 100, BB: 200, CC: 300 });
   assert.equal(ranked[1].mac, 'BB');
-  assert.equal(ranked[1].intervalLapGap, 1);  // 1 lap behind AA
-  assert.equal(ranked[1].intervalMs, 0);
+  assert.equal(ranked[1].intervalLapGap, 1);
+  assert.equal(ranked[1].distIntM, 0);
   assert.equal(ranked[2].mac, 'CC');
-  assert.equal(ranked[2].intervalLapGap, 1);  // 1 lap behind BB
-  assert.equal(ranked[2].lapGap, 2);          // 2 laps behind leader
+  assert.equal(ranked[2].intervalLapGap, 1);
+  assert.equal(ranked[2].lapGap, 2);
 });
 
 test('fastestLapHolder returns participant with smallest bestLapMs', () => {

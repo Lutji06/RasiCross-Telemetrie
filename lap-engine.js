@@ -129,51 +129,46 @@
     return rec;
   }
 
-  // Phase 31: Live-Positions-Ranking. lastCrossingByMac[mac] = k.lapStart
-  // (Zeitstempel der letzten Linien-Durchfahrt; null/undefined = unarmiert).
-  // Sortierung: gueltige Runden absteigend, Tiebreak frueheste Durchfahrt,
-  // unarmierte Karts stabil ans Ende.
-  function rankParticipants(race, lastCrossingByMac) {
-    var ps = participantsOf(race), cross = lastCrossingByMac || {};
+  // Phase 36: Live-Positions-Ranking ueber den momentanen Streckenfortschritt.
+  // progressByMac[mac] = runden-lokaler Streckenfortschritt in Metern ab
+  // Start/Ziel (groesser = weiter vorn; null/undefined = kein Fortschritt).
+  // Sortierung: gueltige Runden desc, dann Fortschritt desc; Karts ohne
+  // Fortschritt stabil ans Ende. Gaps in Metern (distGapM/distIntM).
+  function rankParticipants(race, progressByMac) {
+    var ps = participantsOf(race), prog = progressByMac || {};
     var list = [];
     for (var i = 0; i < ps.length; i++) {
       var p = ps[i];
-      var c = cross[p.mac];
-      list.push({
-        mac: p.mac,
-        idx: i,
-        laps: partValidLaps(p).length,
-        cross: c,
-      });
+      var pr = prog[p.mac];
+      list.push({ mac: p.mac, idx: i, laps: partValidLaps(p).length, prog: pr });
     }
     list.sort(function (a, b) {
-      var aArmed = a.cross != null, bArmed = b.cross != null;
-      if (aArmed !== bArmed) return aArmed ? -1 : 1;   // armierte zuerst
-      if (!aArmed) return a.idx - b.idx;               // beide unarmiert: stabil
-      if (a.laps !== b.laps) return b.laps - a.laps;   // mehr Runden zuerst
-      return a.cross - b.cross;                         // frueher ueberquert zuerst
+      if (a.laps !== b.laps) return b.laps - a.laps;       // mehr Runden zuerst
+      var aHas = a.prog != null, bHas = b.prog != null;
+      if (aHas !== bHas) return aHas ? -1 : 1;             // mit Fortschritt vor ohne
+      if (aHas && b.prog !== a.prog) return b.prog - a.prog; // mehr Fortschritt zuerst
+      return a.idx - b.idx;                                // stabil
     });
     var leaderLaps = list.length ? list[0].laps : 0;
-    var leaderCross = list.length ? list[0].cross : null;
+    var leaderProg = list.length ? list[0].prog : null;
     var out = [];
     for (var j = 0; j < list.length; j++) {
       var e = list[j];
       var lapGap = leaderLaps - e.laps;
-      var timeGapMs = 0;
-      if (j > 0 && lapGap === 0 && e.cross != null && leaderCross != null) {
-        timeGapMs = e.cross - leaderCross;
+      var distGapM = 0;
+      if (j > 0 && lapGap === 0 && e.prog != null && leaderProg != null) {
+        distGapM = leaderProg - e.prog;
       }
-      // Phase 32: Intervall zum Vordermann (Position n-1), analog zu lapGap/timeGapMs.
-      var intervalLapGap = 0, intervalMs = 0;
+      var intervalLapGap = 0, distIntM = 0;
       if (j > 0) {
         var ahead = list[j - 1];
         intervalLapGap = ahead.laps - e.laps;
-        if (intervalLapGap === 0 && e.cross != null && ahead.cross != null) {
-          intervalMs = e.cross - ahead.cross;
+        if (intervalLapGap === 0 && e.prog != null && ahead.prog != null) {
+          distIntM = ahead.prog - e.prog;
         }
       }
-      out.push({ mac: e.mac, pos: j + 1, laps: e.laps, lapGap: lapGap, timeGapMs: timeGapMs,
-                 intervalLapGap: intervalLapGap, intervalMs: intervalMs });
+      out.push({ mac: e.mac, pos: j + 1, laps: e.laps, lapGap: lapGap, distGapM: distGapM,
+                 intervalLapGap: intervalLapGap, distIntM: distIntM });
     }
     return out;
   }
