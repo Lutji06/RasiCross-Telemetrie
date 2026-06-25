@@ -214,5 +214,44 @@ class BatteryWarn(unittest.TestCase):
         self.assertEqual(calc.battery_warn(float('nan'), 3.5, 3.3), 0)
 
 
+class Mpu9250TempC(unittest.TestCase):
+    def test_known_points(self):
+        # Phase 37: 9250-Kennlinie raw/333.87 + 21.0 (Datenblatt).
+        self.assertAlmostEqual(calc.mpu9250_temp_c(0), 21.0, places=6)
+        self.assertAlmostEqual(calc.mpu9250_temp_c(3339),
+                               3339 / 333.87 + 21.0, places=6)
+        self.assertAlmostEqual(calc.mpu9250_temp_c(-1000),
+                               -1000 / 333.87 + 21.0, places=6)
+
+    def test_differs_from_6050_formula(self):
+        # Gleicher Rohwert -> andere Temperatur als die alte 6050-Formel.
+        raw = 1000
+        self.assertNotAlmostEqual(calc.mpu9250_temp_c(raw),
+                                  raw / 340.0 + 36.53, places=2)
+
+    def test_zero_for_bad(self):
+        self.assertEqual(calc.mpu9250_temp_c(None), 0.0)
+        self.assertEqual(calc.mpu9250_temp_c('x'), 0.0)
+        self.assertEqual(calc.mpu9250_temp_c(float('nan')), 0.0)
+
+
+class UbxFrame(unittest.TestCase):
+    def test_cfg_rate_5hz(self):
+        # CFG-RATE (0x06 0x08), 200 ms = 5 Hz. Bekannte Referenz-Bytes.
+        frame = calc.ubx_frame(0x06, 0x08,
+                               bytes((0xC8, 0x00, 0x01, 0x00, 0x01, 0x00)))
+        self.assertEqual(frame, bytes.fromhex('b56206080600c80001000100de6a'))
+
+    def test_cfg_msg_disable_gsv(self):
+        # CFG-MSG (0x06 0x01): NMEA-Satz GSV (0xF0 0x03) Rate 0 -> aus.
+        frame = calc.ubx_frame(0x06, 0x01, bytes((0xF0, 0x03, 0x00)))
+        self.assertEqual(frame, bytes.fromhex('b56206010300f00300fd15'))
+
+    def test_empty_payload_header_and_length(self):
+        frame = calc.ubx_frame(0x06, 0x09)
+        self.assertEqual(frame[:6], bytes((0xB5, 0x62, 0x06, 0x09, 0x00, 0x00)))
+        self.assertEqual(len(frame), 8)   # 2 sync + 4 header + 0 payload + 2 ck
+
+
 if __name__ == '__main__':
     unittest.main()
