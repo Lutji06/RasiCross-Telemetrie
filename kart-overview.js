@@ -19,29 +19,38 @@
     return (ms && typeof fmtMs === 'function') ? fmtMs(ms) : '--:--.---';
   }
 
-  // Phase 31: Linien-Durchfahrt-Zeitstempel je Teilnehmer fuer das Ranking.
-  function buildCrossings(state, r) {
+  // Phase 36: runden-lokaler Streckenfortschritt je Teilnehmer-Kart (Meter ab
+  // Start/Ziel). Ohne Strecke -> null fuer alle (Ranking faellt auf Runden
+  // zurueck, Gap zeigt "--").
+  function buildProgress(state, r) {
     const out = {};
+    const pts = state.track && state.track.points;
+    const trackLen = (pts && pts.length > 1) ? traceDistanceM(pts) : 0;
+    const gateOff = (trackLen > 0 && state.startGate && state.startGate.lat)
+      ? trackProgressM({ lat: state.startGate.lat, lon: state.startGate.lon }, pts) : 0;
     RasiLapEngine.participantsOf(r).forEach(p => {
       const kk = state.karts.has(p.mac) ? state.karts.get(p.mac) : null;
-      out[p.mac] = kk ? kk.lapStart : null;
+      const t = kk && kk.telemetry;
+      out[p.mac] = (t && t.lat && t.lon)
+        ? lapProgressM(trackProgressM({ lat: t.lat, lon: t.lon }, pts), gateOff, trackLen)
+        : null;
     });
     return out;
   }
 
-  // Phase 32: ein Delta formatieren ("+N Runde(n)" bei Runden-Rueckstand,
-  // sonst "+x.xs"). Genutzt fuer Gap (zum Fuehrenden) und Int (zum Vordermann).
-  function fmtDelta(lapGap, ms) {
+  // Phase 36: ein Delta formatieren ("+N Runde(n)" bei Runden-Rueckstand,
+  // sonst "+N m" Streckenabstand). Fuer Gap (zum Fuehrenden) + Int (zum Vordermann).
+  function fmtDelta(lapGap, distM) {
     if (lapGap > 0) return '+' + lapGap + (lapGap === 1 ? ' Runde' : ' Runden');
-    return '+' + (ms / 1000).toFixed(1) + 's';
+    return '+' + Math.round(distM) + ' m';
   }
 
-  // Phase 32: Gap·Int-Zeile — Fuehrender "Leader", sonst "Gap <zumFuehrenden> ·
-  // Int <zumVordermann>". Fuer P2 sind Gap und Int identisch (Vordermann = Fuehrender).
+  // Phase 36: Gap·Int-Zeile in Metern — Fuehrender "Leader", sonst "Gap <Meter zum
+  // Fuehrenden> · Int <Meter zum Vordermann>". P2: Gap == Int (Vordermann = Fuehrender).
   function fmtGap(e) {
     if (!e || e.pos === 1) return 'Leader';
-    return 'Gap ' + fmtDelta(e.lapGap, e.timeGapMs)
-         + ' · Int ' + fmtDelta(e.intervalLapGap, e.intervalMs);
+    return 'Gap ' + fmtDelta(e.lapGap, e.distGapM)
+         + ' · Int ' + fmtDelta(e.intervalLapGap, e.distIntM);
   }
 
   // Phase 33: Overtake-Highlight — vorherige Positionen + Aufstiegs-Zeitstempel
@@ -57,9 +66,11 @@
     const now = Date.now();
     // Phase 31: Positions-Ranking nur bei laufendem Rennen mit >=2 Teilnehmern.
     const r = (typeof activeRace === 'function') ? activeRace() : null;
+    // Phase 36: Strecke vorhanden? -> sonst Gap "--" (Ranking nach Runden).
+    const hasTrack = !!(state.track && state.track.points && state.track.points.length > 1);
     const ranking = (r && r.status === 'running'
                      && RasiLapEngine.participantsOf(r).length >= 2)
-      ? RasiLapEngine.rankParticipants(r, buildCrossings(state, r))
+      ? RasiLapEngine.rankParticipants(r, buildProgress(state, r))
       : null;
     // Phase 32: Halter der schnellsten Runde (lila Markierung), nur bei aktivem Ranking.
     const flHolder = ranking ? RasiLapEngine.fastestLapHolder(r) : null;
@@ -99,7 +110,7 @@
       // Phase 31: Positions-Badge + Gap. Phase 32: Gap·Int + Fastest-Lap-Markierung.
       const pe = posByMac[mac];
       const posBadge = pe ? '<span class="ko-pos">P' + pe.pos + '</span>' : '';
-      const gapRow = pe ? '<div class="ko-gap">' + fmtGap(pe) + '</div>' : '';
+      const gapRow = pe ? '<div class="ko-gap">' + (hasTrack ? fmtGap(pe) : '--') + '</div>' : '';
       const isFL = !!(flHolder && flHolder.mac === mac);
       const flBadge = isFL ? '<span class="ko-fl">⚡FL</span>' : '';
       const bestCls = 'ko-v' + (isFL ? ' ko-v-fl' : '');

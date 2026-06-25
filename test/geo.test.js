@@ -5,10 +5,11 @@ const geo = require('../geo.js');
 
 const approx = (a, b, tol = 1e-3) => assert.ok(Math.abs(a - b) <= tol, `${a} != ${b} (±${tol})`);
 
-test('module exports all 10 helpers', () => {
+test('module exports all 12 helpers', () => {
   for (const name of ['fmtMs','fmtClock','fmtDelta','traceDistanceM','gpsDist',
                        'headingFromPoints','segmentsCross','crossingDirectionOk',
-                       'lineEndpointsFromGate','declutterLabels']) {
+                       'lineEndpointsFromGate','declutterLabels',
+                       'trackProgressM','lapProgressM']) {
     assert.equal(typeof geo[name], 'function', `missing ${name}`);
   }
 });
@@ -208,4 +209,43 @@ test('declutterLabels returns results in input order', () => {
   const out = geo.declutterLabels(pts, 12, 20);
   assert.equal(out[1], 0);   // input index 1 (y=0) unchanged
   assert.equal(out[0], 12);  // input index 0 (y=10) pushed to 12
+});
+
+test('trackProgressM: midpoint of a straight segment is about half the length', () => {
+  const track = [{ lat: 0, lon: 0 }, { lat: 0, lon: 0.01 }];
+  const total = geo.traceDistanceM(track);
+  approx(geo.trackProgressM({ lat: 0, lon: 0.005 }, track), total / 2, total * 0.02);
+});
+
+test('trackProgressM: a point before the start projects to ~0', () => {
+  const track = [{ lat: 0, lon: 0 }, { lat: 0, lon: 0.01 }];
+  approx(geo.trackProgressM({ lat: 0, lon: -0.005 }, track), 0, 1);
+});
+
+test('trackProgressM: a point past the end projects to ~full length', () => {
+  const track = [{ lat: 0, lon: 0 }, { lat: 0, lon: 0.01 }];
+  const total = geo.traceDistanceM(track);
+  approx(geo.trackProgressM({ lat: 0, lon: 0.015 }, track), total, 1);
+});
+
+test('trackProgressM: picks the nearest of multiple segments', () => {
+  // L-shape: east along lon, then north along lat. Point near the 2nd segment.
+  const track = [{ lat: 0, lon: 0 }, { lat: 0, lon: 0.01 }, { lat: 0.01, lon: 0.01 }];
+  const seg1 = geo.gpsDist(0, 0, 0, 0.01);
+  assert.ok(geo.trackProgressM({ lat: 0.005, lon: 0.0101 }, track) > seg1);
+});
+
+test('trackProgressM: fewer than two points returns 0', () => {
+  assert.equal(geo.trackProgressM({ lat: 0, lon: 0 }, [{ lat: 0, lon: 0 }]), 0);
+  assert.equal(geo.trackProgressM({ lat: 0, lon: 0 }, []), 0);
+});
+
+test('lapProgressM: normalizes raw progress relative to the gate, modulo length', () => {
+  assert.equal(geo.lapProgressM(250, 200, 1000), 50);
+  assert.equal(geo.lapProgressM(150, 200, 1000), 950);   // wraps: 150-200 -> 950
+  assert.equal(geo.lapProgressM(200, 200, 1000), 0);      // at the gate
+});
+
+test('lapProgressM: returns null when track length is non-positive', () => {
+  assert.equal(geo.lapProgressM(100, 0, 0), null);
 });

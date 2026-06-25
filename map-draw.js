@@ -149,12 +149,20 @@ function drawKartMarkersOn(c, ctx) {
     const _parts = (r && r.status === 'running' && typeof RasiLapEngine !== 'undefined')
       ? RasiLapEngine.participantsOf(r) : [];
     if (_parts.length >= 2) {
-      const cross = {};
+      // Phase 36: Reihenfolge nach Streckenfortschritt (Meter ab Start/Ziel).
+      const pts = state.track && state.track.points;
+      const trackLen = (pts && pts.length > 1) ? traceDistanceM(pts) : 0;
+      const gateOff = (trackLen > 0 && state.startGate && state.startGate.lat)
+        ? trackProgressM({ lat: state.startGate.lat, lon: state.startGate.lon }, pts) : 0;
+      const prog = {};
       _parts.forEach(p => {
         const kk = state.karts.has(p.mac) ? state.karts.get(p.mac) : null;
-        cross[p.mac] = kk ? kk.lapStart : null;
+        const tl = kk && kk.telemetry;
+        prog[p.mac] = (tl && tl.lat && tl.lon)
+          ? lapProgressM(trackProgressM({ lat: tl.lat, lon: tl.lon }, pts), gateOff, trackLen)
+          : null;
       });
-      const ranked = RasiLapEngine.rankParticipants(r, cross);
+      const ranked = RasiLapEngine.rankParticipants(r, prog);
       posByMac = {};
       ranked.forEach(e => { posByMac[e.mac] = e.pos; });
       // Phase 34: Aufsteiger -> Overtake-Ring-Zeitstempel; Vorpositionen merken.
