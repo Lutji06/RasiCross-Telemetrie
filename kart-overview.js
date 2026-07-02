@@ -78,11 +78,24 @@
       const lapCur = k.lapStart ? lap(now - k.lapStart) : '--:--.---';
       const lapBest = lap(k.bestLapMs);
       // Phase 30: Rundenzahl dieses Karts im aktiven Rennen (Teilnehmer-Slot).
-      const _part = (r && r.participants) ? r.participants[mac] : null;
+      const _part = RasiLapEngine.partOf(r, mac);
       const lapCount = _part ? RasiLapEngine.partValidLaps(_part).length : 0;
-      const bestNum = k.bestLapNum
+      // Phase 39: letzte Runde + aktueller Fahrer dieses Karts.
+      const _lastLap = _part && _part.laps.length ? _part.laps[_part.laps.length - 1] : null;
+      const lapLast = _lastLap ? lap(_lastLap.timeMs) : '--:--.---';
+      const _drv = (_part && _part.currentDriverId)
+        ? state.drivers.find(d => d.id === _part.currentDriverId) : null;
+      const bestNum = (k.bestLapNum
         ? ('Runde ' + lapCount + ' · Best R' + k.bestLapNum)
-        : (lapCount ? ('Runde ' + lapCount) : 'Noch keine Rundenzeit');
+        : (lapCount ? ('Runde ' + lapCount) : 'Noch keine Rundenzeit'))
+        + (_drv ? ' · ' + esc(_drv.name) : '');
+      // Phase 39: Verbindungs-Fusszeile; bei stale stattdessen Paket-Alter.
+      const _hz = (state._kartHz && state._kartHz[mac] != null) ? state._kartHz[mac] : '--';
+      const _rssi = (k.connection.rssi != null) ? (k.connection.rssi + ' dBm') : '--';
+      const _batt = (k.batt && k.batt.present) ? ' · ' + (k.batt.soc | 0) + '%' : '';
+      const foot = stale
+        ? ('⚠ vor ' + Math.round(age / 1000) + ' s')
+        : (_rssi + ' · ' + _hz + ' Hz' + _batt);
       const rec = k.recording.armed ? '<span class="ko-rec">●REC</span>' : '';
       // Phase 31: Positions-Badge + Gap. Phase 32: Gap·Int + Fastest-Lap-Markierung.
       const pe = posByMac[mac];
@@ -99,8 +112,10 @@
         +   '<span class="ko-name" style="color:' + m.color + '">' + esc(m.name) + '</span>' + rec + flBadge + '</div>'
         + '<div class="ko-speed">' + speed + '<small>km/h</small></div>'
         + '<div class="ko-row"><span class="ko-l">Aktuelle Runde</span><span class="ko-v">' + lapCur + '</span></div>'
+        + '<div class="ko-row"><span class="ko-l">Letzte Runde</span><span class="ko-v">' + lapLast + '</span></div>'
         + '<div class="ko-row"><span class="ko-l">Beste Runde</span><span class="' + bestCls + '">' + lapBest + '</span></div>'
         + '<div class="ko-sub">' + bestNum + '</div>' + gapRow
+        + '<div class="ko-foot">' + foot + '</div>'
         + '</div>';
     }).join('');
     el.querySelectorAll('.ko-card').forEach(card => {
