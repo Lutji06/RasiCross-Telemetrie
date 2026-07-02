@@ -732,6 +732,10 @@ function driftInputs(d, cal) {
   return { yawRate: yaw, latAccel: gy, speed: Math.max(0, Number(d.speed) || 0) };
 }
 
+// Phase 39: "Max Karts"-Hinweis nur einmal pro unbekannter MAC und Session —
+// ohne Drossel wuerde ein 5. Kart bei ~12 Hz den Toast permanent halten.
+const _maxKartsToasted = new Set();
+
 function processTelemetry(d) {
   try {
     if (!d) return;
@@ -760,7 +764,13 @@ function processTelemetry(d) {
     // Karts ihren eigenen Zustand fuellen.
     const _mac = d.from_mac || KartRegistry.DEFAULT_MAC;
     const k = kartFor(_mac);
-    if (!k) { rcToast('Max. ' + KartRegistry.MAX_KARTS + ' Karts — ' + _mac + ' ignoriert', 4000); return; }
+    if (!k) {
+      if (!_maxKartsToasted.has(_mac)) {
+        _maxKartsToasted.add(_mac);
+        rcToast('Max. ' + KartRegistry.MAX_KARTS + ' Karts — ' + _mac + ' ignoriert', 4000);
+      }
+      return;
+    }
     // Phase 30: Nachzuegler — sendet ein Kart waehrend eines laufenden Rennens
     // erstmals und ist noch kein Teilnehmer, lege seinen Slot an (armiert bei
     // erster Linie, da k.lapStart noch null ist).
