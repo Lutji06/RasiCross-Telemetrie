@@ -48,7 +48,7 @@ function updatePitWall() {
   setText('pwSession', fmtClock(now - state.sessionStart));
   const r = activeRace();
   // Phase 30: Pit-Wall zeigt Runden des aktiven Karts (Teilnehmer-Slot).
-  const _pwPart = r ? RasiLapEngine.getOrCreatePart(r, state.activeKartMac || KartRegistry.DEFAULT_MAC, r.startDriverId, r.startedAt || Date.now()) : null;
+  const _pwPart = r ? RasiLapEngine.partOf(r, state.activeKartMac || KartRegistry.DEFAULT_MAC) : null;
   const validLaps = _pwPart ? RasiLapEngine.partValidLaps(_pwPart).length : 0;
   setText('pwLapCount', r && r.lengthType === 'laps' && r.targetLaps
     ? `${validLaps} / ${r.targetLaps}` : validLaps);
@@ -351,9 +351,7 @@ function buildRaceDataForKart() {
   const bestStr = state.bestLapMs ? fmtMs(state.bestLapMs) : "--";
   // Runden-Counter — Phase 32: Runden des AKTIVEN Karts (Teilnehmer-Slot),
   // nicht die Summe aller Karts (raceValidLaps aggregiert seit Phase 30).
-  const _oledPart = RasiLapEngine.getOrCreatePart(
-    r, state.activeKartMac || KartRegistry.DEFAULT_MAC, r.startDriverId,
-    r.startedAt || Date.now());
+  const _oledPart = RasiLapEngine.partOf(r, state.activeKartMac || KartRegistry.DEFAULT_MAC);
   const validLaps = RasiLapEngine.partValidLaps(_oledPart).length;
   let target = "--";
   if (r.lengthType === 'laps') target = r.targetLaps;

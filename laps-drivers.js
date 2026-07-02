@@ -100,7 +100,7 @@ function renderLapTable() {
   const r = activeRace();
   const tbody = $('lapTable');
   // Phase 30: Runden des aktiven Karts (Teilnehmer-Slot).
-  const _p = r ? RasiLapEngine.getOrCreatePart(r, state.activeKartMac || KartRegistry.DEFAULT_MAC, r.startDriverId, r.startedAt || Date.now()) : null;
+  const _p = r ? RasiLapEngine.partOf(r, state.activeKartMac || KartRegistry.DEFAULT_MAC) : null;
   if (!r || !_p || !_p.laps.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="muted">Noch keine Runden — starte ein Rennen und fahre die erste Runde.</td></tr>';
     setText('lapCountText', '0 Runden');
@@ -131,7 +131,7 @@ function renderLiveLapList() {
   const tbody = $('liveLapList');
   if (!tbody) return;
   const r = activeRace();
-  const _p = r ? RasiLapEngine.getOrCreatePart(r, state.activeKartMac || KartRegistry.DEFAULT_MAC, r.startDriverId, r.startedAt || Date.now()) : null;
+  const _p = r ? RasiLapEngine.partOf(r, state.activeKartMac || KartRegistry.DEFAULT_MAC) : null;
   if (!r || !_p || !_p.laps.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="muted">Noch keine Runden.</td></tr>';
     setText('liveLapCount', '0 Runden');
