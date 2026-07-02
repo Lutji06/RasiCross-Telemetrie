@@ -16,9 +16,18 @@
   function saveMeta(meta) {
     try { localStorage.setItem(LS_KEY, JSON.stringify(meta)); } catch (e) {}
   }
+  // Phase 39: nur bei tatsaechlicher Neuanlage dirty markieren — vorher
+  // schrieb jeder Render-Aufruf (Grid bis 5 Hz) in localStorage.
+  let _metaDirty = false;
   function metaFor(meta, mac, idx) {
-    if (!meta[mac]) meta[mac] = { name: 'Kart ' + (idx + 1), color: PALETTE[idx % PALETTE.length] };
+    if (!meta[mac]) {
+      meta[mac] = { name: 'Kart ' + (idx + 1), color: PALETTE[idx % PALETTE.length] };
+      _metaDirty = true;
+    }
     return meta[mac];
+  }
+  function saveMetaIfDirty(meta) {
+    if (_metaDirty) { saveMeta(meta); _metaDirty = false; }
   }
 
   function render(state) {
@@ -70,7 +79,7 @@
       };
       el.appendChild(chip);
     });
-    saveMeta(meta);
+    saveMetaIfDirty(meta);
   }
 
   function escHtml(s) {
@@ -156,7 +165,7 @@
     const meta = state.kartMeta && Object.keys(state.kartMeta).length ? state.kartMeta : loadMeta();
     state.kartMeta = meta;
     const m = metaFor(meta, mac, idx);
-    saveMeta(meta);
+    saveMetaIfDirty(meta);
     return m;
   }
 
