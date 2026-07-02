@@ -1467,6 +1467,18 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .kart-overview-btn.active{box-shadow:0 0 0 2px rgba(90,209,122,.35),0 0 12px rgba(90,209,122,.25);
   background:rgba(90,209,122,.12)}
 
+/* Phase 39: Leaderboard-Strip unter der Chip-Leiste (nur Einzelansicht) */
+.leader-strip{display:none;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.ls-item{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  background:var(--panel,#161a22);color:var(--fg,#e8edf4);
+  border:1px solid var(--bor,#2a3140);border-radius:999px;padding:4px 10px;
+  font-size:12px;font-family:var(--mono);line-height:1.2;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.ls-item.active{border-color:#3aa0e8;box-shadow:0 0 0 1px rgba(58,160,232,.35)}
+.ls-item .ls-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.ls-item .ls-gap{opacity:.7}
+body[data-live-view="overview"] #liveLeaderStrip{display:none !important}
+
 /* Multi-Kart: Live-Übersicht-Grid (alle Karts auf einmal). Sichtbarkeit per
    body[data-live-view]; im Single-Modus versteckt. */
 #liveOverview{display:none}
@@ -2507,6 +2519,9 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 
   <!-- Multi-Kart: Chip-Leiste (nur sichtbar bei >1 Kart) -->
   <div id="kartBar" class="kart-bar"></div>
+
+  <!-- Phase 39: Leaderboard-Strip (Einzelansicht, laufendes Rennen, >=2 Teilnehmer) -->
+  <div id="liveLeaderStrip" class="leader-strip"></div>
 
   <!-- Race-control row: Restzeit + Buttons als getrennte Kästchen -->
   <div class="pw-liverow">

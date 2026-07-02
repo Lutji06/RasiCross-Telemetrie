@@ -462,6 +462,56 @@ function setLiveView(mode) {
 }
 window.setLiveView = setLiveView;
 
+// Phase 39: Leaderboard-Strip (Einzelansicht). Zeigt P1..Pn mit Interval zum
+// Vordermann; Klick waehlt den Kart. Versteckt ohne laufendes Rennen/<2
+// Teilnehmern oder in der Uebersicht. HTML-Diff vermeidet Rebuild-Flackern.
+let _lastLeaderStripHtml = '';
+function renderLeaderStrip() {
+  try {
+    const el = $('liveLeaderStrip');
+    if (!el) return;
+    const r = (typeof activeRace === 'function') ? activeRace() : null;
+    const rr = (state.liveView !== 'overview' && window.RasiKartRank)
+      ? RasiKartRank.ranking(state, r) : null;
+    if (!rr) {
+      if (el.style.display !== 'none') { el.style.display = 'none'; _lastLeaderStripHtml = ''; }
+      return;
+    }
+    const fl = RasiLapEngine.fastestLapHolder(r);
+    const macs = state.karts.macs();
+    const html = rr.ranked.map(e => {
+      const idx = Math.max(0, macs.indexOf(e.mac));
+      const m = window.RasiKartBar ? RasiKartBar.metaFor(state, e.mac, idx)
+                                   : { name: e.mac, color: '#3aa0e8' };
+      const gap = e.pos === 1 ? ''
+        : (rr.hasTrack
+            ? (e.intervalLapGap > 0 ? '+' + e.intervalLapGap + ' Rd.' : '+' + Math.round(e.distIntM) + ' m')
+            : '--');
+      const flMark = (fl && fl.mac === e.mac) ? ' ⚡' : '';
+      const act = e.mac === state.activeKartMac ? ' active' : '';
+      return '<button type="button" class="ls-item' + act + '" data-mac="' + e.mac + '">'
+        + '<b>P' + e.pos + '</b>'
+        + '<span class="ls-dot" style="background:' + m.color + '"></span>'
+        + '<span class="ls-name" style="color:' + m.color + '">' + esc(m.name) + flMark + '</span>'
+        + (gap ? '<span class="ls-gap">' + gap + '</span>' : '')
+        + '</button>';
+    }).join('');
+    el.style.display = 'flex';
+    if (html === _lastLeaderStripHtml) return;
+    _lastLeaderStripHtml = html;
+    el.innerHTML = html;
+    el.querySelectorAll('.ls-item').forEach(b => {
+      b.onclick = () => {
+        const mac = b.getAttribute('data-mac');
+        if (state.karts.setActive(mac)) {
+          state.activeKartMac = mac;
+          if (window.setLiveView) setLiveView('single');
+        }
+      };
+    });
+  } catch (e) { console.warn('renderLeaderStrip:', e); }
+}
+
 // Im 1-Hz-/200-ms-Loop aufgerufen: hält das Übersicht-Grid aktuell und
 // erzwingt bei auf <=1 gesunkener Kartzahl die Einzelansicht.
 function refreshOverview() {
@@ -475,7 +525,7 @@ function refreshOverview() {
 function initLiveUiLoops() {
 // Backup tick (läuft auch wenn rAF im Hintergrund-Iframe pausiert)
 setInterval(() => {
-  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); refreshOverview(); } catch(e){}
+  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); refreshOverview(); renderLeaderStrip(); } catch(e){}
 }, 200);
 
 // 1Hz UI loop
@@ -492,6 +542,8 @@ setInterval(() => {
   if (window.RasiKartBar) RasiKartBar.render(state);
   // Übersicht-Grid (falls aktiv) auffrischen; erzwingt single bei <=1 Kart.
   refreshOverview();
+  // Leaderboard-Strip (Einzelansicht) aktuell halten.
+  renderLeaderStrip();
 
   // Status-Badge oben rechts
   if (state.connection.source === 'serial' && state.serial.connected) {
@@ -530,4 +582,4 @@ setInterval(() => {
 void [initLiveCharts, resizeChartCanvas, drawChart, axisFmt, drawLiveCharts,
       drawYawSparkline, updateLiveDelta, updateLiveKPIs, updateDiagnostics,
       updateLiveUi, renderStints, animLoop, initLiveUiLoops,
-      setLiveView, refreshOverview];
+      setLiveView, refreshOverview, renderLeaderStrip];
