@@ -38,6 +38,10 @@
     const macs = state.karts.macs();
     // Einzelner Kart ohne echte MAC (default-Bucket): keine Chip-Leiste noetig.
     el.style.display = macs.length <= 1 ? 'none' : 'flex';
+    // Focus ueber den 1-Hz-Rebuild retten (Tastatur-Nutzer, Phase 38-Linie).
+    const _fe = document.activeElement;
+    const _feMac = _fe && el.contains(_fe) ? _fe.getAttribute('data-mac') : null;
+    const _feEdit = !!(_feMac && _fe.classList.contains('kart-edit'));
     el.innerHTML = '';
     // Übersicht-Button (alle Karts auf einmal) — erstes Element in der Leiste.
     const ovBtn = document.createElement('button');
@@ -50,7 +54,9 @@
       const k = state.karts.get(mac);
       if (!k) return;
       const m = metaFor(meta, mac, i);
-      const chip = document.createElement('button');
+      // Phase 39: div-Container mit zwei Geschwister-Buttons — kein
+      // Button-in-Button mehr (valides HTML, Tastatur-bedienbar).
+      const chip = document.createElement('div');
       let cls = 'kart-chip' + (mac === state.activeKartMac && state.liveView !== 'overview' ? ' active' : '');
       chip.style.borderColor = m.color;
       const age = k.connection.lastPacketAt ? (Date.now() - k.connection.lastPacketAt) : 99999;
@@ -60,25 +66,31 @@
       if (age > 2000) cls += ' stale';
       chip.className = cls;
       chip.title = mac;
-      chip.innerHTML = '<b style="color:' + m.color + '">' + escHtml(m.name) + '</b>'
+      chip.innerHTML = '<button type="button" class="kart-chip-main" data-mac="' + mac + '">'
+        + '<b style="color:' + m.color + '">' + escHtml(m.name) + '</b>'
         + ' <span>' + hz + 'Hz</span> <span>' + rssi + '</span>'
         + (k.batt && k.batt.present ? ' <span>' + (k.batt.soc | 0) + '%</span>' : '')
-        + rec
-        + ' <button class="kart-edit" title="Umbenennen / Farbe / Vergessen" data-mac="' + mac + '">✏</button>';
-      chip.onclick = (ev) => {
-        if (ev.target && ev.target.classList.contains('kart-edit')) {
-          ev.stopPropagation();
-          openEditor(state, mac, ev.target);
-          return;
-        }
+        + rec + '</button>'
+        + '<button type="button" class="kart-edit" title="Umbenennen / Farbe / Vergessen" data-mac="' + mac + '">✏</button>';
+      chip.querySelector('.kart-chip-main').onclick = () => {
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
           // Chip-Klick wählt immer die Einzelansicht dieses Karts.
           if (window.setLiveView) window.setLiveView('single'); else render(state);
         }
       };
+      chip.querySelector('.kart-edit').onclick = (ev) => {
+        ev.stopPropagation();
+        openEditor(state, mac, ev.target);
+      };
       el.appendChild(chip);
     });
+    if (_feMac) {
+      const _sel = _feEdit ? '.kart-edit[data-mac="' + _feMac + '"]'
+                           : '.kart-chip-main[data-mac="' + _feMac + '"]';
+      const _re = el.querySelector(_sel);
+      if (_re) _re.focus();
+    }
     saveMetaIfDirty(meta);
   }
 
@@ -139,7 +151,12 @@
     pop.style.top = (r.bottom + 6) + 'px';
     pop.classList.remove('hidden');
 
-    _onDocClick = (ev) => { if (!pop.contains(ev.target) && ev.target !== anchorEl) closeEditor(); };
+    // Anker-Element wird beim 1-Hz-Rebuild ersetzt -> gegen Klasse statt
+    // Identitaet pruefen, sonst schliesst der Klick aufs (neue) ✏ sofort wieder.
+    _onDocClick = (ev) => {
+      if (!pop.contains(ev.target)
+          && !(ev.target.closest && ev.target.closest('.kart-edit'))) closeEditor();
+    };
     document.addEventListener('mousedown', _onDocClick, true);
     document.addEventListener('keydown', _onEditKey, true);
   }

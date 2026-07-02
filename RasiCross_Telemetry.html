@@ -1422,7 +1422,11 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .kart-badge{display:inline-block;font-size:10px;font-weight:600;vertical-align:middle;
   margin-left:8px;padding:1px 7px;border:1px solid #3aa0e8;border-radius:999px;line-height:1.5}
 
-/* Multi-Kart Verwaltung: Edit-Icon am Chip */
+/* Multi-Kart Verwaltung: Haupt-Button + Edit-Icon als Geschwister im Chip
+   (Phase 39: kein Button-in-Button mehr — valides HTML, Tastatur-bedienbar) */
+.kart-chip .kart-chip-main{display:inline-flex;align-items:center;gap:6px;
+  background:none;border:none;color:inherit;font:inherit;padding:0;
+  cursor:pointer;white-space:nowrap}
 .kart-chip .kart-edit{cursor:pointer;opacity:.6;margin-left:2px;font-size:11px;
   background:none;border:none;color:inherit;padding:0 2px;line-height:1}
 .kart-chip .kart-edit:hover{opacity:1}
