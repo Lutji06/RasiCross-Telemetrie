@@ -137,6 +137,9 @@
 
   function forgetKart(state, mac) {
     state.karts.forget(mac);
+    // Phase 39: bewusstes Vergessen loescht auch die persistierte
+    // Kalibrierung/Motorstunden dieser MAC (anders als "Karts zuruecksetzen").
+    if (window.rasiPersistForget) window.rasiPersistForget(mac);
     if (state._kartHz) delete state._kartHz[mac];
     // Bridge-Kommando (Bridge-Ebene, nicht kart-geroutet) — nur falls verbunden.
     if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {

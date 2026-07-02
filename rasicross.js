@@ -91,6 +91,17 @@ function kartFor(mac) {
   const key = mac || KartRegistry.DEFAULT_MAC;
   const isNew = !state.karts.has(key);
   const k = state.karts.get(key);
+  // Phase 39: bekannten MAC nach "Karts zuruecksetzen" aus der Persist-Map
+  // rehydrieren (Kalibrierung + Motorstunden).
+  if (k && isNew && _persistedKarts.cal[key]) Object.assign(k.calibration, _persistedKarts.cal[key]);
+  if (k && isNew && _persistedKarts.eng[key]) {
+    const pe = _persistedKarts.eng[key];
+    Object.assign(k.engine, {
+      totalMs: Number(pe.totalMs) || 0,
+      lastServiceMs: Number(pe.lastServiceMs) || 0,
+      serviceIntervalH: pe.serviceIntervalH != null ? (Number(pe.serviceIntervalH) || 10) : 10,
+    });
+  }
   if (k && isNew && key !== KartRegistry.DEFAULT_MAC && state.karts.has(KartRegistry.DEFAULT_MAC)) {
     // 9.6-Migration: der erste reale Kart adoptiert den "default"-Bucket
     // (Kalibrierung + Motorlaufzeit) und loescht den Platzhalter danach.
@@ -161,6 +172,16 @@ function logTime(ts = Date.now()) { return new Date(ts).toLocaleTimeString('de-D
 // ============================================================
 let _saveTimer = null;
 let _quotaWarned = false;
+// Phase 39: zuletzt geladene/gespeicherte per-Kart-Persistenz. saveData()
+// merged Registry ueber diese Map, damit "Karts zuruecksetzen" (leere
+// Registry) Kalibrierung + Motorstunden NICHT verliert. Nur "Kart
+// vergessen" loescht Eintraege (rasiPersistForget). Demo-Karts (DE:MO:*)
+// werden nie persistiert.
+const _persistedKarts = { cal: {}, eng: {} };
+window.rasiPersistForget = function (mac) {
+  delete _persistedKarts.cal[mac];
+  delete _persistedKarts.eng[mac];
+};
 // Races fuer die Persistenz verschlanken: speedTrace auf max. 1000 Punkte
 // downsamplen. Im RAM bleibt die volle Aufloesung erhalten — nur die
 // localStorage-Kopie wird kleiner (5-MB-Quota ueber eine Saison).
@@ -194,12 +215,16 @@ function saveData() {
   try {
     // Per-Kart Kalibrierung + Motorlaufzeit (keyed by MAC). Legacy-Felder
     // (calibration/engine) bleiben fuer Downgrade-Gnade aus dem aktiven Kart.
-    const _kartsCal = {}, _kartsEngine = {};
+    const _kartsCal = Object.assign({}, _persistedKarts.cal);
+    const _kartsEngine = Object.assign({}, _persistedKarts.eng);
     for (const mac of state.karts.macs()) {
+      if (mac.indexOf('DE:MO:') === 0) continue;   // Demo-Karts nie persistieren
       const kk = state.karts.get(mac);
       _kartsCal[mac] = kk.calibration;
       _kartsEngine[mac] = { totalMs: kk.engine.totalMs, lastServiceMs: kk.engine.lastServiceMs, serviceIntervalH: kk.engine.serviceIntervalH };
     }
+    _persistedKarts.cal = _kartsCal;
+    _persistedKarts.eng = _kartsEngine;
     const payload = {
       version: '9.6', savedAt: new Date().toISOString(),
       settings: state.settings, calibration: state.calibration, theme: state.theme,
@@ -267,6 +292,8 @@ function loadData() {
         serviceIntervalH: _eng[mac].serviceIntervalH != null ? (Number(_eng[mac].serviceIntervalH) || 10) : 10,
       });
     }
+    Object.assign(_persistedKarts.cal, _cal);
+    Object.assign(_persistedKarts.eng, _eng);
     state.activeKartMac = state.karts.activeMac();
   } catch (e) { console.warn('loadData:', e); }
 }

@@ -215,7 +215,7 @@ function renderConnKartList() {
 }
 
 async function resetKarts() {
-  if (!await rcConfirm('Alle bekannten Karts vergessen? Namen/Farben bleiben erhalten.',
+  if (!await rcConfirm('Alle bekannten Karts vergessen? Namen/Farben, Kalibrierung und Motorstunden bleiben erhalten.',
       'Karts zurücksetzen', 'Zurücksetzen', true)) return;
   state.karts.reset();
   state._kartHz = {};
