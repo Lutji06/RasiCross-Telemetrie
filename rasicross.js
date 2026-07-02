@@ -102,7 +102,10 @@ function kartFor(mac) {
       serviceIntervalH: pe.serviceIntervalH != null ? (Number(pe.serviceIntervalH) || 10) : 10,
     });
   }
-  if (k && isNew && key !== KartRegistry.DEFAULT_MAC && state.karts.has(KartRegistry.DEFAULT_MAC)) {
+  // Phase 39: Demo-Karts (DE:MO:*) adoptieren den default-Bucket NICHT —
+  // sonst wandern echte Kalibrierung/Motorstunden auf einen Wegwerf-Kart.
+  if (k && isNew && key !== KartRegistry.DEFAULT_MAC && key.indexOf('DE:MO:') !== 0
+      && state.karts.has(KartRegistry.DEFAULT_MAC)) {
     // 9.6-Migration: der erste reale Kart adoptiert den "default"-Bucket
     // (Kalibrierung + Motorlaufzeit) und loescht den Platzhalter danach.
     const dk = state.karts.get(KartRegistry.DEFAULT_MAC);
