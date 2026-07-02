@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const E = require('../lap-engine.js');
 
 test('module exports all helpers', () => {
-  for (const name of ['migrateRace','participantsOf','getOrCreatePart','flatLaps',
+  for (const name of ['migrateRace','participantsOf','getOrCreatePart','partOf','flatLaps',
                       'flatValidLaps','flatStints','partValidLaps','bestFromLaps',
                       'commitLap','sectorBestUpdate','trackRecordFromKarts',
                       'rankParticipants','leaderReachedTarget','fastestLapHolder',
@@ -321,4 +321,17 @@ test('applyDriverChange creates a stint without an id (caller assigns)', () => {
   const part = { currentDriverId: 'd1', stints: [] };
   const st = E.applyDriverChange(part, 'd2', 10);
   assert.equal(st.id, undefined);
+});
+
+test('partOf returns existing participant without creating', () => {
+  const r = { participants: { AA: { mac: 'AA', laps: [] } } };
+  assert.equal(E.partOf(r, 'AA'), r.participants.AA);
+  assert.equal(E.partOf(r, 'BB'), null, 'must not create BB');
+  assert.equal(Object.keys(r.participants).length, 1, 'no new slot');
+});
+
+test('partOf tolerates missing race/participants', () => {
+  assert.equal(E.partOf(null, 'AA'), null);
+  assert.equal(E.partOf({}, 'AA'), null);
+  assert.equal(E.partOf({ participants: {} }, null), null);
 });
