@@ -119,6 +119,8 @@ const kartRegistryGlobals = { KartRegistry: 'readonly' };
 const kartBarGlobals = { RasiKartBar: 'readonly' };
 // Schnittstelle kart-overview.js -> Nutzer (window.RasiKartOverview)
 const kartOverviewGlobals = { RasiKartOverview: 'readonly' };
+// Schnittstelle kart-rank.js -> Nutzer (window.RasiKartRank)
+const kartRankGlobals = { RasiKartRank: 'readonly' };
 // Schnittstelle lap-engine.js -> Nutzer (window.RasiLapEngine)
 const lapEngineGlobals = { RasiLapEngine: 'readonly' };
 
@@ -180,7 +182,18 @@ module.exports = [
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
                  ...kartRegistryGlobals, ...kartBarGlobals, ...racesGlobals,
-                 ...lapEngineGlobals, setLiveView: 'readonly' },
+                 ...lapEngineGlobals, ...kartRankGlobals, setLiveView: 'readonly' },
+    },
+    rules: bugRules,
+  },
+
+  // kart-rank.js — memoisiertes Ranking (Browser-Script, window.RasiKartRank)
+  {
+    files: ['kart-rank.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, ...geoGlobals, ...lapEngineGlobals },
     },
     rules: bugRules,
   },
@@ -192,7 +205,7 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
-                 ...racesGlobals, ...lapEngineGlobals,
+                 ...racesGlobals, ...lapEngineGlobals, ...kartRankGlobals,
                  RasiTiles: 'readonly', RasiTileRenderer: 'readonly' },
     },
     rules: bugRules,
@@ -222,12 +235,13 @@ module.exports = [
       ecmaVersion: 2022,
       sourceType: 'script',
       globals: { ...globals.browser, ...geoGlobals, ...appCoreGlobals,
-                 ...racesGlobals, drawTrack: 'readonly',
+                 ...racesGlobals, ...kartBarGlobals, drawTrack: 'readonly',
                  armRecording: 'readonly', processTelemetry: 'readonly',
                  onGpsUpdate: 'readonly', pushPacketLog: 'readonly',
                  renderDrivers: 'readonly', renderDriverOptions: 'readonly',
                  updateBounds: 'readonly', calcAutoSectors: 'readonly',
-                 updateSectorPanel: 'readonly' },
+                 updateSectorPanel: 'readonly', kartFor: 'readonly',
+                 renderConnectionTab: 'readonly' },
     },
     rules: bugRules,
   },
@@ -292,7 +306,7 @@ module.exports = [
                  RasiKart3D: 'readonly', RasiDrift: 'readonly',
                  RasiAttitude: 'readonly', DomTargets: 'readonly',
                  RasiEngine: 'readonly', updateEngineUi: 'readonly',
-                 ...kartBarGlobals, ...kartOverviewGlobals,
+                 ...kartBarGlobals, ...kartOverviewGlobals, ...kartRankGlobals,
                  activePart: 'readonly', ...lapEngineGlobals },
     },
     rules: bugRules,

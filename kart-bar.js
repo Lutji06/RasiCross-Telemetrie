@@ -16,9 +16,18 @@
   function saveMeta(meta) {
     try { localStorage.setItem(LS_KEY, JSON.stringify(meta)); } catch (e) {}
   }
+  // Phase 39: nur bei tatsaechlicher Neuanlage dirty markieren — vorher
+  // schrieb jeder Render-Aufruf (Grid bis 5 Hz) in localStorage.
+  let _metaDirty = false;
   function metaFor(meta, mac, idx) {
-    if (!meta[mac]) meta[mac] = { name: 'Kart ' + (idx + 1), color: PALETTE[idx % PALETTE.length] };
+    if (!meta[mac]) {
+      meta[mac] = { name: 'Kart ' + (idx + 1), color: PALETTE[idx % PALETTE.length] };
+      _metaDirty = true;
+    }
     return meta[mac];
+  }
+  function saveMetaIfDirty(meta) {
+    if (_metaDirty) { saveMeta(meta); _metaDirty = false; }
   }
 
   function render(state) {
@@ -29,6 +38,10 @@
     const macs = state.karts.macs();
     // Einzelner Kart ohne echte MAC (default-Bucket): keine Chip-Leiste noetig.
     el.style.display = macs.length <= 1 ? 'none' : 'flex';
+    // Focus ueber den 1-Hz-Rebuild retten (Tastatur-Nutzer, Phase 38-Linie).
+    const _fe = document.activeElement;
+    const _feMac = _fe && el.contains(_fe) ? _fe.getAttribute('data-mac') : null;
+    const _feEdit = !!(_feMac && _fe.classList.contains('kart-edit'));
     el.innerHTML = '';
     // Übersicht-Button (alle Karts auf einmal) — erstes Element in der Leiste.
     const ovBtn = document.createElement('button');
@@ -41,7 +54,9 @@
       const k = state.karts.get(mac);
       if (!k) return;
       const m = metaFor(meta, mac, i);
-      const chip = document.createElement('button');
+      // Phase 39: div-Container mit zwei Geschwister-Buttons — kein
+      // Button-in-Button mehr (valides HTML, Tastatur-bedienbar).
+      const chip = document.createElement('div');
       let cls = 'kart-chip' + (mac === state.activeKartMac && state.liveView !== 'overview' ? ' active' : '');
       chip.style.borderColor = m.color;
       const age = k.connection.lastPacketAt ? (Date.now() - k.connection.lastPacketAt) : 99999;
@@ -51,26 +66,32 @@
       if (age > 2000) cls += ' stale';
       chip.className = cls;
       chip.title = mac;
-      chip.innerHTML = '<b style="color:' + m.color + '">' + escHtml(m.name) + '</b>'
+      chip.innerHTML = '<button type="button" class="kart-chip-main" data-mac="' + mac + '">'
+        + '<b style="color:' + m.color + '">' + escHtml(m.name) + '</b>'
         + ' <span>' + hz + 'Hz</span> <span>' + rssi + '</span>'
         + (k.batt && k.batt.present ? ' <span>' + (k.batt.soc | 0) + '%</span>' : '')
-        + rec
-        + ' <button class="kart-edit" title="Umbenennen / Farbe / Vergessen" data-mac="' + mac + '">✏</button>';
-      chip.onclick = (ev) => {
-        if (ev.target && ev.target.classList.contains('kart-edit')) {
-          ev.stopPropagation();
-          openEditor(state, mac, ev.target);
-          return;
-        }
+        + rec + '</button>'
+        + '<button type="button" class="kart-edit" title="Umbenennen / Farbe / Vergessen" data-mac="' + mac + '">✏</button>';
+      chip.querySelector('.kart-chip-main').onclick = () => {
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
           // Chip-Klick wählt immer die Einzelansicht dieses Karts.
           if (window.setLiveView) window.setLiveView('single'); else render(state);
         }
       };
+      chip.querySelector('.kart-edit').onclick = (ev) => {
+        ev.stopPropagation();
+        openEditor(state, mac, ev.target);
+      };
       el.appendChild(chip);
     });
-    saveMeta(meta);
+    if (_feMac) {
+      const _sel = _feEdit ? '.kart-edit[data-mac="' + _feMac + '"]'
+                           : '.kart-chip-main[data-mac="' + _feMac + '"]';
+      const _re = el.querySelector(_sel);
+      if (_re) _re.focus();
+    }
+    saveMetaIfDirty(meta);
   }
 
   function escHtml(s) {
@@ -130,13 +151,21 @@
     pop.style.top = (r.bottom + 6) + 'px';
     pop.classList.remove('hidden');
 
-    _onDocClick = (ev) => { if (!pop.contains(ev.target) && ev.target !== anchorEl) closeEditor(); };
+    // Anker-Element wird beim 1-Hz-Rebuild ersetzt -> gegen Klasse statt
+    // Identitaet pruefen, sonst schliesst der Klick aufs (neue) ✏ sofort wieder.
+    _onDocClick = (ev) => {
+      if (!pop.contains(ev.target)
+          && !(ev.target.closest && ev.target.closest('.kart-edit'))) closeEditor();
+    };
     document.addEventListener('mousedown', _onDocClick, true);
     document.addEventListener('keydown', _onEditKey, true);
   }
 
   function forgetKart(state, mac) {
     state.karts.forget(mac);
+    // Phase 39: bewusstes Vergessen loescht auch die persistierte
+    // Kalibrierung/Motorstunden dieser MAC (anders als "Karts zuruecksetzen").
+    if (window.rasiPersistForget) window.rasiPersistForget(mac);
     if (state._kartHz) delete state._kartHz[mac];
     // Bridge-Kommando (Bridge-Ebene, nicht kart-geroutet) — nur falls verbunden.
     if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {
@@ -153,7 +182,7 @@
     const meta = state.kartMeta && Object.keys(state.kartMeta).length ? state.kartMeta : loadMeta();
     state.kartMeta = meta;
     const m = metaFor(meta, mac, idx);
-    saveMeta(meta);
+    saveMetaIfDirty(meta);
     return m;
   }
 

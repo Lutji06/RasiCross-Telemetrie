@@ -165,6 +165,14 @@ function stopReconnect() {
 }
 
 // Demo
+// Phase 39: 3 simulierte Karts — unterschiedliche Pace (~2-3 % Spreizung)
+// erzeugt Ueberholvorgaenge und plausible Gaps; Phasenversatz trennt sie
+// auf der Strecke. RSSI/SoC je Kart verschieden fuer realistische Chips.
+const DEMO_KART_DEFS = [
+  { mac: 'DE:MO:RA:SI:00:01', name: 'Demo 1', color: '#3aa0e8', pace: 1.000, phase: 0.0, rssi: -52, soc0: 92 },
+  { mac: 'DE:MO:RA:SI:00:02', name: 'Demo 2', color: '#e8a13a', pace: 0.985, phase: 1.6, rssi: -63, soc0: 74 },
+  { mac: 'DE:MO:RA:SI:00:03', name: 'Demo 3', color: '#5ad17a', pace: 0.968, phase: 3.2, rssi: -71, soc0: 55 },
+];
 function startDemo() {
   if (state.replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
   if (state.demo.running) return;
@@ -177,6 +185,20 @@ function startDemo() {
   state.connection.source = 'demo';
   state.connection.bridgeMac = 'DE:MO:00:00:00:01';
   state.connection.kartMac = 'DE:MO:00:00:00:02';
+  // Phase 39: Demo-Karts VOR dem Auto-Race registrieren, damit startRace()
+  // alle drei als Teilnehmer aufnimmt (kein Nachzuegler-/default-Slot).
+  state.demo.karts = DEMO_KART_DEFS.map(def => ({
+    mac: def.mac, pace: def.pace, rssi: def.rssi,
+    angle: -Math.PI / 2 - def.phase, seq: 0, soc: def.soc0,
+  }));
+  state.kartMeta = state.kartMeta || {};
+  DEMO_KART_DEFS.forEach(def => {
+    kartFor(def.mac);
+    if (!state.kartMeta[def.mac]) state.kartMeta[def.mac] = { name: def.name, color: def.color };
+  });
+  state.karts.setActive(DEMO_KART_DEFS[0].mac);
+  state.activeKartMac = DEMO_KART_DEFS[0].mac;
+  if (window.RasiKartBar) RasiKartBar.render(state);
   $('demoStartBtn').classList.add('hidden');
   $('demoStopBtn').classList.remove('hidden');
   setText('demoModeText', 'Läuft');
@@ -237,31 +259,53 @@ function stopDemo() {
     endRace(false);
   }
   state.demo.autoRaceId = null;
+  // Phase 39: Demo-Karts aus Registry + Hz-Liste entfernen (Meta/Namen
+  // bleiben in localStorage erhalten; DE:MO:* wird nie persistiert).
+  (state.demo.karts || []).forEach(dk => {
+    state.karts.forget(dk.mac);
+    if (state._kartHz) delete state._kartHz[dk.mac];
+  });
+  state.demo.karts = [];
+  state.activeKartMac = state.karts.activeMac();
+  if (window.RasiKartBar) RasiKartBar.render(state);
+  if (window.renderConnectionTab) renderConnectionTab();
 }
 function demoTick() {
   try {
     state.demo.t += 0.08;
-    state.demo.angle += (Math.PI * 2) / 1038; // ~83s/lap
-    const a = state.demo.angle;
     const C = { lat: 49.6, lon: 6.12 };
     const RAD = 0.00033, WOB = 0.000028;
-    const wob = WOB * Math.sin(a * 4.5 + 0.3);
-    const lat = C.lat + Math.sin(a) * RAD * 0.62 + wob;
-    const lon = C.lon + Math.cos(a) * RAD + wob;
-    const curvature = Math.abs(Math.cos(a * 2));
-    const speed = Math.max(0, 72 - 40 * curvature + 6 * Math.sin(state.demo.t * 0.3) + Math.random() * 4);
-    const rpm = Math.max(800, 4500 + 4200 * Math.abs(Math.sin(state.demo.t * 0.45)) - 3000 * curvature + 300 * Math.sin(state.demo.t * 2.1));
-    const gx = 0.6 * Math.sin(state.demo.t * 1.9) + 0.08 * (Math.random() - 0.5);
-    const gy = (2.1 - 1.2 * curvature) * Math.sin(a * 2 + 0.2) + 0.15 * (Math.random() - 0.5);
-    // Process as if from telemetry
-    processTelemetry({
-      speed, rpm, gx, gy, lat, lon,
-      gps_fix: 1, fix: 1,
-      seq: (state.connection.seq || 0) + 1,
-      from_mac: 'DE:MO:RA:SI:00:01',
-      rssi: -52
-    });
-    onGpsUpdate(lat, lon);
+    const tt = state.demo.t;
+    state._kartHz = state._kartHz || {};
+    // Phase 39: ein Paket je Demo-Kart pro Tick (~12 Hz) — eigene MAC,
+    // Pace-Spreizung, RSSI-Jitter, langsam fallender Akku.
+    for (const dk of (state.demo.karts || [])) {
+      dk.angle += ((Math.PI * 2) / 1038) * dk.pace;   // ~83 s/Runde x Pace
+      const a = dk.angle;
+      const wob = WOB * Math.sin(a * 4.5 + 0.3);
+      const lat = C.lat + Math.sin(a) * RAD * 0.62 + wob;
+      const lon = C.lon + Math.cos(a) * RAD + wob;
+      const curvature = Math.abs(Math.cos(a * 2));
+      const speed = Math.max(0, (72 - 40 * curvature + 6 * Math.sin(tt * 0.3 + a) + Math.random() * 4) * dk.pace);
+      const rpm = Math.max(800, 4500 + 4200 * Math.abs(Math.sin(tt * 0.45 + a)) - 3000 * curvature + 300 * Math.sin(tt * 2.1));
+      const gx = 0.6 * Math.sin(tt * 1.9 + a) + 0.08 * (Math.random() - 0.5);
+      const gy = (2.1 - 1.2 * curvature) * Math.sin(a * 2 + 0.2) + 0.15 * (Math.random() - 0.5);
+      dk.seq = (dk.seq + 1) % 65536;
+      dk.soc = Math.max(5, dk.soc - 0.0009);          // langsam fallender Akku
+      const pkt = {
+        speed, rpm, gx, gy, lat, lon,
+        gps_fix: 1, fix: 1,
+        seq: dk.seq, from_mac: dk.mac,
+        rssi: dk.rssi + Math.round(Math.random() * 6 - 3),
+      };
+      if (dk.seq % 25 === 0) {                         // Batterie ~alle 2 s
+        pkt.soc = Math.round(dk.soc);
+        pkt.vbat = +(10.5 + 2.1 * (dk.soc / 100)).toFixed(2);
+      }
+      state._kartHz[dk.mac] = 12;                      // 80-ms-Tick ≈ 12 Hz
+      processTelemetry(pkt);
+      if (dk.mac === state.activeKartMac) onGpsUpdate(lat, lon);
+    }
   } catch (e) { console.warn('demoTick:', e); }
 }
 function generateDemoTrack() {

@@ -19,25 +19,6 @@
     return (ms && typeof fmtMs === 'function') ? fmtMs(ms) : '--:--.---';
   }
 
-  // Phase 36: runden-lokaler Streckenfortschritt je Teilnehmer-Kart (Meter ab
-  // Start/Ziel). Ohne Strecke -> null fuer alle (Ranking faellt auf Runden
-  // zurueck, Gap zeigt "--").
-  function buildProgress(state, r) {
-    const out = {};
-    const pts = state.track && state.track.points;
-    const trackLen = (pts && pts.length > 1) ? traceDistanceM(pts) : 0;
-    const gateOff = (trackLen > 0 && state.startGate && state.startGate.lat)
-      ? trackProgressM({ lat: state.startGate.lat, lon: state.startGate.lon }, pts) : 0;
-    RasiLapEngine.participantsOf(r).forEach(p => {
-      const kk = state.karts.has(p.mac) ? state.karts.get(p.mac) : null;
-      const t = kk && kk.telemetry;
-      out[p.mac] = (t && t.lat && t.lon)
-        ? lapProgressM(trackProgressM({ lat: t.lat, lon: t.lon }, pts), gateOff, trackLen)
-        : null;
-    });
-    return out;
-  }
-
   // Phase 36: ein Delta formatieren ("+N Runde(n)" bei Runden-Rueckstand,
   // sonst "+N m" Streckenabstand). Fuer Gap (zum Fuehrenden) + Int (zum Vordermann).
   function fmtDelta(lapGap, distM) {
@@ -66,24 +47,20 @@
     const now = Date.now();
     // Phase 31: Positions-Ranking nur bei laufendem Rennen mit >=2 Teilnehmern.
     const r = (typeof activeRace === 'function') ? activeRace() : null;
-    // Phase 36: Strecke vorhanden? -> sonst Gap "--" (Ranking nach Runden).
-    const hasTrack = !!(state.track && state.track.points && state.track.points.length > 1);
-    const ranking = (r && r.status === 'running'
-                     && RasiLapEngine.participantsOf(r).length >= 2)
-      ? RasiLapEngine.rankParticipants(r, buildProgress(state, r))
-      : null;
+    // Phase 39: gemeinsames, memoisiertes Ranking aus kart-rank.js.
+    const rr = window.RasiKartRank ? RasiKartRank.ranking(state, r) : null;
+    const hasTrack = !!(rr && rr.hasTrack);
     // Phase 32: Halter der schnellsten Runde (lila Markierung), nur bei aktivem Ranking.
-    const flHolder = ranking ? RasiLapEngine.fastestLapHolder(r) : null;
-    const posByMac = {};
+    const flHolder = rr ? RasiLapEngine.fastestLapHolder(r) : null;
+    const posByMac = rr ? rr.posByMac : {};
     let orderedMacs = macs;
-    if (ranking) {
-      ranking.forEach(e => { posByMac[e.mac] = e; });
-      orderedMacs = ranking.map(e => e.mac).filter(m => macs.includes(m))
+    if (rr) {
+      orderedMacs = rr.ranked.map(e => e.mac).filter(m => macs.includes(m))
         .concat(macs.filter(m => !(m in posByMac)));
       // Phase 33: Aufsteiger erkennen -> Glow-Zeitstempel; Vorpositionen merken.
-      RasiLapEngine.positionGains(prevPosByMac, ranking).forEach(mac => { overtakeAtByMac[mac] = now; });
+      RasiLapEngine.positionGains(prevPosByMac, rr.ranked).forEach(mac => { overtakeAtByMac[mac] = now; });
       const _np = {};
-      ranking.forEach(e => { _np[e.mac] = e.pos; });
+      rr.ranked.forEach(e => { _np[e.mac] = e.pos; });
       prevPosByMac = _np;
     } else {
       // Kein aktives Ranking -> Overtake-State zuruecksetzen (frischer Start).
@@ -101,11 +78,24 @@
       const lapCur = k.lapStart ? lap(now - k.lapStart) : '--:--.---';
       const lapBest = lap(k.bestLapMs);
       // Phase 30: Rundenzahl dieses Karts im aktiven Rennen (Teilnehmer-Slot).
-      const _part = (r && r.participants) ? r.participants[mac] : null;
+      const _part = RasiLapEngine.partOf(r, mac);
       const lapCount = _part ? RasiLapEngine.partValidLaps(_part).length : 0;
-      const bestNum = k.bestLapNum
+      // Phase 39: letzte Runde + aktueller Fahrer dieses Karts.
+      const _lastLap = _part && _part.laps.length ? _part.laps[_part.laps.length - 1] : null;
+      const lapLast = _lastLap ? lap(_lastLap.timeMs) : '--:--.---';
+      const _drv = (_part && _part.currentDriverId)
+        ? state.drivers.find(d => d.id === _part.currentDriverId) : null;
+      const bestNum = (k.bestLapNum
         ? ('Runde ' + lapCount + ' · Best R' + k.bestLapNum)
-        : (lapCount ? ('Runde ' + lapCount) : 'Noch keine Rundenzeit');
+        : (lapCount ? ('Runde ' + lapCount) : 'Noch keine Rundenzeit'))
+        + (_drv ? ' · ' + esc(_drv.name) : '');
+      // Phase 39: Verbindungs-Fusszeile; bei stale stattdessen Paket-Alter.
+      const _hz = (state._kartHz && state._kartHz[mac] != null) ? state._kartHz[mac] : '--';
+      const _rssi = (k.connection.rssi != null) ? (k.connection.rssi + ' dBm') : '--';
+      const _batt = (k.batt && k.batt.present) ? ' · ' + (k.batt.soc | 0) + '%' : '';
+      const foot = stale
+        ? ('⚠ vor ' + Math.round(age / 1000) + ' s')
+        : (_rssi + ' · ' + _hz + ' Hz' + _batt);
       const rec = k.recording.armed ? '<span class="ko-rec">●REC</span>' : '';
       // Phase 31: Positions-Badge + Gap. Phase 32: Gap·Int + Fastest-Lap-Markierung.
       const pe = posByMac[mac];
@@ -122,8 +112,10 @@
         +   '<span class="ko-name" style="color:' + m.color + '">' + esc(m.name) + '</span>' + rec + flBadge + '</div>'
         + '<div class="ko-speed">' + speed + '<small>km/h</small></div>'
         + '<div class="ko-row"><span class="ko-l">Aktuelle Runde</span><span class="ko-v">' + lapCur + '</span></div>'
+        + '<div class="ko-row"><span class="ko-l">Letzte Runde</span><span class="ko-v">' + lapLast + '</span></div>'
         + '<div class="ko-row"><span class="ko-l">Beste Runde</span><span class="' + bestCls + '">' + lapBest + '</span></div>'
         + '<div class="ko-sub">' + bestNum + '</div>' + gapRow
+        + '<div class="ko-foot">' + foot + '</div>'
         + '</div>';
     }).join('');
     el.querySelectorAll('.ko-card').forEach(card => {

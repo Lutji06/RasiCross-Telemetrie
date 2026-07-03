@@ -20,8 +20,9 @@ function raceValidLaps(r) { return r ? RasiLapEngine.flatValidLaps(r) : []; }
 // Teilnehmer-Slot des aktuell aktiven Karts (legt bei Bedarf an).
 function activePart(r) {
   if (!r) return null;
+  // Phase 39: reiner Lookup — Rendern darf keine Teilnehmer anlegen.
   const mac = state.activeKartMac || KartRegistry.DEFAULT_MAC;
-  return RasiLapEngine.getOrCreatePart(r, mac, r.startDriverId, r.startedAt || Date.now());
+  return RasiLapEngine.partOf(r, mac);
 }
 function raceElapsedMs(r) {
   if (!r || !r.startedAt) return 0;

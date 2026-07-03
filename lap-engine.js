@@ -65,6 +65,15 @@
     return r.participants[mac];
   }
 
+  // Phase 39: reiner Teilnehmer-Lookup — legt NIE an (Gegenteil von
+  // getOrCreatePart). Render-/Lese-Pfade nutzen dies, damit bloßes Anzeigen
+  // keine Phantom-Teilnehmer in (auch beendete) Rennen schreibt.
+  function partOf(r, mac) {
+    if (!r || !r.participants || mac == null) return null;
+    return Object.prototype.hasOwnProperty.call(r.participants, mac)
+      ? r.participants[mac] : null;
+  }
+
   function flatLaps(r) {
     var ps = participantsOf(r), out = [];
     for (var i = 0; i < ps.length; i++) {
@@ -221,6 +230,7 @@
     migrateRace: migrateRace,
     participantsOf: participantsOf,
     getOrCreatePart: getOrCreatePart,
+    partOf: partOf,
     flatLaps: flatLaps,
     flatValidLaps: flatValidLaps,
     flatStints: flatStints,

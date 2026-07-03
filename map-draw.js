@@ -145,30 +145,17 @@ function drawKartMarkersOn(c, ctx) {
     const macs = state.karts.macs();
     // Positionsnummern nur bei laufendem Rennen mit >=2 Teilnehmern.
     const r = (typeof activeRace === 'function') ? activeRace() : null;
+    // Phase 39: gemeinsames, memoisiertes Ranking (kart-rank.js) statt
+    // eigener trackProgressM-Rechnung pro Frame.
+    const rr = window.RasiKartRank ? RasiKartRank.ranking(state, r) : null;
     let posByMac = null;
-    const _parts = (r && r.status === 'running' && typeof RasiLapEngine !== 'undefined')
-      ? RasiLapEngine.participantsOf(r) : [];
-    if (_parts.length >= 2) {
-      // Phase 36: Reihenfolge nach Streckenfortschritt (Meter ab Start/Ziel).
-      const pts = state.track && state.track.points;
-      const trackLen = (pts && pts.length > 1) ? traceDistanceM(pts) : 0;
-      const gateOff = (trackLen > 0 && state.startGate && state.startGate.lat)
-        ? trackProgressM({ lat: state.startGate.lat, lon: state.startGate.lon }, pts) : 0;
-      const prog = {};
-      _parts.forEach(p => {
-        const kk = state.karts.has(p.mac) ? state.karts.get(p.mac) : null;
-        const tl = kk && kk.telemetry;
-        prog[p.mac] = (tl && tl.lat && tl.lon)
-          ? lapProgressM(trackProgressM({ lat: tl.lat, lon: tl.lon }, pts), gateOff, trackLen)
-          : null;
-      });
-      const ranked = RasiLapEngine.rankParticipants(r, prog);
+    if (rr) {
       posByMac = {};
-      ranked.forEach(e => { posByMac[e.mac] = e.pos; });
+      rr.ranked.forEach(e => { posByMac[e.mac] = e.pos; });
       // Phase 34: Aufsteiger -> Overtake-Ring-Zeitstempel; Vorpositionen merken.
-      RasiLapEngine.positionGains(_prevPosByMac, ranked).forEach(mac => { _overtakeAtByMac[mac] = now; });
+      RasiLapEngine.positionGains(_prevPosByMac, rr.ranked).forEach(mac => { _overtakeAtByMac[mac] = now; });
       const _np = {};
-      ranked.forEach(e => { _np[e.mac] = e.pos; });
+      rr.ranked.forEach(e => { _np[e.mac] = e.pos; });
       _prevPosByMac = _np;
     } else {
       // Kein aktives Ranking -> Overtake-State zuruecksetzen.
