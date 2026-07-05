@@ -399,23 +399,37 @@ function buildRaceDataForKart(mac) {
 // Sendekriterium (D1-gamma): nur bei struktureller Aenderung oder
 // alle 5 s als Keepalive. Spart RF-Traffic; OLED-Uhr laeuft kart-
 // seitig per utime weiter.
-let _lastDisplayKey = '';
-let _lastDisplayAt = 0;
+// Phase 40: Dedupe pro Ziel-MAC — jedes Kart bekommt SEINE Daten.
+let _lastDisplayKeyByMac = {};
+let _lastDisplayAtByMac = {};
 const RC_DISPLAY_KEEPALIVE_MS = 5000;
 function sendDisplayUpdate() {
   if (state.connection.source !== 'serial' || !state.serial.connected) return;
   if (!window.rasiSerial?.writeLine) return;
-  const payload = buildRaceDataForKart();
-  if (!payload) return;
-  const key = structuralRaceKey(payload);
   const now = Date.now();
-  if (key === _lastDisplayKey && (now - _lastDisplayAt) < RC_DISPLAY_KEEPALIVE_MS) return;
-  try {
-    window.rasiBridgeSend(payload);   // an den ausgewaehlten Kart (target_mac)
-    _lastDisplayKey = key;
-    _lastDisplayAt = now;
-  } catch (e) {
-    // stumm - keine Hupe wenn der Sender mal nicht erreichbar ist
+  // Leere Registry -> ein Paket ohne target_mac (Bridge-Fallback = zuletzt
+  // gehoerter Kart, bisheriges Single-Kart-Verhalten).
+  const macs = state.karts.macs();
+  const targets = macs.length ? macs : [null];
+  for (const mac of targets) {
+    // Demo-Karts sind keine Funk-Ziele (Mischfall Serial + Demo-Reste).
+    if (mac && mac.indexOf('DE:MO:') === 0) continue;
+    const payload = buildRaceDataForKart(mac || undefined);
+    if (!payload) continue;
+    const dedupeKey = mac || '_single';
+    const key = structuralRaceKey(payload);
+    if (key === _lastDisplayKeyByMac[dedupeKey]
+        && (now - (_lastDisplayAtByMac[dedupeKey] || 0)) < RC_DISPLAY_KEEPALIVE_MS) continue;
+    // target_mac explizit setzen — der rasiBridgeSend-Default wuerde sonst
+    // immer den AKTIVEN Kart adressieren. default-Bucket: Bridge-Fallback.
+    if (mac && mac !== KartRegistry.DEFAULT_MAC) payload.target_mac = mac;
+    try {
+      window.rasiBridgeSend(payload);
+      _lastDisplayKeyByMac[dedupeKey] = key;
+      _lastDisplayAtByMac[dedupeKey] = now;
+    } catch (e) {
+      // stumm - keine Hupe wenn der Sender mal nicht erreichbar ist
+    }
   }
 }
 
