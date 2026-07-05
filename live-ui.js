@@ -159,23 +159,26 @@ let _lastDeltaUpdate = 0;
 function updateLiveDelta() {
   if (Date.now() - _lastDeltaUpdate < 500) return;
   _lastDeltaUpdate = Date.now();
+  // Phase 40: Delta fuer ALLE Karts (per-Kart-OLED). Kernrechnung ist
+  // nearestTraceDelta (geo.js, getestet); DOM-Banner speist weiterhin
+  // nur der aktive Kart (Fassade state.liveDelta).
+  for (const mac of state.karts.macs()) {
+    const k = state.karts.get(mac);
+    if (!k) continue;
+    if (!k.lapStart || !k.bestLapTrace || !k.currentLapTrace.length) {
+      k.liveDelta = null;
+      continue;
+    }
+    const cur = k.currentLapTrace[k.currentLapTrace.length - 1];
+    const d = nearestTraceDelta(k.bestLapTrace, cur);
+    if (d != null) k.liveDelta = d;
+  }
   const banner = $('deltaBanner');
-  if (!state.lapStart || !state.bestLapTrace || state.bestLapTrace.length < 5 || !state.currentLapTrace.length) {
-    state.liveDelta = null;
+  if (state.liveDelta == null) {
     if (banner) banner.classList.add('hidden');
     return;
   }
-  // Find time on best lap at same GPS position
-  const cur = state.currentLapTrace[state.currentLapTrace.length - 1];
-  if (!cur || !cur.lat || !cur.lon) return;
-  let bestT = null, minD = Infinity;
-  for (const p of state.bestLapTrace) {
-    const d = (p.lat - cur.lat) ** 2 + (p.lon - cur.lon) ** 2;
-    if (d < minD) { minD = d; bestT = p.t; }
-  }
-  if (bestT == null) return;
-  const delta = cur.t - bestT;
-  state.liveDelta = delta;
+  const delta = state.liveDelta;
   if (banner) banner.classList.remove('hidden');
   const tEl = $('deltaTime');
   if (tEl) {
