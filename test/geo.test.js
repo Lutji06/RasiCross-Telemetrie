@@ -249,3 +249,31 @@ test('lapProgressM: normalizes raw progress relative to the gate, modulo length'
 test('lapProgressM: returns null when track length is non-positive', () => {
   assert.equal(geo.lapProgressM(100, 0, 0), null);
 });
+
+test('nearestTraceDelta: Delta zum raeumlich naechsten Best-Trace-Punkt', () => {
+  const best = [
+    { t: 1000, lat: 49.0000, lon: 6.0000 },
+    { t: 2000, lat: 49.0001, lon: 6.0001 },
+    { t: 3000, lat: 49.0002, lon: 6.0002 },
+    { t: 4000, lat: 49.0003, lon: 6.0003 },
+    { t: 5000, lat: 49.0004, lon: 6.0004 },
+  ];
+  // Aktuelle Position exakt auf Punkt t=3000, aktuelle Rundenzeit 3500 -> +500
+  assert.equal(geo.nearestTraceDelta(best, { t: 3500, lat: 49.0002, lon: 6.0002 }), 500);
+  // Schneller unterwegs: t=2500 an derselben Stelle -> -500
+  assert.equal(geo.nearestTraceDelta(best, { t: 2500, lat: 49.0002, lon: 6.0002 }), -500);
+});
+
+test('nearestTraceDelta: null bei kurzer Trace oder fehlender Position', () => {
+  const short = [
+    { t: 1, lat: 49, lon: 6 }, { t: 2, lat: 49, lon: 6 },
+    { t: 3, lat: 49, lon: 6 }, { t: 4, lat: 49, lon: 6 },
+  ];
+  assert.equal(geo.nearestTraceDelta(short, { t: 5, lat: 49, lon: 6 }), null);
+  assert.equal(geo.nearestTraceDelta(null, { t: 5, lat: 49, lon: 6 }), null);
+  const ok = short.concat([{ t: 5, lat: 49, lon: 6 }]);
+  assert.equal(geo.nearestTraceDelta(ok, null), null);
+  // lat/lon 0 gilt wie in der alten Inline-Pruefung (!cur.lat) als ungueltig
+  assert.equal(geo.nearestTraceDelta(ok, { t: 5, lat: 0, lon: 6 }), null);
+  assert.equal(geo.nearestTraceDelta(ok, { lat: 49, lon: 6 }), null);
+});

@@ -310,14 +310,23 @@ function toggleDiagnose() {
 // ============================================================
 let _pitCallActive = false;
 let _pitCallTimer = null;
+// Phase 40: Ziel-Kart des laufenden Pit-Calls — nur dessen Display-Payload
+// bekommt pit:true.
+let _pitCallMac = null;
 
 // ============================================================
 // Dashboard → Kart: Live Race-Display Update
 // ============================================================
-function buildRaceDataForKart() {
+function buildRaceDataForKart(mac) {
+  // Phase 40: Payload fuer EINEN Kart (Bucket + Teilnehmer-Slot). Ohne
+  // Argument: aktiver Kart (bisheriges Verhalten der Aufrufer).
+  mac = mac || state.activeKartMac || KartRegistry.DEFAULT_MAC;
   const r = activeRace();
-  // Auch ohne Race wird page-Auswahl uebermittelt (kleines Paket)
-  if (!r || (r.status !== 'running' && r.status !== 'paused')) {
+  const k = state.karts.has(mac) ? state.karts.get(mac) : null;
+  const part = r ? RasiLapEngine.partOf(r, mac) : null;
+  // Ohne Race/Bucket/Teilnahme wird nur die page-Auswahl uebermittelt
+  // (kleines Paket; die OLED-Page-Wahl ist global).
+  if (!r || (r.status !== 'running' && r.status !== 'paused') || !k || !part) {
     return {
       type: 'display',
       page: state.settings.oledPage || 'auto',
@@ -325,34 +334,34 @@ function buildRaceDataForKart() {
       sectors: ['open', 'open', 'open'],
     };
   }
-  const drv = state.drivers.find(d => d.id === r.currentDriverId);
+  // Phase 40: Fahrer DIESES Karts (Teilnehmer-Slot, per-Kart seit Phase 35).
+  const drv = state.drivers.find(d => d.id === part.currentDriverId);
   // Sektor-States: 'done' bei abgeschlossenen, 'current' beim aktiven, 'open' sonst
-  const cur = state.sectorsLive.cur || 0;
-  const lapSec = state.sectorsLive.lapSectors || [null, null, null];
+  const cur = k.sectorsLive.cur || 0;
+  const lapSec = k.sectorsLive.lapSectors || [null, null, null];
   const sectorStates = ["open", "open", "open"];
   for (let i = 0; i < 3; i++) {
     if (lapSec[i] != null) sectorStates[i] = "done";
-    else if (i === cur && state.lapStart) sectorStates[i] = "current";
+    else if (i === cur && k.lapStart) sectorStates[i] = "current";
   }
   // Aktuelle Rundenzeit (mm:ss.SSS)
-  const lapMs = state.lapStart ? Date.now() - state.lapStart : 0;
-  const lapStr = state.lapStart ? fmtMs(lapMs) : "--:--.---";
-  // Delta vs Bestzeit (nur Sektor-Delta wenn gerade Rundenzeit nicht final ist)
+  const lapMs = k.lapStart ? Date.now() - k.lapStart : 0;
+  const lapStr = k.lapStart ? fmtMs(lapMs) : "--:--.---";
+  // Delta vs Bestzeit dieses Karts (per-Kart-liveDelta, Phase 40/Task 2)
   let deltaStr = "--";
   let liveDeltaStr = "--";
   let liveDeltaMs = null;
-  if (state.liveDelta != null) {
-    const sign = state.liveDelta >= 0 ? "+" : "";
-    liveDeltaStr = sign + (state.liveDelta / 1000).toFixed(3);
-    liveDeltaMs = state.liveDelta;
+  if (k.liveDelta != null) {
+    const sign = k.liveDelta >= 0 ? "+" : "";
+    liveDeltaStr = sign + (k.liveDelta / 1000).toFixed(3);
+    liveDeltaMs = k.liveDelta;
     deltaStr = liveDeltaStr;
   }
-  // Bestzeit als string
-  const bestStr = state.bestLapMs ? fmtMs(state.bestLapMs) : "--";
-  // Runden-Counter — Phase 32: Runden des AKTIVEN Karts (Teilnehmer-Slot),
-  // nicht die Summe aller Karts (raceValidLaps aggregiert seit Phase 30).
-  const _oledPart = RasiLapEngine.partOf(r, state.activeKartMac || KartRegistry.DEFAULT_MAC);
-  const validLaps = RasiLapEngine.partValidLaps(_oledPart).length;
+  // Bestzeit dieses Karts (Teilnehmer-Slot, Fallback Registry-Bucket)
+  const bestMs = part.bestLapMs != null ? part.bestLapMs : k.bestLapMs;
+  const bestNum = part.bestLapNum != null ? part.bestLapNum : k.bestLapNum;
+  const bestStr = bestMs ? fmtMs(bestMs) : "--";
+  const validLaps = RasiLapEngine.partValidLaps(part).length;
   let target = "--";
   if (r.lengthType === 'laps') target = r.targetLaps;
   else if (r.lengthType === 'time') target = "T";
@@ -370,43 +379,57 @@ function buildRaceDataForKart() {
     driver:         driverName,
     num:            driverNum,
     lap:            lapStr,
-    lap_ms:         state.lapStart ? lapMs : null,    // Kart-seitiger Anker
+    lap_ms:         k.lapStart ? lapMs : null,    // Kart-seitiger Anker
     lapn:           validLaps + 1,
     target:         target,
     delta:          deltaStr,
     live_delta:     liveDeltaStr,
     live_delta_ms:  liveDeltaMs,
-    live_delta_ref: state.bestLapNum || null,
+    live_delta_ref: bestNum || null,
     best_lap:       bestStr,
     sectors:        sectorStates,
     elapsed_ms:     elapsedMs,
     remaining_ms:   remainingMs,
     length_type:    r.lengthType,
     page:           state.settings.oledPage || 'auto',
-    running:        r.status === 'running' && !!state.lapStart,
-    pit:            !!_pitCallActive,
+    running:        r.status === 'running' && !!k.lapStart,
+    pit:            !!(_pitCallActive && _pitCallMac === mac),
   };
 }
 // Sendekriterium (D1-gamma): nur bei struktureller Aenderung oder
 // alle 5 s als Keepalive. Spart RF-Traffic; OLED-Uhr laeuft kart-
 // seitig per utime weiter.
-let _lastDisplayKey = '';
-let _lastDisplayAt = 0;
+// Phase 40: Dedupe pro Ziel-MAC — jedes Kart bekommt SEINE Daten.
+let _lastDisplayKeyByMac = {};
+let _lastDisplayAtByMac = {};
 const RC_DISPLAY_KEEPALIVE_MS = 5000;
 function sendDisplayUpdate() {
   if (state.connection.source !== 'serial' || !state.serial.connected) return;
   if (!window.rasiSerial?.writeLine) return;
-  const payload = buildRaceDataForKart();
-  if (!payload) return;
-  const key = structuralRaceKey(payload);
   const now = Date.now();
-  if (key === _lastDisplayKey && (now - _lastDisplayAt) < RC_DISPLAY_KEEPALIVE_MS) return;
-  try {
-    window.rasiBridgeSend(payload);   // an den ausgewaehlten Kart (target_mac)
-    _lastDisplayKey = key;
-    _lastDisplayAt = now;
-  } catch (e) {
-    // stumm - keine Hupe wenn der Sender mal nicht erreichbar ist
+  // Leere Registry -> ein Paket ohne target_mac (Bridge-Fallback = zuletzt
+  // gehoerter Kart, bisheriges Single-Kart-Verhalten).
+  const macs = state.karts.macs();
+  const targets = macs.length ? macs : [null];
+  for (const mac of targets) {
+    // Demo-Karts sind keine Funk-Ziele (Mischfall Serial + Demo-Reste).
+    if (mac && mac.indexOf('DE:MO:') === 0) continue;
+    const payload = buildRaceDataForKart(mac || undefined);
+    if (!payload) continue;
+    const dedupeKey = mac || '_single';
+    const key = structuralRaceKey(payload);
+    if (key === _lastDisplayKeyByMac[dedupeKey]
+        && (now - (_lastDisplayAtByMac[dedupeKey] || 0)) < RC_DISPLAY_KEEPALIVE_MS) continue;
+    // target_mac explizit setzen — der rasiBridgeSend-Default wuerde sonst
+    // immer den AKTIVEN Kart adressieren. default-Bucket: Bridge-Fallback.
+    if (mac && mac !== KartRegistry.DEFAULT_MAC) payload.target_mac = mac;
+    try {
+      window.rasiBridgeSend(payload);
+      _lastDisplayKeyByMac[dedupeKey] = key;
+      _lastDisplayAtByMac[dedupeKey] = now;
+    } catch (e) {
+      // stumm - keine Hupe wenn der Sender mal nicht erreichbar ist
+    }
   }
 }
 
@@ -450,6 +473,7 @@ function togglePitCall() {
     // Bereits aktiv -> abbrechen
     cancelPitCall();
     _pitCallActive = false;
+    _pitCallMac = null;
     btn.classList.remove('active');
     btn.textContent = '📢 BOX';
     if (_pitCallTimer) { clearTimeout(_pitCallTimer); _pitCallTimer = null; }
@@ -460,11 +484,13 @@ function togglePitCall() {
   if (state.connection.source === 'demo') {
     // Demo: lokal zeigen (kein echter ESP)
     _pitCallActive = true;
+    _pitCallMac = state.activeKartMac || KartRegistry.DEFAULT_MAC;
     btn.classList.add('active');
     btn.textContent = '⏹ STOP';
     rcToast('Demo: Pit-Call aktiviert (15s)', 2500);
     _pitCallTimer = setTimeout(() => {
       _pitCallActive = false;
+      _pitCallMac = null;
       btn.classList.remove('active');
       btn.textContent = '📢 BOX';
       _pitCallTimer = null;
@@ -473,11 +499,13 @@ function togglePitCall() {
   }
   if (sendPitCall('PIT STOP', 15000)) {
     _pitCallActive = true;
+    _pitCallMac = state.activeKartMac || KartRegistry.DEFAULT_MAC;
     btn.classList.add('active');
     btn.textContent = '⏹ STOP';
     rcToast('Pit-Call gesendet — Mäher wird benachrichtigt', 3000);
     _pitCallTimer = setTimeout(() => {
       _pitCallActive = false;
+      _pitCallMac = null;
       btn.classList.remove('active');
       btn.textContent = '📢 BOX';
       _pitCallTimer = null;
