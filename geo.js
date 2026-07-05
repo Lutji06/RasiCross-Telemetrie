@@ -186,6 +186,24 @@ function lapProgressM(rawProgress, gateOff, trackLen) {
   return ((rawProgress - gateOff) % trackLen + trackLen) % trackLen;
 }
 
+// Live-Delta-Kern (Phase 40): Zeitdifferenz zum raeumlich naechsten Punkt
+// der Best-Lap-Trace (quadratischer lat/lon-Abstand — identisch zur alten
+// Inline-Rechnung in updateLiveDelta). Total: null statt Wurf bei kaputten
+// Eingaben (<5 Trace-Punkte, fehlende Position/Zeit).
+function nearestTraceDelta(bestTrace, cur) {
+  if (!Array.isArray(bestTrace) || bestTrace.length < 5) return null;
+  if (!cur || !cur.lat || !cur.lon || typeof cur.t !== 'number') return null;
+  var bestT = null, minD = Infinity;
+  for (var i = 0; i < bestTrace.length; i++) {
+    var p = bestTrace[i];
+    if (!p) continue;
+    var d = (p.lat - cur.lat) * (p.lat - cur.lat)
+          + (p.lon - cur.lon) * (p.lon - cur.lon);
+    if (d < minD) { minD = d; bestT = p.t; }
+  }
+  return bestT == null ? null : cur.t - bestT;
+}
+
 // ── UMD-style export ────────────────────────────────────────
 (function () {
   var api = {
@@ -195,7 +213,8 @@ function lapProgressM(rawProgress, gateOff, trackLen) {
     crossingDirectionOk: crossingDirectionOk, lineEndpointsFromGate: lineEndpointsFromGate,
     structuralRaceKey: structuralRaceKey, ghostPointAt: ghostPointAt,
     declutterLabels: declutterLabels,
-    trackProgressM: trackProgressM, lapProgressM: lapProgressM
+    trackProgressM: trackProgressM, lapProgressM: lapProgressM,
+    nearestTraceDelta: nearestTraceDelta
   };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
   if (typeof window !== 'undefined') {

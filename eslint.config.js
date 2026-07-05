@@ -16,6 +16,7 @@ const geoGlobals = {
   structuralRaceKey: 'readonly', ghostPointAt: 'readonly',
   declutterLabels: 'readonly',
   trackProgressM: 'readonly', lapProgressM: 'readonly',
+  nearestTraceDelta: 'readonly',
 };
 
 // Kern-Helfer + State, die rasicross.js global definiert und die die
