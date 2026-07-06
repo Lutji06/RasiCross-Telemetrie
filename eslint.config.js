@@ -152,6 +152,24 @@ module.exports = [
     rules: bugRules,
   },
 
+  // Playwright-Smoke-Suite (Phase 41) -- Node/CommonJS; die evaluate-
+  // Callbacks laufen im Renderer und referenzieren App-Globals.
+  {
+    files: ['e2e/**/*.js', 'playwright.config.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'commonjs',
+      globals: {
+        ...globals.node, ...globals.browser,
+        state: 'readonly', activeKart: 'readonly', activeRace: 'readonly',
+        toggleRaceRun: 'readonly', endRace: 'readonly',
+        buildRaceDataForKart: 'readonly', RasiReplay: 'readonly',
+        enterReplay: 'readonly', exitReplay: 'readonly',
+      },
+    },
+    rules: bugRules,
+  },
+
   // Pure UMD-Module -- laufen im Browser und unter node:test
   {
     files: ['geo.js', 'replay.js', 'lap-engine.js', 'karts3d.js', 'kart-registry.js'],

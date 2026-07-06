@@ -23,3 +23,7 @@ Thumbs.db
 # Claude Code — lokale, nutzerspezifische Agent-Einstellungen
 .claude/settings.local.json
 .superpowers/
+
+# Playwright-Smoke (Phase 41)
+test-results/
+playwright-report/
