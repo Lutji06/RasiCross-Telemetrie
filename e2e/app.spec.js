@@ -20,3 +20,24 @@ test('App startet ohne Konsolen-Fehler', async () => {
   await page.waitForTimeout(2000);
   expect(errors).toEqual([]);
 });
+
+const TABS = ['live', 'detail', 'races', 'drivers', 'track', 'connection', 'settings'];
+
+test('alle Tabs rendern', async () => {
+  for (const tab of TABS) {
+    await page.click(`.nav-item[data-tab="${tab}"]`);
+    const section = page.locator(`#tab-${tab}`);
+    await expect(section).toHaveClass(/active/);
+    await expect(section).toBeVisible();
+    // Sektion hat Inhalt (tab-settings wird von settings.js zur Laufzeit
+    // befuellt -> ueber waitForFunction statt Sofort-Assert).
+    await page.waitForFunction(
+      (id) => {
+        const el = document.getElementById(id);
+        return !!el && el.innerHTML.trim().length > 0;
+      },
+      `tab-${tab}`
+    );
+  }
+  expect(errors).toEqual([]);
+});
