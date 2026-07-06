@@ -47,3 +47,50 @@ test('Demo erzeugt 3 Karts mit laufenden Rundenzeiten', async () => {
   for (const ms of lapMs) expect(ms).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
+
+test('Rennen pausieren, fortsetzen und beenden', async () => {
+  // startDemo() hat automatisch ein Demo-Race angelegt und gestartet.
+  await page.waitForFunction(() => {
+    const r = activeRace();
+    return !!r && r.status === 'running';
+  });
+  // Pausieren + Fortsetzen ueber dieselbe Funktion, die startRaceBtn bindet
+  // (rasicross.js init: startRaceBtn.onclick = toggleRaceRun).
+  await page.evaluate(() => toggleRaceRun());
+  expect(await page.evaluate(() => activeRace().status)).toBe('paused');
+  await page.evaluate(() => toggleRaceRun());
+  expect(await page.evaluate(() => activeRace().status)).toBe('running');
+  // Beenden (endRaceBtn.onclick = () => endRace(false))
+  const raceId = await page.evaluate(() => activeRace().id);
+  await page.evaluate(() => endRace(false));
+  const status = await page.evaluate((id) => {
+    const r = state.races.find((x) => x.id === id);
+    return r ? r.status : 'gone';
+  }, raceId);
+  expect(status).toBe('finished');
+  expect(errors).toEqual([]);
+});
+
+test('buildRaceDataForKart liefert pro Kart plausible Payloads', async () => {
+  await page.waitForFunction(() => {
+    const r = activeRace();
+    return !!r && r.status === 'running';
+  });
+  const payloads = await page.evaluate(
+    (macs) => macs.map((m) => buildRaceDataForKart(m)),
+    DEMO_MACS
+  );
+  expect(payloads.length).toBe(3);
+  for (const p of payloads) {
+    expect(p.type).toBe('display');
+    // Voll-Payload: Race laeuft + alle Demo-Karts sind Teilnehmer
+    expect(typeof p.lap).toBe('string');
+    expect(p.lapn).toBeGreaterThanOrEqual(1);
+    expect(p.driver).toBeTruthy();
+    expect(Array.isArray(p.sectors)).toBe(true);
+    expect(p.sectors.length).toBe(3);
+    expect(p.page).toBeTruthy();
+    expect(typeof p.running).toBe('boolean');
+  }
+  expect(errors).toEqual([]);
+});
