@@ -1,7 +1,6 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const K = require('../karts3d.js');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import K from '../src/karts3d.js';
 
 const close = (a, b, eps) => Math.abs(a - b) <= (eps == null ? 1e-9 : eps);
 

@@ -6,11 +6,6 @@
 //  globals. Holds the participant data model + lap/sector/best
 //  computations used by races.js / laps-drivers.js / track.js.
 // ============================================================
-(function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.RasiLapEngine = factory();
-}(typeof self !== 'undefined' ? self : this, function () {
-  'use strict';
 
   function bestFromLaps(laps) {
     var ms = null, num = null;
@@ -226,7 +221,8 @@
     return stint;
   }
 
-  return {
+  // ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiLapEngine
+  export default {
     migrateRace: migrateRace,
     participantsOf: participantsOf,
     getOrCreatePart: getOrCreatePart,
@@ -245,4 +241,3 @@
     positionGains: positionGains,
     applyDriverChange: applyDriverChange,
   };
-}));

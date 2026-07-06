@@ -553,29 +553,25 @@ function _disposeGroup(group) {
   } catch (e) { /* ignore */ }
 }
 
-// ── UMD-style export ───────────────────────────────────────
-(function () {
-  var api = {
-    pitchFromG: pitchFromG,
-    rollFromG: rollFromG,
-    resolveRollRad: resolveRollRad,
-    rolloverGlowAlpha: rolloverGlowAlpha,
-    yawIntegrate: yawIntegrate,
-    gViewReducer: gViewReducer,
-    computeAutoFitScale: computeAutoFitScale,
-    kartModelYawReducer: kartModelYawReducer,
-    driftArrowSpec: driftArrowSpec,
-    init: init,
-    update: update,
-    start: start,
-    stop: stop,
-    resetYaw: resetYaw,
-    dispose: dispose,
-    isFailed: isFailed,
-    loadCustomModel: loadCustomModel,
-    resetToPrimitive: resetToPrimitive,
-    setHeadingOffset: setHeadingOffset
-  };
-  if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
-  if (typeof window !== 'undefined') { window.RasiKart3D = api; }
-})();
+// ── ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiKart3D ──
+export default {
+  pitchFromG: pitchFromG,
+  rollFromG: rollFromG,
+  resolveRollRad: resolveRollRad,
+  rolloverGlowAlpha: rolloverGlowAlpha,
+  yawIntegrate: yawIntegrate,
+  gViewReducer: gViewReducer,
+  computeAutoFitScale: computeAutoFitScale,
+  kartModelYawReducer: kartModelYawReducer,
+  driftArrowSpec: driftArrowSpec,
+  init: init,
+  update: update,
+  start: start,
+  stop: stop,
+  resetYaw: resetYaw,
+  dispose: dispose,
+  isFailed: isFailed,
+  loadCustomModel: loadCustomModel,
+  resetToPrimitive: resetToPrimitive,
+  setHeadingOffset: setHeadingOffset
+};

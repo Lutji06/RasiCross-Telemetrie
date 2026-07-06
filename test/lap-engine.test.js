@@ -1,7 +1,6 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const E = require('../lap-engine.js');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import E from '../src/lap-engine.js';
 
 test('module exports all helpers', () => {
   for (const name of ['migrateRace','participantsOf','getOrCreatePart','partOf','flatLaps',

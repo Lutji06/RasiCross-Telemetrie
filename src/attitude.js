@@ -45,9 +45,5 @@ function rolloverStep(st, rollDeg, thr) {
   return { active: active, onset: active && !wasActive };
 }
 
-// ── UMD-style export ────────────────────────────────────────
-(function () {
-  var api = { rollStep: rollStep, rolloverStep: rolloverStep };
-  if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
-  if (typeof window !== 'undefined') { window.RasiAttitude = api; }
-})();
+// ── ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiAttitude ──
+export default { rollStep: rollStep, rolloverStep: rolloverStep };

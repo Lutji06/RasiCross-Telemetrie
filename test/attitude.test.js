@@ -1,7 +1,6 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const att = require('../attitude.js');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import att from '../src/attitude.js';
 
 const approx = (a, b, tol = 1e-3) => assert.ok(Math.abs(a - b) <= tol, `${a} != ${b} (±${tol})`);
 

@@ -204,20 +204,14 @@ function nearestTraceDelta(bestTrace, cur) {
   return bestT == null ? null : cur.t - bestT;
 }
 
-// ── UMD-style export ────────────────────────────────────────
-(function () {
-  var api = {
-    fmtMs: fmtMs, fmtClock: fmtClock, fmtDelta: fmtDelta,
-    gpsDist: gpsDist, traceDistanceM: traceDistanceM,
-    headingFromPoints: headingFromPoints, segmentsCross: segmentsCross,
-    crossingDirectionOk: crossingDirectionOk, lineEndpointsFromGate: lineEndpointsFromGate,
-    structuralRaceKey: structuralRaceKey, ghostPointAt: ghostPointAt,
-    declutterLabels: declutterLabels,
-    trackProgressM: trackProgressM, lapProgressM: lapProgressM,
-    nearestTraceDelta: nearestTraceDelta
-  };
-  if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
-  if (typeof window !== 'undefined') {
-    for (var k in api) { if (Object.prototype.hasOwnProperty.call(api, k)) window[k] = api[k]; }
-  }
-})();
+// ── ESM-Export (Phase 42) ───────────────────────────────────
+export {
+  fmtMs, fmtClock, fmtDelta,
+  gpsDist, traceDistanceM,
+  headingFromPoints, segmentsCross,
+  crossingDirectionOk, lineEndpointsFromGate,
+  structuralRaceKey, ghostPointAt,
+  declutterLabels,
+  trackProgressM, lapProgressM,
+  nearestTraceDelta,
+};

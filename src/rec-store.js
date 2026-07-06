@@ -7,7 +7,6 @@
 //  oder bei Fehlern lehnen die Promises ab und die Aufrufer degradieren
 //  auf das bisherige Nur-RAM-Verhalten.
 // ============================================================
-(function () {
   var DB_NAME = 'rasicross_recordings';
   var DB_VERSION = 1;
   var STORE = 'race_recordings';
@@ -109,8 +108,8 @@
     });
   }
 
-  window.RasiRecStore = {
+  // ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiRecStore
+  export default {
     available: available, keys: keys, put: put, get: get,
     remove: remove, clear: clear, MAX_RECORDINGS: MAX_RECORDINGS
   };
-})();

@@ -1,7 +1,7 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { targetIdsFor, SHARED_ID_MAP } = require('../dom-targets.js');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import DomTargets from '../src/dom-targets.js';
+const { targetIdsFor, SHARED_ID_MAP } = DomTargets;
 
 test('targetIdsFor: unknown key returns empty array', () => {
   assert.deepEqual(targetIdsFor('nope'), []);

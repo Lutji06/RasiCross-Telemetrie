@@ -8,8 +8,8 @@
 //  Nutzt geo.js-Globals (traceDistanceM/trackProgressM/lapProgressM)
 //  und RasiLapEngine — nur zur Laufzeit, kein Top-Level-Code.
 // ============================================================
-(function () {
-  'use strict';
+import { traceDistanceM, trackProgressM, lapProgressM, gpsDist } from './geo.js';
+import RasiLapEngine from './lap-engine.js';
 
   const MEMO_MS = 250;
   let _memo = { at: 0, raceId: null, result: null };
@@ -65,5 +65,5 @@
     } catch (e) { console.warn('RasiKartRank.ranking:', e); return null; }
   }
 
-  window.RasiKartRank = { ranking };
-})();
+  // ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiKartRank
+  export default { ranking };
