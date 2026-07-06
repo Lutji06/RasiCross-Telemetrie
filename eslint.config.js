@@ -162,7 +162,7 @@ module.exports = [
       globals: {
         ...globals.node, ...globals.browser,
         state: 'readonly', activeKart: 'readonly', activeRace: 'readonly',
-        toggleRaceRun: 'readonly', endRace: 'readonly',
+        toggleRaceRun: 'readonly', endRace: 'readonly', armRecording: 'readonly',
         buildRaceDataForKart: 'readonly', RasiReplay: 'readonly',
         enterReplay: 'readonly', exitReplay: 'readonly',
       },
