@@ -1,18 +1,11 @@
-'use strict';
 // ============================================================
 //  karts3d.js — 3D Kart G-Viewer (RasiCross)
-//  UMD-style: pure helpers exported via module.exports for
-//  node:test; DOM/WebGL wrapper attached to window.RasiKart3D
-//  when running in a browser with THREE available.
-//  Dependency-free at module top; the DOM part is gated by
-//  `typeof THREE !== 'undefined'` (see Task 3).
-//  Loaded order in HTML:
-//    geo.js -> replay.js -> vendor/three.min.js -> karts3d.js
-//      -> rasicross.js
-//  Note: Three.js r152 prints a one-time console.warn on load
-//  ("Scripts build/three.js and build/three.min.js are deprecated...")
-//  — that originates inside vendor/three.min.js and is expected.
+//  ESM (Phase 42): three.js kommt als npm-Paket (Tree-Shaking im
+//  Vite-Build), GLTFLoader aus three/addons. Pure Helfer + DOM/
+//  WebGL-Wrapper als ein Default-Export (frueher window.RasiKart3D).
 // ============================================================
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // ── Pure helpers (testable under node:test) ────────────────
 
@@ -209,7 +202,6 @@ function _buildKart() {
 
 // Idempotent. Re-init disposes the previous scene first.
 function init(canvasEl, opts) {
-  if (typeof THREE === 'undefined') { _failed = true; return false; }
   opts = opts || {};
   _gScale = Number(opts.gScale) || 3;
   if (_renderer) { dispose(); }
@@ -468,13 +460,10 @@ function isFailed() { return _failed; }
 // Disposes the previous group's geometry/materials before swapping.
 function loadCustomModel(arrayBuffer, headingDeg) {
   return new Promise(function (resolve) {
-    if (typeof THREE === 'undefined' || typeof THREE.GLTFLoader === 'undefined') {
-      return resolve({ ok: false, error: 'no-loader' });
-    }
     if (_failed || _disposed || !_scene) {
       return resolve({ ok: false, error: 'not-initialised' });
     }
-    var loader = new THREE.GLTFLoader();
+    var loader = new GLTFLoader();
     try {
       loader.parse(arrayBuffer, '', function (gltf) {
         try {
