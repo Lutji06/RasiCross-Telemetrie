@@ -20,11 +20,9 @@ test('Recording/Replay-Roundtrip', async () => {
   await page.click('#modeDemoBtn');
   await page.click('#demoStartBtn');
   await page.waitForFunction(() => state.demo.running === true);
-  // Explizit armieren, NACHDEM startDemo() den aktiven Kart auf Demo-Kart 1
-  // gesetzt hat. (Fund Phase 41: der recordAutoArm-Pfad in startDemo armiert
-  // den VOR dem Demo aktiven Bucket -- seit Phase 39 zeichnen Demo-Karts
-  // darum nichts auf; separater Fix ausserhalb dieser Test-Phase.)
-  await page.evaluate(() => armRecording());
+  // recordAutoArm (Default true) armiert den aktiven Demo-Kart automatisch
+  // (Fix des Phase-41-Funds: armRecording() laeuft in startDemo jetzt NACH
+  // dem setActive auf Demo-Kart 1).
   // ~12 Hz Demo-Pakete: nach wenigen Sekunden liegen >= 20 im Buffer
   await page.waitForFunction(
     () => activeKart().recording.armed === true
