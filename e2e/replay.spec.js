@@ -1,0 +1,53 @@
+'use strict';
+// Smoke: Recording -> Serialize -> Parse -> Replay Roundtrip
+// (Phase 41, Spec-Punkt 6). Prueft zugleich die Kompatibilitaets-
+// garantie: REC_VERSION-9.6-Aufnahmen bleiben abspielbar.
+const { test, expect } = require('@playwright/test');
+const { launchApp, closeApp } = require('./helpers');
+
+let app, page, errors, userData;
+
+test.beforeEach(async () => {
+  ({ app, page, errors, userData } = await launchApp());
+});
+
+test.afterEach(async () => {
+  await closeApp(app, userData);
+});
+
+test('Recording/Replay-Roundtrip', async () => {
+  await page.click('.nav-item[data-tab="connection"]');
+  await page.click('#modeDemoBtn');
+  await page.click('#demoStartBtn');
+  await page.waitForFunction(() => state.demo.running === true);
+  // Explizit armieren, NACHDEM startDemo() den aktiven Kart auf Demo-Kart 1
+  // gesetzt hat. (Fund Phase 41: der recordAutoArm-Pfad in startDemo armiert
+  // den VOR dem Demo aktiven Bucket -- seit Phase 39 zeichnen Demo-Karts
+  // darum nichts auf; separater Fix ausserhalb dieser Test-Phase.)
+  await page.evaluate(() => armRecording());
+  // ~12 Hz Demo-Pakete: nach wenigen Sekunden liegen >= 20 im Buffer
+  await page.waitForFunction(
+    () => activeKart().recording.armed === true
+      && activeKart().recording.buf.length >= 20,
+    null,
+    { timeout: 30000 }
+  );
+  // Roundtrip im Renderer: Buffer VOR stopDemo sichern (stopDemo/
+  // enterReplay raeumen die Demo-Buckets weg).
+  const result = await page.evaluate(() => {
+    const buf = activeKart().recording.buf.slice();
+    const text = RasiReplay.serializeRecording(buf, { created: new Date().toISOString() });
+    const parsed = RasiReplay.parseRecording(text);
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+    enterReplay(parsed); // beendet den Demo-Modus selbst
+    return { ok: true, recorded: buf.length, replayed: parsed.packets.length };
+  });
+  expect(result.ok).toBe(true);
+  expect(result.replayed).toBe(result.recorded);
+  await page.waitForFunction(() => state.replay.active === true);
+  // Replay spielt: virtuelle Zeit schreitet voran
+  await page.waitForFunction(() => state.replay.virtualMs > 0, null, { timeout: 10000 });
+  await page.evaluate(() => exitReplay());
+  expect(await page.evaluate(() => state.replay.active)).toBe(false);
+  expect(errors).toEqual([]);
+});

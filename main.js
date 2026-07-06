@@ -20,6 +20,14 @@ try {
   console.error("electron-updater not available:", e.message);
 }
 
+// Test-Isolation (Phase 41): Die Playwright-Smoke-Suite setzt
+// RASI_TEST_USERDATA auf ein Wegwerf-Verzeichnis, damit localStorage,
+// Tile-Cache und Crash-Aufnahme echte Nutzerdaten nie beruehren.
+// Muss vor app.whenReady() laufen.
+if (process.env.RASI_TEST_USERDATA) {
+  app.setPath("userData", process.env.RASI_TEST_USERDATA);
+}
+
 let currentPort = null;
 let mainWindow = null;
 
