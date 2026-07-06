@@ -27,3 +27,4 @@ Thumbs.db
 # Playwright-Smoke (Phase 41)
 test-results/
 playwright-report/
+release/

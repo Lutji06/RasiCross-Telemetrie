@@ -6,15 +6,16 @@
   "author": "RasiCross",
   "license": "MIT",
   "scripts": {
-    "start": "electron .",
+    "start": "vite build && electron .",
+    "dev": "vite",
     "test": "node --test",
-    "test:e2e": "playwright test",
+    "test:e2e": "vite build && playwright test",
     "lint": "eslint .",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win --x64",
-    "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux",
-    "build-portable": "electron-builder --win portable --x64"
+    "build": "vite build && electron-builder",
+    "build:win": "vite build && electron-builder --win --x64",
+    "build:mac": "vite build && electron-builder --mac",
+    "build:linux": "vite build && electron-builder --linux",
+    "build-portable": "vite build && electron-builder --win portable --x64"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -22,7 +23,8 @@
     "electron": "^36.0.0",
     "electron-builder": "^25.1.8",
     "eslint": "^10.6.0",
-    "globals": "^17.6.0"
+    "globals": "^17.6.0",
+    "vite": "^8.1.3"
   },
   "build": {
     "appId": "com.rasicross.telemetry",
@@ -150,6 +152,7 @@
   "dependencies": {
     "@serialport/parser-readline": "^13.0.0",
     "electron-updater": "^6.8.9",
-    "serialport": "^13.0.0"
+    "serialport": "^13.0.0",
+    "three": "^0.185.1"
   }
 }
