@@ -302,6 +302,10 @@ function initTrackCanvases() {
   _trackCanvas = $('trackCanvas');
   _scanCanvas = $('scanCanvas');
 }
+// Getter fuer die let-Referenzen (Phase 42): init() in rasicross.js haengt
+// Click-Handler an -- ESM-Importe waeren eine read-only Momentaufnahme.
+function trackCanvas() { return _trackCanvas; }
+function scanCanvas() { return _scanCanvas; }
 
 // Interface-Marker: von rasicross.js (u.a. init/Render-Loop/Editor/Sektoren)
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
@@ -312,4 +316,5 @@ void [initTrackCanvases, resizeCanvases, gpsXYOnCanvas, drawTrack,
 export {
   initTrackCanvases, resizeCanvases, gpsXYOnCanvas,
   drawTrack, drawTrackOn, drawLineOn, drawGhostOn, drawHeatmapOn,
+  trackCanvas, scanCanvas,
 };
