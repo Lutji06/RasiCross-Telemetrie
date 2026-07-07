@@ -1,11 +1,15 @@
-'use strict';
 // ============================================================
 //  RasiCross -- map-draw.js  (Track-Karten-Zeichnung, Phase 22)
-//  Klassisches Script im gemeinsamen Global-Scope: liest state/$/css/
-//  dpr aus rasicross.js (laedt danach) sowie RasiTiles/RasiTileRenderer
-//  und geo.js-Globals (lineEndpointsFromGate, ghostPointAt).
+//  ESM (Phase 42): explizite Imports statt gemeinsamem Global-Scope.
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
+import { declutterLabels, ghostPointAt, lineEndpointsFromGate } from './geo.js';
+import { state, $, css, dpr } from './rasicross.js';
+import { activeRace } from './races.js';
+import RasiKartRank from './kart-rank.js';
+import RasiLapEngine from './lap-engine.js';
+import RasiTileRenderer from './tile-renderer.js';
+import RasiTiles from '../tiles.js';
 
 // ============================================================
 // 9. TRACK MAP DRAWING
@@ -144,10 +148,10 @@ function drawKartMarkersOn(c, ctx) {
     const now = Date.now();
     const macs = state.karts.macs();
     // Positionsnummern nur bei laufendem Rennen mit >=2 Teilnehmern.
-    const r = (typeof activeRace === 'function') ? activeRace() : null;
+    const r = activeRace();
     // Phase 39: gemeinsames, memoisiertes Ranking (kart-rank.js) statt
     // eigener trackProgressM-Rechnung pro Frame.
-    const rr = window.RasiKartRank ? RasiKartRank.ranking(state, r) : null;
+    const rr = RasiKartRank.ranking(state, r);
     let posByMac = null;
     if (rr) {
       posByMac = {};
@@ -298,8 +302,19 @@ function initTrackCanvases() {
   _trackCanvas = $('trackCanvas');
   _scanCanvas = $('scanCanvas');
 }
+// Getter fuer die let-Referenzen (Phase 42): init() in rasicross.js haengt
+// Click-Handler an -- ESM-Importe waeren eine read-only Momentaufnahme.
+function trackCanvas() { return _trackCanvas; }
+function scanCanvas() { return _scanCanvas; }
 
 // Interface-Marker: von rasicross.js (u.a. init/Render-Loop/Editor/Sektoren)
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [initTrackCanvases, resizeCanvases, gpsXYOnCanvas, drawTrack,
       drawTrackOn, drawLineOn, drawGhostOn, drawHeatmapOn];
+
+// ESM-Export (Phase 42): bisherige Interface-Globals von map-draw.js
+export {
+  initTrackCanvases, resizeCanvases, gpsXYOnCanvas,
+  drawTrack, drawTrackOn, drawLineOn, drawGhostOn, drawHeatmapOn,
+  trackCanvas, scanCanvas,
+};

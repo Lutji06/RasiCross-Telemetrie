@@ -6,11 +6,6 @@
 //  per-kart runtime+persisted state; rasicross.js wires the active
 //  kart into the render path via proxy getters.
 // ============================================================
-(function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.KartRegistry = factory();
-}(typeof self !== 'undefined' ? self : this, function () {
-  'use strict';
 
   var MAX_KARTS = 4;
   var DEFAULT_MAC = 'default';
@@ -102,10 +97,10 @@
     };
   }
 
-  return {
+  // ESM-Export (Phase 42): Default-Objekt = bisheriges window.KartRegistry
+  export default {
     MAX_KARTS: MAX_KARTS,
     DEFAULT_MAC: DEFAULT_MAC,
     makeKartState: makeKartState,
     create: create,
   };
-}));

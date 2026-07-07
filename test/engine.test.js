@@ -1,7 +1,6 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const E = require('../engine.js');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import E from '../src/engine.js';
 
 test('engineStep: erster laufender Tick setzt nur den Anker, zaehlt nichts', () => {
   const r = E.engineStep({ totalMs: 0, lastAt: null }, 1800, 1000);

@@ -1,9 +1,11 @@
-'use strict';
 // ============================================================
 //  RasiCross -- gauges.js  (Tacho/RPM/G-Meter, Phase 23)
-//  Klassisches Script im gemeinsamen Global-Scope: nutzt state/css/dpr/$
-//  aus rasicross.js (laedt danach). Nur Deklarationen auf Top-Level.
+//  ESM (Phase 42): explizite Imports. Der 3D-Tick-State bleibt in
+//  rasicross.js (kart3dIsReady/kart3dTickDt-Accessoren, da ESM-Importe
+//  nicht beschreibbar sind). Nur Deklarationen auf Top-Level.
 // ============================================================
+import { state, $, css, dpr, kart3dIsReady, kart3dTickDt } from './rasicross.js';
+import RasiKart3D from './karts3d.js';
 
 // ============================================================
 // 8. TACHO / RPM / G-METER
@@ -46,11 +48,10 @@ function renderGauges() {
   state.display.gxLerp = lerp(state.display.gxLerp, t.gx);
   state.display.gyLerp = lerp(state.display.gyLerp, t.gy);
   // G-Meter
-  if (state.settings.gView === '3d' && _kart3dReady && window.RasiKart3D) {
+  if (state.settings.gView === '3d' && kart3dIsReady()) {
     const now = performance.now();
-    const dtMs = _kart3dLastTick ? (now - _kart3dLastTick) : 16;
-    _kart3dLastTick = now;
-    window.RasiKart3D.update({
+    const dtMs = kart3dTickDt(now);
+    RasiKart3D.update({
       gx: state.display.gxLerp,
       gy: state.display.gyLerp,
       gz: state.telemetry.gz || 0,
@@ -181,3 +182,6 @@ function drawGMeter() {
 // Interface-Marker: von rasicross.js/live-ui.js genutzte Funktionen --
 // verhindert no-unused-vars, dokumentiert das API.
 void [renderDriftBadge, renderRollBar, lerp, renderGauges, drawGMeter];
+
+// ESM-Export (Phase 42): bisherige Interface-Globals von gauges.js
+export { renderDriftBadge, renderRollBar, lerp, renderGauges, drawGMeter };

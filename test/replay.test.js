@@ -1,7 +1,6 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const R = require('../replay.js');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import R from '../src/replay.js';
 
 test('exports the full api + constants', () => {
   assert.equal(R.REC_MAX, 150000);

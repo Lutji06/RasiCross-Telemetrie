@@ -5,13 +5,6 @@
  *   - settingsFilter:     Suche/Filter ueber SETTINGS_INDEX (Task 2)
  * Reines UMD-Modul — kein DOM, keine Seiteneffekte, wirft nie.
  */
-(function (root, factory) {
-  if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
-  } else {
-    root.RasiSettings = factory();
-  }
-}(typeof self !== 'undefined' ? self : this, function () {
 
   const GROUPS = Object.freeze(['dashboard', 'sensorik', 'hardware', 'model3d', 'map', 'data']);
 
@@ -86,5 +79,5 @@
     return { groups, rows, query: q };
   }
 
-  return { GROUPS, settingsNavReducer, SETTINGS_INDEX, settingsFilter };
-}));
+  // ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiSettings
+  export default { GROUPS, settingsNavReducer, SETTINGS_INDEX, settingsFilter };

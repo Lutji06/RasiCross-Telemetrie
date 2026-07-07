@@ -4,13 +4,6 @@
  * UMD wie settings.js: Browser (window.RasiEngine) + node:test.
  * Kein DOM, keine Seiteneffekte, wirft nie.
  */
-(function (root, factory) {
-  if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
-  } else {
-    root.RasiEngine = factory();
-  }
-}(typeof self !== 'undefined' ? self : this, function () {
 
   // Ab dieser Drehzahl gilt der Motor als laufend (Leerlauf liegt beim
   // Maeher um 1800 U/min, Sensor-Rauschen im Stand weit darunter).
@@ -54,7 +47,7 @@
     return sinceServiceMs(totalMs, lastServiceMs) >= iv * 3600000;
   }
 
-  return { RUN_RPM_MIN: RUN_RPM_MIN, MAX_GAP_MS: MAX_GAP_MS,
-           engineStep: engineStep, hoursText: hoursText,
-           sinceServiceMs: sinceServiceMs, serviceDue: serviceDue };
-}));
+  // ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiEngine
+  export default { RUN_RPM_MIN: RUN_RPM_MIN, MAX_GAP_MS: MAX_GAP_MS,
+                   engineStep: engineStep, hoursText: hoursText,
+                   sinceServiceMs: sinceServiceMs, serviceDue: serviceDue };

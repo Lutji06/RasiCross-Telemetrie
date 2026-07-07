@@ -1,11 +1,18 @@
-'use strict';
 // ============================================================
 //  RasiCross -- pit-wall.js  (Pit-Wall + Connection-Tab + Pit-Call +
-//  Kart-Display, Phase 23). Klassisches Script im gemeinsamen Global-
-//  Scope: nutzt state/$/esc/setText, Dialoge, geo-Formatter, races.js,
-//  laps-drivers.js, live-ui.js (drawChart), window.rasiSerial.
+//  Kart-Display, Phase 23). ESM (Phase 42): explizite Imports statt
+//  gemeinsamem Global-Scope. window.rasiSerial/rasiPower/rasiBridgeSend
+//  bleiben window-APIs (Preload/contextBridge, keine Module).
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
+import { fmtClock, fmtMs, structuralRaceKey } from './geo.js';
+import { state, $, css, esc, setText, rcAlert, rcConfirm, rcToast,
+         logTime } from './rasicross.js';
+import { activeRace, raceElapsedMs } from './races.js';
+import { theoreticalBestMs } from './laps-drivers.js';
+import KartRegistry from './kart-registry.js';
+import RasiKartBar from './kart-bar.js';
+import RasiLapEngine from './lap-engine.js';
 
 // ============================================================
 // 18. PIT-WALL
@@ -185,7 +192,7 @@ function renderConnKartList() {
   list.innerHTML = macs.map((mac, i) => {
     const k = state.karts.get(mac);
     if (!k) return '';
-    const m = window.RasiKartBar ? RasiKartBar.metaFor(state, mac, i) : { name: mac, color: '#3aa0e8' };
+    const m = RasiKartBar.metaFor(state, mac, i);
     const age = k.connection.lastPacketAt ? (now - k.connection.lastPacketAt) : 99999;
     const hz = (state._kartHz && state._kartHz[mac] != null) ? state._kartHz[mac] : '--';
     const rssi = (k.connection.rssi != null) ? (k.connection.rssi + 'dBm') : '--';
@@ -208,7 +215,7 @@ function renderConnKartList() {
       if (state.karts.setActive(mac)) {
         state.activeKartMac = mac;
         renderConnKartList();
-        if (window.RasiKartBar) RasiKartBar.render(state);
+        RasiKartBar.render(state);
       }
     };
   });
@@ -223,9 +230,9 @@ async function resetKarts() {
   if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {
     try { window.rasiSerial.writeLine(JSON.stringify({ type: 'reset_karts' })); } catch (e) {}
   }
-  if (typeof rcToast === 'function') rcToast('Alle Karts zurückgesetzt');
+  rcToast('Alle Karts zurückgesetzt');
   renderConnKartList();
-  if (window.RasiKartBar) RasiKartBar.render(state);
+  RasiKartBar.render(state);
 }
 
 function renderConnectionTab() {
@@ -233,7 +240,7 @@ function renderConnectionTab() {
     const c = state.connection;
     renderConnKartList();
     const _am = state.activeKartMac;
-    const _meta = (window.RasiKartBar && _am) ? RasiKartBar.metaFor(state, _am, 0) : null;
+    const _meta = _am ? RasiKartBar.metaFor(state, _am, 0) : null;
     setText('connDetailTitle', _meta ? ('Detail: ' + _meta.name) : '');
     // Pills oben
     setText('connModePill', c.source === 'serial' ? 'USB Serial' : c.source === 'demo' ? 'Demo' : 'Offline');
@@ -521,4 +528,11 @@ void [openPitWall, closePitWall, pwKeyHandler, updatePitWall,
       sendPitCall, cancelPitCall, togglePitCall,
       renderConnKartList, resetKarts];
 
-window.renderConnectionTab = renderConnectionTab;
+// ESM-Export (Phase 42): bisherige Interface-Globals von pit-wall.js
+export {
+  openPitWall, closePitWall, pwKeyHandler, updatePitWall,
+  renderConnectionTab, pushPacketLog, toggleDiagnose,
+  buildRaceDataForKart, sendDisplayUpdate, restartDisplayUpdateInterval,
+  sendPitCall, cancelPitCall, togglePitCall,
+  renderConnKartList, resetKarts,
+};

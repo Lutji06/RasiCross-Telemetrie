@@ -1,7 +1,6 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const drift = require('../drift.js');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import drift from '../src/drift.js';
 
 const approx = (a, b, tol = 1e-3) => assert.ok(Math.abs(a - b) <= tol, `${a} != ${b} (±${tol})`);
 

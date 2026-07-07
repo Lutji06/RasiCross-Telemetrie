@@ -80,15 +80,16 @@ jobs:
           # Kein Code-Signing-Zertifikat - electron-builder soll nicht versuchen zu signieren
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+      # Phase 42: electron-builder schreibt nach release/ (dist/ ist der Vite-Build)
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.artifact_name }}
           path: |
-            dist/*.exe
-            dist/*.dmg
-            dist/*.zip
-            dist/*.blockmap
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.blockmap
           if-no-files-found: error
           retention-days: 30
 
@@ -97,8 +98,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dist/*.exe
-            dist/*.dmg
-            dist/*.zip
+            release/*.exe
+            release/*.dmg
+            release/*.zip
           generate_release_notes: true
           fail_on_unmatched_files: false

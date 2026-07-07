@@ -1,12 +1,16 @@
-'use strict';
 // ============================================================
 //  RasiCross -- races.js  (Rennen-Verwaltung, Phase 22)
-//  Klassisches Script im gemeinsamen Global-Scope: nutzt state/$/uid/
-//  esc/setText/css, Dialoge (rcAlert/rcConfirm/rcToast), geo-Formatter
-//  (fmtMs/fmtClock), saveData(Debounced) sowie loadSavedTrack/
-//  updateSectorPanel/drawChart/renderDriverOptions aus rasicross.js.
+//  ESM (Phase 42): explizite Imports statt gemeinsamem Global-Scope.
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
+import { fmtMs, fmtClock } from './geo.js';
+import KartRegistry from './kart-registry.js';
+import RasiLapEngine from './lap-engine.js';
+import { state, $, css, uid, esc, setText, rcAlert, rcConfirm, rcToast,
+         saveData, saveDataDebounced, activeKart } from './rasicross.js';
+import { discardRaceRecording, persistRaceRecording, raceHasRecording } from './recording.js';
+import { drawChart } from './live-ui.js';
+import { loadSavedTrack, updateSectorPanel } from './track.js';
 
 // ============================================================
 // 16. RACES
@@ -506,3 +510,13 @@ void [activeRace, currentStint, raceValidLaps, raceElapsedMs, createRace,
       confirmDriverChange, closeDriverModal, selectRace, setActiveRace,
       toggleRaceExpand, deleteRace, drawRaceHistoryChart, renderRaces,
       renderRaceDetails, renderTrackOptions, updateRaceControls, activePart];
+
+// ESM-Export (Phase 42): bisherige Interface-Globals von races.js
+export {
+  activeRace, currentStint, raceValidLaps, raceElapsedMs,
+  createRace, startRace, endRace, pauseRace, toggleRaceRun,
+  openDriverChange, confirmDriverChange, closeDriverModal,
+  selectRace, setActiveRace, toggleRaceExpand, deleteRace,
+  drawRaceHistoryChart, renderRaces, renderTrackOptions,
+  updateRaceControls, activePart,
+};

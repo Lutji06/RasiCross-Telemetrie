@@ -143,12 +143,8 @@ function smoothStep(st, raw, opts) {
   return { idxEma: idxEma, status: status, counterRun: run };
 }
 
-// ── UMD-style export ────────────────────────────────────────
-(function () {
-  var api = { expectedYawRate: expectedYawRate, analyze: analyze,
-              summarize: summarize, driftSpans: driftSpans,
-              smoothInit: smoothInit, smoothStep: smoothStep,
-              tiltCompLatG: tiltCompLatG };
-  if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
-  if (typeof window !== 'undefined') { window.RasiDrift = api; }
-})();
+// ── ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiDrift ──
+export default { expectedYawRate: expectedYawRate, analyze: analyze,
+                 summarize: summarize, driftSpans: driftSpans,
+                 smoothInit: smoothInit, smoothStep: smoothStep,
+                 tiltCompLatG: tiltCompLatG };

@@ -1,7 +1,7 @@
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { GROUPS, settingsNavReducer, SETTINGS_INDEX, settingsFilter } = require('../settings.js');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import RasiSettings from '../src/settings.js';
+const { GROUPS, settingsNavReducer, SETTINGS_INDEX, settingsFilter } = RasiSettings;
 
 test('GROUPS: frozen, sechs bekannte Gruppen, dashboard zuerst', () => {
   assert.equal(Object.isFrozen(GROUPS), true);

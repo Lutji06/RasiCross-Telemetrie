@@ -1,12 +1,18 @@
-'use strict';
 // ============================================================
 //  RasiCross -- serial-demo.js  (Serial-Verbindung + Demo, Phase 22)
-//  Klassisches Script im gemeinsamen Global-Scope: nutzt state/$/esc/
-//  uid/setText, Dialoge, window.rasiSerial (Electron-Preload) bzw.
-//  WebSerial, sowie processTelemetry/onGpsUpdate/armRecording/
-//  pushPacketLog und races.js-/map-draw.js-Funktionen.
+//  ESM (Phase 42): explizite Imports; window.rasiSerial (Electron-
+//  Preload) bzw. WebSerial bleiben Laufzeit-Bruecken.
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
+import { gpsDist, headingFromPoints } from './geo.js';
+import { state, $, uid, esc, setText, rcAlert, rcToast, saveDataDebounced,
+         armRecording, kartFor, processTelemetry } from './rasicross.js';
+import { activeRace, endRace, raceValidLaps, renderRaces, startRace } from './races.js';
+import { calcAutoSectors, onGpsUpdate, updateBounds, updateSectorPanel } from './track.js';
+import { drawTrack } from './map-draw.js';
+import { renderDrivers, renderDriverOptions } from './laps-drivers.js';
+import { pushPacketLog, renderConnectionTab } from './pit-wall.js';
+import RasiKartBar from './kart-bar.js';
 
 // 19. SERIAL / DEMO
 // ============================================================
@@ -201,7 +207,7 @@ function startDemo() {
   // armiert den aktiven Bucket; vor dem setActive traf es den vor dem
   // Demo aktiven Kart, und die Demo-Karts zeichneten nichts auf.
   if (state.settings.recordAutoArm) armRecording();
-  if (window.RasiKartBar) RasiKartBar.render(state);
+  RasiKartBar.render(state);
   $('demoStartBtn').classList.add('hidden');
   $('demoStopBtn').classList.remove('hidden');
   setText('demoModeText', 'Läuft');
@@ -270,8 +276,8 @@ function stopDemo() {
   });
   state.demo.karts = [];
   state.activeKartMac = state.karts.activeMac();
-  if (window.RasiKartBar) RasiKartBar.render(state);
-  if (window.renderConnectionTab) renderConnectionTab();
+  RasiKartBar.render(state);
+  renderConnectionTab();
 }
 function demoTick() {
   try {
@@ -347,8 +353,9 @@ function generateDemoTrack() {
   updateSectorPanel();
 }
 
-// Interface-Marker: von rasicross.js (init-Bindings, Replay, Settings)
-// genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
-void [listSerialPorts, connectSerial, disconnectSerial, onSerialClose,
-      onSerialError, readWebSerial, handleSerialLine, scheduleReconnect,
-      stopReconnect, startDemo, stopDemo, demoTick, generateDemoTrack];
+// ESM-Export (Phase 42): bisherige Interface-Globals von serial-demo.js
+export {
+  listSerialPorts, connectSerial, disconnectSerial,
+  startDemo, stopDemo, stopReconnect, scheduleReconnect,
+  handleSerialLine, generateDemoTrack,
+};

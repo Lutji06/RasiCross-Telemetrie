@@ -1,11 +1,23 @@
-'use strict';
 // ============================================================
 //  RasiCross -- recording.js  (Export/Import/Reset + Aufnahme/Replay,
-//  Phase 23). Klassisches Script im gemeinsamen Global-Scope: nutzt
-//  state/$/setText, Dialoge, RasiReplay/RasiDrift/RasiAttitude, geo-
-//  Helfer sowie track.js/races.js/laps-drivers.js/live-ui.js-Funktionen.
-//  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
+//  Phase 23). ESM (Phase 42): explizite Imports statt gemeinsamem
+//  Global-Scope. Nur Deklarationen auf Top-Level -- kein Code laeuft
+//  beim Laden.
 // ============================================================
+import { fmtClock } from './geo.js';
+import { state, $, uid, setText, rcAlert, rcConfirm, rcToast, saveData,
+         SAVE_KEY, processTelemetry, driftInputs,
+         resetAttitudeClock } from './rasicross.js';
+import { renderRaces } from './races.js';
+import { drawTrack } from './map-draw.js';
+import { onGpsUpdate } from './track.js';
+import { disconnectSerial, stopDemo } from './serial-demo.js';
+import KartRegistry from './kart-registry.js';
+import RasiAttitude from './attitude.js';
+import RasiDrift from './drift.js';
+import RasiKart3D from './karts3d.js';
+import RasiRecStore from './rec-store.js';
+import RasiReplay from './replay.js';
 
 // ============================================================
 // EXPORT / IMPORT / RESET
@@ -54,7 +66,7 @@ function importAll(file) {
 async function resetAll() {
   if (!await rcConfirm('Alle Daten unwiderruflich löschen?', 'Zurücksetzen', 'Löschen', true)) return;
   localStorage.removeItem(SAVE_KEY);
-  if (window.RasiRecStore && RasiRecStore.available()) {
+  if (RasiRecStore.available()) {
     await RasiRecStore.clear().catch(() => {});
   }
   location.reload();
@@ -144,7 +156,7 @@ function resetReplayDerived() {
   state.drift = { status: 'n/a', index: null };
   state.driftSmooth = { idxEma: null, status: 'n/a', counterRun: 0 };
   state.attitude = { rollDeg: 0, over: false, overState: { active: false } };
-  _attLastMs = 0;
+  resetAttitudeClock();
   state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
   // Sektor-Konfiguration (boundaries/manual) bleibt erhalten; Bests + Live-
   // Sektorzeiten (pro Kart) zuruecksetzen.
@@ -268,7 +280,7 @@ function enterReplay(parsed) {
   state.recording.armed = false;                 // do not record the replay
   state.replay.snapshot = snapshotReplayState();
   resetReplayDerived();
-  if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
+  RasiKart3D.resetYaw();
   state.replay.active = true;
   state.replay.packets = parsed.packets;
   // Drift-Aggregat mit DERSELBEN Kalibrierung wie Live (driftInputs): Pakete
@@ -327,7 +339,7 @@ function replaySeek(ratio) {
     resetReplayDerived();
     state.replay.idx = 0;
     state.replay.virtualMs = 0;
-    if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
+    RasiKart3D.resetYaw();
   }
   fastForwardTo(target);
   state.replay.lastWall = null;
@@ -354,7 +366,7 @@ function exitReplay() {
   state.replay.active = false;
   if (state.replay.snapshot) restoreReplayState(state.replay.snapshot);
   state.replay.snapshot = null;
-  if (window.RasiKart3D && window.RasiKart3D.resetYaw) window.RasiKart3D.resetYaw();
+  RasiKart3D.resetYaw();
   state.replay.packets = [];
   $('replayBar')?.classList.add('hidden');
   $('connectBtn').textContent = 'USB verbinden';
@@ -384,7 +396,7 @@ function renderReplayBar() {
 // App-Start aus der DB geladen, haelt raceHasRecording synchron.
 let _recStoreIds = new Set();
 function initRecStore() {
-  if (!window.RasiRecStore || !RasiRecStore.available()) return;
+  if (!RasiRecStore.available()) return;
   RasiRecStore.keys().then(ids => {
     const known = new Set(state.races.map(r => r.id));
     for (const id of ids) {
@@ -396,7 +408,7 @@ function initRecStore() {
 }
 // Beim Rennende den Sitzungs-Ausschnitt dauerhaft ablegen.
 function persistRaceRecording(r) {
-  if (!window.RasiRecStore || !RasiRecStore.available()) return;
+  if (!RasiRecStore.available()) return;
   const pk = raceRecordingSlice(r);
   if (!pk) return;
   RasiRecStore.put(r.id, pk, { name: r.name }).then(dropped => {
@@ -407,7 +419,7 @@ function persistRaceRecording(r) {
 }
 function discardRaceRecording(raceId) {
   _recStoreIds.delete(raceId);
-  if (window.RasiRecStore && RasiRecStore.available()) {
+  if (RasiRecStore.available()) {
     RasiRecStore.remove(raceId).catch(() => {});
   }
 }
@@ -468,3 +480,14 @@ void [exportAll, importAll, resetAll, updateRecStatus, saveRecording,
       replayTick, replaySeek, setReplaySpeed, toggleReplayPlay, exitReplay,
       renderReplayBar, initRecStore, persistRaceRecording,
       discardRaceRecording, raceHasRecording, replayRace];
+
+// ESM-Export (Phase 42): bisherige Interface-Globals von recording.js
+export {
+  exportAll, importAll, resetAll, updateRecStatus, saveRecording,
+  exportRecordingCsv, snapshotReplayState, restoreReplayState,
+  resetReplayDerived, feedReplayPacket, fastForwardTo, renderDriftStrip,
+  renderRollStrip, rolloverOnsets, loadRecordingFile, enterReplay,
+  replayTick, replaySeek, setReplaySpeed, toggleReplayPlay, exitReplay,
+  renderReplayBar, initRecStore, persistRaceRecording,
+  discardRaceRecording, raceHasRecording, replayRace,
+};

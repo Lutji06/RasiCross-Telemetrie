@@ -30,14 +30,10 @@ async function launchApp() {
   });
   page.on('pageerror', (err) => errors.push(String(err)));
   // App-Boot abwarten: init() haengt Handler an .nav-item[data-tab];
-  // state.karts existiert erst nach kart-registry-Init.
+  // window.RasiTest setzt src/app.js nach Auswertung aller Module (Phase 42).
   await page.waitForSelector('.nav-item[data-tab]');
-  // try/catch: waehrend des Script-Boots kann das lexikalische state-
-  // Binding kurz in der TDZ sein -> als "noch nicht bereit" werten.
-  await page.waitForFunction(() => {
-    try { return typeof state === 'object' && !!state.karts; }
-    catch (_) { return false; }
-  });
+  await page.waitForFunction(() =>
+    !!(window.RasiTest && window.RasiTest.state && window.RasiTest.state.karts));
   return { app, page, errors, userData };
 }
 

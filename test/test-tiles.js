@@ -1,8 +1,6 @@
-'use strict';
-
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const T = require('../tiles.js');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import T from '../tiles.js';
 
 test('lonToGlobalX: longitude 180 maps to right edge of pyramid at z=18', () => {
   const size = 256 * Math.pow(2, 18);

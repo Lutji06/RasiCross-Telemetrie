@@ -1,4 +1,42 @@
-'use strict';
+// ESM (Phase 42): explizite Imports statt gemeinsamem Global-Scope. Zyklen
+// rasicross <-> UI-Module sind zulaessig -- alle Split-Scripts haben nur
+// Deklarationen auf Top-Level, Aufrufe erfolgen erst nach init().
+import { initTrackCanvases, resizeCanvases, drawTrack,
+         trackCanvas, scanCanvas } from './map-draw.js';
+import { activeRace, activePart, closeDriverModal, confirmDriverChange,
+         createRace, deleteRace, endRace, openDriverChange, renderRaces,
+         renderTrackOptions, selectRace, setActiveRace, toggleRaceExpand,
+         toggleRaceRun, updateRaceControls } from './races.js';
+import { connectSerial, disconnectSerial, listSerialPorts,
+         startDemo, stopDemo } from './serial-demo.js';
+import { drawGMeter } from './gauges.js';
+import { activateSectorClick, checkSectorCrossings, clearManualSectors,
+         clearTrack, closeTrackEditor, deleteSavedTrack, editorClickTarget,
+         finishTrackScan, handleTrackCanvasClick, loadSavedTrack,
+         openTrackEditor, recomputeTrackBounds, renderSavedTracks,
+         saveCurrentTrack, saveEditor, startTrackScan,
+         updateSectorPanel } from './track.js';
+import { addDriver, checkLapCrossing, deleteDriver, renderDriverOptions,
+         renderDrivers, renderLapTable } from './laps-drivers.js';
+import { animLoop, initLiveCharts, initLiveUiLoops } from './live-ui.js';
+import { closePitWall, openPitWall, restartDisplayUpdateInterval,
+         sendDisplayUpdate, toggleDiagnose, togglePitCall } from './pit-wall.js';
+import { enterReplay, exitReplay, exportAll, exportRecordingCsv, importAll,
+         initRecStore, loadRecordingFile, replayRace, replaySeek, resetAll,
+         saveRecording, setReplaySpeed, toggleReplayPlay,
+         updateRecStatus } from './recording.js';
+import DomTargets from './dom-targets.js';
+import KartRegistry from './kart-registry.js';
+import RasiAttitude from './attitude.js';
+import RasiDrift from './drift.js';
+import RasiEngine from './engine.js';
+import RasiKart3D from './karts3d.js';
+import RasiKartBar from './kart-bar.js';
+import RasiLapEngine from './lap-engine.js';
+import RasiReplay from './replay.js';
+import RasiSettings from './settings.js';
+import RasiTileRenderer from './tile-renderer.js';
+
 /* ============================================================
    RASICROSS TELEMETRY — Clean Implementation
    Sections:
@@ -150,15 +188,12 @@ window.rasiBridgeSend = bridgeSend;
 function setText(id, val) { const e = $(id); if (e) e.textContent = val; }
 
 // Shared-ID fan-out — Live and Detail share several values (Speed, RPM, Lap, ...).
-// DomTargets is provided by dom-targets.js (loaded before rasicross.js).
 function setTextShared(key, value) {
-  const ids = (typeof DomTargets !== 'undefined' && DomTargets.targetIdsFor)
-    ? DomTargets.targetIdsFor(key) : [];
+  const ids = DomTargets.targetIdsFor(key);
   for (const id of ids) setText(id, value);
 }
 function setHtmlShared(key, html) {
-  const ids = (typeof DomTargets !== 'undefined' && DomTargets.targetIdsFor)
-    ? DomTargets.targetIdsFor(key) : [];
+  const ids = DomTargets.targetIdsFor(key);
   for (const id of ids) {
     const el = $(id);
     if (el) el.innerHTML = html;
@@ -181,10 +216,10 @@ let _quotaWarned = false;
 // vergessen" loescht Eintraege (rasiPersistForget). Demo-Karts (DE:MO:*)
 // werden nie persistiert.
 const _persistedKarts = { cal: {}, eng: {} };
-window.rasiPersistForget = function (mac) {
+function rasiPersistForget(mac) {
   delete _persistedKarts.cal[mac];
   delete _persistedKarts.eng[mac];
-};
+}
 // Races fuer die Persistenz verschlanken: speedTrace auf max. 1000 Punkte
 // downsamplen. Im RAM bleibt die volle Aufloesung erhalten — nur die
 // localStorage-Kopie wird kleiner (5-MB-Quota ueber eine Saison).
@@ -497,7 +532,7 @@ async function onTilesClearClicked() {
   if (!await rcConfirm('Alle gecachten Karten-Tiles löschen?', 'Cache leeren', 'Löschen', true)) return;
   try {
     const r = await window.rasiTiles.clearAll();
-    if (typeof RasiTileRenderer !== 'undefined') RasiTileRenderer.clearMemory();
+    RasiTileRenderer.clearMemory();
     rcToast(`${r.deleted || 0} Tiles entfernt (${formatBytes(r.bytes || 0)})`);
     try { drawTrack(); renderSavedTracks(); } catch (e) {}
   } catch (e) {
@@ -579,9 +614,7 @@ function loadSettingsToUi() {
   }
   if ($('setServiceIntervalH')) $('setServiceIntervalH').value = state.engine.serviceIntervalH;
   updateEngineUi();
-  if (typeof showSettingsGroup === 'function') {
-    showSettingsGroup((state.settings && state.settings.uiActiveGroup) || 'dashboard');
-  }
+  showSettingsGroup((state.settings && state.settings.uiActiveGroup) || 'dashboard');
 }
 let _settingsSaveTimer = null;
 let _flashTimerId = null;
@@ -758,7 +791,7 @@ function processTelemetry(d) {
           state._kartHz[ks.mac] = ks.rate_hz;
         }
       }
-      if (window.RasiKartBar) RasiKartBar.render(state);
+      RasiKartBar.render(state);
       return;
     }
     if (d.type === 'config_ack') { applyEspConfigAck(d); return; }
@@ -972,6 +1005,17 @@ function processTelemetry(d) {
 let _kart3dReady = false;
 let _kart3dLastTick = 0;
 let _attLastMs = 0;            // wall-clock of last attitude fusion step (ms)
+// Phase 42: Accessoren fuer gauges.js -- ESM-Importe von let-Variablen sind
+// read-only Momentaufnahmen, deshalb Funktions-API statt Direktzugriff.
+function kart3dIsReady() { return _kart3dReady; }
+function kart3dTickDt(now) {
+  const dtMs = _kart3dLastTick ? (now - _kart3dLastTick) : 16;
+  _kart3dLastTick = now;
+  return dtMs;
+}
+// Phase 42: recording.js setzt die Fusions-Uhr beim Replay-Reset zurueck --
+// ESM-Importe sind read-only, deshalb Setter statt Direktzuweisung.
+function resetAttitudeClock() { _attLastMs = 0; }
 
 function initGViewToggle() {
   const wrap = $('gViewToggle');
@@ -981,8 +1025,7 @@ function initGViewToggle() {
 
   // Try to bring up the 3D backend exactly once.
   try {
-    _kart3dReady = !!(window.RasiKart3D && window.RasiKart3D.init &&
-                       window.RasiKart3D.init(c3d, { gScale: state.settings.gScale }));
+    _kart3dReady = !!RasiKart3D.init(c3d, { gScale: state.settings.gScale });
   } catch (e) { _kart3dReady = false; }
   if (!_kart3dReady) {
     const btn3d = wrap.querySelector('button[data-view="3d"]');
@@ -1000,11 +1043,10 @@ function initGViewToggle() {
     btn.addEventListener('click', () => {
       const target = btn.getAttribute('data-view');
       if (target === '3d' && !_kart3dReady) {
-        rcToast('3D nicht verfügbar — WebGL fehlt oder vendor/three.min.js fehlt');
+        rcToast('3D nicht verfügbar — WebGL fehlt');
         return;
       }
-      if (!window.RasiKart3D || !window.RasiKart3D.gViewReducer) return;
-      const next = window.RasiKart3D.gViewReducer(state.settings.gView, 'set:' + target);
+      const next = RasiKart3D.gViewReducer(state.settings.gView, 'set:' + target);
       if (next === state.settings.gView) return;
       state.settings.gView = next;
       saveData();
@@ -1024,13 +1066,11 @@ function applyGView(view) {
   wrap.querySelectorAll('button').forEach((b) => {
     b.classList.toggle('active', b.getAttribute('data-view') === (is3d ? '3d' : '2d'));
   });
-  if (window.RasiKart3D) {
-    if (is3d) {
-      _kart3dLastTick = 0;  // reset dispatch clock so first frame uses the 16ms fallback
-      window.RasiKart3D.start();
-    } else {
-      window.RasiKart3D.stop();
-    }
+  if (is3d) {
+    _kart3dLastTick = 0;  // reset dispatch clock so first frame uses the 16ms fallback
+    RasiKart3D.start();
+  } else {
+    RasiKart3D.stop();
   }
 }
 
@@ -1059,8 +1099,8 @@ function initKartModelUploader() {
     // on disk so a future working start can pick it up. Do NOT call
     // loadCustomModel here — it would return {ok:false, error:'not-initialised'}
     // and the failure branch below would delete the user's valid file.
-    if (!_kart3dReady || !window.RasiKart3D || !window.RasiKart3D.loadCustomModel) return;
-    return window.RasiKart3D.loadCustomModel(res.buffer.buffer, persistedYaw).then((r) => {
+    if (!_kart3dReady) return;
+    return RasiKart3D.loadCustomModel(res.buffer.buffer, persistedYaw).then((r) => {
       if (r && r.ok) {
         name.textContent = 'Eigenes Modell (geladen aus Speicher)';
       } else {
@@ -1084,14 +1124,14 @@ function initKartModelUploader() {
     const u8 = new Uint8Array(buf);
     const saveRes = await window.rasiKart.saveKartModel(u8);
     if (!saveRes || !saveRes.ok) { rcToast('Speichern fehlgeschlagen: ' + (saveRes && saveRes.error || 'unknown')); return; }
-    if (!_kart3dReady || !window.RasiKart3D || !window.RasiKart3D.loadCustomModel) {
+    if (!_kart3dReady) {
       // File is on disk but 3D backend is unavailable (e.g. no WebGL). Reflect
       // that the upload succeeded so the user knows the next start will pick it up.
       name.textContent = f.name + ' (gespeichert — WebGL nicht verfügbar)';
       rcToast('Gespeichert — Modell wird beim nächsten Start geladen');
       return;
     }
-    const loadRes = await window.RasiKart3D.loadCustomModel(buf, Number(state.settings.kartModelYaw) || 0);
+    const loadRes = await RasiKart3D.loadCustomModel(buf, Number(state.settings.kartModelYaw) || 0);
     if (!loadRes || !loadRes.ok) {
       rcToast('Modell-Datei beschädigt — Standard bleibt aktiv');
       window.rasiKart.clearKartModel().catch(() => { /* best-effort cleanup */ });
@@ -1110,9 +1150,7 @@ function initKartModelUploader() {
       yawWrap.querySelectorAll('button').forEach((b) => {
         b.classList.toggle('active', Number(b.getAttribute('data-yaw')) === next);
       });
-      if (window.RasiKart3D && window.RasiKart3D.setHeadingOffset) {
-        window.RasiKart3D.setHeadingOffset(next);
-      }
+      RasiKart3D.setHeadingOffset(next);
     });
   });
 
@@ -1121,9 +1159,7 @@ function initKartModelUploader() {
     const yes = await rcConfirm('Eigenes Modell auf Standard zurücksetzen?', 'Zurücksetzen', 'Zurücksetzen', true);
     if (!yes) return;
     await window.rasiKart.clearKartModel();
-    if (window.RasiKart3D && window.RasiKart3D.resetToPrimitive) {
-      window.RasiKart3D.resetToPrimitive();
-    }
+    RasiKart3D.resetToPrimitive();
     state.settings.kartModelYaw = 0;
     saveData();
     name.textContent = 'Standard (Primitive)';
@@ -1143,12 +1179,10 @@ function init() {
   // (alte Daten koennen GPS-Ausreisser in den Bounds tragen, Phase 26).
   if (state.track.points.length) recomputeTrackBounds();
   try {
-    if (typeof RasiTileRenderer !== 'undefined') {
-      RasiTileRenderer.init({
-        getSettings: function () { return state.settings.tiles || { enabled: false, urlTemplate: '', liveQuickToggle: true }; },
-        redraw: function () { try { drawTrack(); } catch (e) {} },
-      });
-    }
+    RasiTileRenderer.init({
+      getSettings: function () { return state.settings.tiles || { enabled: false, urlTemplate: '', liveQuickToggle: true }; },
+      redraw: function () { try { drawTrack(); } catch (e) {} },
+    });
   } catch (e) { console.warn('tile-renderer init:', e); }
   applyTheme();
   loadSettingsToUi();
@@ -1207,8 +1241,8 @@ function init() {
   $('setSector2Btn').onclick = () => activateSectorClick(0);
   $('setSector3Btn').onclick = () => activateSectorClick(1);
   $('clearSectorsBtn').onclick = clearManualSectors;
-  if (_trackCanvas) _trackCanvas.addEventListener('click', handleTrackCanvasClick);
-  if (_scanCanvas) _scanCanvas.addEventListener('click', handleTrackCanvasClick);
+  if (trackCanvas()) trackCanvas().addEventListener('click', handleTrackCanvasClick);
+  if (scanCanvas()) scanCanvas().addEventListener('click', handleTrackCanvasClick);
   // Race tab
   $('createRaceBtn').onclick = createRace;
   // Drivers tab
@@ -1526,10 +1560,10 @@ init();
       // ueberschrieb sekuendlich Lap-Hold, Rundenziel und Status-Farbe
       // (u.a. mit dem Race-Status statt der Verbindung).
       try {
-        if (typeof activeRace === 'function') {
+        {
           const r = activeRace();
           if (r) {
-            const stints = (typeof activePart === 'function' ? (activePart(r).stints || []) : (r.stints || []));
+            const stints = activePart(r).stints || [];
             const last = stints[stints.length-1];
             if (last && !last.endAt) {
               const driver = state.drivers.find(d=>d.id===last.driverId);
@@ -1656,3 +1690,15 @@ init();
 // dokumentiert das API.
 void [armRecording, processTelemetry, _kart3dLastTick,
       css, dpr, esc, uid, setTextShared, setHtmlShared];
+
+// ESM-Export (Phase 42): Kern-API fuer die src/-Module (bisherige
+// appCoreGlobals aus eslint.config.js + Phase-42-Accessoren).
+export {
+  state, $, css, dpr, uid, esc, setText,
+  rcAlert, rcConfirm, rcToast, rcAudio,
+  saveData, saveDataDebounced, formatBytes,
+  setTextShared, setHtmlShared, logTime, SAVE_KEY,
+  activeKart, kartFor, processTelemetry, armRecording, driftInputs,
+  updateEngineUi, resetAttitudeClock, rasiPersistForget,
+  kart3dIsReady, kart3dTickDt,
+};

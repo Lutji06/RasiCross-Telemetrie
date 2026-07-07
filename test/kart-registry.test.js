@@ -1,6 +1,6 @@
-const { test } = require('node:test');
-const assert = require('node:assert');
-const KartRegistry = require('../kart-registry.js');
+import { test } from 'node:test';
+import assert from 'node:assert';
+import KartRegistry from '../src/kart-registry.js';
 
 test('makeKartState returns independent fresh state', () => {
   const a = KartRegistry.makeKartState();

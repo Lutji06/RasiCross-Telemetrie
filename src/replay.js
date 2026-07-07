@@ -134,14 +134,10 @@ function seekTargetMs(durationMs, ratio) {
   return r * (Number(durationMs) || 0);
 }
 
-// ── UMD-style export ────────────────────────────────────────
-(function () {
-  var api = {
-    REC_MAX: REC_MAX, REC_VERSION: REC_VERSION,
-    serializeRecording: serializeRecording, parseRecording: parseRecording,
-    pushCapped: pushCapped, nextIndexFor: nextIndexFor, seekTargetMs: seekTargetMs,
-    recordingToCsv: recordingToCsv, CSV_COLUMNS: CSV_COLUMNS
-  };
-  if (typeof module !== 'undefined' && module.exports) { module.exports = api; }
-  if (typeof window !== 'undefined') { window.RasiReplay = api; }
-})();
+// ── ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiReplay ──
+export default {
+  REC_MAX: REC_MAX, REC_VERSION: REC_VERSION,
+  serializeRecording: serializeRecording, parseRecording: parseRecording,
+  pushCapped: pushCapped, nextIndexFor: nextIndexFor, seekTargetMs: seekTargetMs,
+  recordingToCsv: recordingToCsv, CSV_COLUMNS: CSV_COLUMNS
+};

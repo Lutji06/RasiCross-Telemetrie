@@ -19,33 +19,33 @@ test('Recording/Replay-Roundtrip', async () => {
   await page.click('.nav-item[data-tab="connection"]');
   await page.click('#modeDemoBtn');
   await page.click('#demoStartBtn');
-  await page.waitForFunction(() => state.demo.running === true);
+  await page.waitForFunction(() => RasiTest.state.demo.running === true);
   // recordAutoArm (Default true) armiert den aktiven Demo-Kart automatisch
   // (Fix des Phase-41-Funds: armRecording() laeuft in startDemo jetzt NACH
   // dem setActive auf Demo-Kart 1).
   // ~12 Hz Demo-Pakete: nach wenigen Sekunden liegen >= 20 im Buffer
   await page.waitForFunction(
-    () => activeKart().recording.armed === true
-      && activeKart().recording.buf.length >= 20,
+    () => RasiTest.activeKart().recording.armed === true
+      && RasiTest.activeKart().recording.buf.length >= 20,
     null,
     { timeout: 30000 }
   );
   // Roundtrip im Renderer: Buffer VOR stopDemo sichern (stopDemo/
   // enterReplay raeumen die Demo-Buckets weg).
   const result = await page.evaluate(() => {
-    const buf = activeKart().recording.buf.slice();
-    const text = RasiReplay.serializeRecording(buf, { created: new Date().toISOString() });
-    const parsed = RasiReplay.parseRecording(text);
+    const buf = RasiTest.activeKart().recording.buf.slice();
+    const text = RasiTest.RasiReplay.serializeRecording(buf, { created: new Date().toISOString() });
+    const parsed = RasiTest.RasiReplay.parseRecording(text);
     if (!parsed.ok) return { ok: false, error: parsed.error };
-    enterReplay(parsed); // beendet den Demo-Modus selbst
+    RasiTest.enterReplay(parsed); // beendet den Demo-Modus selbst
     return { ok: true, recorded: buf.length, replayed: parsed.packets.length };
   });
   expect(result.ok).toBe(true);
   expect(result.replayed).toBe(result.recorded);
-  await page.waitForFunction(() => state.replay.active === true);
+  await page.waitForFunction(() => RasiTest.state.replay.active === true);
   // Replay spielt: virtuelle Zeit schreitet voran
-  await page.waitForFunction(() => state.replay.virtualMs > 0, null, { timeout: 10000 });
-  await page.evaluate(() => exitReplay());
-  expect(await page.evaluate(() => state.replay.active)).toBe(false);
+  await page.waitForFunction(() => RasiTest.state.replay.virtualMs > 0, null, { timeout: 10000 });
+  await page.evaluate(() => RasiTest.exitReplay());
+  expect(await page.evaluate(() => RasiTest.state.replay.active)).toBe(false);
   expect(errors).toEqual([]);
 });

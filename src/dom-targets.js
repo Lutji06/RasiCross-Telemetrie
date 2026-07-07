@@ -9,14 +9,6 @@
  *
  * Pure module — no DOM access, no side effects, safe to unit-test.
  */
-(function (root, factory) {
-  if (typeof module === 'object' && module.exports) {
-    module.exports = factory();
-  } else {
-    root.DomTargets = factory();
-  }
-}(typeof self !== 'undefined' ? self : this, function () {
-
   const SHARED_ID_MAP = Object.freeze({
     speed:    Object.freeze(['kSpeed',    'kSpeedLive']),
     speedMax: Object.freeze(['kSpeedMax', 'kSpeedMaxLive']),
@@ -32,5 +24,5 @@
     return v ? v.slice() : [];
   }
 
-  return { SHARED_ID_MAP, targetIdsFor };
-}));
+  // ESM-Export (Phase 42): Default-Objekt = bisheriges window.DomTargets
+  export default { SHARED_ID_MAP, targetIdsFor };

@@ -8,15 +8,20 @@
 //  active-only facade. Clicking a card selects that kart and
 //  switches back to the single-kart Live view. Browser-only.
 // ============================================================
-(function () {
-  'use strict';
+// ESM (Phase 42): explizite Imports statt window-Guards.
+import { fmtMs } from './geo.js';
+import { activeRace } from './races.js';
+import { setLiveView } from './live-ui.js';
+import RasiKartBar from './kart-bar.js';
+import RasiKartRank from './kart-rank.js';
+import RasiLapEngine from './lap-engine.js';
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g,
       c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
   function lap(ms) {
-    return (ms && typeof fmtMs === 'function') ? fmtMs(ms) : '--:--.---';
+    return ms ? fmtMs(ms) : '--:--.---';
   }
 
   // Phase 36: ein Delta formatieren ("+N Runde(n)" bei Runden-Rueckstand,
@@ -46,9 +51,9 @@
     const macs = state.karts.macs();
     const now = Date.now();
     // Phase 31: Positions-Ranking nur bei laufendem Rennen mit >=2 Teilnehmern.
-    const r = (typeof activeRace === 'function') ? activeRace() : null;
+    const r = activeRace();
     // Phase 39: gemeinsames, memoisiertes Ranking aus kart-rank.js.
-    const rr = window.RasiKartRank ? RasiKartRank.ranking(state, r) : null;
+    const rr = RasiKartRank.ranking(state, r);
     const hasTrack = !!(rr && rr.hasTrack);
     // Phase 32: Halter der schnellsten Runde (lila Markierung), nur bei aktivem Ranking.
     const flHolder = rr ? RasiLapEngine.fastestLapHolder(r) : null;
@@ -71,7 +76,7 @@
       const k = state.karts.get(mac);
       if (!k) return '';
       const origIdx = macs.indexOf(mac);
-      const m = window.RasiKartBar ? RasiKartBar.metaFor(state, mac, origIdx) : { name: mac, color: '#3aa0e8' };
+      const m = RasiKartBar.metaFor(state, mac, origIdx);
       const age = k.connection.lastPacketAt ? (now - k.connection.lastPacketAt) : 99999;
       const stale = age > 2000;
       const speed = (k.telemetry.speed || 0).toFixed(0);
@@ -123,11 +128,11 @@
         const mac = card.getAttribute('data-mac');
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
-          if (window.setLiveView) window.setLiveView('single');
+          setLiveView('single');
         }
       };
     });
   }
 
-  window.RasiKartOverview = { render };
-})();
+  // ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiKartOverview
+  export default { render };

@@ -1,32 +1,26 @@
-'use strict';
-// Guard: jedes lokale <script src="*.js"> in der HTML muss im electron-builder
-// `files`-Whitelist stehen, sonst fehlt es im gepackten Build (404 ->
-// ReferenceError beim Laden -> tote App). Regression aus Phase 28:
-// kart-registry.js/kart-bar.js waren referenziert, aber nicht gewhitelistet.
-const test = require('node:test');
-const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
+// Guard (Phase 42): electron-builder paketiert den Vite-Build. Whitelist
+// muss main/preload/tiles/dist/icon enthalten; index.html darf nur noch
+// EIN Modul-Script referenzieren (klassische <script src> waeren im
+// Vite-Build tote Referenzen).
+import test from 'node:test';
+import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.join(fileURLToPath(new URL('.', import.meta.url)), '..');
 
-function scriptSrcsFromHtml() {
-  const html = fs.readFileSync(path.join(ROOT, 'RasiCross_Telemetry.html'), 'utf8');
-  const out = [];
-  const re = /<script\s+src="([^"]+)"/g;
-  let m;
-  while ((m = re.exec(html)) !== null) out.push(m[1]);
-  return out;
-}
-
-test('alle lokalen HTML-Scripts stehen im electron-builder files-Whitelist', () => {
+test('build.files enthaelt Hauptprozess-Dateien und dist/**', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  const files = pkg.build.files;
-  // vendor/** deckt vendor-Scripts per Glob ab; nur lokale .js explizit pruefen.
-  const localScripts = scriptSrcsFromHtml().filter(
-    (s) => s.endsWith('.js') && !s.startsWith('vendor/')
-  );
-  const missing = localScripts.filter((s) => !files.includes(s));
-  assert.deepStrictEqual(missing, [],
-    'Diese in der HTML referenzierten Scripts fehlen im Build-Whitelist: ' + missing.join(', '));
+  for (const f of ['main.js', 'preload.js', 'tiles.js', 'dist/**', 'icon.ico']) {
+    assert.ok(pkg.build.files.includes(f), 'fehlt in build.files: ' + f);
+  }
+});
+
+test('index.html laedt genau ein Modul-Script und keine klassischen Scripts', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const moduleTags = html.match(/<script\s+type="module"\s+src="[^"]+"/g) || [];
+  assert.strictEqual(moduleTags.length, 1);
+  const classicTags = (html.match(/<script\s+src="[^"]+"/g) || []);
+  assert.deepStrictEqual(classicTags, []);
 });

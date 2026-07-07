@@ -453,7 +453,12 @@ function createWindow() {
     },
   });
   mainWindow.setMenuBarVisibility(false);
-  mainWindow.loadFile("RasiCross_Telemetry.html");
+  // Phase 42: Dev laedt den Vite-Server (HMR), sonst den Vite-Build.
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, "dist", "index.html"));
+  }
 }
 
 app.whenReady().then(() => {
