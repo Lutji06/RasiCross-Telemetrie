@@ -24,9 +24,9 @@ async function startDemo() {
 test('Karts-Tab zeigt 3 Demo-Karten, Rename wirkt in der Chip-Leiste', async () => {
   await startDemo();
   await page.click('.nav-item[data-tab="karts"]');
-  // Hinweis: die Registry legt beim ersten Zugriff (Live-Tab beim Boot)
-  // vorab einen "default"-Platzhalter-Kart an, den Demo-Karts nicht
-  // uebernehmen (serial-demo.js) -- daher >= statt exakt 3 Karten gesamt.
+  // Demo-Karten anhand des DEMO-Badges zaehlen -- das ist die praezisere
+  // Assertion (der fruehere default-Platzhalter ist seit dem rosterMacs-
+  // Filter ohnehin nie mehr sichtbar).
   await page.waitForFunction(() => document.querySelectorAll('#kartCardsList .kc-badge.demo').length === 3);
   expect(await page.locator('#kartCardsList .kc-badge.demo').count()).toBe(3);
   const nameInput = page.locator('#kartCardsList .kc-name-input').first();
