@@ -29,7 +29,8 @@ import './kart-bar.js';
 import './kart-overview.js';
 import './karts-page.js';
 
-import { state, saveData, activeKart, armRecording } from './rasicross.js';
+import { state, saveData, activeKart, armRecording,
+         updateKartMeta, kartRosterMacs } from './rasicross.js';
 import { activeRace, toggleRaceRun, endRace } from './races.js';
 import { buildRaceDataForKart } from './pit-wall.js';
 import { enterReplay, exitReplay } from './recording.js';
@@ -41,6 +42,7 @@ window.saveData = saveData;
 // Explizite Test-Bruecke fuer die Playwright-Smoke-Suite (Phase 41).
 window.RasiTest = {
   state, activeKart, armRecording,
+  updateKartMeta, kartRosterMacs,
   activeRace, toggleRaceRun, endRace,
   buildRaceDataForKart, RasiReplay, enterReplay, exitReplay,
 };

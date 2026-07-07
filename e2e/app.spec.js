@@ -21,7 +21,7 @@ test('App startet ohne Konsolen-Fehler', async () => {
   expect(errors).toEqual([]);
 });
 
-const TABS = ['live', 'detail', 'races', 'drivers', 'track', 'connection', 'settings'];
+const TABS = ['live', 'detail', 'races', 'drivers', 'karts', 'track', 'connection', 'settings'];
 
 test('alle Tabs rendern', async () => {
   for (const tab of TABS) {
