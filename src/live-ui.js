@@ -15,6 +15,7 @@ import { renderConnectionTab, updatePitWall } from './pit-wall.js';
 import DomTargets from './dom-targets.js';
 import RasiKartBar from './kart-bar.js';
 import RasiKartOverview from './kart-overview.js';
+import { renderKartsTab } from './karts-page.js';
 import RasiKartRank from './kart-rank.js';
 import RasiLapEngine from './lap-engine.js';
 
@@ -584,6 +585,9 @@ setInterval(() => {
       ? (t.distanceKm * 1000).toFixed(0) + ' m'
       : t.distanceKm.toFixed(2) + ' km');
   } catch (e) {}
+
+  // Karts-Tab: Live-Werte der Karten im 1-Hz-Takt (nur bei aktivem Tab).
+  if (document.body.dataset.tab === 'karts') { try { renderKartsTab(); } catch (e) {} }
 }, 1000);
 }
 

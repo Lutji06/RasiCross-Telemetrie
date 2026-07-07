@@ -33,6 +33,7 @@ import RasiEngine from './engine.js';
 import RasiKart3D from './karts3d.js';
 import RasiKartRoster from './kart-roster.js';
 import RasiKartBar from './kart-bar.js';
+import { renderKartsTab } from './karts-page.js';
 import RasiLapEngine from './lap-engine.js';
 import RasiReplay from './replay.js';
 import RasiSettings from './settings.js';
@@ -444,6 +445,7 @@ function setupTabs() {
       setTimeout(resizeCanvases, 50);
       // Bei Driver-Tab: Stats neu berechnen (kann sich nach jedem Rennen aendern)
       if (tab === 'drivers') renderDrivers();
+      if (tab === 'karts') renderKartsTab();
       // Task 7 – Settings-Suche beim Tab-Wechsel zuruecksetzen
       const _ss = document.getElementById('settingsSearch');
       if (_ss && _ss.value) { _ss.value = ''; _ss.dispatchEvent(new Event('input')); }

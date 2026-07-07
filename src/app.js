@@ -27,6 +27,7 @@ import './kart-registry.js';
 import './rasicross.js';
 import './kart-bar.js';
 import './kart-overview.js';
+import './karts-page.js';
 
 import { state, saveData, activeKart, armRecording } from './rasicross.js';
 import { activeRace, toggleRaceRun, endRace } from './races.js';

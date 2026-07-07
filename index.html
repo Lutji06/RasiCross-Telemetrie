@@ -1745,6 +1745,32 @@ body[data-live-view="overview"] #tab-live .pw-live-body{display:none}
 }
 .dstat.highlight b{color:var(--driver,var(--pr))}
 
+/* ── Karts-Tab (Phase 46): Karte pro Kart, Stil wie driver-stat-card ── */
+.kart-card{padding:16px;background:var(--surf);border:1px solid var(--bor);
+  border-radius:var(--r-xl);border-left:4px solid var(--kart,var(--pr));
+  margin-bottom:10px;transition:var(--t)}
+.kart-card.active{box-shadow:0 0 0 1px var(--kart,var(--pr)) inset}
+.kart-card.offline{opacity:.72}
+.kc-head{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin-bottom:10px}
+.kc-dot{width:14px;height:14px;border-radius:50%;background:var(--kart,var(--pr))}
+.kc-name-input{font-family:var(--sans);font-size:16px;font-weight:700;color:var(--tx);
+  background:transparent;border:1px solid transparent;border-radius:var(--r-md);padding:4px 8px;max-width:220px}
+.kc-name-input:hover,.kc-name-input:focus{border-color:var(--bor);background:var(--soft)}
+.kc-mac{font-family:var(--mono);font-size:10.5px;color:var(--mut);font-weight:600;margin-top:2px}
+.kc-badge{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.08em;
+  padding:2px 7px;border-radius:999px;border:1px solid var(--bor);color:var(--mut);margin-left:8px}
+.kc-badge.demo{color:var(--pr);border-color:var(--pr)}
+.kc-live{font-family:var(--mono);font-size:11px;color:var(--mut);margin-bottom:10px;display:flex;gap:12px;flex-wrap:wrap}
+.kc-live .rec{color:#e85a7a;font-weight:700}
+.kc-swatches{display:flex;gap:6px}
+.kc-sw{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+.kc-sw.active{border-color:var(--tx)}
+.kc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:10px}
+.kc-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.kc-actions .grow{flex:1}
+.kc-interval{width:70px;text-align:right}
+.kc-warn{font-family:var(--mono);font-size:11px;color:#e8a13a;font-weight:700}
+
 
 .thero-stat{
   padding:12px 14px;
@@ -2441,6 +2467,10 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
     <button class="nav-item" data-tab="drivers">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg></span>
       Fahrer
+    </button>
+    <button class="nav-item" data-tab="karts">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><circle cx="12" cy="12" r="2.5"/></svg></span>
+      Karts
     </button>
   </div>
 
@@ -3139,6 +3169,23 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
     <div id="driversList" style="display:none"></div>
   </div>
 
+</section>
+
+<!-- ============================================================
+     TAB: KARTS (Phase 46)
+     ============================================================ -->
+<section class="tab" id="tab-karts">
+  <div class="pw-library">
+    <div class="pw-lib-head pw-lib-head-row">
+      <div class="pw-lib-title">
+        <span class="pw-lib-bar"></span>
+        <span>Karts</span>
+        <span class="pw-lib-count"><span id="kartCount">0</span> · Karts</span>
+      </div>
+      <button class="btn ghost" id="kartsResetAllBtn">Alle Karts zurücksetzen</button>
+    </div>
+    <div id="kartCardsList"><div class="muted">Noch keine Karts — sie erscheinen mit dem ersten Telemetrie-Paket.</div></div>
+  </div>
 </section>
 
 <!-- ============================================================
