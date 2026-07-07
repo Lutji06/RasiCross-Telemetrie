@@ -1427,26 +1427,8 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .kart-chip .kart-chip-main{display:inline-flex;align-items:center;gap:6px;
   background:none;border:none;color:inherit;font:inherit;padding:0;
   cursor:pointer;white-space:nowrap}
-.kart-chip .kart-edit{cursor:pointer;opacity:.6;margin-left:2px;font-size:11px;
-  background:none;border:none;color:inherit;padding:0 2px;line-height:1}
-.kart-chip .kart-edit:hover{opacity:1}
-
-/* Kart-Editor-Popover */
-#kartEditPopover{position:fixed;z-index:1200;min-width:200px;padding:12px;
-  background:var(--panel,#161a22);border:1px solid #2a3140;border-radius:12px;
-  box-shadow:0 12px 32px rgba(0,0,0,.5)}
-#kartEditPopover.hidden{display:none}
-#kartEditPopover .ke-row{margin-bottom:10px}
-#kartEditPopover label{display:block;font-size:11px;opacity:.7;margin-bottom:4px}
-#kartEditName{width:100%;box-sizing:border-box;padding:6px 8px;border-radius:8px;
-  border:1px solid #2a3140;background:#0e1117;color:var(--fg,#e8edf4);font-size:13px}
-#kartEditSwatches{display:flex;gap:8px}
-#kartEditSwatches .sw{width:22px;height:22px;border-radius:50%;cursor:pointer;
-  border:2px solid transparent}
-#kartEditSwatches .sw.active{border-color:var(--fg,#e8edf4)}
 
 /* Connection-Tab: Per-Kart-Liste */
-#connKartList{display:none;flex-direction:column;gap:6px;margin:0 0 14px}
 .conn-kart-row{display:grid;grid-template-columns:14px 1fr auto;align-items:center;
   gap:10px;cursor:pointer;padding:8px 12px;border:1px solid #2a3140;border-radius:10px;
   background:var(--panel,#161a22)}
@@ -3236,11 +3218,6 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
     <button class="btn ghost" id="diagToggleBtn" style="padding:6px 12px;font-size:11px">Diagnose</button>
   </div>
 
-  <!-- Multi-Kart: Per-Kart-Statusliste + Reset (nur sichtbar bei >1 Kart) -->
-  <div id="connKartList"></div>
-  <button class="btn ghost" id="resetKartsBtn" style="display:none;margin:0 0 14px">
-    Alle Karts zurücksetzen
-  </button>
   <div id="connDetailTitle" class="muted" style="margin:0 0 8px;font-size:12px"></div>
 
   <div class="mode-tabs">
@@ -3538,19 +3515,6 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <div class="settings-row-label"><span class="settings-row-name">OLED-Update Intervall</span><span class="settings-row-desc">Aktualisierungsrate des Bridge-Displays (ms)</span></div>
           <input type="number" id="setDisplayUpdateMs" value="500" min="100" max="2000" step="50" data-autosave>
         </div>
-        <div class="settings-row">
-          <div class="settings-row-label"><span class="settings-row-name">Motorlaufzeit</span><span class="settings-row-desc">Kumulierte Motorstunden (zählt bei USB-Verbindung und Drehzahl &gt; 500)</span></div>
-          <div class="n" id="engineHoursText" style="font-family:var(--mono)">0,0 h</div>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-label"><span class="settings-row-name">Wartungsintervall</span><span class="settings-row-desc">Hinweis nach so vielen Motorstunden seit letzter Wartung (0 = aus)</span></div>
-          <input type="number" id="setServiceIntervalH" value="10" min="0" max="500" step="0.5" data-autosave>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-label"><span class="settings-row-name">Seit letzter Wartung</span><span class="settings-row-desc">Motorstunden seit dem letzten Wartungs-Reset</span></div>
-          <div class="n" id="engineSinceServiceText" style="font-family:var(--mono)">0,0 h</div>
-        </div>
-        <div class="row" style="margin:6px 0 4px"><button class="btn ghost" id="serviceDoneBtn" style="flex:1">Wartung erledigt — Zähler nullen</button></div>
       </section>
 
       <!-- ── 3D-Modell ─────────────────────────────────────── -->
@@ -3832,17 +3796,6 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 </div>
 <div id="rcToast"></div>
 
-<div id="kartEditPopover" class="hidden">
-  <div class="ke-row">
-    <label for="kartEditName">Name</label>
-    <input id="kartEditName" type="text" maxlength="20" autocomplete="off">
-  </div>
-  <div class="ke-row">
-    <label>Farbe</label>
-    <div id="kartEditSwatches"></div>
-  </div>
-  <button id="kartEditForget" class="btn danger w100">Kart vergessen</button>
-</div>
 <script type="module" src="/src/app.js"></script>
 </body>
 </html>

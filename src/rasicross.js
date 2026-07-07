@@ -609,14 +609,6 @@ const ESP_CFG_FIELDS = [
   ['espBattCal', 'bcal'], ['espRpmCeiling', 'rcl'], ['espRpmAlpha', 'ra'],
   ['espPageMs', 'pm'],
 ];
-// Motorlaufzeit-Anzeigen (Einstellungen -> ESP32/Hardware). Wird von
-// loadSettingsToUi und dem 1-Hz-UI-Loop (live-ui.js) aktualisiert.
-function updateEngineUi() {
-  setText('engineHoursText', RasiEngine.hoursText(state.engine.totalMs));
-  setText('engineSinceServiceText',
-    RasiEngine.hoursText(RasiEngine.sinceServiceMs(state.engine.totalMs, state.engine.lastServiceMs)));
-}
-
 let _espAckTimer = null;
 function applyEspConfigAck(d) {
   clearTimeout(_espAckTimer);
@@ -658,8 +650,6 @@ function loadSettingsToUi() {
     updateTilesUrlHint();
     applyTilesPresetFromUrl();
   }
-  if ($('setServiceIntervalH')) $('setServiceIntervalH').value = state.engine.serviceIntervalH;
-  updateEngineUi();
   showSettingsGroup((state.settings && state.settings.uiActiveGroup) || 'dashboard');
 }
 let _settingsSaveTimer = null;
@@ -700,7 +690,6 @@ function saveSettingsFromUi() {
   if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
   if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
   if ($('setTilesUrl')) state.settings.tiles.urlTemplate = ($('setTilesUrl').value || '').trim();
-  state.engine.serviceIntervalH = Math.max(0, Math.min(500, Number($('setServiceIntervalH')?.value) || 0));
   loadSettingsToUi();
   saveData();
   flashSettingsSaved();
@@ -1429,14 +1418,6 @@ function init() {
       setText('espSendStatus', '✗ Fehler');
     }
   };
-  $('serviceDoneBtn').onclick = async () => {
-    if (!await rcConfirm('Wartungszähler zurücksetzen? Seit-letzter-Wartung beginnt wieder bei 0.', 'Wartung', 'Zurücksetzen')) return;
-    state.engine.lastServiceMs = state.engine.totalMs;
-    state.engine._warned = false;
-    saveData();
-    updateEngineUi();
-    rcToast('🔧 Wartung vermerkt');
-  };
   $('exportAllBtn').onclick = exportAll;
   $('importAllBtn').onclick = () => $('importAllFile').click();
   $('importAllFile').onchange = e => { if (e.target.files[0]) importAll(e.target.files[0]); e.target.value = ''; };
@@ -1747,7 +1728,7 @@ export {
   saveData, saveDataDebounced, formatBytes,
   setTextShared, setHtmlShared, logTime, SAVE_KEY,
   activeKart, kartFor, processTelemetry, armRecording, driftInputs,
-  updateEngineUi, resetAttitudeClock, rasiPersistForget,
+  resetAttitudeClock, rasiPersistForget,
   kart3dIsReady, kart3dTickDt,
   kartMetaFor, updateKartMeta, kartRosterMacs, kartCalFor, kartEngineFor,
 };

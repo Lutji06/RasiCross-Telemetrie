@@ -5,8 +5,7 @@
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
 import { fmtClock, fmtMs, nearestTraceDelta } from './geo.js';
-import { state, $, css, dpr, esc, setText, setTextShared, setHtmlShared,
-         updateEngineUi } from './rasicross.js';
+import { state, $, css, dpr, esc, setText, setTextShared, setHtmlShared } from './rasicross.js';
 import { activeRace, activePart, raceElapsedMs, endRace } from './races.js';
 import { drawTrack, resizeCanvases } from './map-draw.js';
 import { getTotalStats } from './laps-drivers.js';
@@ -415,8 +414,6 @@ function updateLiveUi() {
     setText('detailHeroPackets', state.connection.packets);
     // Live delta
     updateLiveDelta();
-    // Motorlaufzeit-Anzeige (Einstellungen) im 1-Hz-Takt aktuell halten
-    updateEngineUi();
   } catch (e) { console.warn('updateLiveUi:', e); }
 }
 function renderStints(r) {
