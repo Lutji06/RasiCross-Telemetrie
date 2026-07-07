@@ -43,9 +43,11 @@
   // Anzeige-Reihenfolge der Karts-Seite: Session-Karts (Registry-Reihenfolge,
   // inkl. Demo) zuerst, dahinter offline-Roster nach lastSeenAt absteigend.
   function rosterMacs(metaMap, registryMacs) {
-    const online = registryMacs.slice();
+    // 'default' ist der DEFAULT_MAC-Platzhalter-Bucket der kart-registry
+    // (vom ersten echten Kart adoptiert) -- nie ein echtes Kart, nie anzeigen.
+    const online = registryMacs.filter(m => m !== 'default');
     const offline = Object.keys(metaMap)
-      .filter(m => online.indexOf(m) === -1)
+      .filter(m => m !== 'default' && online.indexOf(m) === -1)
       .sort((a, b) => (metaMap[b].lastSeenAt || 0) - (metaMap[a].lastSeenAt || 0));
     return online.concat(offline);
   }

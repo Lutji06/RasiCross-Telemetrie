@@ -59,6 +59,12 @@ test('rosterMacs: Registry zuerst (Reihenfolge erhalten), offline nach lastSeenA
   assert.deepEqual(rosterMacs({}, []), []);
 });
 
+test('rosterMacs: default-Platzhalter-Bucket wird nie angezeigt', () => {
+  const meta = { 'default': { name: 'x', color: '#fff', lastSeenAt: 9 },
+                 'AA:01': { name: 'a', color: '#fff', lastSeenAt: 1 } };
+  assert.deepEqual(rosterMacs(meta, ['default', 'ON:01']), ['ON:01', 'AA:01']);
+});
+
 test('clampServiceH: 0..500, NaN -> 0', () => {
   assert.equal(clampServiceH(10.5), 10.5);
   assert.equal(clampServiceH(-3), 0);
