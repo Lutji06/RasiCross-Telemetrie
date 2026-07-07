@@ -48,6 +48,13 @@ test('migrateLegacyMeta: korruptes JSON / null wirft nicht', () => {
   assert.equal(migrateLegacyMeta({}, JSON.stringify({ 'AA:01': 'quatsch' })), false);
 });
 
+test('migrateLegacyMeta: Nicht-Hex-Farbe faellt auf Palette zurueck', () => {
+  const map = {};
+  const legacy = JSON.stringify({ 'AA:01': { name: 'Rot', color: 'red;background:url(x)' } });
+  assert.equal(migrateLegacyMeta(map, legacy), true);
+  assert.equal(map['AA:01'].color, PALETTE[0]);
+});
+
 test('rosterMacs: Registry zuerst (Reihenfolge erhalten), offline nach lastSeenAt', () => {
   const meta = {
     'OF:ALT': { name: 'a', color: '#fff', lastSeenAt: 100 },

@@ -229,7 +229,10 @@ function rasiPersistForget(mac) {
 // Roster-Accessoren (Phase 46): einzige Meta-Quelle fuer Chips, Grid,
 // Verbindungs-Detail und Karts-Seite. idx nur fuer die Default-Anlage.
 function kartMetaFor(mac, idx) {
-  const map = RasiKartRoster.isDemoMac(mac) ? _demoMeta : _persistedKarts.meta;
+  // DE:MO:* und der default-Platzhalter-Bucket bleiben Session-only --
+  // beide sind nie echte Karts und duerfen den Roster nicht verschmutzen.
+  const sessionOnly = RasiKartRoster.isDemoMac(mac) || mac === KartRegistry.DEFAULT_MAC;
+  const map = sessionOnly ? _demoMeta : _persistedKarts.meta;
   const r = RasiKartRoster.ensureMeta(map, mac, idx);
   if (r.created && map === _persistedKarts.meta) saveDataDebounced();
   return r.entry;

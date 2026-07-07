@@ -33,8 +33,9 @@
     for (const mac of Object.keys(legacy)) {
       const m = legacy[mac];
       if (!m || typeof m !== 'object' || typeof m.name !== 'string') continue;
-      map[mac] = { name: m.name, color: typeof m.color === 'string' ? m.color : PALETTE[0],
-                   lastSeenAt: null };
+      const color = (typeof m.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(m.color))
+        ? m.color : PALETTE[0];
+      map[mac] = { name: m.name, color: color, lastSeenAt: null };
       n++;
     }
     return n > 0;
