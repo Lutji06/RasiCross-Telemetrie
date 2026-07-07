@@ -178,7 +178,6 @@ function startDemo() {
   if (state.demo.running) return;
   if (state.serial.connected) disconnectSerial();
   state.demo.running = true;
-  if (state.settings.recordAutoArm) armRecording();
   state.demo.t = 0;
   state.demo.angle = -Math.PI / 2;
   state.demo.lapsDone = 0;
@@ -198,6 +197,10 @@ function startDemo() {
   });
   state.karts.setActive(DEMO_KART_DEFS[0].mac);
   state.activeKartMac = DEMO_KART_DEFS[0].mac;
+  // Phase-41-Fund: Auto-Arm erst NACH dem Kart-Wechsel — armRecording()
+  // armiert den aktiven Bucket; vor dem setActive traf es den vor dem
+  // Demo aktiven Kart, und die Demo-Karts zeichneten nichts auf.
+  if (state.settings.recordAutoArm) armRecording();
   if (window.RasiKartBar) RasiKartBar.render(state);
   $('demoStartBtn').classList.add('hidden');
   $('demoStopBtn').classList.remove('hidden');
