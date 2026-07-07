@@ -8,7 +8,7 @@
 //  Nutzt geo.js-Globals (traceDistanceM/trackProgressM/lapProgressM)
 //  und RasiLapEngine — nur zur Laufzeit, kein Top-Level-Code.
 // ============================================================
-import { traceDistanceM, trackProgressM, lapProgressM, gpsDist } from './geo.js';
+import { traceDistanceM, trackProgressM, lapProgressM } from './geo.js';
 import RasiLapEngine from './lap-engine.js';
 
   const MEMO_MS = 250;

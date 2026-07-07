@@ -5,8 +5,11 @@
 //  keyed by MAC), RSSI, Hz, packet age, battery + REC indicators.
 //  Clicking sets state.activeKartMac. Browser-only (uses document).
 // ============================================================
-(function () {
-  'use strict';
+// ESM (Phase 42): explizite Imports; window.rasiSerial bleibt Preload-API.
+import { rcToast, rasiPersistForget } from './rasicross.js';
+import { renderConnectionTab } from './pit-wall.js';
+import { setLiveView } from './live-ui.js';
+
   const LS_KEY = 'rasi.kartMeta.v1';
   const PALETTE = ['#3aa0e8', '#e8a13a', '#5ad17a', '#e85a7a', '#b07ae8'];
 
@@ -48,7 +51,7 @@
     ovBtn.type = 'button';
     ovBtn.className = 'kart-overview-btn' + (state.liveView === 'overview' ? ' active' : '');
     ovBtn.innerHTML = '⊞ Übersicht';
-    ovBtn.onclick = () => { if (window.setLiveView) window.setLiveView('overview'); };
+    ovBtn.onclick = () => { setLiveView('overview'); };
     el.appendChild(ovBtn);
     macs.forEach((mac, i) => {
       const k = state.karts.get(mac);
@@ -76,7 +79,7 @@
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
           // Chip-Klick wählt immer die Einzelansicht dieses Karts.
-          if (window.setLiveView) window.setLiveView('single'); else render(state);
+          setLiveView('single');
         }
       };
       chip.querySelector('.kart-edit').onclick = (ev) => {
@@ -123,7 +126,7 @@
       m.name = nameEl.value.trim() || ('Kart ' + (idx + 1));
       state.kartMeta[mac] = m; saveMeta(state.kartMeta);
       render(state);
-      if (window.renderConnectionTab) window.renderConnectionTab();
+      renderConnectionTab();
     };
 
     const sw = document.getElementById('kartEditSwatches');
@@ -137,7 +140,7 @@
         sw.querySelectorAll('.sw').forEach(s => s.classList.remove('active'));
         b.classList.add('active');
         render(state);
-        if (window.renderConnectionTab) window.renderConnectionTab();
+        renderConnectionTab();
       };
       sw.appendChild(b);
     });
@@ -165,16 +168,16 @@
     state.karts.forget(mac);
     // Phase 39: bewusstes Vergessen loescht auch die persistierte
     // Kalibrierung/Motorstunden dieser MAC (anders als "Karts zuruecksetzen").
-    if (window.rasiPersistForget) window.rasiPersistForget(mac);
+    rasiPersistForget(mac);
     if (state._kartHz) delete state._kartHz[mac];
     // Bridge-Kommando (Bridge-Ebene, nicht kart-geroutet) — nur falls verbunden.
     if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {
       try { window.rasiSerial.writeLine(JSON.stringify({ type: 'forget_kart_mac', mac })); } catch (e) {}
     }
     state.activeKartMac = state.karts.activeMac();   // Registry hat ggf. umgepointet
-    if (typeof rcToast === 'function') rcToast('Kart vergessen');
+    rcToast('Kart vergessen');
     render(state);
-    if (window.renderConnectionTab) window.renderConnectionTab();
+    renderConnectionTab();
   }
 
   // state-basierter Wrapper, damit pit-wall.js dieselbe Meta-Quelle nutzt.
@@ -186,5 +189,5 @@
     return m;
   }
 
-  window.RasiKartBar = { render, metaFor: metaForState, openEditor, forgetKart };
-})();
+  // ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiKartBar
+  export default { render, metaFor: metaForState, openEditor, forgetKart };

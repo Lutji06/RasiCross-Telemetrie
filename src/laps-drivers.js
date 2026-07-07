@@ -1,10 +1,16 @@
-'use strict';
 // ============================================================
 //  RasiCross -- laps-drivers.js  (Rundenerkennung + Fahrer, Phase 23)
-//  Klassisches Script im gemeinsamen Global-Scope: nutzt state/$/esc/uid,
-//  Dialoge, geo-Helfer (fmtMs/segmentsCross/...), races.js (activeRace),
-//  rcAudio. Nur Deklarationen auf Top-Level.
+//  ESM (Phase 42): explizite Imports statt gemeinsamem Global-Scope.
+//  Nur Deklarationen auf Top-Level.
 // ============================================================
+import { crossingDirectionOk, fmtClock, fmtDelta, fmtMs,
+         lineEndpointsFromGate, segmentsCross, traceDistanceM } from './geo.js';
+import { state, $, uid, esc, setText, rcAlert, rcConfirm, rcToast, rcAudio,
+         saveData, saveDataDebounced, activeKart } from './rasicross.js';
+import { activeRace, endRace } from './races.js';
+import KartRegistry from './kart-registry.js';
+import RasiLapEngine from './lap-engine.js';
+import { syncSectorBestToTrack, updateSectorPanel } from './track.js';
 
 // ============================================================
 // 14. LAP DETECTION
@@ -377,3 +383,10 @@ function theoreticalBestMs() {
 void [checkLapCrossing, triggerLap, renderLapTable, renderLiveLapList,
       getDriverStats, getTotalStats, fmtKm, addDriver, deleteDriver,
       renderTotalHero, renderDrivers, renderDriverOptions, theoreticalBestMs];
+
+// ESM-Export (Phase 42): bisherige Interface-Globals von laps-drivers.js
+export {
+  checkLapCrossing, triggerLap, renderLapTable, renderLiveLapList,
+  getDriverStats, getTotalStats, fmtKm, addDriver, deleteDriver,
+  renderTotalHero, renderDrivers, renderDriverOptions, theoreticalBestMs,
+};

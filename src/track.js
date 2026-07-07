@@ -1,10 +1,16 @@
-'use strict';
 // ============================================================
 //  RasiCross -- track.js  (Track Scan/Persistence/Editor/Sektoren, Phase 23)
-//  Klassisches Script im gemeinsamen Global-Scope: nutzt state/$/css,
-//  Dialoge, geo-Helfer, map-draw.js (drawTrack/gpsXYOnCanvas/...),
-//  RasiTiles/RasiTileRenderer. Nur Deklarationen auf Top-Level.
+//  ESM (Phase 42): explizite Imports statt gemeinsamem Global-Scope.
+//  Nur Deklarationen auf Top-Level.
 // ============================================================
+import { crossingDirectionOk, fmtMs, gpsDist, headingFromPoints,
+         lineEndpointsFromGate, segmentsCross } from './geo.js';
+import { state, $, dpr, uid, esc, setText, rcAlert, rcConfirm, rcToast,
+         rcAudio, formatBytes, saveData, saveDataDebounced, activeKart } from './rasicross.js';
+import { activeRace, renderTrackOptions } from './races.js';
+import RasiLapEngine from './lap-engine.js';
+import { theoreticalBestMs } from './laps-drivers.js';
+import { drawTrack } from './map-draw.js';
 
 // ============================================================
 // 10. TRACK SCAN
@@ -645,8 +651,9 @@ function clearManualSectors() {
 function activateSectorClick(idx) {
   state.sectors.clickTarget = idx;
   setText('sectorClickHint', `Klicke jetzt auf die Karte für S${idx + 2}`);
-  if (_trackCanvas) _trackCanvas.style.cursor = 'crosshair';
-  if (_scanCanvas) _scanCanvas.style.cursor = 'crosshair';
+  // Phase 42: direkte DOM-Lookups statt map-draw-Modulvariablen
+  const _tc = $('trackCanvas'); if (_tc) _tc.style.cursor = 'crosshair';
+  const _sc = $('scanCanvas'); if (_sc) _sc.style.cursor = 'crosshair';
 }
 function handleTrackCanvasClick(e) {
   if (state.sectors.clickTarget == null) return;
@@ -680,8 +687,8 @@ function handleTrackCanvasClick(e) {
   state.sectors.manual = true;
   state.sectors.clickTarget = null;
   setText('sectorClickHint', '');
-  if (_trackCanvas) _trackCanvas.style.cursor = '';
-  if (_scanCanvas) _scanCanvas.style.cursor = '';
+  const _tc = $('trackCanvas'); if (_tc) _tc.style.cursor = '';
+  const _sc = $('scanCanvas'); if (_sc) _sc.style.cursor = '';
   drawTrack();
   saveDataDebounced();
   rcToast(`S${idx + 2} Grenze gesetzt`);
@@ -763,3 +770,14 @@ void [startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
       editorClickTarget, handleEditorClick, saveEditor, calcAutoSectors,
       clearManualSectors, activateSectorClick, handleTrackCanvasClick,
       checkSectorCrossings, updateSectorPanel];
+
+// ESM-Export (Phase 42): bisherige Interface-Globals von track.js
+export {
+  startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
+  recomputeTrackBounds, saveCurrentTrack, syncSectorBestToTrack,
+  loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
+  startTrackTileCache, renderSavedTracks, openTrackEditor, closeTrackEditor,
+  editorClickTarget, handleEditorClick, saveEditor, calcAutoSectors,
+  clearManualSectors, activateSectorClick, handleTrackCanvasClick,
+  checkSectorCrossings, updateSectorPanel,
+};

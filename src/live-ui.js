@@ -1,12 +1,22 @@
-'use strict';
 // ============================================================
 //  RasiCross -- live-ui.js  (Live-Charts + Live-Tab-UI + Loops, Phase 23)
-//  Klassisches Script im gemeinsamen Global-Scope: nutzt state/$/css/dpr,
-//  geo-Helfer, gauges.js/map-draw.js/races.js/laps-drivers.js sowie
-//  RasiKart3D/RasiDrift/RasiAttitude/DomTargets. Die beiden UI-Loops
-//  startet init() in rasicross.js via initLiveUiLoops().
+//  ESM (Phase 42): explizite Imports statt gemeinsamem Global-Scope.
+//  Die beiden UI-Loops startet init() in rasicross.js via initLiveUiLoops().
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
+import { fmtClock, fmtMs, nearestTraceDelta } from './geo.js';
+import { state, $, css, dpr, esc, setText, setTextShared, setHtmlShared,
+         updateEngineUi } from './rasicross.js';
+import { activeRace, activePart, raceElapsedMs, endRace } from './races.js';
+import { drawTrack, resizeCanvases } from './map-draw.js';
+import { getTotalStats } from './laps-drivers.js';
+import { renderDriftBadge, renderGauges, renderRollBar } from './gauges.js';
+import { renderConnectionTab, updatePitWall } from './pit-wall.js';
+import DomTargets from './dom-targets.js';
+import RasiKartBar from './kart-bar.js';
+import RasiKartOverview from './kart-overview.js';
+import RasiKartRank from './kart-rank.js';
+import RasiLapEngine from './lap-engine.js';
 
 // ============================================================
 // LIVE CHARTS (Speed/RPM + G-Kraft)
@@ -222,8 +232,7 @@ function updateLiveKPIs() {
       const _spdColor = state.spdSrc === 'wheel' ? '#e8a13a'
                       : (state.spdSrc === 'none' || !state.spdSrc) ? 'var(--mut)'
                       : '';
-      const _spdIds = (typeof DomTargets !== 'undefined' && DomTargets.targetIdsFor)
-        ? DomTargets.targetIdsFor('spdSrc') : [];
+      const _spdIds = DomTargets.targetIdsFor('spdSrc');
       for (const _id of _spdIds) {
         const _e = $(_id);
         if (_e) { _e.textContent = _srcLabel; _e.style.color = _spdColor; }
@@ -397,7 +406,7 @@ function updateLiveUi() {
     }
     // Stints
     renderStints(r);
-    const _heroPart = (r && typeof activePart === 'function') ? activePart(r) : null;
+    const _heroPart = r ? activePart(r) : null;
     setText('detailHeroStintCount', _heroPart ? _heroPart.stints.length : 0);
     // Status badge
     setText('hzText', state.hz);
@@ -411,7 +420,7 @@ function updateLiveUi() {
 }
 function renderStints(r) {
   // Phase 30: Stints des aktiven Karts (Teilnehmer-Slot).
-  const _sp = (r && typeof activePart === 'function') ? activePart(r) : null;
+  const _sp = r ? activePart(r) : null;
   const _stints = _sp ? _sp.stints : (r && r.stints) || [];
   const _laps = _sp ? _sp.laps : ((r && r.laps) || []);
   const list = $('stintsList');
@@ -455,15 +464,14 @@ function setLiveView(mode) {
   if (mode === 'overview' && state.karts.macs().length <= 1) mode = 'single';
   state.liveView = mode;
   document.body.dataset.liveView = mode;
-  if (window.RasiKartBar) RasiKartBar.render(state);
+  RasiKartBar.render(state);
   if (mode === 'overview') {
-    if (window.RasiKartOverview) RasiKartOverview.render(state);
+    RasiKartOverview.render(state);
   } else {
     // Zurück zur Einzelansicht: Canvas-Größen neu messen (waren ggf. hidden).
     setTimeout(() => { try { resizeCanvases(); } catch (e) {} }, 50);
   }
 }
-window.setLiveView = setLiveView;
 
 // Phase 39: Leaderboard-Strip (Einzelansicht). Zeigt P1..Pn mit Interval zum
 // Vordermann; Klick waehlt den Kart. Versteckt ohne laufendes Rennen/<2
@@ -473,8 +481,8 @@ function renderLeaderStrip() {
   try {
     const el = $('liveLeaderStrip');
     if (!el) return;
-    const r = (typeof activeRace === 'function') ? activeRace() : null;
-    const rr = (state.liveView !== 'overview' && window.RasiKartRank)
+    const r = activeRace();
+    const rr = (state.liveView !== 'overview')
       ? RasiKartRank.ranking(state, r) : null;
     if (!rr) {
       if (el.style.display !== 'none') { el.style.display = 'none'; _lastLeaderStripHtml = ''; }
@@ -484,8 +492,7 @@ function renderLeaderStrip() {
     const macs = state.karts.macs();
     const html = rr.ranked.map(e => {
       const idx = Math.max(0, macs.indexOf(e.mac));
-      const m = window.RasiKartBar ? RasiKartBar.metaFor(state, e.mac, idx)
-                                   : { name: e.mac, color: '#3aa0e8' };
+      const m = RasiKartBar.metaFor(state, e.mac, idx);
       const gap = e.pos === 1 ? ''
         : (rr.hasTrack
             ? (e.intervalLapGap > 0 ? '+' + e.intervalLapGap + ' Rd.' : '+' + Math.round(e.distIntM) + ' m')
@@ -508,7 +515,7 @@ function renderLeaderStrip() {
         const mac = b.getAttribute('data-mac');
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
-          if (window.setLiveView) setLiveView('single');
+          setLiveView('single');
         }
       };
     });
@@ -520,7 +527,7 @@ function renderLeaderStrip() {
 function refreshOverview() {
   if (state.liveView !== 'overview') return;
   if (state.karts.macs().length <= 1) { setLiveView('single'); return; }
-  if (window.RasiKartOverview) RasiKartOverview.render(state);
+  RasiKartOverview.render(state);
 }
 
 // Beide UI-Loops (200ms-Backup-Tick + 1Hz-Loop) -- werden von init() in
@@ -542,7 +549,7 @@ setInterval(() => {
 
   // Multi-Kart Chip-Leiste auffrischen (auch ohne bridge_status, damit
   // Stale-Markierung mit der Zeit greift).
-  if (window.RasiKartBar) RasiKartBar.render(state);
+  RasiKartBar.render(state);
   // Übersicht-Grid (falls aktiv) auffrischen; erzwingt single bei <=1 Kart.
   refreshOverview();
   // Leaderboard-Strip (Einzelansicht) aktuell halten.
@@ -586,3 +593,11 @@ void [initLiveCharts, resizeChartCanvas, drawChart, axisFmt, drawLiveCharts,
       drawYawSparkline, updateLiveDelta, updateLiveKPIs, updateDiagnostics,
       updateLiveUi, renderStints, animLoop, initLiveUiLoops,
       setLiveView, refreshOverview, renderLeaderStrip];
+
+// ESM-Export (Phase 42): bisherige Interface-Globals von live-ui.js
+export {
+  initLiveCharts, resizeChartCanvas, drawChart, axisFmt, drawLiveCharts,
+  drawYawSparkline, updateLiveDelta, updateLiveKPIs, updateDiagnostics,
+  updateLiveUi, renderStints, animLoop, initLiveUiLoops,
+  setLiveView, refreshOverview, renderLeaderStrip,
+};

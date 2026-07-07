@@ -170,13 +170,14 @@ module.exports = [
     rules: bugRules,
   },
 
-  // Pure UMD-Module -- laufen im Browser und unter node:test
+  // Renderer-Module (Phase 42): echte Imports, keine Interface-Globals.
+  // Dient waehrend der Migration als Orakel: jedes no-undef = fehlender Import.
   {
-    files: ['geo.js', 'replay.js', 'lap-engine.js', 'karts3d.js', 'kart-registry.js'],
+    files: ['src/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
-      sourceType: 'script',
-      globals: { ...globals.browser, module: 'readonly', THREE: 'readonly' },
+      sourceType: 'module',
+      globals: { ...globals.browser },
     },
     rules: bugRules,
   },

@@ -181,10 +181,10 @@ let _quotaWarned = false;
 // vergessen" loescht Eintraege (rasiPersistForget). Demo-Karts (DE:MO:*)
 // werden nie persistiert.
 const _persistedKarts = { cal: {}, eng: {} };
-window.rasiPersistForget = function (mac) {
+function rasiPersistForget(mac) {
   delete _persistedKarts.cal[mac];
   delete _persistedKarts.eng[mac];
-};
+}
 // Races fuer die Persistenz verschlanken: speedTrace auf max. 1000 Punkte
 // downsamplen. Im RAM bleibt die volle Aufloesung erhalten — nur die
 // localStorage-Kopie wird kleiner (5-MB-Quota ueber eine Saison).
@@ -972,6 +972,9 @@ function processTelemetry(d) {
 let _kart3dReady = false;
 let _kart3dLastTick = 0;
 let _attLastMs = 0;            // wall-clock of last attitude fusion step (ms)
+// Phase 42: recording.js setzt die Fusions-Uhr beim Replay-Reset zurueck --
+// ESM-Importe sind read-only, deshalb Setter statt Direktzuweisung.
+function resetAttitudeClock() { _attLastMs = 0; }
 
 function initGViewToggle() {
   const wrap = $('gViewToggle');
