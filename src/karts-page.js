@@ -8,7 +8,8 @@
 //  Nur Deklarationen auf Top-Level — kein Code laeuft beim Laden.
 // ============================================================
 import { state, $, esc, setText,
-         kartMetaFor, kartRosterMacs, kartCalFor, kartEngineFor } from './rasicross.js';
+         kartMetaFor, kartRosterMacs, kartCalFor, kartEngineFor,
+         rcConfirm, rcToast, saveData, saveDataDebounced, updateKartMeta, rasiPersistForget } from './rasicross.js';
 import RasiEngine from './engine.js';
 import RasiKartRoster from './kart-roster.js';
 import RasiKartBar from './kart-bar.js';
@@ -88,6 +89,8 @@ function renderKartsTab() {
   // (der 1-Hz-Refresh wuerde sonst die Eingabe verwerfen).
   const ae = document.activeElement;
   if (ae && list.contains(ae) && ae.tagName === 'INPUT') return;
+  const resetBtn = $('kartsResetAllBtn');
+  if (resetBtn && !resetBtn._bound) { resetBtn._bound = true; resetBtn.onclick = resetAllKarts; }
   const macs = kartRosterMacs();
   setText('kartCount', macs.length);
   if (!macs.length) {
@@ -99,11 +102,40 @@ function renderKartsTab() {
   bindCardEvents(list);
 }
 
-// Task 5 fuellt die Aktionen; das Geruest verdrahtet nur die Aktiv-Wahl.
+function forgetKart(mac) {
+  state.karts.forget(mac);
+  // Bewusstes Vergessen loescht auch Kalibrierung/Motorstunden/Meta der MAC
+  // (Semantik von Phase 39, jetzt eine Stelle: rasiPersistForget).
+  rasiPersistForget(mac);
+  if (state._kartHz) delete state._kartHz[mac];
+  if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {
+    try { window.rasiSerial.writeLine(JSON.stringify({ type: 'forget_kart_mac', mac })); } catch (e) {}
+  }
+  state.activeKartMac = state.karts.activeMac();
+  saveData();
+  rcToast('Kart vergessen');
+  RasiKartBar.render(state);
+  renderKartsTab();
+}
+
+async function resetAllKarts() {
+  if (!await rcConfirm('Alle bekannten Karts vergessen? Namen/Farben, Kalibrierung und Motorstunden bleiben erhalten.',
+      'Karts zurücksetzen', 'Zurücksetzen', true)) return;
+  state.karts.reset();
+  state._kartHz = {};
+  state.activeKartMac = null;
+  if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {
+    try { window.rasiSerial.writeLine(JSON.stringify({ type: 'reset_karts' })); } catch (e) {}
+  }
+  rcToast('Alle Karts zurückgesetzt');
+  RasiKartBar.render(state);
+  renderKartsTab();
+}
+
 function bindCardEvents(list) {
   list.querySelectorAll('.kart-card').forEach(card => {
     card.addEventListener('click', (ev) => {
-      if (ev.target.closest('[data-action]')) return;   // Inputs/Buttons nicht kapern
+      if (ev.target.closest('[data-action]')) return;
       const mac = card.getAttribute('data-mac');
       if (state.karts.has(mac) && state.karts.setActive(mac)) {
         state.activeKartMac = mac;
@@ -111,6 +143,63 @@ function bindCardEvents(list) {
         renderKartsTab();
       }
     });
+  });
+  list.querySelectorAll('[data-action="name"]').forEach(inp => {
+    inp.oninput = () => {
+      const mac = inp.getAttribute('data-mac');
+      const idx = Math.max(0, state.karts.macs().indexOf(mac));
+      updateKartMeta(mac, { name: inp.value.trim() || ('Kart ' + (idx + 1)) });
+      RasiKartBar.render(state);
+    };
+    // Nach dem Verlassen des Felds einmal neu bauen (Tipp-Schutz-Ende).
+    inp.onblur = () => renderKartsTab();
+  });
+  list.querySelectorAll('[data-action="color"]').forEach(sw => {
+    sw.onclick = () => {
+      updateKartMeta(sw.getAttribute('data-mac'), { color: sw.getAttribute('data-color') });
+      RasiKartBar.render(state);
+      renderKartsTab();
+    };
+  });
+  list.querySelectorAll('[data-action="interval"]').forEach(inp => {
+    inp.onchange = () => {
+      const e = kartEngineFor(inp.getAttribute('data-mac'));
+      if (!e) return;
+      e.serviceIntervalH = RasiKartRoster.clampServiceH(inp.value);
+      inp.value = e.serviceIntervalH;
+      saveDataDebounced();
+    };
+    inp.onblur = () => renderKartsTab();
+  });
+  list.querySelectorAll('[data-action="service"]').forEach(btn => {
+    btn.onclick = async () => {
+      if (!await rcConfirm('Wartungszähler zurücksetzen? Seit-letzter-Wartung beginnt wieder bei 0.', 'Wartung', 'Zurücksetzen')) return;
+      const e = kartEngineFor(btn.getAttribute('data-mac'));
+      if (!e) return;
+      e.lastServiceMs = e.totalMs;
+      if ('_warned' in e) e._warned = false;
+      saveData();
+      rcToast('🔧 Wartung vermerkt');
+      renderKartsTab();
+    };
+  });
+  list.querySelectorAll('[data-action="calreset"]').forEach(btn => {
+    btn.onclick = async () => {
+      if (!await rcConfirm('Kalibrierung dieses Karts auf Werkswerte zurücksetzen?', 'Kalibrierung', 'Zurücksetzen', true)) return;
+      const c = kartCalFor(btn.getAttribute('data-mac'));
+      if (!c) return;
+      Object.assign(c, RasiKartRoster.calDefaults());
+      saveData();
+      rcToast('Kalibrierung zurückgesetzt');
+      renderKartsTab();
+    };
+  });
+  list.querySelectorAll('[data-action="forget"]').forEach(btn => {
+    btn.onclick = async () => {
+      const mac = btn.getAttribute('data-mac');
+      if (!await rcConfirm('Dieses Kart endgültig vergessen? Name, Farbe, Kalibrierung und Motorstunden werden gelöscht.', 'Kart vergessen', 'Vergessen', true)) return;
+      forgetKart(mac);
+    };
   });
 }
 
