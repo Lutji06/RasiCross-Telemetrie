@@ -66,3 +66,40 @@ test('Persistentes Kart erscheint offline nach Reload', async () => {
   expect(val).toBe('Scheunenkart');
   expect(errors).toEqual([]);
 });
+
+test('Kart-Wechsel waehrend laufendem Rennen aendert keine Bucket-Daten', async () => {
+  await startDemo();
+  // startDemo() legt ein laufendes Demo-Race an (Auto-Arm-Flow, Phase 41/42).
+  await page.waitForFunction(() => {
+    const r = RasiTest.activeRace();
+    return !!r && r.status === 'running';
+  });
+  // macA MUSS das aktive Kart sein (der Marker wird via activeKart() gesetzt).
+  // macs()[0] waere der default-Platzhalter-Bucket: startDemo() erzeugt ihn
+  // vor den DE:MO:*-Karts, die Registry listet in Anlage-Reihenfolge.
+  const macA = await page.evaluate(() => RasiTest.state.karts.activeMac());
+  const macB = await page.evaluate(
+    (a) => RasiTest.state.karts.macs().find((m) => m !== a && m.indexOf('DE:MO:') === 0), macA);
+  // Marker auf Kart A (aktiv) setzen, dann auf B wechseln.
+  await page.evaluate(() => { RasiTest.activeKart().calibration.gxZero = 0.11; });
+  await page.evaluate((mac) => {
+    RasiTest.state.karts.setActive(mac);
+    RasiTest.state.activeKartMac = mac;
+  }, macB);
+  // (a) B traegt den Marker NICHT, (b) A's Bucket traegt ihn unveraendert.
+  const probe = await page.evaluate(([a, b]) => ({
+    activeGx: RasiTest.activeKart().calibration.gxZero,
+    aGx: RasiTest.state.karts.get(a).calibration.gxZero,
+    bIsActive: RasiTest.state.karts.activeMac() === b,
+  }), [macA, macB]);
+  expect(probe.bIsActive).toBe(true);
+  expect(probe.activeGx).not.toBe(0.11);
+  expect(probe.aGx).toBe(0.11);
+  // (c) Rueckwechsel: activeKart() liefert wieder A's Marker.
+  await page.evaluate((mac) => {
+    RasiTest.state.karts.setActive(mac);
+    RasiTest.state.activeKartMac = mac;
+  }, macA);
+  expect(await page.evaluate(() => RasiTest.activeKart().calibration.gxZero)).toBe(0.11);
+  expect(errors).toEqual([]);
+});

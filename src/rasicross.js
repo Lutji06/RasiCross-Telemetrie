@@ -112,18 +112,6 @@ const state = {
   gateFlashUntil: 0,
 };
 
-// ── Multi-Kart facade ───────────────────────────────────────────────────
-// Per-kart fields are getters delegating to the active kart. As of Phase 43
-// every render/read path (in every module, incl. this file) calls
-// activeKart()/kartFor(mac) explicitly for these per-kart fields (telemetry,
-// charts, batt, …) instead of reading them through this facade; it is kept
-// installed only until it is removed in a later task. Write paths use
-// kartFor(mac) explicitly (see processTelemetry).
-const PER_KART_FIELDS = ['connection','telemetry','raw','display','gps','spdSrc',
-  'batt','max','charts','imu','drift','attitude','driftSmooth','heatmap','lapStart',
-  'currentLapMax','currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta',
-  'autoLap','sectorsLive','sectorsBest','recording','replay','calibration','engine'];
-
 function activeKart() {
   let k = state.karts.active();
   if (!k) k = state.karts.get(KartRegistry.DEFAULT_MAC);   // single-source fallback
@@ -162,14 +150,6 @@ function kartFor(mac) {
   }
   if (k && state.activeKartMac === null) state.activeKartMac = state.karts.activeMac();
   return k;   // null if over MAX_KARTS
-}
-
-for (const f of PER_KART_FIELDS) {
-  Object.defineProperty(state, f, {
-    get() { return activeKart()[f]; },
-    set(v) { activeKart()[f] = v; },
-    enumerable: false, configurable: true,
-  });
 }
 
 // Send a command line to the bridge, tagged with the active kart's MAC so the

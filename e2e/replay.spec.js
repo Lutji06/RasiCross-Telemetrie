@@ -42,10 +42,10 @@ test('Recording/Replay-Roundtrip', async () => {
   });
   expect(result.ok).toBe(true);
   expect(result.replayed).toBe(result.recorded);
-  await page.waitForFunction(() => RasiTest.state.replay.active === true);
+  await page.waitForFunction(() => RasiTest.activeKart().replay.active === true);
   // Replay spielt: virtuelle Zeit schreitet voran
-  await page.waitForFunction(() => RasiTest.state.replay.virtualMs > 0, null, { timeout: 10000 });
+  await page.waitForFunction(() => RasiTest.activeKart().replay.virtualMs > 0, null, { timeout: 10000 });
   await page.evaluate(() => RasiTest.exitReplay());
-  expect(await page.evaluate(() => RasiTest.state.replay.active)).toBe(false);
+  expect(await page.evaluate(() => RasiTest.activeKart().replay.active)).toBe(false);
   expect(errors).toEqual([]);
 });
