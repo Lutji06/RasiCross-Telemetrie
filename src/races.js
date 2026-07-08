@@ -71,6 +71,7 @@ function startRace() {
     if (!r) return rcAlert('Bitte ein Rennen aktivieren.');
     if (r.status === 'running') return;
     if (r.status === 'finished' || r.status === 'finished_auto') return rcAlert('Rennen ist beendet.');
+    const k = activeKart();
     const now = Date.now();
     if (r.status === 'paused') {
       // Fortsetzen: Pausendauer ermitteln, Rennuhr korrigieren.
@@ -78,28 +79,28 @@ function startRace() {
       r.totalPausedMs = (r.totalPausedMs || 0) + pausedMs;
       r.pausedAt = null;
       r.status = 'running';
-      if (typeof state.lapStart === 'number') {
+      if (typeof k.lapStart === 'number') {
         // Live-Renndaten noch im Speicher -> Lauf- und Sektor-Uhr um
         // die Pause vorruecken, damit die Zeit nahtlos weiterlaeuft.
-        state.lapStart += pausedMs;
-        if (typeof state.sectorsLive.sectorStart === 'number') {
-          state.sectorsLive.sectorStart += pausedMs;
+        k.lapStart += pausedMs;
+        if (typeof k.sectorsLive.sectorStart === 'number') {
+          k.sectorsLive.sectorStart += pausedMs;
         }
       } else {
         // Nach App-Neustart sind die Live-Lap-Daten weg -> aktuelle
         // Runde frisch beginnen (gefahrene Runden bleiben erhalten).
-        state.lapStart = now;
-        state.currentLapMax = { speed: 0, rpm: 0 };
-        state.currentLapTrace = [];
-        state.heatmap.lapMaxSpeed = 0;
-        state.sectorsLive.cur = 0;
-        state.sectorsLive.sectorStart = now;
-        state.sectorsLive.lapSectors = [null, null, null];
-        state.sectorsLive.lastLapSectors = null;
+        k.lapStart = now;
+        k.currentLapMax = { speed: 0, rpm: 0 };
+        k.currentLapTrace = [];
+        k.heatmap.lapMaxSpeed = 0;
+        k.sectorsLive.cur = 0;
+        k.sectorsLive.sectorStart = now;
+        k.sectorsLive.lapSectors = [null, null, null];
+        k.sectorsLive.lastLapSectors = null;
       }
       // Stale GPS-Punkt verwerfen, sonst Geister-Durchfahrt moeglich.
-      state.autoLap.prevLat = null;
-      state.autoLap.prevLon = null;
+      k.autoLap.prevLat = null;
+      k.autoLap.prevLon = null;
     } else {
       // Frischer Start: kompletter Reset. Phase 30: alle aktuell verbundenen
       // Karts werden Teilnehmer; jeder startet UNarmiert (lapStart=null) und
