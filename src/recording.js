@@ -129,18 +129,37 @@ function exportRecordingCsv() {
 
 // Slices that processTelemetry / onGpsUpdate / lap-sector-race
 // detection mutate. Snapshot on enter, restore verbatim on exit.
-const REPLAY_KEYS = ['connection','hz','telemetry','raw','display','gps','spdSrc',
-  'batt','max','charts','imu','drift','driftSmooth','attitude','heatmap','sectors','sectorsLive','lapStart','currentLapMax',
-  'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap',
-  'drivers','races','activeRaceId','selectedRaceId','gateFlashUntil'];
+// Per-Kart-Bucket-Felder: Snapshot/Restore iteriert den Bucket des AKTIVEN
+// Karts (activeKart()), nicht state. Die vom Replay ebenfalls veraenderten
+// GLOBALEN state-Felder (hz, sectors, drivers, races, activeRaceId,
+// selectedRaceId, gateFlashUntil) werden darunter explizit behandelt.
+const REPLAY_KART_KEYS = ['connection','telemetry','raw','display','gps','spdSrc',
+  'batt','max','charts','imu','drift','driftSmooth','attitude','heatmap','sectorsLive','lapStart','currentLapMax',
+  'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap'];
 
 function snapshotReplayState() {
+  const ak = activeKart();
   const s = {};
-  for (const k of REPLAY_KEYS) s[k] = state[k];
+  for (const key of REPLAY_KART_KEYS) s[key] = ak[key];
+  s.hz = state.hz;
+  s.sectors = state.sectors;
+  s.drivers = state.drivers;
+  s.races = state.races;
+  s.activeRaceId = state.activeRaceId;
+  s.selectedRaceId = state.selectedRaceId;
+  s.gateFlashUntil = state.gateFlashUntil;
   try { return structuredClone(s); } catch (e) { return JSON.parse(JSON.stringify(s)); }
 }
 function restoreReplayState(snap) {
-  for (const k of REPLAY_KEYS) state[k] = snap[k];
+  const ak = activeKart();
+  for (const key of REPLAY_KART_KEYS) ak[key] = snap[key];
+  state.hz = snap.hz;
+  state.sectors = snap.sectors;
+  state.drivers = snap.drivers;
+  state.races = snap.races;
+  state.activeRaceId = snap.activeRaceId;
+  state.selectedRaceId = snap.selectedRaceId;
+  state.gateFlashUntil = snap.gateFlashUntil;
 }
 // Fresh accumulators + a disposable running race/driver so detected
 // laps/sectors stay isolated. track/startGate are intentionally kept.
