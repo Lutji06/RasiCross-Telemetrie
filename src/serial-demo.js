@@ -6,7 +6,7 @@
 // ============================================================
 import { gpsDist, headingFromPoints } from './geo.js';
 import { state, $, uid, esc, setText, rcAlert, rcToast, saveDataDebounced,
-         armRecording, kartFor, processTelemetry } from './rasicross.js';
+         armRecording, kartFor, activeKart, processTelemetry } from './rasicross.js';
 import { activeRace, endRace, raceValidLaps, renderRaces, startRace } from './races.js';
 import { calcAutoSectors, onGpsUpdate, updateBounds, updateSectorPanel } from './track.js';
 import { drawTrack } from './map-draw.js';
@@ -38,9 +38,10 @@ async function listSerialPorts() {
   } catch (e) { console.warn('listSerialPorts:', e); sel.innerHTML = '<option value="">Fehler</option>'; }
 }
 async function connectSerial() {
-  if (state.replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
+  if (activeKart().replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
   if (state.demo.running) stopDemo();
   stopReconnect();
+  const k = activeKart();
   state.serial.autoReconnect = $('autoReconnectToggle').checked;
   state.serial.baud = Number($('serialBaud').value) || 115200;
   try {
@@ -56,7 +57,7 @@ async function connectSerial() {
       if (state.settings.recordAutoArm) armRecording();
       state.serial.portName = path;
       state.serial.lastPath = path;
-      state.connection.source = 'serial';
+      k.connection.source = 'serial';
       $('connectBtn').textContent = 'USB trennen';
       $('connectBtn').className = 'btn danger w100';
       $('serialConnectBtn').textContent = 'Trennen';
@@ -71,14 +72,14 @@ async function connectSerial() {
       state.serial.port = port;
       state.serial.connected = true;
       state.serial.portName = 'WebSerial';
-      state.connection.source = 'serial';
+      k.connection.source = 'serial';
       $('connectBtn').textContent = 'USB trennen';
       readWebSerial(port);
     } else {
       rcAlert('USB-Serial nur in Electron oder Chrome/Edge verfügbar.');
     }
   } catch (e) {
-    state.connection.errors++;
+    k.connection.errors++;
     state.serial.connected = false;
     rcAlert('Verbindung fehlgeschlagen:\n' + (e?.message || e), 'Fehler');
   }
@@ -92,21 +93,21 @@ async function disconnectSerial() {
   } catch {}
   state.serial.connected = false;
   state.serial.port = null;
-  state.connection.source = 'offline';
+  activeKart().connection.source = 'offline';
   $('connectBtn').textContent = 'USB verbinden';
   $('connectBtn').className = 'btn primary w100';
   $('serialConnectBtn').textContent = 'Verbinden';
 }
 function onSerialClose() {
   state.serial.connected = false;
-  state.connection.source = 'offline';
+  activeKart().connection.source = 'offline';
   $('connectBtn').textContent = 'USB verbinden';
   $('connectBtn').className = 'btn primary w100';
   $('serialConnectBtn').textContent = 'Verbinden';
   if (state.serial.autoReconnect && state.serial.lastPath) scheduleReconnect();
 }
 function onSerialError(msg) {
-  state.connection.errors++;
+  activeKart().connection.errors++;
   console.warn('Serial error:', msg);
 }
 async function readWebSerial(port) {
@@ -138,7 +139,7 @@ function handleSerialLine(line) {
     pushPacketLog(line);
     processTelemetry(d);
     if (d.lat && d.lon) onGpsUpdate(d.lat, d.lon);
-  } catch (e) { state.connection.errors++; }
+  } catch (e) { activeKart().connection.errors++; }
 }
 function scheduleReconnect() {
   if (state.serial.reconnectTimer) return;
@@ -155,7 +156,7 @@ function scheduleReconnect() {
         window.rasiSerial.onClose(() => onSerialClose());
         state.serial.connected = true;
         state.serial.portName = state.serial.lastPath;
-        state.connection.source = 'serial';
+        activeKart().connection.source = 'serial';
         state.serial.reconnectAttempts = 0;
         $('connectBtn').textContent = 'USB trennen';
         $('connectBtn').className = 'btn danger w100';
@@ -180,16 +181,17 @@ const DEMO_KART_DEFS = [
   { mac: 'DE:MO:RA:SI:00:03', name: 'Demo 3', color: '#5ad17a', pace: 0.968, phase: 3.2, rssi: -71, soc0: 55 },
 ];
 function startDemo() {
-  if (state.replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
+  if (activeKart().replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
   if (state.demo.running) return;
   if (state.serial.connected) disconnectSerial();
+  const k = activeKart();
   state.demo.running = true;
   state.demo.t = 0;
   state.demo.angle = -Math.PI / 2;
   state.demo.lapsDone = 0;
-  state.connection.source = 'demo';
-  state.connection.bridgeMac = 'DE:MO:00:00:00:01';
-  state.connection.kartMac = 'DE:MO:00:00:00:02';
+  k.connection.source = 'demo';
+  k.connection.bridgeMac = 'DE:MO:00:00:00:01';
+  k.connection.kartMac = 'DE:MO:00:00:00:02';
   // Phase 39: Demo-Karts VOR dem Auto-Race registrieren, damit startRace()
   // alle drei als Teilnehmer aufnimmt (kein Nachzuegler-/default-Slot).
   state.demo.karts = DEMO_KART_DEFS.map(def => ({
@@ -249,7 +251,7 @@ function stopDemo() {
   state.demo.running = false;
   if (state.demo.interval) clearInterval(state.demo.interval);
   state.demo.interval = null;
-  state.connection.source = 'offline';
+  activeKart().connection.source = 'offline';
   $('demoStartBtn').classList.remove('hidden');
   $('demoStopBtn').classList.add('hidden');
   setText('demoModeText', 'Bereit');
