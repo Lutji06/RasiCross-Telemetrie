@@ -80,9 +80,8 @@ const state = {
   sessionStart: Date.now(),
   hz: 0,
   _lastHz: 0,
-  // Multi-Kart: per-Kart-Felder leben in der Registry; die unten installierte
-  // Proxy-Fassade spiegelt den aktiven Kart als state.<feld> in alle Lese-/
-  // Render-Pfade. Schreibpfade nutzen explizit kartFor(mac)/activeKart().
+  // Multi-Kart: per-Kart-Felder leben ausschliesslich in state.karts;
+  // beide Lese- und Schreibpfade nutzen den Selektor activeKart() (Phase 43).
   karts: KartRegistry.create(),
   activeKartMac: null,
   // Live-Tab-Ansicht: 'single' (aktiver Kart) oder 'overview' (alle Karts).
