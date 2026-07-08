@@ -31,7 +31,9 @@ import RasiAttitude from './attitude.js';
 import RasiDrift from './drift.js';
 import RasiEngine from './engine.js';
 import RasiKart3D from './karts3d.js';
+import RasiKartRoster from './kart-roster.js';
 import RasiKartBar from './kart-bar.js';
+import { renderKartsTab } from './karts-page.js';
 import RasiLapEngine from './lap-engine.js';
 import RasiReplay from './replay.js';
 import RasiSettings from './settings.js';
@@ -215,10 +217,44 @@ let _quotaWarned = false;
 // Registry) Kalibrierung + Motorstunden NICHT verliert. Nur "Kart
 // vergessen" loescht Eintraege (rasiPersistForget). Demo-Karts (DE:MO:*)
 // werden nie persistiert.
-const _persistedKarts = { cal: {}, eng: {} };
+const _persistedKarts = { cal: {}, eng: {}, meta: {} };
+// Demo-Karts (DE:MO:*) bekommen Session-Meta, nie Persistenz (Phase 46).
+const _demoMeta = {};
 function rasiPersistForget(mac) {
   delete _persistedKarts.cal[mac];
   delete _persistedKarts.eng[mac];
+  delete _persistedKarts.meta[mac];
+  delete _demoMeta[mac];
+}
+// Roster-Accessoren (Phase 46): einzige Meta-Quelle fuer Chips, Grid,
+// Verbindungs-Detail und Karts-Seite. idx nur fuer die Default-Anlage.
+function kartMetaFor(mac, idx) {
+  // DE:MO:* und der default-Platzhalter-Bucket bleiben Session-only --
+  // beide sind nie echte Karts und duerfen den Roster nicht verschmutzen.
+  const sessionOnly = RasiKartRoster.isDemoMac(mac) || mac === KartRegistry.DEFAULT_MAC;
+  const map = sessionOnly ? _demoMeta : _persistedKarts.meta;
+  const r = RasiKartRoster.ensureMeta(map, mac, idx);
+  if (r.created && map === _persistedKarts.meta) saveDataDebounced();
+  return r.entry;
+}
+function updateKartMeta(mac, patch) {
+  const m = kartMetaFor(mac, Math.max(0, state.karts.macs().indexOf(mac)));
+  Object.assign(m, patch);
+  if (!RasiKartRoster.isDemoMac(mac)) saveDataDebounced();
+  return m;
+}
+function kartRosterMacs() {
+  return RasiKartRoster.rosterMacs(_persistedKarts.meta, state.karts.macs());
+}
+// Kalibrierung/Motor eines Karts — live-Bucket bevorzugt, sonst die
+// persistierte Ablage (offline-Karts auf der Karts-Seite), sonst null.
+function kartCalFor(mac) {
+  if (state.karts.has(mac)) return state.karts.get(mac).calibration;
+  return _persistedKarts.cal[mac] || null;
+}
+function kartEngineFor(mac) {
+  if (state.karts.has(mac)) return state.karts.get(mac).engine;
+  return _persistedKarts.eng[mac] || null;
 }
 // Races fuer die Persistenz verschlanken: speedTrace auf max. 1000 Punkte
 // downsamplen. Im RAM bleibt die volle Aufloesung erhalten — nur die
@@ -267,6 +303,7 @@ function saveData() {
       version: '9.6', savedAt: new Date().toISOString(),
       settings: state.settings, calibration: state.calibration, theme: state.theme,
       kartsCal: _kartsCal, kartsEngine: _kartsEngine,
+      kartsMeta: _persistedKarts.meta,
       drivers: state.drivers, races: state.races.map(_persistRace), savedTracks: state.savedTracks,
       activeRaceId: state.activeRaceId, selectedRaceId: state.selectedRaceId,
       activeTrackId: state.activeTrackId,
@@ -332,8 +369,19 @@ function loadData() {
     }
     Object.assign(_persistedKarts.cal, _cal);
     Object.assign(_persistedKarts.eng, _eng);
+    if (d.kartsMeta && typeof d.kartsMeta === 'object') Object.assign(_persistedKarts.meta, d.kartsMeta);
     state.activeKartMac = state.karts.activeMac();
   } catch (e) { console.warn('loadData:', e); }
+}
+// Phase 46: Alt-Key des Chip-Editors einmalig ins Roster uebernehmen.
+function migrateLegacyKartMeta() {
+  try {
+    const legacy = localStorage.getItem('rasi.kartMeta.v1');
+    if (RasiKartRoster.migrateLegacyMeta(_persistedKarts.meta, legacy)) {
+      localStorage.removeItem('rasi.kartMeta.v1');
+      saveDataDebounced();
+    }
+  } catch (e) { /* Migration darf den Start nie verhindern */ }
 }
 window.addEventListener('beforeunload', saveData);
 
@@ -400,6 +448,7 @@ function setupTabs() {
       setTimeout(resizeCanvases, 50);
       // Bei Driver-Tab: Stats neu berechnen (kann sich nach jedem Rennen aendern)
       if (tab === 'drivers') renderDrivers();
+      if (tab === 'karts') renderKartsTab();
       // Task 7 – Settings-Suche beim Tab-Wechsel zuruecksetzen
       const _ss = document.getElementById('settingsSearch');
       if (_ss && _ss.value) { _ss.value = ''; _ss.dispatchEvent(new Event('input')); }
@@ -563,14 +612,6 @@ const ESP_CFG_FIELDS = [
   ['espBattCal', 'bcal'], ['espRpmCeiling', 'rcl'], ['espRpmAlpha', 'ra'],
   ['espPageMs', 'pm'],
 ];
-// Motorlaufzeit-Anzeigen (Einstellungen -> ESP32/Hardware). Wird von
-// loadSettingsToUi und dem 1-Hz-UI-Loop (live-ui.js) aktualisiert.
-function updateEngineUi() {
-  setText('engineHoursText', RasiEngine.hoursText(state.engine.totalMs));
-  setText('engineSinceServiceText',
-    RasiEngine.hoursText(RasiEngine.sinceServiceMs(state.engine.totalMs, state.engine.lastServiceMs)));
-}
-
 let _espAckTimer = null;
 function applyEspConfigAck(d) {
   clearTimeout(_espAckTimer);
@@ -612,8 +653,6 @@ function loadSettingsToUi() {
     updateTilesUrlHint();
     applyTilesPresetFromUrl();
   }
-  if ($('setServiceIntervalH')) $('setServiceIntervalH').value = state.engine.serviceIntervalH;
-  updateEngineUi();
   showSettingsGroup((state.settings && state.settings.uiActiveGroup) || 'dashboard');
 }
 let _settingsSaveTimer = null;
@@ -654,7 +693,6 @@ function saveSettingsFromUi() {
   if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
   if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
   if ($('setTilesUrl')) state.settings.tiles.urlTemplate = ($('setTilesUrl').value || '').trim();
-  state.engine.serviceIntervalH = Math.max(0, Math.min(500, Number($('setServiceIntervalH')?.value) || 0));
   loadSettingsToUi();
   saveData();
   flashSettingsSaved();
@@ -820,6 +858,7 @@ function processTelemetry(d) {
     if (state.serial.connected && !k.replay.active) k.connection.source = 'serial';
     k.connection.packets++;
     k.connection.lastPacketAt = Date.now();
+    kartMetaFor(_mac, Math.max(0, state.karts.macs().indexOf(_mac))).lastSeenAt = Date.now();
     k.connection.kartMac = _mac;
     if (typeof d.rssi === 'number') k.connection.rssi = d.rssi;
     // Verlustzaehlung: eine Quelle. Die Bridge zaehlt ueber die ESP-NOW-
@@ -1175,6 +1214,7 @@ function initKartModelUploader() {
 // ============================================================
 function init() {
   loadData();
+  migrateLegacyKartMeta();
   // Persistierte Session-Bounds heilen: eng aus den Punkten neu ableiten
   // (alte Daten koennen GPS-Ausreisser in den Bounds tragen, Phase 26).
   if (state.track.points.length) recomputeTrackBounds();
@@ -1380,14 +1420,6 @@ function init() {
     } catch (e) {
       setText('espSendStatus', '✗ Fehler');
     }
-  };
-  $('serviceDoneBtn').onclick = async () => {
-    if (!await rcConfirm('Wartungszähler zurücksetzen? Seit-letzter-Wartung beginnt wieder bei 0.', 'Wartung', 'Zurücksetzen')) return;
-    state.engine.lastServiceMs = state.engine.totalMs;
-    state.engine._warned = false;
-    saveData();
-    updateEngineUi();
-    rcToast('🔧 Wartung vermerkt');
   };
   $('exportAllBtn').onclick = exportAll;
   $('importAllBtn').onclick = () => $('importAllFile').click();
@@ -1699,6 +1731,7 @@ export {
   saveData, saveDataDebounced, formatBytes,
   setTextShared, setHtmlShared, logTime, SAVE_KEY,
   activeKart, kartFor, processTelemetry, armRecording, driftInputs,
-  updateEngineUi, resetAttitudeClock, rasiPersistForget,
+  resetAttitudeClock, rasiPersistForget,
   kart3dIsReady, kart3dTickDt,
+  kartMetaFor, updateKartMeta, kartRosterMacs, kartCalFor, kartEngineFor,
 };

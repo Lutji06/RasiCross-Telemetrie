@@ -5,8 +5,7 @@
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
 import { fmtClock, fmtMs, nearestTraceDelta } from './geo.js';
-import { state, $, css, dpr, esc, setText, setTextShared, setHtmlShared,
-         updateEngineUi } from './rasicross.js';
+import { state, $, css, dpr, esc, setText, setTextShared, setHtmlShared } from './rasicross.js';
 import { activeRace, activePart, raceElapsedMs, endRace } from './races.js';
 import { drawTrack, resizeCanvases } from './map-draw.js';
 import { getTotalStats } from './laps-drivers.js';
@@ -15,6 +14,7 @@ import { renderConnectionTab, updatePitWall } from './pit-wall.js';
 import DomTargets from './dom-targets.js';
 import RasiKartBar from './kart-bar.js';
 import RasiKartOverview from './kart-overview.js';
+import { renderKartsTab } from './karts-page.js';
 import RasiKartRank from './kart-rank.js';
 import RasiLapEngine from './lap-engine.js';
 
@@ -414,8 +414,6 @@ function updateLiveUi() {
     setText('detailHeroPackets', state.connection.packets);
     // Live delta
     updateLiveDelta();
-    // Motorlaufzeit-Anzeige (Einstellungen) im 1-Hz-Takt aktuell halten
-    updateEngineUi();
   } catch (e) { console.warn('updateLiveUi:', e); }
 }
 function renderStints(r) {
@@ -584,6 +582,9 @@ setInterval(() => {
       ? (t.distanceKm * 1000).toFixed(0) + ' m'
       : t.distanceKm.toFixed(2) + ' km');
   } catch (e) {}
+
+  // Karts-Tab: Live-Werte der Karten im 1-Hz-Takt (nur bei aktivem Tab).
+  if (document.body.dataset.tab === 'karts') { try { renderKartsTab(); } catch (e) {} }
 }, 1000);
 }
 

@@ -1427,36 +1427,6 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .kart-chip .kart-chip-main{display:inline-flex;align-items:center;gap:6px;
   background:none;border:none;color:inherit;font:inherit;padding:0;
   cursor:pointer;white-space:nowrap}
-.kart-chip .kart-edit{cursor:pointer;opacity:.6;margin-left:2px;font-size:11px;
-  background:none;border:none;color:inherit;padding:0 2px;line-height:1}
-.kart-chip .kart-edit:hover{opacity:1}
-
-/* Kart-Editor-Popover */
-#kartEditPopover{position:fixed;z-index:1200;min-width:200px;padding:12px;
-  background:var(--panel,#161a22);border:1px solid #2a3140;border-radius:12px;
-  box-shadow:0 12px 32px rgba(0,0,0,.5)}
-#kartEditPopover.hidden{display:none}
-#kartEditPopover .ke-row{margin-bottom:10px}
-#kartEditPopover label{display:block;font-size:11px;opacity:.7;margin-bottom:4px}
-#kartEditName{width:100%;box-sizing:border-box;padding:6px 8px;border-radius:8px;
-  border:1px solid #2a3140;background:#0e1117;color:var(--fg,#e8edf4);font-size:13px}
-#kartEditSwatches{display:flex;gap:8px}
-#kartEditSwatches .sw{width:22px;height:22px;border-radius:50%;cursor:pointer;
-  border:2px solid transparent}
-#kartEditSwatches .sw.active{border-color:var(--fg,#e8edf4)}
-
-/* Connection-Tab: Per-Kart-Liste */
-#connKartList{display:none;flex-direction:column;gap:6px;margin:0 0 14px}
-.conn-kart-row{display:grid;grid-template-columns:14px 1fr auto;align-items:center;
-  gap:10px;cursor:pointer;padding:8px 12px;border:1px solid #2a3140;border-radius:10px;
-  background:var(--panel,#161a22)}
-.conn-kart-row.active{box-shadow:0 0 0 2px rgba(58,160,232,.35);border-color:#3aa0e8}
-.conn-kart-row.stale{opacity:.5}
-.conn-kart-row .ckr-dot{width:12px;height:12px;border-radius:50%}
-.conn-kart-row .ckr-name{font-weight:600;font-size:13px}
-.conn-kart-row .ckr-stats{font-size:11px;opacity:.8;font-variant-numeric:tabular-nums;
-  display:flex;gap:10px;white-space:nowrap}
-.conn-kart-row .ckr-rec{color:#e85a7a;font-weight:700}
 
 /* Multi-Kart: Übersicht-Button in der Chip-Leiste */
 .kart-overview-btn{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
@@ -1744,6 +1714,32 @@ body[data-live-view="overview"] #tab-live .pw-live-body{display:none}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .dstat.highlight b{color:var(--driver,var(--pr))}
+
+/* ── Karts-Tab (Phase 46): Karte pro Kart, Stil wie driver-stat-card ── */
+.kart-card{padding:16px;background:var(--surf);border:1px solid var(--bor);
+  border-radius:var(--r-xl);border-left:4px solid var(--kart,var(--pr));
+  margin-bottom:10px;transition:var(--t)}
+.kart-card.active{box-shadow:0 0 0 1px var(--kart,var(--pr)) inset}
+.kart-card.offline{opacity:.72}
+.kc-head{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin-bottom:10px}
+.kc-dot{width:14px;height:14px;border-radius:50%;background:var(--kart,var(--pr))}
+.kc-name-input{font-family:var(--sans);font-size:16px;font-weight:700;color:var(--tx);
+  background:transparent;border:1px solid transparent;border-radius:var(--r-md);padding:4px 8px;max-width:220px}
+.kc-name-input:hover,.kc-name-input:focus{border-color:var(--bor);background:var(--soft)}
+.kc-mac{font-family:var(--mono);font-size:10.5px;color:var(--mut);font-weight:600;margin-top:2px}
+.kc-badge{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.08em;
+  padding:2px 7px;border-radius:999px;border:1px solid var(--bor);color:var(--mut);margin-left:8px}
+.kc-badge.demo{color:var(--pr);border-color:var(--pr)}
+.kc-live{font-family:var(--mono);font-size:11px;color:var(--mut);margin-bottom:10px;display:flex;gap:12px;flex-wrap:wrap}
+.kc-live .rec{color:#e85a7a;font-weight:700}
+.kc-swatches{display:flex;gap:6px}
+.kc-sw{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+.kc-sw.active{border-color:var(--tx)}
+.kc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:10px}
+.kc-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.kc-actions .grow{flex:1}
+.kc-interval{width:70px;text-align:right}
+.kc-warn{font-family:var(--mono);font-size:11px;color:#e8a13a;font-weight:700}
 
 
 .thero-stat{
@@ -2441,6 +2437,10 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
     <button class="nav-item" data-tab="drivers">
       <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg></span>
       Fahrer
+    </button>
+    <button class="nav-item" data-tab="karts">
+      <span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><circle cx="12" cy="12" r="2.5"/></svg></span>
+      Karts
     </button>
   </div>
 
@@ -3142,6 +3142,23 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 </section>
 
 <!-- ============================================================
+     TAB: KARTS (Phase 46)
+     ============================================================ -->
+<section class="tab" id="tab-karts">
+  <div class="pw-library">
+    <div class="pw-lib-head pw-lib-head-row">
+      <div class="pw-lib-title">
+        <span class="pw-lib-bar"></span>
+        <span>Karts</span>
+        <span class="pw-lib-count"><span id="kartCount">0</span> · Karts</span>
+      </div>
+      <button class="btn ghost" id="kartsResetAllBtn">Alle Karts zurücksetzen</button>
+    </div>
+    <div id="kartCardsList"><div class="muted">Noch keine Karts — sie erscheinen mit dem ersten Telemetrie-Paket.</div></div>
+  </div>
+</section>
+
+<!-- ============================================================
      TAB: VERBINDUNG
      ============================================================ -->
 <section class="tab" id="tab-connection">
@@ -3189,11 +3206,6 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
     <button class="btn ghost" id="diagToggleBtn" style="padding:6px 12px;font-size:11px">Diagnose</button>
   </div>
 
-  <!-- Multi-Kart: Per-Kart-Statusliste + Reset (nur sichtbar bei >1 Kart) -->
-  <div id="connKartList"></div>
-  <button class="btn ghost" id="resetKartsBtn" style="display:none;margin:0 0 14px">
-    Alle Karts zurücksetzen
-  </button>
   <div id="connDetailTitle" class="muted" style="margin:0 0 8px;font-size:12px"></div>
 
   <div class="mode-tabs">
@@ -3491,19 +3503,6 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
           <div class="settings-row-label"><span class="settings-row-name">OLED-Update Intervall</span><span class="settings-row-desc">Aktualisierungsrate des Bridge-Displays (ms)</span></div>
           <input type="number" id="setDisplayUpdateMs" value="500" min="100" max="2000" step="50" data-autosave>
         </div>
-        <div class="settings-row">
-          <div class="settings-row-label"><span class="settings-row-name">Motorlaufzeit</span><span class="settings-row-desc">Kumulierte Motorstunden (zählt bei USB-Verbindung und Drehzahl &gt; 500)</span></div>
-          <div class="n" id="engineHoursText" style="font-family:var(--mono)">0,0 h</div>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-label"><span class="settings-row-name">Wartungsintervall</span><span class="settings-row-desc">Hinweis nach so vielen Motorstunden seit letzter Wartung (0 = aus)</span></div>
-          <input type="number" id="setServiceIntervalH" value="10" min="0" max="500" step="0.5" data-autosave>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-label"><span class="settings-row-name">Seit letzter Wartung</span><span class="settings-row-desc">Motorstunden seit dem letzten Wartungs-Reset</span></div>
-          <div class="n" id="engineSinceServiceText" style="font-family:var(--mono)">0,0 h</div>
-        </div>
-        <div class="row" style="margin:6px 0 4px"><button class="btn ghost" id="serviceDoneBtn" style="flex:1">Wartung erledigt — Zähler nullen</button></div>
       </section>
 
       <!-- ── 3D-Modell ─────────────────────────────────────── -->
@@ -3785,17 +3784,6 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 </div>
 <div id="rcToast"></div>
 
-<div id="kartEditPopover" class="hidden">
-  <div class="ke-row">
-    <label for="kartEditName">Name</label>
-    <input id="kartEditName" type="text" maxlength="20" autocomplete="off">
-  </div>
-  <div class="ke-row">
-    <label>Farbe</label>
-    <div id="kartEditSwatches"></div>
-  </div>
-  <button id="kartEditForget" class="btn danger w100">Kart vergessen</button>
-</div>
 <script type="module" src="/src/app.js"></script>
 </body>
 </html>
