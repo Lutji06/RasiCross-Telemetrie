@@ -1276,8 +1276,9 @@ function init() {
   $('changeDriverBtn').onclick = openDriverChange;
   $('pitCallBtn').onclick = togglePitCall;
   $('heatmapBtn').onclick = () => {
-    activeKart().heatmap.on = !activeKart().heatmap.on;
-    $('heatmapBtn').classList.toggle('active', activeKart().heatmap.on);
+    const k = activeKart();
+    k.heatmap.on = !k.heatmap.on;
+    $('heatmapBtn').classList.toggle('active', k.heatmap.on);
     drawTrack();
   };
   // Track tab buttons
