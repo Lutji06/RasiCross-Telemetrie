@@ -7,7 +7,7 @@
 // ============================================================
 import { fmtClock, fmtMs, structuralRaceKey } from './geo.js';
 import { state, $, css, esc, setText, rcAlert, rcToast,
-         logTime } from './rasicross.js';
+         logTime, activeKart } from './rasicross.js';
 import { activeRace, raceElapsedMs } from './races.js';
 import { theoreticalBestMs } from './laps-drivers.js';
 import KartRegistry from './kart-registry.js';
@@ -49,7 +49,8 @@ let _pwHold = null;            // { text, pb, until }
 function updatePitWall() {
   const ov = $('pitwallOverlay');
   if (!ov || !ov.classList.contains('show')) return;
-  const t = state.telemetry;
+  const k = activeKart();
+  const t = k.telemetry;
   const now = Date.now();
   // Top info
   setText('pwSession', fmtClock(now - state.sessionStart));
@@ -68,25 +69,25 @@ function updatePitWall() {
   }
   // Speed
   setText('pwSpeed', Math.round(t.speed));
-  setText('pwSpeedMax', Math.round(state.max.speed));
+  setText('pwSpeedMax', Math.round(k.max.speed));
   // Delta
   const dEl = $('pwDelta');
   if (dEl) {
-    if (state.liveDelta != null) {
-      dEl.textContent = (state.liveDelta >= 0 ? '+' : '') + (state.liveDelta / 1000).toFixed(3);
-      dEl.className = 'pw-delta-val ' + (Math.abs(state.liveDelta) < 50 ? 'same' : state.liveDelta < 0 ? 'faster' : 'slower');
+    if (k.liveDelta != null) {
+      dEl.textContent = (k.liveDelta >= 0 ? '+' : '') + (k.liveDelta / 1000).toFixed(3);
+      dEl.className = 'pw-delta-val ' + (Math.abs(k.liveDelta) < 50 ? 'same' : k.liveDelta < 0 ? 'faster' : 'slower');
     } else {
       // Ohne Referenzrunde kein "+0.000" vorgaukeln
       dEl.textContent = '—';
       dEl.className = 'pw-delta-val same';
     }
   }
-  setText('pwDeltaRef', state.bestLapMs ? `vs. Runde ${state.bestLapNum} (${fmtMs(state.bestLapMs)})` : 'vs. beste Runde');
+  setText('pwDeltaRef', k.bestLapMs ? `vs. Runde ${k.bestLapNum} (${fmtMs(k.bestLapMs)})` : 'vs. beste Runde');
   // Lap -- neue fertige Runde erkennen und 5 s halten
   const _pwLaps = _pwPart ? _pwPart.laps : [];
   if (r && r.id === _pwSeenRaceId && _pwLaps.length > _pwSeenLapCount) {
     const last = _pwLaps[_pwLaps.length - 1];
-    _pwHold = { text: fmtMs(last.timeMs), pb: state.bestLapNum === last.number, until: now + PW_LAP_HOLD_MS };
+    _pwHold = { text: fmtMs(last.timeMs), pb: k.bestLapNum === last.number, until: now + PW_LAP_HOLD_MS };
   } else if (!r || r.id !== _pwSeenRaceId) {
     _pwHold = null;
   }
@@ -99,16 +100,16 @@ function updatePitWall() {
       lapEl.className = 'pw-side-val hold' + (_pwHold.pb ? ' pb' : '');
     } else {
       _pwHold = null;
-      lapEl.textContent = state.lapStart ? fmtMs(now - state.lapStart) : '--:--.---';
+      lapEl.textContent = k.lapStart ? fmtMs(now - k.lapStart) : '--:--.---';
       lapEl.className = 'pw-side-val';
     }
   }
-  setText('pwBestLap', state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---');
+  setText('pwBestLap', k.bestLapMs ? fmtMs(k.bestLapMs) : '--:--.---');
   const _tb = theoreticalBestMs();
   setText('pwTheoLap', _tb ? fmtMs(_tb) : '--:--.---');
   // Sectors
   const s = state.sectors;          // Konfiguration (global)
-  const sl = state.sectorsLive;     // Live-Sektorzeiten (pro Kart)
+  const sl = k.sectorsLive;         // Live-Sektorzeiten (pro Kart)
   for (let i = 0; i < 3; i++) {
     let t2 = sl.lapSectors[i];
     if (!t2 && sl.lastLapSectors) t2 = sl.lastLapSectors[i];
@@ -128,7 +129,7 @@ function updatePitWall() {
   // Status farbcodiert -- aus Distanz ohne Lesen erkennbar
   const stEl = $('pwStatus');
   if (stEl) {
-    const src = state.connection.source;
+    const src = k.connection.source;
     stEl.textContent = src === 'serial' ? 'USB' : src === 'demo' ? 'DEMO' : 'OFF';
     stEl.className = 'pw-foot-v ' + (src === 'serial' ? 'ok' : src === 'demo' ? 'warn' : 'off');
   }
@@ -180,7 +181,8 @@ function drawRssiSparkline() {
 }
 function renderConnectionTab() {
   try {
-    const c = state.connection;
+    const k = activeKart();
+    const c = k.connection;
     const _am = state.activeKartMac;
     const _meta = _am ? RasiKartBar.metaFor(state, _am, 0) : null;
     setText('connDetailTitle', _meta ? ('Detail: ' + _meta.name) : '');
@@ -192,25 +194,25 @@ function renderConnectionTab() {
     setText('connOverviewState', c.source === 'serial' ? 'Verbunden' : c.source === 'demo' ? 'Demo' : 'Offline');
     setText('connOverviewHz', (state._lastHz || 0) + ' Hz');
     setText('connOverviewLost', c.lost);
-    setText('connOverviewGps', state.gps.fix ? 'Fix' : '--');
+    setText('connOverviewGps', k.gps.fix ? 'Fix' : '--');
     setText('connOverviewSignal', c.rssi != null ? c.rssi + ' dBm' : '--');
     // Diagram
     setText('kartStatePill', c.lastPacketAt ? (Date.now() - c.lastPacketAt < 2000 ? 'aktiv' : 'inaktiv') : 'wartet');
-    setText('kartMainValue', state.telemetry.speed.toFixed(0) + ' km/h');
+    setText('kartMainValue', k.telemetry.speed.toFixed(0) + ' km/h');
     setText('pitStatePill', state.serial.connected ? 'online' : c.source === 'demo' ? 'demo' : 'offline');
     setText('pitMainValue', state.serial.connected ? 'USB' : c.source === 'demo' ? 'DEMO' : 'OFF');
     setText('connSeq', c.seq != null ? c.seq : '--');
     setText('connAge', c.lastPacketAt ? ((Date.now() - c.lastPacketAt) / 1000).toFixed(1) + 's' : '--');
-    setText('connSpeed', state.telemetry.speed.toFixed(0));
-    setText('connRpm', Math.round(state.telemetry.rpm));
+    setText('connSpeed', k.telemetry.speed.toFixed(0));
+    setText('connRpm', Math.round(k.telemetry.rpm));
     setText('connUsbState', state.serial.connected ? 'ON' : 'OFF');
     setText('connHz', state._lastHz || 0);
     setText('connRssi', c.rssi != null ? c.rssi + ' dBm' : '--');
     setText('connLost', c.lost);
     setText('connBridgeMac', c.bridgeMac || '--');
     setText('connRasiMac', c.kartMac || '--');
-    setText('connGpsFix', state.gps.fix ? 'Fix' : 'kein Fix');
-    setText('connGpsAge', state.gps.lastAt ? ((Date.now() - state.gps.lastAt) / 1000).toFixed(1) + 's' : '--');
+    setText('connGpsFix', k.gps.fix ? 'Fix' : 'kein Fix');
+    setText('connGpsAge', k.gps.lastAt ? ((Date.now() - k.gps.lastAt) / 1000).toFixed(1) + 's' : '--');
     // Signal-Bars
     const bars = document.querySelectorAll('#signalBars i');
     if (bars.length === 4 && c.rssi != null) {
@@ -232,9 +234,9 @@ function renderConnectionTab() {
       if (_rssiHist.length > RSSI_HIST_MAX) _rssiHist.shift();
     }
     drawRssiSparkline();
-    setText('connRawG', `${state.raw.gx.toFixed(2)} / ${state.raw.gy.toFixed(2)}`);
-    setText('connPulseHz', state.raw.pulseHz?.toFixed(1) || '--');
-    setText('connPulseCount', state.raw.pulseCount || '--');
+    setText('connRawG', `${k.raw.gx.toFixed(2)} / ${k.raw.gy.toFixed(2)}`);
+    setText('connPulseHz', k.raw.pulseHz?.toFixed(1) || '--');
+    setText('connPulseCount', k.raw.pulseCount || '--');
     setText('connErrCount', c.errors);
     // Packet log
     const log = $('packetLog');
@@ -353,7 +355,7 @@ let _lastDisplayKeyByMac = {};
 let _lastDisplayAtByMac = {};
 const RC_DISPLAY_KEEPALIVE_MS = 5000;
 function sendDisplayUpdate() {
-  if (state.connection.source !== 'serial' || !state.serial.connected) return;
+  if (activeKart().connection.source !== 'serial' || !state.serial.connected) return;
   if (!window.rasiSerial?.writeLine) return;
   const now = Date.now();
   // Leere Registry -> ein Paket ohne target_mac (Bridge-Fallback = zuletzt
@@ -391,7 +393,7 @@ function restartDisplayUpdateInterval() {
 
 
 function sendPitCall(message, durationMs = 15000) {
-  if (state.connection.source !== 'serial' || !state.serial.connected) {
+  if (activeKart().connection.source !== 'serial' || !state.serial.connected) {
     rcAlert('Kein USB verbunden. Pit-Call nicht moeglich.', 'Pit-Call');
     return false;
   }
@@ -409,7 +411,7 @@ function sendPitCall(message, durationMs = 15000) {
   }
 }
 function cancelPitCall() {
-  if (state.connection.source !== 'serial' || !state.serial.connected) return false;
+  if (activeKart().connection.source !== 'serial' || !state.serial.connected) return false;
   try {
     window.rasiBridgeSend({ type: 'pit_call', action: 'cancel' });
     return true;
@@ -430,7 +432,7 @@ function togglePitCall() {
     return;
   }
   // Aktivieren
-  if (state.connection.source === 'demo') {
+  if (activeKart().connection.source === 'demo') {
     // Demo: lokal zeigen (kein echter ESP)
     _pitCallActive = true;
     _pitCallMac = state.activeKartMac || KartRegistry.DEFAULT_MAC;
