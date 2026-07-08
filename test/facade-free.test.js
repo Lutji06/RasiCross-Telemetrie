@@ -17,7 +17,8 @@ const RE = new RegExp('\\bstate\\.(' + PER_KART_FIELDS.join('|') + ')\\b');
 
 test('facade-free: kein src-Modul liest state.<per-Kart-Feld>', () => {
   const offenders = [];
-  for (const f of fs.readdirSync(SRC).filter(n => n.endsWith('.js'))) {
+  // rekursiv: Phase 44 fuehrt Unterordner unter src/ ein
+  for (const f of fs.readdirSync(SRC, { recursive: true }).filter(n => String(n).endsWith('.js'))) {
     const lines = fs.readFileSync(path.join(SRC, f), 'utf8').split(/\r?\n/);
     lines.forEach((line, i) => { if (RE.test(line)) offenders.push(`${f}:${i + 1}: ${line.trim()}`); });
   }
