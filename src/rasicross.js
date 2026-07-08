@@ -113,9 +113,12 @@ const state = {
 };
 
 // ── Multi-Kart facade ───────────────────────────────────────────────────
-// Per-kart fields are getters delegating to the active kart, so the entire
-// render/read path keeps using state.telemetry / state.charts / state.batt …
-// unchanged. Write paths use kartFor(mac) explicitly (see processTelemetry).
+// Per-kart fields are getters delegating to the active kart. As of Phase 43
+// every render/read path (in every module, incl. this file) calls
+// activeKart()/kartFor(mac) explicitly for these per-kart fields (telemetry,
+// charts, batt, …) instead of reading them through this facade; it is kept
+// installed only until it is removed in a later task. Write paths use
+// kartFor(mac) explicitly (see processTelemetry).
 const PER_KART_FIELDS = ['connection','telemetry','raw','display','gps','spdSrc',
   'batt','max','charts','imu','drift','attitude','driftSmooth','heatmap','lapStart',
   'currentLapMax','currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta',
@@ -285,8 +288,9 @@ function _persistRace(r) {
   return changed ? Object.assign({}, r, { participants: parts }) : r;
 }
 function saveData() {
-  if (state.replay && state.replay.active) return;  // replay uses disposable state — never persist
+  if (activeKart().replay.active) return;  // replay uses disposable state — never persist
   try {
+    const k = activeKart();
     // Per-Kart Kalibrierung + Motorlaufzeit (keyed by MAC). Legacy-Felder
     // (calibration/engine) bleiben fuer Downgrade-Gnade aus dem aktiven Kart.
     const _kartsCal = Object.assign({}, _persistedKarts.cal);
@@ -301,14 +305,14 @@ function saveData() {
     _persistedKarts.eng = _kartsEngine;
     const payload = {
       version: '9.6', savedAt: new Date().toISOString(),
-      settings: state.settings, calibration: state.calibration, theme: state.theme,
+      settings: state.settings, calibration: k.calibration, theme: state.theme,
       kartsCal: _kartsCal, kartsEngine: _kartsEngine,
       kartsMeta: _persistedKarts.meta,
       drivers: state.drivers, races: state.races.map(_persistRace), savedTracks: state.savedTracks,
       activeRaceId: state.activeRaceId, selectedRaceId: state.selectedRaceId,
       activeTrackId: state.activeTrackId,
       track: state.track, startGate: state.startGate, sectors: { boundaries: state.sectors.boundaries, manual: state.sectors.manual, best: state.sectors.best },
-      engine: { totalMs: state.engine.totalMs, lastServiceMs: state.engine.lastServiceMs, serviceIntervalH: state.engine.serviceIntervalH }
+      engine: { totalMs: k.engine.totalMs, lastServiceMs: k.engine.lastServiceMs, serviceIntervalH: k.engine.serviceIntervalH }
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
     setText('storageState', 'Gespeichert ' + logTime());
@@ -627,6 +631,7 @@ function applyEspConfigAck(d) {
 }
 
 function loadSettingsToUi() {
+  const k = activeKart();
   $('setMaxSpeed').value = state.settings.maxSpeed;
   $('setMaxRpm').value = state.settings.maxRpm;
   $('setRpmWarn').value = state.settings.rpmWarning;
@@ -637,13 +642,13 @@ function loadSettingsToUi() {
   if ($('setRolloverAngle')) $('setRolloverAngle').value = (state.settings.rollover && state.settings.rollover.angleDeg) || 75;
   if ($('setDisplayUpdateMs')) $('setDisplayUpdateMs').value = state.settings.displayUpdateMs || 500;
   $('settingsHint').textContent = `${state.settings.maxSpeed} km/h · ${state.settings.maxRpm} rpm`;
-  $('gxOffsetText').textContent = state.calibration.gxZero.toFixed(2);
-  $('gyOffsetText').textContent = state.calibration.gyZero.toFixed(2);
-  if ($('setInvertGx')) $('setInvertGx').checked = !!state.calibration.invertGx;
-  if ($('setInvertGy')) $('setInvertGy').checked = !!state.calibration.invertGy;
-  if ($('setSwapG')) $('setSwapG').checked = !!state.calibration.swapG;
-  if ($('setInvertYaw')) $('setInvertYaw').checked = !!state.calibration.invertYaw;
-  if ($('setInvertRollRate')) $('setInvertRollRate').checked = !!state.calibration.invertRollRate;
+  $('gxOffsetText').textContent = k.calibration.gxZero.toFixed(2);
+  $('gyOffsetText').textContent = k.calibration.gyZero.toFixed(2);
+  if ($('setInvertGx')) $('setInvertGx').checked = !!k.calibration.invertGx;
+  if ($('setInvertGy')) $('setInvertGy').checked = !!k.calibration.invertGy;
+  if ($('setSwapG')) $('setSwapG').checked = !!k.calibration.swapG;
+  if ($('setInvertYaw')) $('setInvertYaw').checked = !!k.calibration.invertYaw;
+  if ($('setInvertRollRate')) $('setInvertRollRate').checked = !!k.calibration.invertRollRate;
   if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
   if ($('setTilesEnabled')) {
     $('setTilesEnabled').checked = !!(state.settings.tiles && state.settings.tiles.enabled);
@@ -669,6 +674,7 @@ function scheduleSettingsSave() {
   _settingsSaveTimer = setTimeout(() => { saveSettingsFromUi(); }, 150);
 }
 function saveSettingsFromUi() {
+  const k = activeKart();
   state.settings.maxSpeed = Math.max(20, Math.min(200, Number($('setMaxSpeed').value) || 80));
   state.settings.maxRpm = Math.max(3000, Math.min(20000, Number($('setMaxRpm').value) || 10000));
   state.settings.rpmWarning = Math.max(2000, Math.min(state.settings.maxRpm, Number($('setRpmWarn').value) || 9000));
@@ -684,11 +690,11 @@ function saveSettingsFromUi() {
     state.settings.displayUpdateMs = newInterval;
     restartDisplayUpdateInterval();
   }
-  state.calibration.invertGx = !!$('setInvertGx')?.checked;
-  state.calibration.invertGy = !!$('setInvertGy')?.checked;
-  state.calibration.swapG = !!$('setSwapG')?.checked;
-  state.calibration.invertYaw = !!$('setInvertYaw')?.checked;
-  state.calibration.invertRollRate = !!$('setInvertRollRate')?.checked;
+  k.calibration.invertGx = !!$('setInvertGx')?.checked;
+  k.calibration.invertGy = !!$('setInvertGy')?.checked;
+  k.calibration.swapG = !!$('setSwapG')?.checked;
+  k.calibration.invertYaw = !!$('setInvertYaw')?.checked;
+  k.calibration.invertRollRate = !!$('setInvertRollRate')?.checked;
   drawGMeter._trail = [];
   if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
   if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
@@ -814,8 +820,8 @@ function processTelemetry(d) {
   try {
     if (!d) return;
     if (d.type === 'bridge_status') {
-      if (d.mac) state.connection.bridgeMac = d.mac;
-      if (d.kart_mac) state.connection.kartMac = d.kart_mac;
+      if (d.mac) activeKart().connection.bridgeMac = d.mac;
+      if (d.kart_mac) activeKart().connection.kartMac = d.kart_mac;
       // Hintergrund-Karts schon vor ihrem ersten Telemetrie-Paket befuellen,
       // damit Chips RSSI/Hz/Lost anzeigen.
       state._kartHz = state._kartHz || {};
@@ -1270,8 +1276,8 @@ function init() {
   $('changeDriverBtn').onclick = openDriverChange;
   $('pitCallBtn').onclick = togglePitCall;
   $('heatmapBtn').onclick = () => {
-    state.heatmap.on = !state.heatmap.on;
-    $('heatmapBtn').classList.toggle('active', state.heatmap.on);
+    activeKart().heatmap.on = !activeKart().heatmap.on;
+    $('heatmapBtn').classList.toggle('active', activeKart().heatmap.on);
     drawTrack();
   };
   // Track tab buttons
@@ -1334,10 +1340,11 @@ function init() {
   // Settings tab
   if ($('zeroRollBtn')) $('zeroRollBtn').onclick = () => {
     // Aktuellen fusionierten Rollwinkel (inkl. bestehendem Offset) als neue 0 setzen.
-    state.calibration.rollZero = state.calibration.rollZero + ((state.attitude && state.attitude.rollDeg) || 0);
-    state.attitude.rollDeg = 0;
-    state.attitude.overState = { active: false };
-    state.attitude.over = false;
+    const k = activeKart();
+    k.calibration.rollZero = k.calibration.rollZero + ((k.attitude && k.attitude.rollDeg) || 0);
+    k.attitude.rollDeg = 0;
+    k.attitude.overState = { active: false };
+    k.attitude.over = false;
     saveData();
     rcToast('Rollwinkel genullt', 1500);
   };
@@ -1356,7 +1363,8 @@ function init() {
     const duration = 2000;
     const tick = setInterval(() => {
       const elapsed = Date.now() - start;
-      samples.push({ x: state.raw.gx || 0, y: state.raw.gy || 0 });
+      const k = activeKart();
+      samples.push({ x: k.raw.gx || 0, y: k.raw.gy || 0 });
       const remain = Math.max(0, duration - elapsed) / 1000;
       btn.textContent = `Kart still halten… ${remain.toFixed(1)}s`;
       if (elapsed >= duration) {
@@ -1364,8 +1372,8 @@ function init() {
         if (samples.length >= 5) {
           const avgX = samples.reduce((s,p) => s + p.x, 0) / samples.length;
           const avgY = samples.reduce((s,p) => s + p.y, 0) / samples.length;
-          state.calibration.gxZero = avgX;
-          state.calibration.gyZero = avgY;
+          k.calibration.gxZero = avgX;
+          k.calibration.gyZero = avgY;
           loadSettingsToUi();
           saveData();
           rcToast(`Nullpunkt gesetzt (${samples.length} Samples)`);
@@ -1378,8 +1386,8 @@ function init() {
     }, 50);
   };
   $('resetImuBtn').onclick = () => {
-    state.calibration.gxZero = 0;
-    state.calibration.gyZero = 0;
+    activeKart().calibration.gxZero = 0;
+    activeKart().calibration.gyZero = 0;
     loadSettingsToUi();
     saveData();
     // Sender-Offsets ebenfalls zuruecksetzen (am ausgewaehlten Kart)
@@ -1405,7 +1413,7 @@ function init() {
       rpm_alpha: Number($('espRpmAlpha').value) || 0.25,
       page_ms: Number($('espPageMs').value) || 4000,
     };
-    state.batt.cells = cfg.batt_cells;
+    activeKart().batt.cells = cfg.batt_cells;
     if (!state.serial.connected) {
       setText('espSendStatus', 'Nicht verbunden');
       return;
@@ -1665,7 +1673,7 @@ init();
         // GPS Bar Fill (statusGpsDot ist jetzt eine Bar, kein Dot)
         const gpsBar = $$('statusGpsDot');
         if (gpsBar) {
-          const hasFix = state.gps?.lat != null;
+          const hasFix = activeKart().gps?.lat != null;
           gpsBar.style.width = hasFix ? '100%' : '30%';
           gpsBar.style.background = hasFix ? 'var(--green)' : 'var(--orange)';
           gpsBar.style.boxShadow = '0 0 8px ' + (hasFix ? 'var(--green-glow)' : 'var(--orange-glow)');
