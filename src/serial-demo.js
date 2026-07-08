@@ -41,7 +41,6 @@ async function connectSerial() {
   if (activeKart().replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
   if (state.demo.running) stopDemo();
   stopReconnect();
-  const k = activeKart();
   state.serial.autoReconnect = $('autoReconnectToggle').checked;
   state.serial.baud = Number($('serialBaud').value) || 115200;
   try {
@@ -57,7 +56,9 @@ async function connectSerial() {
       if (state.settings.recordAutoArm) armRecording();
       state.serial.portName = path;
       state.serial.lastPath = path;
-      k.connection.source = 'serial';
+      // Nach await frisch aufloesen -- der aktive Kart kann waehrend des
+      // Verbindungsaufbaus gewechselt worden sein (Fassaden-Semantik: Read-Zeit).
+      activeKart().connection.source = 'serial';
       $('connectBtn').textContent = 'USB trennen';
       $('connectBtn').className = 'btn danger w100';
       $('serialConnectBtn').textContent = 'Trennen';
@@ -72,14 +73,14 @@ async function connectSerial() {
       state.serial.port = port;
       state.serial.connected = true;
       state.serial.portName = 'WebSerial';
-      k.connection.source = 'serial';
+      activeKart().connection.source = 'serial';
       $('connectBtn').textContent = 'USB trennen';
       readWebSerial(port);
     } else {
       rcAlert('USB-Serial nur in Electron oder Chrome/Edge verfügbar.');
     }
   } catch (e) {
-    k.connection.errors++;
+    activeKart().connection.errors++;
     state.serial.connected = false;
     rcAlert('Verbindung fehlgeschlagen:\n' + (e?.message || e), 'Fehler');
   }
