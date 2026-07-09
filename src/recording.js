@@ -7,7 +7,7 @@
 import { fmtClock } from './geo.js';
 import { state, $, uid, setText, rcAlert, rcConfirm, rcToast, saveData,
          SAVE_KEY, processTelemetry, driftInputs,
-         resetAttitudeClock } from './rasicross.js';
+         resetAttitudeClock, activeKart } from './rasicross.js';
 import { renderRaces } from './races.js';
 import { drawTrack } from './map-draw.js';
 import { onGpsUpdate } from './track.js';
@@ -23,14 +23,15 @@ import RasiReplay from './replay.js';
 // EXPORT / IMPORT / RESET
 // ============================================================
 function exportAll() {
+  const k = activeKart();
   const data = {
     version: '9.6', exportedAt: new Date().toISOString(),
-    settings: state.settings, calibration: state.calibration,
+    settings: state.settings, calibration: k.calibration,
     drivers: state.drivers, races: state.races,
     savedTracks: state.savedTracks,
     track: state.track, startGate: state.startGate,
     sectors: state.sectors,
-    engine: { totalMs: state.engine.totalMs, lastServiceMs: state.engine.lastServiceMs, serviceIntervalH: state.engine.serviceIntervalH }
+    engine: { totalMs: k.engine.totalMs, lastServiceMs: k.engine.lastServiceMs, serviceIntervalH: k.engine.serviceIntervalH }
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -47,15 +48,16 @@ function importAll(file) {
     try {
       const d = JSON.parse(reader.result);
       if (!await rcConfirm('Aktuelle Daten überschreiben?', 'Importieren', 'Importieren', true)) return;
+      const k = activeKart();
       if (d.settings) Object.assign(state.settings, d.settings);
-      if (d.calibration) Object.assign(state.calibration, d.calibration);
+      if (d.calibration) Object.assign(k.calibration, d.calibration);
       if (Array.isArray(d.drivers)) state.drivers = d.drivers;
       if (Array.isArray(d.races)) state.races = d.races;
       if (Array.isArray(d.savedTracks)) state.savedTracks = d.savedTracks;
       if (d.engine) {
-        state.engine.totalMs = Number(d.engine.totalMs) || 0;
-        state.engine.lastServiceMs = Number(d.engine.lastServiceMs) || 0;
-        if (d.engine.serviceIntervalH != null) state.engine.serviceIntervalH = Number(d.engine.serviceIntervalH) || 0;
+        k.engine.totalMs = Number(d.engine.totalMs) || 0;
+        k.engine.lastServiceMs = Number(d.engine.lastServiceMs) || 0;
+        if (d.engine.serviceIntervalH != null) k.engine.serviceIntervalH = Number(d.engine.serviceIntervalH) || 0;
       }
       saveData();
       location.reload();
@@ -78,9 +80,10 @@ async function resetAll() {
 function updateRecStatus() {
   const el = $('recStatusText');
   if (!el) return;
-  if (state.replay.active) { el.textContent = 'Replay aktiv'; return; }
-  const n = state.recording.buf.length;
-  el.textContent = state.recording.armed ? (n + ' Pakete aufgenommen') : 'Bereit';
+  const k = activeKart();
+  if (k.replay.active) { el.textContent = 'Replay aktiv'; return; }
+  const n = k.recording.buf.length;
+  el.textContent = k.recording.armed ? (n + ' Pakete aufgenommen') : 'Bereit';
 }
 // Dateinamen-Praefix aus dem Namen des aktiven Karts (Multi-Kart-Export),
 // damit zwei Karts unterscheidbare Dateien ergeben.
@@ -94,7 +97,8 @@ function activeKartSlug() {
 function saveRecording() {
   // Replay aktiv -> die geladene Aufnahme speichern (z.B. nach Crash-Recovery),
   // sonst den Live-Mitschnitt.
-  const buf = state.replay.active ? state.replay.packets : state.recording.buf;
+  const k = activeKart();
+  const buf = k.replay.active ? k.replay.packets : k.recording.buf;
   if (!buf.length) { rcToast('Keine Aufnahme vorhanden'); return; }
   const text = RasiReplay.serializeRecording(buf, { created: new Date().toISOString() });
   const blob = new Blob([text], { type: 'application/x-ndjson' });
@@ -108,7 +112,8 @@ function saveRecording() {
 }
 function exportRecordingCsv() {
   // Replay aktiv -> die geladene Aufnahme exportieren, sonst den Live-Mitschnitt.
-  const buf = state.replay.active ? state.replay.packets : state.recording.buf;
+  const k = activeKart();
+  const buf = k.replay.active ? k.replay.packets : k.recording.buf;
   if (!buf.length) { rcToast('Keine Aufnahme vorhanden'); return; }
   const text = RasiReplay.recordingToCsv(buf);
   // UTF-8 BOM, damit Excel die Kodierung erkennt
@@ -124,53 +129,73 @@ function exportRecordingCsv() {
 
 // Slices that processTelemetry / onGpsUpdate / lap-sector-race
 // detection mutate. Snapshot on enter, restore verbatim on exit.
-const REPLAY_KEYS = ['connection','hz','telemetry','raw','display','gps','spdSrc',
-  'batt','max','charts','imu','drift','driftSmooth','attitude','heatmap','sectors','sectorsLive','lapStart','currentLapMax',
-  'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap',
-  'drivers','races','activeRaceId','selectedRaceId','gateFlashUntil'];
+// Per-Kart-Bucket-Felder: Snapshot/Restore iteriert den Bucket des AKTIVEN
+// Karts (activeKart()), nicht state. Die vom Replay ebenfalls veraenderten
+// GLOBALEN state-Felder (hz, sectors, drivers, races, activeRaceId,
+// selectedRaceId, gateFlashUntil) werden darunter explizit behandelt.
+const REPLAY_KART_KEYS = ['connection','telemetry','raw','display','gps','spdSrc',
+  'batt','max','charts','imu','drift','driftSmooth','attitude','heatmap','sectorsLive','lapStart','currentLapMax',
+  'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap'];
 
 function snapshotReplayState() {
+  const ak = activeKart();
   const s = {};
-  for (const k of REPLAY_KEYS) s[k] = state[k];
+  for (const key of REPLAY_KART_KEYS) s[key] = ak[key];
+  s.hz = state.hz;
+  s.sectors = state.sectors;
+  s.drivers = state.drivers;
+  s.races = state.races;
+  s.activeRaceId = state.activeRaceId;
+  s.selectedRaceId = state.selectedRaceId;
+  s.gateFlashUntil = state.gateFlashUntil;
   try { return structuredClone(s); } catch (e) { return JSON.parse(JSON.stringify(s)); }
 }
 function restoreReplayState(snap) {
-  for (const k of REPLAY_KEYS) state[k] = snap[k];
+  const ak = activeKart();
+  for (const key of REPLAY_KART_KEYS) ak[key] = snap[key];
+  state.hz = snap.hz;
+  state.sectors = snap.sectors;
+  state.drivers = snap.drivers;
+  state.races = snap.races;
+  state.activeRaceId = snap.activeRaceId;
+  state.selectedRaceId = snap.selectedRaceId;
+  state.gateFlashUntil = snap.gateFlashUntil;
 }
 // Fresh accumulators + a disposable running race/driver so detected
 // laps/sectors stay isolated. track/startGate are intentionally kept.
 function resetReplayDerived() {
-  state.connection = { source: 'replay', packets: 0, lost: 0, rssi: null,
+  const k = activeKart();
+  k.connection = { source: 'replay', packets: 0, lost: 0, rssi: null,
     bridgeMac: 'RE:PL:AY:00:00:01', kartMac: 'RE:PL:AY:00:00:02',
     lastPacketAt: null, seq: null, errors: 0 };
   state.hz = 0;
-  state.telemetry = { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 };
-  state.raw = { speed: 0, rpm: 0, gx: 0, gy: 0, gz: 0, yaw: 0, lat: 0, lon: 0 };
-  state.display = { speedLerp: 0, rpmLerp: 0, gxLerp: 0, gyLerp: 0 };
-  state.gps = { fix: false, lastAt: null };
-  state.spdSrc = 'gps';
-  state.batt = { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 };
-  state.max = { speed: 0, rpm: 0, g: 0 };
-  state.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] };
-  state.imu = { yaw: 0, mtemp: null };
-  state.drift = { status: 'n/a', index: null };
-  state.driftSmooth = { idxEma: null, status: 'n/a', counterRun: 0 };
-  state.attitude = { rollDeg: 0, over: false, overState: { active: false } };
+  k.telemetry = { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 };
+  k.raw = { speed: 0, rpm: 0, gx: 0, gy: 0, gz: 0, yaw: 0, lat: 0, lon: 0 };
+  k.display = { speedLerp: 0, rpmLerp: 0, gxLerp: 0, gyLerp: 0 };
+  k.gps = { fix: false, lastAt: null };
+  k.spdSrc = 'gps';
+  k.batt = { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 };
+  k.max = { speed: 0, rpm: 0, g: 0 };
+  k.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] };
+  k.imu = { yaw: 0, mtemp: null };
+  k.drift = { status: 'n/a', index: null };
+  k.driftSmooth = { idxEma: null, status: 'n/a', counterRun: 0 };
+  k.attitude = { rollDeg: 0, over: false, overState: { active: false } };
   resetAttitudeClock();
-  state.heatmap = { on: state.heatmap.on, lapMaxSpeed: 0 };
+  k.heatmap = { on: k.heatmap.on, lapMaxSpeed: 0 };
   // Sektor-Konfiguration (boundaries/manual) bleibt erhalten; Bests + Live-
   // Sektorzeiten (pro Kart) zuruecksetzen.
   state.sectors.best = [null, null, null];
   state.sectors.clickTarget = null;
-  state.sectorsLive = { cur: 0, sectorStart: null, lapSectors: [null, null, null], lastLapSectors: null };
-  state.lapStart = null;
-  state.currentLapMax = { speed: 0, rpm: 0 };
-  state.currentLapTrace = [];
-  state.bestLapTrace = null;
-  state.bestLapMs = null;
-  state.bestLapNum = null;
-  state.liveDelta = null;
-  state.autoLap = { prevLat: null, prevLon: null, lastTriggerAt: 0 };
+  k.sectorsLive = { cur: 0, sectorStart: null, lapSectors: [null, null, null], lastLapSectors: null };
+  k.lapStart = null;
+  k.currentLapMax = { speed: 0, rpm: 0 };
+  k.currentLapTrace = [];
+  k.bestLapTrace = null;
+  k.bestLapMs = null;
+  k.bestLapNum = null;
+  k.liveDelta = null;
+  k.autoLap = { prevLat: null, prevLon: null, lastTriggerAt: 0 };
   state.gateFlashUntil = 0;
   const drv = { id: uid(), name: 'Replay', number: 'R', color: '#7aa2f7' };
   const race = { id: uid(), name: 'Replay', trackId: state.activeTrackId,
@@ -195,11 +220,12 @@ function feedReplayPacket(p) {
   if (p.lat && p.lon) onGpsUpdate(p.lat, p.lon);
 }
 function fastForwardTo(targetMs) {
-  const pk = state.replay.packets;
-  const end = RasiReplay.nextIndexFor(pk, targetMs, state.replay.idx);
-  for (let i = state.replay.idx; i < end; i++) feedReplayPacket(pk[i]);
-  state.replay.idx = end;
-  state.replay.virtualMs = targetMs;
+  const k = activeKart();
+  const pk = k.replay.packets;
+  const end = RasiReplay.nextIndexFor(pk, targetMs, k.replay.idx);
+  for (let i = k.replay.idx; i < end; i++) feedReplayPacket(pk[i]);
+  k.replay.idx = end;
+  k.replay.virtualMs = targetMs;
 }
 // Drift-Phasen als proportionale Marker über dem Replay-Seek (Phase 18).
 function renderDriftStrip(spans, durationMs) {
@@ -277,33 +303,34 @@ function loadRecordingFile(file) {
 function enterReplay(parsed) {
   if (state.serial.connected) disconnectSerial();
   if (state.demo.running) stopDemo();
-  state.recording.armed = false;                 // do not record the replay
-  state.replay.snapshot = snapshotReplayState();
+  const k = activeKart();
+  k.recording.armed = false;                 // do not record the replay
+  k.replay.snapshot = snapshotReplayState();
   resetReplayDerived();
   RasiKart3D.resetYaw();
-  state.replay.active = true;
-  state.replay.packets = parsed.packets;
+  k.replay.active = true;
+  k.replay.packets = parsed.packets;
   // Drift-Aggregat mit DERSELBEN Kalibrierung wie Live (driftInputs): Pakete
   // normalisieren, summarize/driftSpans erwarten die Keys yaw/gy/speed/t_rel.
   // Hangkompensation (Phase 24) wie live: sin(roll) aus der Quer-g ziehen,
   // Roll-Verlauf dafuer einmal vorfusionieren.
-  const _rolls = fusedRolls(parsed.packets, state.calibration);
+  const _rolls = fusedRolls(parsed.packets, k.calibration);
   const _calPk = parsed.packets.map((p, idx) => {
-    const i = driftInputs(p, state.calibration);
+    const i = driftInputs(p, k.calibration);
     return { yaw: i.yawRate, gy: RasiDrift.tiltCompLatG(i.latAccel, _rolls[idx]),
              speed: i.speed, t_rel: p.t_rel };
   });
   const _ds = RasiDrift.summarize(_calPk, state.settings.drift);
-  state.replay.driftSummary = _ds;
+  k.replay.driftSummary = _ds;
   setText('rpDrift', _ds.counted ? `${_ds.driftPct.toFixed(0)}% · max ${_ds.maxIndex.toFixed(1)}` : '–');
   renderDriftStrip(RasiDrift.driftSpans(_calPk, state.settings.drift), parsed.durationMs);
-  renderRollStrip(rolloverOnsets(parsed.packets, state.calibration, state.settings.rollover), parsed.durationMs);
-  state.replay.idx = 0;
-  state.replay.virtualMs = 0;
-  state.replay.durationMs = parsed.durationMs;
-  state.replay.speed = 1;
-  state.replay.playing = true;
-  state.replay.lastWall = null;
+  renderRollStrip(rolloverOnsets(parsed.packets, k.calibration, state.settings.rollover), parsed.durationMs);
+  k.replay.idx = 0;
+  k.replay.virtualMs = 0;
+  k.replay.durationMs = parsed.durationMs;
+  k.replay.speed = 1;
+  k.replay.playing = true;
+  k.replay.lastWall = null;
   $('replayBar')?.classList.remove('hidden');
   $('connectBtn').textContent = 'Replay aktiv';
   $('connectBtn').className = 'btn blue w100';
@@ -312,62 +339,66 @@ function enterReplay(parsed) {
   updateRecStatus();
   rcToast('Replay gestartet (' + parsed.packets.length + ' Pakete, '
     + fmtClock(parsed.durationMs) + ')', 3000);
-  state.replay.raf = requestAnimationFrame(replayTick);
+  k.replay.raf = requestAnimationFrame(replayTick);
 }
 function replayTick() {
-  if (!state.replay.active) return;
+  const k = activeKart();
+  if (!k.replay.active) return;
   const now = performance.now();
-  if (state.replay.playing) {
-    if (state.replay.lastWall != null) {
-      const dt = (now - state.replay.lastWall) * state.replay.speed;
-      let v = state.replay.virtualMs + dt;
-      if (v >= state.replay.durationMs) { v = state.replay.durationMs; state.replay.playing = false; }
-      const end = RasiReplay.nextIndexFor(state.replay.packets, v, state.replay.idx);
-      for (let i = state.replay.idx; i < end; i++) feedReplayPacket(state.replay.packets[i]);
-      state.replay.idx = end;
-      state.replay.virtualMs = v;
+  if (k.replay.playing) {
+    if (k.replay.lastWall != null) {
+      const dt = (now - k.replay.lastWall) * k.replay.speed;
+      let v = k.replay.virtualMs + dt;
+      if (v >= k.replay.durationMs) { v = k.replay.durationMs; k.replay.playing = false; }
+      const end = RasiReplay.nextIndexFor(k.replay.packets, v, k.replay.idx);
+      for (let i = k.replay.idx; i < end; i++) feedReplayPacket(k.replay.packets[i]);
+      k.replay.idx = end;
+      k.replay.virtualMs = v;
     }
   }
-  state.replay.lastWall = now;
+  k.replay.lastWall = now;
   renderReplayBar();
-  state.replay.raf = requestAnimationFrame(replayTick);
+  k.replay.raf = requestAnimationFrame(replayTick);
 }
 function replaySeek(ratio) {
-  if (!state.replay.active) return;
-  const target = RasiReplay.seekTargetMs(state.replay.durationMs, ratio);
-  if (target < state.replay.virtualMs) {       // backward -> deterministic rebuild
+  const k = activeKart();
+  if (!k.replay.active) return;
+  const target = RasiReplay.seekTargetMs(k.replay.durationMs, ratio);
+  if (target < k.replay.virtualMs) {       // backward -> deterministic rebuild
     resetReplayDerived();
-    state.replay.idx = 0;
-    state.replay.virtualMs = 0;
+    k.replay.idx = 0;
+    k.replay.virtualMs = 0;
     RasiKart3D.resetYaw();
   }
   fastForwardTo(target);
-  state.replay.lastWall = null;
+  k.replay.lastWall = null;
   renderRaces();
   drawTrack();
   renderReplayBar();
 }
 function setReplaySpeed(mult) {
-  state.replay.speed = Number(mult) || 1;
+  activeKart().replay.speed = Number(mult) || 1;
 }
 function toggleReplayPlay() {
-  if (!state.replay.active) return;
-  if (state.replay.virtualMs >= state.replay.durationMs && !state.replay.playing) {
+  const k = activeKart();
+  if (!k.replay.active) return;
+  if (k.replay.virtualMs >= k.replay.durationMs && !k.replay.playing) {
     replaySeek(0);                              // restart from the beginning
   }
-  state.replay.playing = !state.replay.playing;
-  state.replay.lastWall = null;
+  k.replay.playing = !k.replay.playing;
+  k.replay.lastWall = null;
   renderReplayBar();
 }
 function exitReplay() {
-  if (!state.replay.active) return;
-  if (state.replay.raf) cancelAnimationFrame(state.replay.raf);
-  state.replay.raf = null;
-  state.replay.active = false;
-  if (state.replay.snapshot) restoreReplayState(state.replay.snapshot);
-  state.replay.snapshot = null;
+  const k = activeKart();
+  if (!k.replay.active) return;
+  if (k.replay.raf) cancelAnimationFrame(k.replay.raf);
+  k.replay.raf = null;
+  k.replay.active = false;
+  if (k.replay.snapshot) restoreReplayState(k.replay.snapshot);
+  k.replay.snapshot = null;
   RasiKart3D.resetYaw();
-  state.replay.packets = [];
+  k.replay.packets = [];
   $('replayBar')?.classList.add('hidden');
   $('connectBtn').textContent = 'USB verbinden';
   $('connectBtn').className = 'btn primary w100';
@@ -377,13 +408,14 @@ function exitReplay() {
   rcToast('Replay beendet');
 }
 function renderReplayBar() {
+  const k = activeKart();
   const playBtn = $('rpPlayBtn');
-  if (playBtn) playBtn.classList.toggle('paused', !state.replay.playing);
-  setText('rpElapsed', fmtClock(state.replay.virtualMs));
-  setText('rpTotal', fmtClock(state.replay.durationMs));
+  if (playBtn) playBtn.classList.toggle('paused', !k.replay.playing);
+  setText('rpElapsed', fmtClock(k.replay.virtualMs));
+  setText('rpTotal', fmtClock(k.replay.durationMs));
   const sk = $('rpSeek');
   if (sk && document.activeElement !== sk) {
-    const r = state.replay.durationMs ? state.replay.virtualMs / state.replay.durationMs : 0;
+    const r = k.replay.durationMs ? k.replay.virtualMs / k.replay.durationMs : 0;
     sk.value = String(Math.round(r * 1000));
   }
 }
@@ -427,10 +459,10 @@ function discardRaceRecording(raceId) {
 // Schneller Check fuer den Button-Zustand (laeuft bei jedem renderRaces):
 // Store-Treffer oder Zeitfenster-Ueberlappung pruefen, NICHT den Puffer filtern.
 function raceHasRecording(r) {
-  if (!r || state.replay.active) return false;
+  if (!r || activeKart().replay.active) return false;
   if (_recStoreIds.has(r.id)) return true;
   if (!r.startedAt) return false;
-  const buf = state.recording.buf;
+  const buf = activeKart().recording.buf;
   if (buf.length < 2) return false;
   const end = r.endedAt || Date.now();
   return r.startedAt <= buf[buf.length - 1]._wall && end >= buf[0]._wall;
@@ -440,7 +472,7 @@ function raceHasRecording(r) {
 function raceRecordingSlice(r) {
   if (!r || !r.startedAt) return null;
   const end = r.endedAt || Date.now();
-  const pk = state.recording.buf.filter(p =>
+  const pk = activeKart().recording.buf.filter(p =>
     !p.type && p._wall >= r.startedAt && p._wall <= end);
   return pk.length >= 2 ? pk : null;
 }

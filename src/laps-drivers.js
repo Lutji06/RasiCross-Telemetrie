@@ -373,8 +373,8 @@ function renderDriverOptions() {
 // Theoretische Bestrunde (Phase 24): Summe der besten Sektorzeiten der
 // Session -- null solange nicht alle drei Sektor-Bests existieren.
 function theoreticalBestMs() {
-  // Phase 30: Sektor-Bests sind pro Kart -> aktiver Kart (Fassade state.sectorsBest).
-  const b = state.sectorsBest || [];
+  // Phase 30: Sektor-Bests sind pro Kart -> aktiver Kart (activeKart().sectorsBest).
+  const b = activeKart().sectorsBest || [];
   return (b[0] && b[1] && b[2]) ? b[0] + b[1] + b[2] : null;
 }
 

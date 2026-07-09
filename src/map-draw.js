@@ -4,7 +4,7 @@
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
 import { declutterLabels, ghostPointAt, lineEndpointsFromGate } from './geo.js';
-import { state, $, css, dpr } from './rasicross.js';
+import { state, $, css, dpr, activeKart } from './rasicross.js';
 import { activeRace } from './races.js';
 import RasiKartRank from './kart-rank.js';
 import RasiLapEngine from './lap-engine.js';
@@ -50,6 +50,7 @@ function drawTrackOn(c) {
   const ctx = c.getContext('2d');
   const w = c.width, h = c.height;
   if (!w || !h) return;
+  const k = activeKart();
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = css('--soft');
   ctx.fillRect(0, 0, w, h);
@@ -107,9 +108,9 @@ function drawTrackOn(c) {
   ctx.lineWidth = 2.6 * dpr();
   ctx.stroke();
   // Heatmap
-  if (state.heatmap.on) drawHeatmapOn(c, ctx);
+  if (k.heatmap.on) drawHeatmapOn(c, ctx);
   // Ghost-Runde (beste Runde) — nur auf der Live-Karte
-  if (c.id === 'trackCanvas' && state.bestLapTrace && state.bestLapTrace.length > 1) {
+  if (c.id === 'trackCanvas' && k.bestLapTrace && k.bestLapTrace.length > 1) {
     drawGhostOn(c, ctx);
   }
   // Start line
@@ -247,7 +248,8 @@ function drawLineOn(ctx, c, ep, color, label, flash) {
 // Punkt nur waehrend einer laufenden Runde; verschwindet, wenn der Ghost
 // die Runde beendet hat (ghostPointAt -> null).
 function drawGhostOn(c, ctx) {
-  const trace = state.bestLapTrace;
+  const k = activeKart();
+  const trace = k.bestLapTrace;
   ctx.save();
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   ctx.beginPath();
@@ -260,8 +262,8 @@ function drawGhostOn(c, ctx) {
   ctx.setLineDash([5 * dpr(), 5 * dpr()]);
   ctx.stroke();
   ctx.setLineDash([]);
-  if (state.lapStart) {
-    const gp = ghostPointAt(trace, Date.now() - state.lapStart);
+  if (k.lapStart) {
+    const gp = ghostPointAt(trace, Date.now() - k.lapStart);
     if (gp) {
       const xy = gpsXYOnCanvas(gp.lat, gp.lon, c);
       ctx.fillStyle = 'rgba(187,154,247,.9)';
@@ -276,9 +278,10 @@ function drawGhostOn(c, ctx) {
   ctx.restore();
 }
 function drawHeatmapOn(c, ctx) {
-  const trace = state.currentLapTrace;
-  if (!trace || trace.length < 2 || !state.heatmap.lapMaxSpeed) return;
-  const max = state.heatmap.lapMaxSpeed;
+  const k = activeKart();
+  const trace = k.currentLapTrace;
+  if (!trace || trace.length < 2 || !k.heatmap.lapMaxSpeed) return;
+  const max = k.heatmap.lapMaxSpeed;
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   for (let i = 1; i < trace.length; i++) {
     const p0 = trace[i - 1], p1 = trace[i];

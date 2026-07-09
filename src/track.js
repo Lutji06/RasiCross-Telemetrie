@@ -199,7 +199,7 @@ function loadSavedTrack(id) {
     state.sectors.manual = !!t.sectorBoundaries.some(b => b);
   }
   // Phase 30: Strecken-Rekord in den aktiven Kart laden (Per-Kart-Sektor-Bests).
-  state.sectorsBest = Array.isArray(t.sectorBest) ? [...t.sectorBest] : [null, null, null];
+  activeKart().sectorsBest = Array.isArray(t.sectorBest) ? [...t.sectorBest] : [null, null, null];
   state.activeTrackId = id;
   setText('gateSizeText', (state.startGate.width || 14) + 'm');
   setText('scanStateValue', 'Geladen: ' + t.name);
@@ -733,8 +733,8 @@ function checkSectorCrossings(k, lat, lon) {
 }
 function updateSectorPanel() {
   const s = state.sectors;          // Konfiguration (global)
-  const sl = state.sectorsLive;     // Live-Sektorzeiten (aktiver Kart, Fassade)
-  const sb = state.sectorsBest || [null, null, null];  // Sektor-Bests aktiver Kart
+  const sl = activeKart().sectorsLive;     // Live-Sektorzeiten (aktiver Kart, Fassade)
+  const sb = activeKart().sectorsBest || [null, null, null];  // Sektor-Bests aktiver Kart
   const has = s.boundaries[0] || s.boundaries[1];
   $('sectorPanel').style.display = has ? 'grid' : 'none';
   if (!has) return;

@@ -5,7 +5,7 @@
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
 import { fmtClock, fmtMs, nearestTraceDelta } from './geo.js';
-import { state, $, css, dpr, esc, setText, setTextShared, setHtmlShared } from './rasicross.js';
+import { state, $, css, dpr, esc, setText, setTextShared, setHtmlShared, activeKart } from './rasicross.js';
 import { activeRace, activePart, raceElapsedMs, endRace } from './races.js';
 import { drawTrack, resizeCanvases } from './map-draw.js';
 import { getTotalStats } from './laps-drivers.js';
@@ -116,19 +116,20 @@ function axisFmt(v, u) {
 function drawLiveCharts() {
   try {
     if (!_srCtx || !_gCtx) return;
+    const k = activeKart();
     drawChart(_srCtx, _srCanvas,
       [
-        { data: state.charts.speed, color: css('--pr'), label: 'Speed', fill: true },
-        { data: state.charts.rpm.map(v => v / state.settings.maxRpm * state.settings.maxSpeed), raw: state.charts.rpm, color: css('--red'), label: 'RPM', dash: true }
+        { data: k.charts.speed, color: css('--pr'), label: 'Speed', fill: true },
+        { data: k.charts.rpm.map(v => v / state.settings.maxRpm * state.settings.maxSpeed), raw: k.charts.rpm, color: css('--red'), label: 'RPM', dash: true }
       ],
       0, state.settings.maxSpeed,
       { unit: 'km/h', right: 'rpm', maxRight: state.settings.maxRpm }
     );
     drawChart(_gCtx, _gCanvas,
       [
-        { data: state.charts.gx, color: css('--blue'),  label: 'Gx' },
-        { data: state.charts.gy, color: css('--green'), label: 'Gy' },
-        { data: state.charts.gz, color: '#e8a13a',      label: 'Gz' }
+        { data: k.charts.gx, color: css('--blue'),  label: 'Gx' },
+        { data: k.charts.gy, color: css('--green'), label: 'Gy' },
+        { data: k.charts.gz, color: '#e8a13a',      label: 'Gz' }
       ],
       -state.settings.gScale, state.settings.gScale,
       { unit: 'G', zero: true }
@@ -144,7 +145,7 @@ function drawYawSparkline() {
   if (!ctx) return;
   const w = cv.width, h = cv.height;
   ctx.clearRect(0, 0, w, h);
-  const data = state.charts.yaw || [];
+  const data = activeKart().charts.yaw || [];
   if (data.length < 2) return;
   const maxAbs = 250;  // gyro +-250 deg/s
   const midY = h / 2;
@@ -171,31 +172,32 @@ function updateLiveDelta() {
   _lastDeltaUpdate = Date.now();
   // Phase 40: Delta fuer ALLE Karts (per-Kart-OLED). Kernrechnung ist
   // nearestTraceDelta (geo.js, getestet); DOM-Banner speist weiterhin
-  // nur der aktive Kart (Fassade state.liveDelta).
+  // nur der aktive Kart (activeKart().liveDelta).
   for (const mac of state.karts.macs()) {
-    const k = state.karts.get(mac);
-    if (!k) continue;
-    if (!k.lapStart || !k.bestLapTrace || !k.currentLapTrace.length) {
-      k.liveDelta = null;
+    const kart = state.karts.get(mac);
+    if (!kart) continue;
+    if (!kart.lapStart || !kart.bestLapTrace || !kart.currentLapTrace.length) {
+      kart.liveDelta = null;
       continue;
     }
-    const cur = k.currentLapTrace[k.currentLapTrace.length - 1];
-    const d = nearestTraceDelta(k.bestLapTrace, cur);
-    if (d != null) k.liveDelta = d;
+    const cur = kart.currentLapTrace[kart.currentLapTrace.length - 1];
+    const d = nearestTraceDelta(kart.bestLapTrace, cur);
+    if (d != null) kart.liveDelta = d;
   }
   const banner = $('deltaBanner');
-  if (state.liveDelta == null) {
+  const k = activeKart();
+  if (k.liveDelta == null) {
     if (banner) banner.classList.add('hidden');
     return;
   }
-  const delta = state.liveDelta;
+  const delta = k.liveDelta;
   if (banner) banner.classList.remove('hidden');
   const tEl = $('deltaTime');
   if (tEl) {
     tEl.textContent = (delta >= 0 ? '+' : '') + (delta / 1000).toFixed(3) + 's';
     tEl.className = 'delta-time ' + (Math.abs(delta) < 50 ? 'same' : delta < 0 ? 'faster' : 'slower');
   }
-  setText('deltaRef', `vs. Runde ${state.bestLapNum} (${fmtMs(state.bestLapMs)})`);
+  setText('deltaRef', `vs. Runde ${k.bestLapNum} (${fmtMs(k.bestLapMs)})`);
 }
 // KPI-Anzeige mit eigenem Smoothing (langsamer als Tacho-Animation).
 // Throttle: aktualisiert nur alle 100ms (10 Hz), bleibt aber smooth genug.
@@ -212,7 +214,8 @@ function updateLiveKPIs() {
   if (now - _lastKpiUpdate < KPI_UPDATE_MS) return;
   _lastKpiUpdate = now;
   try {
-    const t = state.telemetry;
+    const k = activeKart();
+    const t = k.telemetry;
     // Eigenes, langsameres Smoothing für Anzeige-Werte
     _kpiDisplay.speed += (t.speed - _kpiDisplay.speed) * KPI_SMOOTH;
     _kpiDisplay.rpm   += (t.rpm   - _kpiDisplay.rpm)   * KPI_SMOOTH;
@@ -227,10 +230,10 @@ function updateLiveKPIs() {
     }
     // Geschwindigkeitsquelle-Indikator (GPS / WHL-Fallback / keine)
     const _srcMap = { gps: 'GPS', wheel: 'WHL', none: '—' };
-    const _srcLabel = _srcMap[state.spdSrc] || '—';
+    const _srcLabel = _srcMap[k.spdSrc] || '—';
     if (_srcLabel !== _lastKpiText.spdSrc) {
-      const _spdColor = state.spdSrc === 'wheel' ? '#e8a13a'
-                      : (state.spdSrc === 'none' || !state.spdSrc) ? 'var(--mut)'
+      const _spdColor = k.spdSrc === 'wheel' ? '#e8a13a'
+                      : (k.spdSrc === 'none' || !k.spdSrc) ? 'var(--mut)'
                       : '';
       const _spdIds = DomTargets.targetIdsFor('spdSrc');
       for (const _id of _spdIds) {
@@ -243,16 +246,16 @@ function updateLiveKPIs() {
     // erst sichtbar sobald Daten kamen; Farbe nach warn + SoC;
     // verschwindet wieder wenn laenger als 5s kein Paket (stale).
     const _bEl = $('battPill');
-    const _battStale = !state.connection.lastPacketAt
-                    || (Date.now() - state.connection.lastPacketAt) > 5000;
-    if (state.batt.present && !_battStale) {
+    const _battStale = !k.connection.lastPacketAt
+                    || (Date.now() - k.connection.lastPacketAt) > 5000;
+    if (k.batt.present && !_battStale) {
       if (_bEl && _bEl.classList.contains('hidden')) _bEl.classList.remove('hidden');
-      const _soc = Math.max(0, Math.min(100, state.batt.soc | 0));
-      const _vb  = +state.batt.vbat.toFixed(2);
+      const _soc = Math.max(0, Math.min(100, k.batt.soc | 0));
+      const _vb  = +k.batt.vbat.toFixed(2);
       // Klasse aus warn (Sender) plus SoC-Fallback (falls warn=0 aber SoC niedrig)
       let _cls = 'ok';
-      if (state.batt.warn === 2 || _soc <= 15) _cls = 'crit';
-      else if (state.batt.warn === 1 || _soc <= 30) _cls = 'warn';
+      if (k.batt.warn === 2 || _soc <= 15) _cls = 'crit';
+      else if (k.batt.warn === 1 || _soc <= 30) _cls = 'warn';
       // vbat im Diff-Schluessel, damit der title-Tooltip mit aktualisiert wird,
       // auch wenn SoC/cls gleich bleiben.
       const _battText = `${_soc}|${_cls}|${_vb}`;
@@ -286,20 +289,20 @@ function updateLiveKPIs() {
       _lastKpiText.g = gText;
     }
     // Max-Werte: aktualisieren sich seltener (bei jedem Update OK)
-    setTextShared('speedMax', state.max.speed.toFixed(0));
-    setTextShared('rpmMax', String(Math.round(state.max.rpm / 50) * 50));
-    setText('kGMax', state.max.g.toFixed(1));
-    setText('kYaw', Math.round(state.imu.yaw));
-    setText('kMtemp', state.imu.mtemp == null ? '--' : Math.round(state.imu.mtemp));
+    setTextShared('speedMax', k.max.speed.toFixed(0));
+    setTextShared('rpmMax', String(Math.round(k.max.rpm / 50) * 50));
+    setText('kGMax', k.max.g.toFixed(1));
+    setText('kYaw', Math.round(k.imu.yaw));
+    setText('kMtemp', k.imu.mtemp == null ? '--' : Math.round(k.imu.mtemp));
     renderDriftBadge();
     renderRollBar();
     // Rundenzeit: nur alle 100ms aktualisieren ist ok
-    const lapText = state.lapStart ? fmtMs(Date.now() - state.lapStart) : '--:--.---';
+    const lapText = k.lapStart ? fmtMs(Date.now() - k.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
       setTextShared('lap', lapText);     // -> kLap, liveLapBig, detailHeroLapCurrent
       _lastKpiText.lap = lapText;
     }
-    const lapBestText = state.bestLapMs ? fmtMs(state.bestLapMs) : '--:--.---';
+    const lapBestText = k.bestLapMs ? fmtMs(k.bestLapMs) : '--:--.---';
     setTextShared('lapBest', lapBestText); // -> kLapBest, liveLapBest, detailHeroLapBest
     setText('gxText', _kpiDisplay.gx.toFixed(1));
     setText('gyText', _kpiDisplay.gy.toFixed(1));
@@ -331,11 +334,12 @@ function updateLiveKPIs() {
 // Hinweis: gps_sat/gps_health/send_ms/imu_cal sind im rohen ESP-NOW-Paket
 // vorhanden, werden aber bisher nicht in state gespiegelt -> zeigen '--'.
 function updateDiagnostics() {
-  const t = state.telemetry || {};
-  const b = state.batt || {};
-  const imu = state.imu || {};
-  const conn = state.connection || {};
-  const gps = state.gps || {};
+  const k = activeKart();
+  const t = k.telemetry || {};
+  const b = k.batt || {};
+  const imu = k.imu || {};
+  const conn = k.connection || {};
+  const gps = k.gps || {};
 
   setText('diagGpsLat',    t.lat ? Number(t.lat).toFixed(6) : '--');
   setText('diagGpsLon',    t.lon ? Number(t.lon).toFixed(6) : '--');
@@ -352,20 +356,21 @@ function updateDiagnostics() {
   setText('diagAz',      t.gz != null ? Number(t.gz).toFixed(2) : '0.00');
   setText('diagYaw',     imu.yaw != null ? String(Math.round(imu.yaw)) : '0');
   setText('diagMpuTemp', imu.mtemp != null ? String(imu.mtemp) : '--');
-  setText('diagGlitch', (state.raw && state.raw.glitch != null) ? String(state.raw.glitch) : '--');
+  setText('diagGlitch', (k.raw && k.raw.glitch != null) ? String(k.raw.glitch) : '--');
 
   setText('diagVbat',    (b.present && b.vbat != null) ? b.vbat.toFixed(2) : '--');
   setText('diagSoc',     (b.present && b.soc != null)  ? String(b.soc)     : '--');
   setText('diagBattWarn',b.warn != null ? String(b.warn) : '0');
 
   setText('diagSendMs',  '--');
-  setText('diagSpdSrc',  state.spdSrc || '--');
+  setText('diagSpdSrc',  k.spdSrc || '--');
   setText('diagImuCal',  '--');
 }
 
 function updateLiveUi() {
   try {
-    const t = state.telemetry;
+    const k = activeKart();
+    const t = k.telemetry;
     setText('latText', t.lat ? t.lat.toFixed(6) : '--');
     setText('lonText', t.lon ? t.lon.toFixed(6) : '--');
     // Koordinaten-Badge auf der Scan-Karte (Strecke-Tab) — live statt Deko
@@ -374,7 +379,7 @@ function updateLiveUi() {
       : '--°N · --°E');
     setText('trackPoints', state.track.points.length);
     document.body.classList.toggle('rpm-warn', t.rpm >= state.settings.rpmWarning);
-    const gpsAge = state.gps.lastAt ? Date.now() - state.gps.lastAt : null;
+    const gpsAge = k.gps.lastAt ? Date.now() - k.gps.lastAt : null;
     document.body.classList.toggle('gps-warn', !!(gpsAge && gpsAge > 3000));
     // Race-Status (Countdown läuft im 60fps-Loop, hier nur Meta)
     const r = activeRace();
@@ -410,8 +415,8 @@ function updateLiveUi() {
     setText('detailHeroStintCount', _heroPart ? _heroPart.stints.length : 0);
     // Status badge
     setText('hzText', state.hz);
-    setText('packetsText', state.connection.packets);
-    setText('detailHeroPackets', state.connection.packets);
+    setText('packetsText', k.connection.packets);
+    setText('detailHeroPackets', k.connection.packets);
     // Live delta
     updateLiveDelta();
   } catch (e) { console.warn('updateLiveUi:', e); }
@@ -554,10 +559,10 @@ setInterval(() => {
   renderLeaderStrip();
 
   // Status-Badge oben rechts
-  if (state.connection.source === 'serial' && state.serial.connected) {
+  if (activeKart().connection.source === 'serial' && state.serial.connected) {
     (()=>{const e=$('topConnPill');if(e){e.className='pill green'};const e2=$('sideConnCard');if(e2){e2.className='conn-card connected'}})();
     setText('topConnText', 'Verbunden'); setText('sideConnText', 'Verbunden');
-  } else if (state.connection.source === 'demo') {
+  } else if (activeKart().connection.source === 'demo') {
     (()=>{const e=$('topConnPill');if(e){e.className='pill blue'};const e2=$('sideConnCard');if(e2){e2.className='conn-card demo'}})();
     setText('topConnText', 'Demo'); setText('sideConnText', 'Demo');
   } else {

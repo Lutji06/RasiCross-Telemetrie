@@ -4,7 +4,7 @@
 //  rasicross.js (kart3dIsReady/kart3dTickDt-Accessoren, da ESM-Importe
 //  nicht beschreibbar sind). Nur Deklarationen auf Top-Level.
 // ============================================================
-import { state, $, css, dpr, kart3dIsReady, kart3dTickDt } from './rasicross.js';
+import { state, $, css, dpr, activeKart, kart3dIsReady, kart3dTickDt } from './rasicross.js';
 import RasiKart3D from './karts3d.js';
 
 // ============================================================
@@ -20,12 +20,13 @@ const DRIFT_COLOR = { 'n/a': '', grip: 'var(--green,#5ad17a)',
 function renderDriftBadge() {
   const el = $('kDrift');
   if (!el) return;
-  const st = (state.drift && state.drift.status) || 'n/a';
-  const idx = state.drift && state.drift.index;
+  const k = activeKart();
+  const st = (k.drift && k.drift.status) || 'n/a';
+  const idx = k.drift && k.drift.index;
   const label = DRIFT_LABEL[st] || '–';
   // Richtungs-Glyph nur fuer Rotations-Status, aus dem Vorzeichen der (kalibrierten) Gierrate.
   const glyph = (st === 'oversteer' || st === 'counter')
-    ? ((state.imu && state.imu.yaw < 0) ? ' ←' : ' →') : '';
+    ? ((k.imu && k.imu.yaw < 0) ? ' ←' : ' →') : '';
   // Wert (geglaetteter Index) bei oversteer/understeer/counter; grip/n/a nur Label.
   const showVal = idx != null && (st === 'oversteer' || st === 'understeer' || st === 'counter');
   el.textContent = showVal ? `${label}${glyph} ${idx.toFixed(1)}` : label;
@@ -36,30 +37,32 @@ function renderDriftBadge() {
 function renderRollBar() {
   const v = $('rollVal');
   if (!v) return;
-  const deg = Math.max(-90, Math.min(90, (state.attitude && state.attitude.rollDeg) || 0));
+  const k = activeKart();
+  const deg = Math.max(-90, Math.min(90, (k.attitude && k.attitude.rollDeg) || 0));
   v.textContent = Math.round(deg) + '°';
-  const over = !!(state.attitude && state.attitude.over);
+  const over = !!(k.attitude && k.attitude.over);
   const o = $('rollOver'); if (o) o.classList.toggle('hidden', !over);
 }
 const LERP = 0.18;
 function lerp(a, b) { return a + (b - a) * LERP; }
 function renderGauges() {
-  const t = state.telemetry;
-  state.display.gxLerp = lerp(state.display.gxLerp, t.gx);
-  state.display.gyLerp = lerp(state.display.gyLerp, t.gy);
+  const k = activeKart();
+  const t = k.telemetry;
+  k.display.gxLerp = lerp(k.display.gxLerp, t.gx);
+  k.display.gyLerp = lerp(k.display.gyLerp, t.gy);
   // G-Meter
   if (state.settings.gView === '3d' && kart3dIsReady()) {
     const now = performance.now();
     const dtMs = kart3dTickDt(now);
     RasiKart3D.update({
-      gx: state.display.gxLerp,
-      gy: state.display.gyLerp,
-      gz: state.telemetry.gz || 0,
-      yaw: state.imu.yaw || 0,
+      gx: k.display.gxLerp,
+      gy: k.display.gyLerp,
+      gz: k.telemetry.gz || 0,
+      yaw: k.imu.yaw || 0,
       dtMs: dtMs,
-      drift: state.drift,
-      rollDeg: (state.attitude && state.attitude.rollDeg) || 0,
-      over: !!(state.attitude && state.attitude.over)
+      drift: k.drift,
+      rollDeg: (k.attitude && k.attitude.rollDeg) || 0,
+      over: !!(k.attitude && k.attitude.over)
     });
   } else {
     drawGMeter();
@@ -74,8 +77,9 @@ function drawGMeter() {
   }
   const ctx = c.getContext('2d');
   const w = c.width, h = c.height, cx = w/2, cy = h/2, r = w * 0.40, rr = w * 0.46;
+  const k = activeKart();
   const gs = state.settings.gScale;
-  const gx = state.display.gxLerp, gy = state.display.gyLerp;
+  const gx = k.display.gxLerp, gy = k.display.gyLerp;
   ctx.clearRect(0, 0, w, h);
   // Background circle
   ctx.fillStyle = css('--soft');
@@ -110,8 +114,8 @@ function drawGMeter() {
   ctx.strokeStyle = css('--bor'); ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
   // ── Künstlicher Horizont (Kippfunktion) ──────────────────────
-  const rollDeg = Math.max(-90, Math.min(90, (state.attitude && state.attitude.rollDeg) || 0));
-  const over = !!(state.attitude && state.attitude.over);
+  const rollDeg = Math.max(-90, Math.min(90, (k.attitude && k.attitude.rollDeg) || 0));
+  const over = !!(k.attitude && k.attitude.over);
   const rollRad = rollDeg * Math.PI / 180;
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
