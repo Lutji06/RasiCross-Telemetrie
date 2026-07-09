@@ -33,6 +33,7 @@ import utime
 import ubinascii
 import framebuf
 from machine import Pin, I2C, UART, WDT, reset, disable_irq, enable_irq, ADC
+import gc
 
 # Optionale Module — Programm läuft auch ohne, mit reduzierter Funktion
 try:
@@ -1386,6 +1387,12 @@ def main():
     display.register_page("rpm",   page_rpm)
     display.register_page("delta", page_delta)
     display.register_page("diag",  page_diag)
+
+    # Phase 45: freier Heap nach Boot als Gate-Messwert (Spec: Baseline vor
+    # der Modularisierung; faellt der Wert nach dem Split >10 % darunter,
+    # werden Module wieder zusammengelegt statt weiter gesplittet).
+    gc.collect()
+    log("init", "Heap frei nach Boot:", gc.mem_free(), "Bytes")
 
     # Lokaler Zustand
     last_send = utime.ticks_ms()
