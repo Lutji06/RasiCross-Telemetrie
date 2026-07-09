@@ -1,6 +1,18 @@
 // RasiCross Entry (Phase 42): laedt alle Module in der Reihenfolge der
-// frueheren <script>-Tags. rasicross.js bootet sich beim Import selbst
+// frueheren <script>-Tags. app-init.js bootet sich beim Import selbst
 // (Top-Level init(); die Tags standen am Body-Ende, das DOM ist geparst).
+//
+// app-init.js MUSS als allererster Import stehen (Phase 44): rasicross.js
+// re-exportiert kart3dIsReady/kart3dTickDt aus app-init.js, es gibt also
+// einen Ring rasicross.js <-> app-init.js. ESM loest Zyklen ueber die
+// Reihenfolge des ERSTEN Imports auf -- wird rasicross.js zuerst erreicht
+// (z.B. ueber map-draw.js weiter unten), haengt dessen eigener Modul-Body
+// noch an app-init.js und app-init.js ruft init() auf, BEVOR rasicross.js'
+// Top-Level-Code ($ , setText, applyTheme, ...) ueberhaupt gelaufen ist
+// ("$ is not a function"). Steht app-init.js zuerst, zieht es rasicross.js
+// (und alles andere) vollstaendig durch, BEVOR sein eigener init()-Aufruf
+// feuert -- s. .superpowers/sdd/task-4-report.md fuer Details.
+import './app-init.js';
 import './geo.js';
 import './replay.js';
 import './lap-engine.js';
