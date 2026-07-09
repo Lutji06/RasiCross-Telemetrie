@@ -1,6 +1,17 @@
 // RasiCross Entry (Phase 42): laedt alle Module in der Reihenfolge der
-// frueheren <script>-Tags. rasicross.js bootet sich beim Import selbst
+// frueheren <script>-Tags. app-init.js bootet sich beim Import selbst
 // (Top-Level init(); die Tags standen am Body-Ende, das DOM ist geparst).
+//
+// app-init.js MUSS als allererster Import stehen (Phase 44): es zieht
+// rasicross.js (und alles andere) vollstaendig durch, BEVOR sein eigener
+// Top-Level-init()-Aufruf feuert -- entspricht dem alten Selbst-Boot am
+// rasicross-Dateiende. Der Re-Export-Ring rasicross.js <-> kart3d-ui.js
+// (kart3dIsReady/kart3dTickDt) ist deklarationsrein und daher
+// reihenfolge-unkritisch -- s. .superpowers/sdd/task-4-report.md.
+import './app-init.js';
+// ui-glue.js NACH app-init.js: der Sidebar-Spiegel-IIFE lief bisher direkt
+// nach dem init()-Aufruf am Dateiende von app-init.js/rasicross.js.
+import './ui-glue.js';
 import './geo.js';
 import './replay.js';
 import './lap-engine.js';
