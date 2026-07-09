@@ -32,7 +32,7 @@ import { armRecording, driftInputs, processTelemetry, resetAttitudeClock } from 
     18. Pit-Wall                   -> pit-wall.js (Phase 23)
     19. Serial / Demo              -> serial-demo.js (Phase 22)
     19b. Recording/Replay          -> recording.js (Phase 23)
-    20. Init                       -> app-init.js (Phase 44)
+    20. Init                       -> app-init.js + kart3d-ui.js + ui-glue.js (Phase 44)
    ============================================================ */
 
 // ============================================================
@@ -236,7 +236,8 @@ function formatBytes(b) {
 
 // (Export/Import/Reset + Sektion 19b "Recording/Replay" -> recording.js, Phase 23)
 
-// (Sektion 20 "Init" + G-View/Kart-Model-Glue + DOMContentLoaded-IIFE -> app-init.js, Phase 44)
+// (Sektion 20 "Init" -> app-init.js; G-View/Kart-Model-Glue -> kart3d-ui.js;
+//  DOMContentLoaded-IIFE/Sidebar-Spiegel -> ui-glue.js; alles Phase 44)
 
 // Interface-Marker: Kern-Helfer/State, die nur noch von den ausgelagerten
 // Modulen (Phase 22/23) genutzt werden -- verhindert no-unused-vars,
@@ -254,4 +255,4 @@ export {
   resetAttitudeClock,
   bridgeSend, applyTheme, setupTabs, toggleTheme,
 };
-export { kart3dIsReady, kart3dTickDt } from './app-init.js';
+export { kart3dIsReady, kart3dTickDt } from './kart3d-ui.js';
