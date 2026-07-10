@@ -53,5 +53,17 @@ class ConfigStoreModule(unittest.TestCase):
         self.assertFalse({"sender", "bridge"} & mods)
 
 
+class RadioModule(unittest.TestCase):
+    def test_radio_owns_espnowlink(self):
+        self.assertIn("ESPNowLink",
+                      _toplevel_names(_tree(os.path.join(ESP, "radio.py"))))
+        self.assertNotIn("ESPNowLink",
+                         _toplevel_names(_tree(os.path.join(ROOT, "sender.py"))))
+
+    def test_radio_no_back_import(self):
+        mods = _imported_modules(_tree(os.path.join(ESP, "radio.py")))
+        self.assertFalse({"sender", "bridge"} & mods)
+
+
 if __name__ == "__main__":
     unittest.main()
