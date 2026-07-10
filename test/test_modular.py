@@ -65,5 +65,14 @@ class RadioModule(unittest.TestCase):
         self.assertFalse({"sender", "bridge"} & mods)
 
 
+class ImuTaskModule(unittest.TestCase):
+    def test_imu_task_owns_imu(self):
+        tree = _tree(os.path.join(ESP, "imu_task.py"))
+        self.assertIn("IMU", _toplevel_names(tree))
+        self.assertFalse({"sender", "bridge"} & _imported_modules(tree))
+        self.assertNotIn("IMU",
+                         _toplevel_names(_tree(os.path.join(ROOT, "sender.py"))))
+
+
 if __name__ == "__main__":
     unittest.main()
