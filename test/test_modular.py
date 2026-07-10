@@ -74,5 +74,14 @@ class ImuTaskModule(unittest.TestCase):
                          _toplevel_names(_tree(os.path.join(ROOT, "sender.py"))))
 
 
+class GpsTaskModule(unittest.TestCase):
+    def test_gps_task_owns_gps(self):
+        tree = _tree(os.path.join(ESP, "gps_task.py"))
+        self.assertIn("GPS", _toplevel_names(tree))
+        self.assertFalse({"sender", "bridge"} & _imported_modules(tree))
+        self.assertNotIn("GPS",
+                         _toplevel_names(_tree(os.path.join(ROOT, "sender.py"))))
+
+
 if __name__ == "__main__":
     unittest.main()
