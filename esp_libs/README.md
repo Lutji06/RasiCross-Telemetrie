@@ -13,6 +13,11 @@ Sie liefern die Schnittstellen für Sensoren und Display.
 - **`mpu6050.py`** — MPU-6050 IMU (Beschleunigungssensor)
 - **`micropyGPS.py`** — NMEA-Parser für das GPS-Modul
 - **`calc.py`** — Batterie-/Wheel-Speed-Mathe (ohne sie: kein Akku-Monitoring, kein GPS-Ausfall-Fallback)
+- **`config_store.py`** — Live-Config + log + NVS-Persistenz (Phase 45)
+- **`radio.py`** — ESP-NOW-Link (Phase 45)
+- **`imu_task.py`** — IMU-Task (MPU-6050, Phase 45)
+- **`gps_task.py`** — GPS-Task (NMEA/UART, Phase 45)
+- **`display_pages.py`** — OLED-Display + Seiten (Phase 45)
 
 ## Installation
 
@@ -66,6 +71,11 @@ mpremote connect COM3 cp mpu6050.py :mpu6050.py
 mpremote connect COM3 cp micropyGPS.py :micropyGPS.py
 mpremote connect COM3 cp frame.py :frame.py
 mpremote connect COM3 cp calc.py :calc.py
+mpremote connect COM3 cp config_store.py :config_store.py
+mpremote connect COM3 cp radio.py :radio.py
+mpremote connect COM3 cp imu_task.py :imu_task.py
+mpremote connect COM3 cp gps_task.py :gps_task.py
+mpremote connect COM3 cp display_pages.py :display_pages.py
 mpremote connect COM3 cp app.mpy :app.mpy
 mpremote connect COM3 cp main_stub.py :main.py
 
