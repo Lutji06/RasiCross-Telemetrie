@@ -83,5 +83,19 @@ class GpsTaskModule(unittest.TestCase):
                          _toplevel_names(_tree(os.path.join(ROOT, "sender.py"))))
 
 
+class DisplayPagesModule(unittest.TestCase):
+    def test_display_pages_owns_display_and_pages(self):
+        tree = _tree(os.path.join(ESP, "display_pages.py"))
+        names = _toplevel_names(tree)
+        for expected in ("Display", "page_speed", "page_race", "page_rpm",
+                         "page_delta", "page_diag"):
+            self.assertIn(expected, names)
+        self.assertFalse({"sender", "bridge"} & _imported_modules(tree))
+
+    def test_sender_is_thin_orchestrator(self):
+        names = _toplevel_names(_tree(os.path.join(ROOT, "sender.py")))
+        self.assertEqual(names, {"RPMCounter", "Battery", "StatusLED", "main"})
+
+
 if __name__ == "__main__":
     unittest.main()
