@@ -136,6 +136,6 @@ zweites Kart) → User-Checkliste.
 
 ## Phasen-Einordnung
 
-- Phase 46 (Karts-Tab): Voraussetzung, gemerged (PR #71-Umfeld).
+- Phase 46 (Karts-Tab): Voraussetzung, gemerged (PR #67/#68).
 - **Phase 47 (dieser Entwurf): Kart-Einstellungen im Karts-Tab.**
 - Unabhängig von künftigen Firmware-Phasen; rein Dashboard-seitig.
