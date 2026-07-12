@@ -6,7 +6,7 @@
  * Reines UMD-Modul — kein DOM, keine Seiteneffekte, wirft nie.
  */
 
-  const GROUPS = Object.freeze(['dashboard', 'sensorik', 'hardware', 'model3d', 'map', 'data']);
+  const GROUPS = Object.freeze(['dashboard', 'fahrdynamik', 'bridge', 'model3d', 'map', 'data']);
 
   function settingsNavReducer(current, action) {
     const cur = GROUPS.includes(current) ? current : GROUPS[0];
@@ -23,28 +23,10 @@
     { group: 'dashboard', rowId: 'setRpmWarn',        label: 'RPM-Warnung ab',       keywords: ['drehzahl', 'warnung', 'limit', 'rpm'] },
     { group: 'dashboard', rowId: 'setGScale',         label: 'G-Skala',              keywords: ['gmeter', 'beschleunigung', 'g', 'skala'] },
     { group: 'dashboard', rowId: 'setMinLap',         label: 'Mindest-Rundenzeit',   keywords: ['runde', 'lap', 'zeit', 'minimum'] },
-    { group: 'sensorik',  rowId: 'setInvertGx',       label: 'Gx invertieren',       keywords: ['imu', 'achse', 'kalibrierung', 'g'] },
-    { group: 'sensorik',  rowId: 'setInvertGy',       label: 'Gy invertieren',       keywords: ['imu', 'achse', 'kalibrierung', 'g'] },
-    { group: 'sensorik',  rowId: 'setSwapG',          label: 'Gx Gy tauschen',       keywords: ['imu', 'achse', 'swap', 'tauschen'] },
-    { group: 'sensorik',  rowId: 'setInvertYaw',      label: 'Gier invertieren',     keywords: ['imu', 'yaw', 'gier', 'drift'] },
-    { group: 'sensorik',  rowId: 'setInvertRollRate', label: 'Roll-Rate invertieren', keywords: ['imu', 'roll', 'kipp', 'achse', 'rollwinkel', 'gyro'] },
-    { group: 'sensorik',  rowId: 'setDriftTol',       label: 'Drift-Empfindlichkeit', keywords: ['drift', 'toleranz', 'empfindlichkeit'] },
-    { group: 'sensorik',  rowId: 'setDriftMinSpeed',  label: 'Drift Min-Tempo',      keywords: ['drift', 'tempo', 'speed', 'minimum'] },
-    { group: 'sensorik',  rowId: 'setRolloverAngle',  label: 'Umkipp-Schwelle',      keywords: ['umkippen', 'rollover', 'rollwinkel', 'grad', 'sicherheit'] },
-    { group: 'hardware',  rowId: 'espMaxRpm',         label: 'Max RPM (Sender)',     keywords: ['esp', 'sender', 'drehzahl', 'rpm'] },
-    { group: 'hardware',  rowId: 'espWarnRpm',        label: 'Warn RPM (Sender)',    keywords: ['esp', 'sender', 'warnung', 'rpm'] },
-    { group: 'hardware',  rowId: 'espSendMs',         label: 'Sende-Intervall',      keywords: ['esp', 'rate', 'intervall', 'ms'] },
-    { group: 'hardware',  rowId: 'espPulses',         label: 'Pulses per Revolution', keywords: ['esp', 'puls', 'sensor', 'umdrehung'] },
-    { group: 'hardware',  rowId: 'espWheelCirc',      label: 'Radumfang',            keywords: ['esp', 'rad', 'umfang', 'gps', 'meter'] },
-    { group: 'hardware',  rowId: 'espGearRatio',      label: 'Uebersetzung',         keywords: ['esp', 'getriebe', 'gear', 'ratio', 'welle'] },
-    { group: 'hardware',  rowId: 'espBattCells',      label: 'Akkuzellen in Reihe',  keywords: ['esp', 'akku', 'batterie', 'zellen', 'batt', 'lipo'] },
-    { group: 'hardware',  rowId: 'espBattWarnV',      label: 'Akku Warn-Schwelle',   keywords: ['esp', 'akku', 'batterie', 'warnung', 'spannung', 'volt'] },
-    { group: 'hardware',  rowId: 'espBattCritV',      label: 'Akku Kritisch-Schwelle', keywords: ['esp', 'akku', 'batterie', 'kritisch', 'spannung', 'volt'] },
-    { group: 'hardware',  rowId: 'espBattCal',        label: 'Akku Feinkalibrierung', keywords: ['esp', 'akku', 'batterie', 'kalibrierung', 'multimeter'] },
-    { group: 'hardware',  rowId: 'espRpmCeiling',     label: 'RPM Glitch-Schwelle',  keywords: ['esp', 'rpm', 'glitch', 'filter', 'zuendung', 'emi', 'hall'] },
-    { group: 'hardware',  rowId: 'espRpmAlpha',       label: 'RPM-Glaettung',        keywords: ['esp', 'rpm', 'glaettung', 'filter', 'alpha', 'ema'] },
-    { group: 'hardware',  rowId: 'espPageMs',         label: 'OLED Seitenwechsel',   keywords: ['esp', 'oled', 'display', 'seite', 'wechsel', 'ms'] },
-    { group: 'hardware',  rowId: 'setDisplayUpdateMs', label: 'OLED-Update Intervall', keywords: ['oled', 'display', 'bridge', 'intervall', 'ms'] },
+    { group: 'fahrdynamik', rowId: 'setDriftTol',       label: 'Drift-Empfindlichkeit', keywords: ['drift', 'toleranz', 'empfindlichkeit'] },
+    { group: 'fahrdynamik', rowId: 'setDriftMinSpeed',  label: 'Drift Min-Tempo',      keywords: ['drift', 'tempo', 'speed', 'minimum'] },
+    { group: 'fahrdynamik', rowId: 'setRolloverAngle',  label: 'Umkipp-Schwelle',      keywords: ['umkippen', 'rollover', 'rollwinkel', 'grad', 'sicherheit'] },
+    { group: 'bridge',   rowId: 'setDisplayUpdateMs', label: 'OLED-Update Intervall', keywords: ['oled', 'display', 'bridge', 'intervall', 'ms'] },
     { group: 'model3d',   rowId: 'kartModelFile',     label: '3D-Modell laden',      keywords: ['kart', 'modell', '3d', 'glb', 'gltf', 'upload'] },
     { group: 'map',       rowId: 'setTilesEnabled',   label: 'OSM-Hintergrund',      keywords: ['karte', 'osm', 'tiles', 'hintergrund'] },
     { group: 'map',       rowId: 'setTilesPreset',    label: 'Karten-Stil',          keywords: ['karte', 'stil', 'preset', 'tiles'] },

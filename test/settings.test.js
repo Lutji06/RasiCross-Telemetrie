@@ -5,11 +5,11 @@ const { GROUPS, settingsNavReducer, SETTINGS_INDEX, settingsFilter } = RasiSetti
 
 test('GROUPS: frozen, sechs bekannte Gruppen, dashboard zuerst', () => {
   assert.equal(Object.isFrozen(GROUPS), true);
-  assert.deepEqual(GROUPS, ['dashboard', 'sensorik', 'hardware', 'model3d', 'map', 'data']);
+  assert.deepEqual(GROUPS, ['dashboard', 'fahrdynamik', 'bridge', 'model3d', 'map', 'data']);
 });
 
 test('settingsNavReducer: set wechselt auf gueltige Gruppe', () => {
-  assert.equal(settingsNavReducer('dashboard', { type: 'set', id: 'hardware' }), 'hardware');
+  assert.equal(settingsNavReducer('dashboard', { type: 'set', id: 'bridge' }), 'bridge');
 });
 
 test('settingsNavReducer: set auf unbekannte id -> bleibt bei current', () => {
@@ -22,8 +22,8 @@ test('settingsNavReducer: ungueltige current -> faellt auf dashboard', () => {
 });
 
 test('settingsNavReducer: unbekannte action -> identity (geklemmt)', () => {
-  assert.equal(settingsNavReducer('sensorik', { type: 'wat' }), 'sensorik');
-  assert.equal(settingsNavReducer('sensorik', null), 'sensorik');
+  assert.equal(settingsNavReducer('fahrdynamik', { type: 'wat' }), 'fahrdynamik');
+  assert.equal(settingsNavReducer('fahrdynamik', null), 'fahrdynamik');
 });
 
 test('SETTINGS_INDEX: nicht-leer, jede Gruppe gueltig, Felder vorhanden', () => {
@@ -49,9 +49,9 @@ test('settingsFilter: Treffer per Label', () => {
 });
 
 test('settingsFilter: Treffer per Keyword (Synonym)', () => {
-  const r = settingsFilter('akku', SETTINGS_INDEX);
-  assert.ok(r.rows.has('espBattCells'));
-  assert.ok(r.groups.has('hardware'));
+  const r = settingsFilter('drift', SETTINGS_INDEX);
+  assert.ok(r.rows.has('setDriftTol'));
+  assert.ok(r.groups.has('fahrdynamik'));
 });
 
 test('settingsFilter: case- und diakritik-tolerant', () => {
@@ -68,5 +68,12 @@ test('settingsFilter: kein Treffer -> leere Sets', () => {
 test('SETTINGS_INDEX: jeder Eintrag ist eingefroren', () => {
   for (const e of SETTINGS_INDEX) {
     assert.equal(Object.isFrozen(e), true, `Eintrag ${e.rowId} muss frozen sein`);
+  }
+});
+
+test('SETTINGS_INDEX: keine Kart-spezifischen Eintraege (Phase 47)', () => {
+  for (const e of SETTINGS_INDEX) {
+    assert.ok(!/^esp/.test(e.rowId), `esp-Eintrag im Index: ${e.rowId}`);
+    assert.ok(!/^setInvert|^setSwapG/.test(e.rowId), `IMU-Eintrag im Index: ${e.rowId}`);
   }
 });
