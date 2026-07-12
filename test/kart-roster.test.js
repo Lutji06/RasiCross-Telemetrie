@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import RasiKartRoster from '../src/kart-roster.js';
 
 const { isDemoMac, metaDefaults, ensureMeta, migrateLegacyMeta,
-        rosterMacs, clampServiceH, calDefaults, PALETTE } = RasiKartRoster;
+        rosterMacs, clampServiceH, calDefaults, resolveSelectedMac, PALETTE } = RasiKartRoster;
 
 test('isDemoMac: DE:MO:-Prefix erkannt, echte MACs nicht', () => {
   assert.equal(isDemoMac('DE:MO:RA:SI:00:01'), true);
@@ -84,4 +84,18 @@ test('calDefaults: frisches Objekt mit Registry-Defaults', () => {
   assert.notEqual(a, b);
   assert.deepEqual(a, { gxZero: 0, gyZero: 0, swapG: false, invertGx: false,
                         invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0 });
+});
+
+test('resolveSelectedMac: gewaehlte MAC gewinnt, solange im Roster', () => {
+  assert.equal(resolveSelectedMac('BB:02', 'AA:01', ['AA:01', 'BB:02']), 'BB:02');
+});
+
+test('resolveSelectedMac: unbekannte Auswahl -> aktive MAC', () => {
+  assert.equal(resolveSelectedMac('XX:99', 'AA:01', ['AA:01', 'BB:02']), 'AA:01');
+});
+
+test('resolveSelectedMac: ohne Auswahl/Aktiv -> erste Roster-MAC, leer -> null', () => {
+  assert.equal(resolveSelectedMac(null, null, ['AA:01']), 'AA:01');
+  assert.equal(resolveSelectedMac(null, 'XX:99', []), null);
+  assert.equal(resolveSelectedMac(null, null, null), null);
 });
