@@ -19,7 +19,11 @@ const ESP_CFG_FIELDS = [
   ['espPageMs', 'pm'],
 ];
 let _espAckTimer = null;
-function applyEspConfigAck(d) {
+function applyEspConfigAck(d, expectedMac) {
+  // Phase 47: Das Formular zeigt das im Karts-Tab GEWAEHLTE Kart — Acks
+  // fremder Karts nicht uebernehmen. Ohne from_mac (alte Firmware) oder
+  // ohne Erwartung: Verhalten wie bisher.
+  if (expectedMac && d.from_mac && d.from_mac !== expectedMac) return;
   clearTimeout(_espAckTimer);
   _espAckTimer = null;
   for (const [id, key] of ESP_CFG_FIELDS) {
