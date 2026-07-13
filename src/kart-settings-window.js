@@ -18,7 +18,7 @@ import RasiEngine from './engine.js';
 import RasiKartRoster from './kart-roster.js';
 import RasiKartBar from './kart-bar.js';
 import KartRegistry from './kart-registry.js';
-import { renderKartsTab } from './karts-page.js';
+import { renderKartsTab, forgetKart } from './karts-page.js';
 
 // mac -> { mac, win, doc, ackTimer, zeroBusy, lastEspUsable }
 const _wins = new Map();
@@ -32,6 +32,11 @@ function _kartIdx(mac) { return Math.max(0, state.karts.macs().indexOf(mac)); }
 function _liveKart(mac) {
   return (mac && state.karts.has(mac)) ? state.karts.get(mac) : null;
 }
+
+const CAL_TOGGLES = [
+  ['setInvertGx', 'invertGx'], ['setInvertGy', 'invertGy'], ['setSwapG', 'swapG'],
+  ['setInvertYaw', 'invertYaw'], ['setInvertRollRate', 'invertRollRate'],
+];
 
 // target_mac explizit auf das FENSTER-Kart setzen (Muster pit-wall.js) —
 // der bridgeSend-Default waere das aktive Kart.
@@ -58,6 +63,49 @@ function _markup() {
     +   '</div>'
     +   '<div class="row" id="kartPaletteRow" style="gap:8px;margin:4px 0 8px"></div>'
     +   '<div class="kc-mac" id="kartMacText"></div>'
+    + '</section>'
+    + '<section class="settings-group active" id="kartCalPanel" style="margin-top:14px">'
+    +   '<header class="settings-group-head">'
+    +     '<div><h2 class="settings-group-title">Kalibrierung</h2><p class="settings-group-sub">IMU · Nullpunkt &amp; Achsen</p></div>'
+    +   '</header>'
+    +   '<p class="settings-block-note">Mäher auf eine ebene Fläche stellen, dann „Nullpunkt setzen". Achsen-Korrekturen darunter.</p>'
+    +   '<div class="row" style="margin-bottom:14px">'
+    +     '<div class="stat"><div class="t">Gx Offset</div><div class="n" id="gxOffsetText">0.00</div></div>'
+    +     '<div class="stat"><div class="t">Gy Offset</div><div class="n" id="gyOffsetText">0.00</div></div>'
+    +   '</div>'
+    +   '<div class="toggle-row"><span class="label-text">Gx invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGx"><span class="toggle-knob"></span></label></div>'
+    +   '<div class="toggle-row"><span class="label-text">Gy invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGy"><span class="toggle-knob"></span></label></div>'
+    +   '<div class="toggle-row"><span class="label-text">Gx ↔ Gy tauschen</span><label class="toggle"><input type="checkbox" id="setSwapG"><span class="toggle-knob"></span></label></div>'
+    +   '<div class="toggle-row"><span class="label-text">Gier invertieren</span><label class="toggle"><input type="checkbox" id="setInvertYaw"><span class="toggle-knob"></span></label></div>'
+    +   '<div class="toggle-row"><span class="label-text">Roll-Rate invertieren</span><label class="toggle"><input type="checkbox" id="setInvertRollRate"><span class="toggle-knob"></span></label></div>'
+    +   '<div class="row" style="gap:8px;margin:14px 0 4px">'
+    +     '<button class="btn primary" id="zeroImuBtn" style="flex:1">Nullpunkt setzen</button>'
+    +     '<button class="btn ghost" id="resetImuBtn" style="flex:0 0 auto">Zurücksetzen</button>'
+    +     '<button class="btn ghost" id="zeroRollBtn" style="flex:0 0 auto" title="Aktuellen Rollwinkel als 0 setzen — Mäher dazu auf ebener Fläche abstellen">Roll nullen</button>'
+    +   '</div>'
+    +   '<div style="font-size:11px;color:var(--mut);margin:0 0 4px">⚠ Nullen nur auf <b>ebener Fläche</b> — am Hang genullt wäre jede spätere Messung um die Hangneigung verschoben.</div>'
+    +   '<p id="kartCalHint" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:6px;min-height:14px"></p>'
+    + '</section>'
+    + '<section class="settings-group active" id="kartServicePanel" style="margin-top:14px">'
+    +   '<header class="settings-group-head">'
+    +     '<div><h2 class="settings-group-title">Wartung</h2><p class="settings-group-sub">Motorstunden &amp; Intervall</p></div>'
+    +   '</header>'
+    +   '<div class="kc-grid" id="kartServiceStats"></div>'
+    +   '<div class="settings-row">'
+    +     '<div class="settings-row-label"><span class="settings-row-name">Intervall (h)</span><span class="settings-row-desc">0 = Wartungshinweis aus</span></div>'
+    +     '<input type="number" id="kartServiceInterval" min="0" max="500" step="0.5">'
+    +   '</div>'
+    +   '<div class="row" style="margin:6px 0 4px"><button class="btn ghost" id="kartServiceBtn" style="flex:1">Wartung erledigt</button></div>'
+    + '</section>'
+    + '<section class="settings-group active" id="kartDangerPanel" style="margin-top:14px">'
+    +   '<header class="settings-group-head">'
+    +     '<div><h2 class="settings-group-title">Gefahrenzone</h2><p class="settings-group-sub">Zurücksetzen &amp; Entfernen</p></div>'
+    +   '</header>'
+    +   '<div class="row" style="gap:8px;margin:6px 0 4px">'
+    +     '<button class="btn ghost" id="kartCalResetBtn" style="flex:1">Kalibrierung zurücksetzen</button>'
+    +     '<button class="btn ghost" id="kartStatsResetBtn" style="flex:1">Statistik zurücksetzen</button>'
+    +   '</div>'
+    +   '<div class="row" style="margin:6px 0 4px"><button class="btn danger" id="kartForgetBtn" style="flex:1">Kart vergessen</button></div>'
     + '</section>'
     + '</div>';
 }
@@ -104,6 +152,135 @@ function _bindHandlers(r) {
     renderKartsTab();
     _renderPalette(r);
   };
+  for (const [id, key] of CAL_TOGGLES) {
+    const el = _el(r, id);
+    if (el) el.onchange = () => {
+      const c = kartCalFor(r.mac);
+      if (!c) return;
+      c[key] = !!el.checked;
+      drawGMeter._trail = [];
+      saveData();
+      renderKartsTab();
+      _refreshWin(r);
+    };
+  }
+  if (_el(r, 'zeroRollBtn')) _el(r, 'zeroRollBtn').onclick = () => {
+    const k = _liveKart(r.mac);
+    if (!k) return;
+    // Aktuellen fusionierten Rollwinkel (inkl. bestehendem Offset) als neue 0 setzen.
+    k.calibration.rollZero = k.calibration.rollZero + ((k.attitude && k.attitude.rollDeg) || 0);
+    k.attitude.rollDeg = 0;
+    k.attitude.overState = { active: false };
+    k.attitude.over = false;
+    saveData();
+    rcToast('Rollwinkel genullt', 1500);
+  };
+  if (_el(r, 'zeroImuBtn')) _el(r, 'zeroImuBtn').onclick = () => {
+    const btn = _el(r, 'zeroImuBtn');
+    if (btn.disabled || r.zeroBusy) return;
+    if (!_liveKart(r.mac)) return;
+    r.zeroBusy = true;
+    const original = btn.textContent;
+    btn.disabled = true;
+    // Sender-seitige Kalibrierung mitstarten (am Fenster-Kart)
+    try {
+      _sendTo(r.mac, { type: 'imu_calibrate', action: 'auto', duration_ms: 2000 });
+    } catch (e) { console.warn('imu_calibrate send:', e); }
+    // Client-seitig: 2 Sekunden lang Samples des Fenster-Karts mitteln
+    const samples = [];
+    const start = Date.now();
+    const duration = 2000;
+    const tick = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const k = _liveKart(r.mac);
+      if (k) samples.push({ x: k.raw.gx || 0, y: k.raw.gy || 0 });
+      const remain = Math.max(0, duration - elapsed) / 1000;
+      btn.textContent = `Kart still halten… ${remain.toFixed(1)}s`;
+      if (elapsed >= duration) {
+        clearInterval(tick);
+        const k2 = _liveKart(r.mac);
+        if (k2 && samples.length >= 5) {
+          const avgX = samples.reduce((s, p) => s + p.x, 0) / samples.length;
+          const avgY = samples.reduce((s, p) => s + p.y, 0) / samples.length;
+          k2.calibration.gxZero = avgX;
+          k2.calibration.gyZero = avgY;
+          saveData();
+          rcToast(`Nullpunkt gesetzt (${samples.length} Samples)`);
+        } else {
+          rcToast('Zu wenige Samples — kommen Telemetrie-Daten an?');
+        }
+        btn.textContent = original;
+        btn.disabled = false;
+        r.zeroBusy = false;
+        renderKartsTab();
+        _refreshWin(r);
+      }
+    }, 50);
+  };
+  if (_el(r, 'resetImuBtn')) _el(r, 'resetImuBtn').onclick = () => {
+    const c = kartCalFor(r.mac);
+    if (!c) return;
+    c.gxZero = 0;
+    c.gyZero = 0;
+    saveData();
+    // Sender-Offsets ebenfalls zuruecksetzen (am Fenster-Kart)
+    try { _sendTo(r.mac, { type: 'imu_calibrate', action: 'reset' }); } catch (e) {}
+    rcToast('IMU-Kalibrierung zurückgesetzt');
+    renderKartsTab();
+    _refreshWin(r);
+  };
+  const ivEl = _el(r, 'kartServiceInterval');
+  if (ivEl) ivEl.onchange = () => {
+    const e = kartEngineFor(r.mac);
+    if (!e) return;
+    e.serviceIntervalH = RasiKartRoster.clampServiceH(ivEl.value);
+    ivEl.value = e.serviceIntervalH;
+    saveDataDebounced();
+    renderKartsTab();
+  };
+  if (_el(r, 'kartServiceBtn')) _el(r, 'kartServiceBtn').onclick = async () => {
+    window.focus();   // rcConfirm rendert im Hauptfenster
+    if (!await rcConfirm('Wartungszähler zurücksetzen? Seit-letzter-Wartung beginnt wieder bei 0.', 'Wartung', 'Zurücksetzen')) return;
+    const e = kartEngineFor(r.mac);
+    if (!e) return;
+    e.lastServiceMs = e.totalMs;
+    if ('_warned' in e) e._warned = false;
+    saveData();
+    rcToast('🔧 Wartung vermerkt');
+    renderKartsTab();
+    _refreshWin(r);
+  };
+  if (_el(r, 'kartCalResetBtn')) _el(r, 'kartCalResetBtn').onclick = async () => {
+    window.focus();
+    if (!await rcConfirm('Kalibrierung dieses Karts auf Werkswerte zurücksetzen?', 'Kalibrierung', 'Zurücksetzen', true)) return;
+    const c = kartCalFor(r.mac);
+    if (!c) return;
+    Object.assign(c, RasiKartRoster.calDefaults());
+    saveData();
+    rcToast('Kalibrierung zurückgesetzt');
+    renderKartsTab();
+    _refreshWin(r);
+  };
+  if (_el(r, 'kartStatsResetBtn')) _el(r, 'kartStatsResetBtn').onclick = async () => {
+    window.focus();
+    if (!await rcConfirm('Statistik (Kilometer, Ø, Top-Speed, Fahrzeit) dieses Karts auf 0 setzen?', 'Statistik', 'Zurücksetzen', true)) return;
+    const s = kartStatsFor(r.mac);
+    if (!s) return;
+    s.odoM = 0;
+    s.moveMs = 0;
+    s.topKmh = 0;
+    if ('lastAt' in s) s.lastAt = null;
+    saveData();
+    rcToast('Statistik zurückgesetzt');
+    renderKartsTab();
+  };
+  if (_el(r, 'kartForgetBtn')) _el(r, 'kartForgetBtn').onclick = async () => {
+    window.focus();
+    if (!await rcConfirm('Dieses Kart endgültig vergessen? Name, Farbe, Kalibrierung, Statistik und Motorstunden werden gelöscht.', 'Kart vergessen', 'Vergessen', true)) return;
+    forgetKart(r.mac);
+    try { r.win.close(); } catch (e) {}
+    _wins.delete(r.mac);
+  };
 }
 
 function _renderPalette(r) {
@@ -142,6 +319,49 @@ function _refreshWin(r) {
     }
     _renderPalette(r);
   }
+  _renderCal(r, typing);
+  _renderService(r, typing);
+}
+
+function _renderCal(r, typing) {
+  const c = kartCalFor(r.mac);
+  const online = !!_liveKart(r.mac);
+  for (const [id] of CAL_TOGGLES) { const el = _el(r, id); if (el) el.disabled = !c; }
+  if (c) {
+    _el(r, 'gxOffsetText').textContent = (Number(c.gxZero) || 0).toFixed(2);
+    _el(r, 'gyOffsetText').textContent = (Number(c.gyZero) || 0).toFixed(2);
+    for (const [id, key] of CAL_TOGGLES) { const el = _el(r, id); if (el) el.checked = !!c[key]; }
+  } else {
+    _el(r, 'gxOffsetText').textContent = '--';
+    _el(r, 'gyOffsetText').textContent = '--';
+  }
+  // Live-Aktionen brauchen Telemetrie des Fenster-Karts.
+  if (_el(r, 'zeroImuBtn')) _el(r, 'zeroImuBtn').disabled = !online || r.zeroBusy;
+  if (_el(r, 'zeroRollBtn')) _el(r, 'zeroRollBtn').disabled = !online;
+  if (_el(r, 'resetImuBtn')) _el(r, 'resetImuBtn').disabled = !c;
+  _el(r, 'kartCalHint').textContent = !c ? 'Keine Kalibrierdaten für dieses Kart.'
+    : (online ? '' : 'Kart offline — Nullpunkt/Roll nullen erst bei Live-Telemetrie.');
+}
+
+function _renderService(r, typing) {
+  const e = kartEngineFor(r.mac);
+  const grid = _el(r, 'kartServiceStats');
+  if (!e) {
+    if (grid) grid.innerHTML = '<div class="dstat"><span>Motorstunden</span><b>--</b></div>';
+    if (_el(r, 'kartServiceInterval')) _el(r, 'kartServiceInterval').disabled = true;
+    if (_el(r, 'kartServiceBtn')) _el(r, 'kartServiceBtn').disabled = true;
+    return;
+  }
+  const due = RasiEngine.serviceDue(e.totalMs, e.lastServiceMs, e.serviceIntervalH);
+  if (grid) grid.innerHTML = '<div class="dstat"><span>Motorlaufzeit</span><b>' + RasiEngine.hoursText(e.totalMs) + '</b></div>'
+    + '<div class="dstat"><span>Seit Wartung</span><b>' + RasiEngine.hoursText(RasiEngine.sinceServiceMs(e.totalMs, e.lastServiceMs)) + '</b></div>'
+    + (due ? '<div class="dstat"><span>Status</span><b class="kc-warn">🔧 fällig</b></div>' : '');
+  const ivEl = _el(r, 'kartServiceInterval');
+  if (ivEl) {
+    ivEl.disabled = false;
+    if (!typing) ivEl.value = e.serviceIntervalH;
+  }
+  if (_el(r, 'kartServiceBtn')) _el(r, 'kartServiceBtn').disabled = false;
 }
 
 // 1-Hz-Hook (live-ui.js): geschlossene Fenster aufraeumen, verschwundene
@@ -177,7 +397,7 @@ function initKartSettingsWindows() {
 export { openKartSettings, refreshKartSettingsWindows, closeAllKartSettings,
          initKartSettingsWindows };
 
-// Interface-Marker (Phase 48 Task 4): Task 5/6 nutzen diese Imports fuer
-// weitere Panels (Kalibrierung, ESP) — hier nur ESLint no-unused-vars ruhig
-// stellen; wieder entfernen, sobald benutzt.
-void [saveData, saveDataDebounced, kartCalFor, kartEngineFor, kartStatsFor, drawGMeter, RasiEngine, ESP_CFG_FIELDS, rcConfirm, _sendTo, _liveKart];
+// Interface-Marker (Phase 48 Task 4): Task 6 nutzt diesen Import fuers
+// ESP-Panel — hier nur ESLint no-unused-vars ruhig stellen; wieder
+// entfernen, sobald benutzt.
+void [ESP_CFG_FIELDS];

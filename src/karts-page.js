@@ -9,7 +9,7 @@
 // ============================================================
 import { state, $, esc, setText,
          kartMetaFor, kartRosterMacs, kartCalFor, kartEngineFor, kartStatsFor,
-         rcConfirm, rcToast, saveData, saveDataDebounced, rasiPersistForget } from './rasicross.js';
+         rcConfirm, rcToast, saveData, rasiPersistForget } from './rasicross.js';
 import RasiEngine from './engine.js';
 import RasiKartRoster from './kart-roster.js';
 import RasiKartBar from './kart-bar.js';
@@ -37,11 +37,7 @@ function _engineHtml(mac) {
     + '<div class="dstat"><span>Motorlaufzeit</span><b>' + RasiEngine.hoursText(e.totalMs) + '</b></div>'
     + '<div class="dstat"><span>Seit Wartung</span><b>' + RasiEngine.hoursText(RasiEngine.sinceServiceMs(e.totalMs, e.lastServiceMs)) + '</b></div>'
     + '</div>'
-    + '<div class="kc-actions">'
-    + (due ? '<span class="kc-warn">🔧 Wartung fällig</span>' : '')
-    + '<label class="kc-mac">Intervall (h) <input type="number" class="kc-interval" data-action="interval" data-mac="' + esc(mac) + '" value="' + e.serviceIntervalH + '" min="0" max="500" step="0.5"></label>'
-    + '<button type="button" class="btn ghost" data-action="service" data-mac="' + esc(mac) + '">Wartung erledigt</button>'
-    + '</div>';
+    + (due ? '<div class="kc-actions"><span class="kc-warn">🔧 Wartung fällig</span></div>' : '');
 }
 
 function _calHtml(mac) {
@@ -53,10 +49,7 @@ function _calHtml(mac) {
     + '<div class="dstat"><span>Gx/Gy-Offset</span><b>' + (Number(c.gxZero) || 0).toFixed(2) + ' / ' + (Number(c.gyZero) || 0).toFixed(2) + '</b></div>'
     + '<div class="dstat"><span>Roll-Null</span><b>' + (Number(c.rollZero) || 0).toFixed(1) + '°</b></div>'
     + '<div class="dstat"><span>Achsen</span><b style="font-size:11px">' + flags + '</b></div>'
-    + '</div>'
-    + '<div class="kc-actions"><button type="button" class="btn ghost" data-action="calreset" data-mac="' + esc(mac) + '">Kalibrierung zurücksetzen</button>'
-    + '<span class="grow"></span>'
-    + '<button type="button" class="btn danger" data-action="forget" data-mac="' + esc(mac) + '">Kart vergessen</button></div>';
+    + '</div>';
 }
 
 function _statsHtml(mac) {
@@ -160,47 +153,7 @@ function bindCardEvents(list) {
   list.querySelectorAll('[data-action="settings"]').forEach(btn => {
     btn.onclick = () => openKartSettings(btn.getAttribute('data-mac'));
   });
-  list.querySelectorAll('[data-action="interval"]').forEach(inp => {
-    inp.onchange = () => {
-      const e = kartEngineFor(inp.getAttribute('data-mac'));
-      if (!e) return;
-      e.serviceIntervalH = RasiKartRoster.clampServiceH(inp.value);
-      inp.value = e.serviceIntervalH;
-      saveDataDebounced();
-    };
-    inp.onblur = () => renderKartsTab();
-  });
-  list.querySelectorAll('[data-action="service"]').forEach(btn => {
-    btn.onclick = async () => {
-      if (!await rcConfirm('Wartungszähler zurücksetzen? Seit-letzter-Wartung beginnt wieder bei 0.', 'Wartung', 'Zurücksetzen')) return;
-      const e = kartEngineFor(btn.getAttribute('data-mac'));
-      if (!e) return;
-      e.lastServiceMs = e.totalMs;
-      if ('_warned' in e) e._warned = false;
-      saveData();
-      rcToast('🔧 Wartung vermerkt');
-      renderKartsTab();
-    };
-  });
-  list.querySelectorAll('[data-action="calreset"]').forEach(btn => {
-    btn.onclick = async () => {
-      if (!await rcConfirm('Kalibrierung dieses Karts auf Werkswerte zurücksetzen?', 'Kalibrierung', 'Zurücksetzen', true)) return;
-      const c = kartCalFor(btn.getAttribute('data-mac'));
-      if (!c) return;
-      Object.assign(c, RasiKartRoster.calDefaults());
-      saveData();
-      rcToast('Kalibrierung zurückgesetzt');
-      renderKartsTab();
-    };
-  });
-  list.querySelectorAll('[data-action="forget"]').forEach(btn => {
-    btn.onclick = async () => {
-      const mac = btn.getAttribute('data-mac');
-      if (!await rcConfirm('Dieses Kart endgültig vergessen? Name, Farbe, Kalibrierung und Motorstunden werden gelöscht.', 'Kart vergessen', 'Vergessen', true)) return;
-      forgetKart(mac);
-    };
-  });
 }
 
 // ESM-Export (Phase 46)
-export { renderKartsTab };
+export { renderKartsTab, forgetKart };
