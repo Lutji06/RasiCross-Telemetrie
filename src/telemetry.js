@@ -15,6 +15,7 @@ import RasiLapEngine from './lap-engine.js';
 import RasiReplay from './replay.js';
 import { rcToast, rcAudio } from './rasicross.js';
 import { applyEspConfigAck } from './esp-config.js';
+import { selectedKartMac } from './kart-settings.js';
 import { state, activeKart, kartFor, saveDataDebounced, kartMetaFor } from './store.js';
 
 // Crash-Sicherung (Phase 24): recordPacket sammelt NDJSON-Zeilen und schiebt
@@ -109,7 +110,7 @@ function processTelemetry(d) {
       RasiKartBar.render(state);
       return;
     }
-    if (d.type === 'config_ack') { applyEspConfigAck(d); return; }
+    if (d.type === 'config_ack') { applyEspConfigAck(d, selectedKartMac()); return; }
     // Ziel-Kart aufloesen (MAC = Identitaet). Schreibpfade laufen explizit
     // ueber k statt ueber die aktive-Kart-Proxy-Fassade, damit Hintergrund-
     // Karts ihren eigenen Zustand fuellen.

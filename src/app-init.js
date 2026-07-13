@@ -30,13 +30,13 @@ import RasiReplay from './replay.js';
 import RasiSettings from './settings.js';
 import RasiTileRenderer from './tile-renderer.js';
 import { state, activeKart, saveData, saveDataDebounced, loadData, migrateLegacyKartMeta } from './store.js';
-import { armEspAckTimer } from './esp-config.js';
 import { applyTilesPresetFromUrl, onTilesPresetChanged, updateTilesUrlHint,
          onTilesClearClicked, showSettingsGroup, loadSettingsToUi,
          initUpdateUi, scheduleSettingsSave } from './settings-ui.js';
 import { $, setText, rcAlert, rcConfirm, rcToast, formatBytes,
-         bridgeSend, applyTheme, setupTabs, toggleTheme } from './rasicross.js';
+         applyTheme, setupTabs, toggleTheme } from './rasicross.js';
 import { initGViewToggle, initKartModelUploader } from './kart3d-ui.js';
+import { initKartSettings } from './kart-settings.js';
 
 // ============================================================
 // 20. INIT
@@ -162,96 +162,8 @@ function init() {
   $('demoStartBtn').onclick = startDemo;
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab
-  if ($('zeroRollBtn')) $('zeroRollBtn').onclick = () => {
-    // Aktuellen fusionierten Rollwinkel (inkl. bestehendem Offset) als neue 0 setzen.
-    const k = activeKart();
-    k.calibration.rollZero = k.calibration.rollZero + ((k.attitude && k.attitude.rollDeg) || 0);
-    k.attitude.rollDeg = 0;
-    k.attitude.overState = { active: false };
-    k.attitude.over = false;
-    saveData();
-    rcToast('Rollwinkel genullt', 1500);
-  };
-  $('zeroImuBtn').onclick = () => {
-    const btn = $('zeroImuBtn');
-    if (btn.disabled) return;
-    const original = btn.textContent;
-    btn.disabled = true;
-    // Sender-seitige Kalibrierung mitstarten (an den ausgewaehlten Kart)
-    try {
-      bridgeSend({ type: 'imu_calibrate', action: 'auto', duration_ms: 2000 });
-    } catch(e) { console.warn('imu_calibrate send:', e); }
-    // Client-seitig: 2 Sekunden lang Samples mitteln
-    const samples = [];
-    const start = Date.now();
-    const duration = 2000;
-    const tick = setInterval(() => {
-      const elapsed = Date.now() - start;
-      const k = activeKart();
-      samples.push({ x: k.raw.gx || 0, y: k.raw.gy || 0 });
-      const remain = Math.max(0, duration - elapsed) / 1000;
-      btn.textContent = `Kart still halten… ${remain.toFixed(1)}s`;
-      if (elapsed >= duration) {
-        clearInterval(tick);
-        if (samples.length >= 5) {
-          const avgX = samples.reduce((s,p) => s + p.x, 0) / samples.length;
-          const avgY = samples.reduce((s,p) => s + p.y, 0) / samples.length;
-          k.calibration.gxZero = avgX;
-          k.calibration.gyZero = avgY;
-          loadSettingsToUi();
-          saveData();
-          rcToast(`Nullpunkt gesetzt (${samples.length} Samples)`);
-        } else {
-          rcToast('Zu wenige Samples — kommen Telemetrie-Daten an?');
-        }
-        btn.textContent = original;
-        btn.disabled = false;
-      }
-    }, 50);
-  };
-  $('resetImuBtn').onclick = () => {
-    activeKart().calibration.gxZero = 0;
-    activeKart().calibration.gyZero = 0;
-    loadSettingsToUi();
-    saveData();
-    // Sender-Offsets ebenfalls zuruecksetzen (am ausgewaehlten Kart)
-    try {
-      bridgeSend({ type: 'imu_calibrate', action: 'reset' });
-    } catch(e) {}
-    rcToast('IMU-Kalibrierung zurückgesetzt');
-  };
-  $('espSendBtn').onclick = async () => {
-    const cfg = {
-      type: 'config',
-      max_rpm: Number($('espMaxRpm').value) || 6000,
-      warn_rpm: Number($('espWarnRpm').value) || 5500,
-      send_ms: Number($('espSendMs').value) || 80,
-      pulses_per_rev: Number($('espPulses').value) || 1,
-      wheel_circ_m: Number($('espWheelCirc').value) || 0,
-      gear_ratio: Number($('espGearRatio').value) || 1,
-      batt_cells: Number($('espBattCells').value) || 1,
-      batt_warn_v: Number($('espBattWarnV').value) || 3.5,
-      batt_crit_v: Number($('espBattCritV').value) || 3.3,
-      batt_cal: Number($('espBattCal').value) || 1.0,
-      rpm_ceiling: Math.max(0, Number($('espRpmCeiling').value) || 0),
-      rpm_alpha: Number($('espRpmAlpha').value) || 0.25,
-      page_ms: Number($('espPageMs').value) || 4000,
-    };
-    activeKart().batt.cells = cfg.batt_cells;
-    if (!state.serial.connected) {
-      setText('espSendStatus', 'Nicht verbunden');
-      return;
-    }
-    try {
-      bridgeSend(cfg);
-      setText('espSendStatus', '✓ Gesendet — warte auf Bestätigung…');
-      armEspAckTimer(3000, () => {
-        setText('espSendStatus', '⚠ Keine Bestätigung vom Kart — Funkverbindung prüfen');
-      });
-    } catch (e) {
-      setText('espSendStatus', '✗ Fehler');
-    }
-  };
+  // Kalibrier-/ESP-Handler leben seit Phase 47 in kart-settings.js
+  initKartSettings();
   $('exportAllBtn').onclick = exportAll;
   $('importAllBtn').onclick = () => $('importAllFile').click();
   $('importAllFile').onchange = e => { if (e.target.files[0]) importAll(e.target.files[0]); e.target.value = ''; };

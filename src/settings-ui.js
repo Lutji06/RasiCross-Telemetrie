@@ -5,11 +5,10 @@
 
 import { drawTrack } from './map-draw.js';
 import { renderSavedTracks } from './track.js';
-import { drawGMeter } from './gauges.js';
 import { restartDisplayUpdateInterval } from './pit-wall.js';
 import RasiSettings from './settings.js';
 import RasiTileRenderer from './tile-renderer.js';
-import { state, activeKart, saveData } from './store.js';
+import { state, saveData } from './store.js';
 import { $, setText, rcAlert, rcConfirm, rcToast, formatBytes } from './rasicross.js';
 
 const TILES_PRESETS = [
@@ -92,7 +91,6 @@ function showSettingsGroup(id) {
 }
 
 function loadSettingsToUi() {
-  const k = activeKart();
   $('setMaxSpeed').value = state.settings.maxSpeed;
   $('setMaxRpm').value = state.settings.maxRpm;
   $('setRpmWarn').value = state.settings.rpmWarning;
@@ -103,13 +101,6 @@ function loadSettingsToUi() {
   if ($('setRolloverAngle')) $('setRolloverAngle').value = (state.settings.rollover && state.settings.rollover.angleDeg) || 75;
   if ($('setDisplayUpdateMs')) $('setDisplayUpdateMs').value = state.settings.displayUpdateMs || 500;
   $('settingsHint').textContent = `${state.settings.maxSpeed} km/h · ${state.settings.maxRpm} rpm`;
-  $('gxOffsetText').textContent = k.calibration.gxZero.toFixed(2);
-  $('gyOffsetText').textContent = k.calibration.gyZero.toFixed(2);
-  if ($('setInvertGx')) $('setInvertGx').checked = !!k.calibration.invertGx;
-  if ($('setInvertGy')) $('setInvertGy').checked = !!k.calibration.invertGy;
-  if ($('setSwapG')) $('setSwapG').checked = !!k.calibration.swapG;
-  if ($('setInvertYaw')) $('setInvertYaw').checked = !!k.calibration.invertYaw;
-  if ($('setInvertRollRate')) $('setInvertRollRate').checked = !!k.calibration.invertRollRate;
   if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
   if ($('setTilesEnabled')) {
     $('setTilesEnabled').checked = !!(state.settings.tiles && state.settings.tiles.enabled);
@@ -135,7 +126,6 @@ function scheduleSettingsSave() {
   _settingsSaveTimer = setTimeout(() => { saveSettingsFromUi(); }, 150);
 }
 function saveSettingsFromUi() {
-  const k = activeKart();
   state.settings.maxSpeed = Math.max(20, Math.min(200, Number($('setMaxSpeed').value) || 80));
   state.settings.maxRpm = Math.max(3000, Math.min(20000, Number($('setMaxRpm').value) || 10000));
   state.settings.rpmWarning = Math.max(2000, Math.min(state.settings.maxRpm, Number($('setRpmWarn').value) || 9000));
@@ -151,12 +141,6 @@ function saveSettingsFromUi() {
     state.settings.displayUpdateMs = newInterval;
     restartDisplayUpdateInterval();
   }
-  k.calibration.invertGx = !!$('setInvertGx')?.checked;
-  k.calibration.invertGy = !!$('setInvertGy')?.checked;
-  k.calibration.swapG = !!$('setSwapG')?.checked;
-  k.calibration.invertYaw = !!$('setInvertYaw')?.checked;
-  k.calibration.invertRollRate = !!$('setInvertRollRate')?.checked;
-  drawGMeter._trail = [];
   if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
   if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
   if ($('setTilesUrl')) state.settings.tiles.urlTemplate = ($('setTilesUrl').value || '').trim();

@@ -103,3 +103,51 @@ test('Kart-Wechsel waehrend laufendem Rennen aendert keine Bucket-Daten', async 
   expect(await page.evaluate(() => RasiTest.activeKart().calibration.gxZero)).toBe(0.11);
   expect(errors).toEqual([]);
 });
+
+test('Kart-Einstellungen: Toggle wirkt auf das im Dropdown gewaehlte Kart', async () => {
+  await startDemo();
+  await page.click('.nav-item[data-tab="karts"]');
+  await page.waitForFunction(() => document.querySelectorAll('#kartSettingsSelect option').length >= 3);
+  const { active, other } = await page.evaluate(() => {
+    const a = RasiTest.state.karts.activeMac();
+    const demo = RasiTest.state.karts.macs().filter((m) => m.indexOf('DE:MO:') === 0);
+    return { active: a, other: demo.find((m) => m !== a) };
+  });
+  await page.selectOption('#kartSettingsSelect', other);
+  // Checkbox sitzt unsichtbar im Toggle-Label -- Change-Event direkt ausloesen.
+  await page.evaluate(() => {
+    const el = document.getElementById('setInvertGx');
+    el.checked = true;
+    el.dispatchEvent(new Event('change'));
+  });
+  const probe = await page.evaluate(([a, o]) => ({
+    otherInv: RasiTest.state.karts.get(o).calibration.invertGx,
+    activeInv: RasiTest.state.karts.get(a).calibration.invertGx,
+  }), [active, other]);
+  expect(probe.otherInv).toBe(true);
+  expect(probe.activeInv).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('Einstellungen-Tab ohne Kart-Einstellungen, Karts-Tab traegt sie', async () => {
+  await page.click('.nav-item[data-tab="settings"]');
+  const probe = await page.evaluate(() => ({
+    imuInSettings: !!document.querySelector('#tab-settings #setInvertGx'),
+    espInSettings: !!document.querySelector('#tab-settings #espMaxRpm'),
+    navFahrdynamik: !!document.querySelector('#tab-settings .settings-nav-item[data-sgroup="fahrdynamik"]'),
+    navBridge: !!document.querySelector('#tab-settings .settings-nav-item[data-sgroup="bridge"]'),
+    navSensorik: !!document.querySelector('#tab-settings .settings-nav-item[data-sgroup="sensorik"]'),
+    imuInKarts: !!document.querySelector('#tab-karts #setInvertGx'),
+    espInKarts: !!document.querySelector('#tab-karts #espMaxRpm'),
+    displayMsInSettings: !!document.querySelector('#tab-settings #setDisplayUpdateMs'),
+  }));
+  expect(probe.imuInSettings).toBe(false);
+  expect(probe.espInSettings).toBe(false);
+  expect(probe.navFahrdynamik).toBe(true);
+  expect(probe.navBridge).toBe(true);
+  expect(probe.navSensorik).toBe(false);
+  expect(probe.imuInKarts).toBe(true);
+  expect(probe.espInKarts).toBe(true);
+  expect(probe.displayMsInSettings).toBe(true);
+  expect(errors).toEqual([]);
+});

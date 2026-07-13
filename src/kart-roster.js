@@ -62,6 +62,15 @@
              invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0 };
   }
 
+  // Dropdown-Auswahl der Kart-Einstellungen (Phase 47): gewaehlte MAC,
+  // solange sie im Roster ist; sonst aktive MAC; sonst erste Roster-MAC.
+  function resolveSelectedMac(selected, activeMac, macs) {
+    const list = Array.isArray(macs) ? macs : [];
+    if (selected && list.indexOf(selected) >= 0) return selected;
+    if (activeMac && list.indexOf(activeMac) >= 0) return activeMac;
+    return list.length ? list[0] : null;
+  }
+
   // ESM-Export: Default-Objekt (Konvention der Objekt-Module, Phase 42)
   export default { PALETTE, isDemoMac, metaDefaults, ensureMeta,
-                   migrateLegacyMeta, rosterMacs, clampServiceH, calDefaults };
+                   migrateLegacyMeta, rosterMacs, clampServiceH, calDefaults, resolveSelectedMac };
