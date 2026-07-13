@@ -8,12 +8,14 @@
 //  Nur Deklarationen auf Top-Level — kein Code laeuft beim Laden.
 // ============================================================
 import { state, $, esc, setText,
-         kartMetaFor, kartRosterMacs, kartCalFor, kartEngineFor,
-         rcConfirm, rcToast, saveData, saveDataDebounced, updateKartMeta, rasiPersistForget } from './rasicross.js';
+         kartMetaFor, kartRosterMacs, kartCalFor, kartEngineFor, kartStatsFor,
+         rcConfirm, rcToast, saveData, saveDataDebounced, rasiPersistForget } from './rasicross.js';
 import RasiEngine from './engine.js';
 import RasiKartRoster from './kart-roster.js';
 import RasiKartBar from './kart-bar.js';
 import { renderKartSettings } from './kart-settings.js';
+import { openKartSettings } from './kart-settings-window.js';
+import RasiKartStats from './kart-stats.js';
 
 function _liveHtml(k, now) {
   const age = k.connection.lastPacketAt ? (now - k.connection.lastPacketAt) : 99999;
@@ -57,6 +59,15 @@ function _calHtml(mac) {
     + '<button type="button" class="btn danger" data-action="forget" data-mac="' + esc(mac) + '">Kart vergessen</button></div>';
 }
 
+function _statsHtml(mac) {
+  const s = kartStatsFor(mac);
+  if (!s) return '';
+  return '<div class="kc-live"><span>Gefahren ' + RasiKartStats.kmText(s.odoM) + '</span>'
+    + '<span>Ø ' + RasiKartStats.kmhText(RasiKartStats.avgKmh(s.odoM, s.moveMs)) + '</span>'
+    + '<span>Top ' + RasiKartStats.kmhText(s.topKmh) + '</span>'
+    + '<span>Fahrzeit ' + RasiEngine.hoursText(s.moveMs) + '</span></div>';
+}
+
 function _cardHtml(mac, idx, now) {
   const m = kartMetaFor(mac, idx);
   const online = state.karts.has(mac);
@@ -69,16 +80,15 @@ function _cardHtml(mac, idx, now) {
   const seen = (!online && m.lastSeenAt)
     ? '<div class="kc-live"><span>Zuletzt gesehen ' + new Date(m.lastSeenAt).toLocaleString('de-DE') + '</span></div>'
     : (!online ? '<div class="kc-live"><span>Noch nie verbunden</span></div>' : '');
-  const swatches = RasiKartRoster.PALETTE.map(col =>
-    '<span class="kc-sw' + (col === m.color ? ' active' : '') + '" data-action="color" data-mac="' + esc(mac) + '" data-color="' + col + '" style="background:' + col + '"></span>').join('');
   return '<div class="kart-card' + activeCls + offCls + '" data-mac="' + esc(mac) + '" style="--kart:' + esc(m.color) + '">'
     + '<div class="kc-head">'
     +   '<span class="kc-dot"></span>'
-    +   '<div><input type="text" class="kc-name-input" data-action="name" data-mac="' + esc(mac) + '" maxlength="20" value="' + esc(m.name) + '">' + badge
+    +   '<div><span class="kc-name">' + esc(m.name) + '</span>' + badge
     +   '<div class="kc-mac">' + esc(mac) + '</div></div>'
-    +   '<div class="kc-swatches">' + swatches + '</div>'
+    +   '<button type="button" class="btn ghost" data-action="settings" data-mac="' + esc(mac) + '">⚙ Einstellungen</button>'
     + '</div>'
     + (online ? _liveHtml(k, now) : seen)
+    + _statsHtml(mac)
     + _engineHtml(mac) + _calHtml(mac)
     + '</div>';
 }
@@ -147,22 +157,8 @@ function bindCardEvents(list) {
       }
     });
   });
-  list.querySelectorAll('[data-action="name"]').forEach(inp => {
-    inp.oninput = () => {
-      const mac = inp.getAttribute('data-mac');
-      const idx = Math.max(0, state.karts.macs().indexOf(mac));
-      updateKartMeta(mac, { name: inp.value.trim() || ('Kart ' + (idx + 1)) });
-      RasiKartBar.render(state);
-    };
-    // Nach dem Verlassen des Felds einmal neu bauen (Tipp-Schutz-Ende).
-    inp.onblur = () => renderKartsTab();
-  });
-  list.querySelectorAll('[data-action="color"]').forEach(sw => {
-    sw.onclick = () => {
-      updateKartMeta(sw.getAttribute('data-mac'), { color: sw.getAttribute('data-color') });
-      RasiKartBar.render(state);
-      renderKartsTab();
-    };
+  list.querySelectorAll('[data-action="settings"]').forEach(btn => {
+    btn.onclick = () => openKartSettings(btn.getAttribute('data-mac'));
   });
   list.querySelectorAll('[data-action="interval"]').forEach(inp => {
     inp.onchange = () => {

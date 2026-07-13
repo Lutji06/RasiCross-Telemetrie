@@ -15,6 +15,7 @@ import DomTargets from './dom-targets.js';
 import RasiKartBar from './kart-bar.js';
 import RasiKartOverview from './kart-overview.js';
 import { renderKartsTab } from './karts-page.js';
+import { refreshKartSettingsWindows } from './kart-settings-window.js';
 import RasiKartRank from './kart-rank.js';
 import RasiLapEngine from './lap-engine.js';
 
@@ -590,6 +591,8 @@ setInterval(() => {
 
   // Karts-Tab: Live-Werte der Karten im 1-Hz-Takt (nur bei aktivem Tab).
   if (document.body.dataset.tab === 'karts') { try { renderKartsTab(); } catch (e) {} }
+  // Phase 48: offene Kart-Einstellungs-Fenster tab-unabhaengig aktualisieren.
+  try { refreshKartSettingsWindows(); } catch (e) {}
 }, 1000);
 }
 
