@@ -32,7 +32,7 @@ Baut auf Phase 47 (PR #74) auf; keine Firmware-Änderung, kein
   zweiter ⚙-Klick desselben Karts fokussiert das bestehende Fenster).
 - **Karte = Status, Fenster = Bearbeiten:** Name-Input, Swatches, Wartungs-
   und Reset-/Vergessen-Aktionen ziehen von der Karte ins Fenster um.
-- **Freie Farbe:** `<input type="color">` + die 8 Palette-Farben als
+- **Freie Farbe:** `<input type="color">` + die 5 Palette-Farben als
   Schnellwahl. Ablage unverändert `meta.color` (beliebiger Hex-Wert wirkt
   überall via `--kart`).
 - **Lebens-Zähler statt Renn-Aggregat:** neues persistentes Stats-Objekt pro
@@ -64,7 +64,7 @@ Gx/Gy-Offset 0.12/-0.04 · Roll-Null 1,3° · Achsen: Gx-Inv
 v. o. n. u.):
 
 1. **Identität** — Namensfeld (maxlength 20, wirkt live auf Chip-Leiste/
-   Karte/Fenstertitel) + Farbwähler (`input type="color"`) + 8 Palette-
+   Karte/Fenstertitel) + Farbwähler (`input type="color"`) + 5 Palette-
    Schnellwahl-Punkte.
 2. **Kalibrierung** — Panel-Inhalt aus Phase 47 (Gx/Gy-Offsets, 5 Toggles,
    Nullpunkt setzen / Zurücksetzen / Roll nullen) plus „Kalibrierung auf
