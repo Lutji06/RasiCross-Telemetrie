@@ -149,13 +149,13 @@ test('Fenster-Toggle wirkt nur auf sein Kart; Karte ist reine Status-Anzeige', a
     activeInv: RasiTest.state.karts.get(a).calibration.invertGx,
     nameInputs: document.querySelectorAll('#kartCardsList .kc-name-input').length,
     swatches: document.querySelectorAll('#kartCardsList .kc-sw').length,
-    forgetBtns: document.querySelectorAll('#kartCardsList [data-action="forget"]').length,
+    actionBtns: document.querySelectorAll('#kartCardsList [data-action]:not([data-action="settings"])').length,
   }), [active, other]);
   expect(probe.otherInv).toBe(true);
   expect(probe.activeInv).toBe(false);
   expect(probe.nameInputs).toBe(0);
   expect(probe.swatches).toBe(0);
-  expect(probe.forgetBtns).toBe(0);
+  expect(probe.actionBtns).toBe(0);
   expect(errors).toEqual([]);
 });
 
