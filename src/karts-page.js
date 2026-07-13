@@ -13,7 +13,6 @@ import { state, $, esc, setText,
 import RasiEngine from './engine.js';
 import RasiKartRoster from './kart-roster.js';
 import RasiKartBar from './kart-bar.js';
-import { renderKartSettings } from './kart-settings.js';
 import { openKartSettings } from './kart-settings-window.js';
 import RasiKartStats from './kart-stats.js';
 
@@ -89,8 +88,6 @@ function _cardHtml(mac, idx, now) {
 function renderKartsTab() {
   const list = $('kartCardsList');
   if (!list) return;
-  // Phase 47: Dropdown+Panels der Kart-Einstellungen (eigener Fokus-Schutz).
-  renderKartSettings();
   // Tipp-Schutz: waehrend ein Karten-Input den Fokus hat, nicht neu bauen
   // (der 1-Hz-Refresh wuerde sonst die Eingabe verwerfen).
   const ae = document.activeElement;

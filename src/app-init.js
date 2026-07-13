@@ -36,7 +36,6 @@ import { applyTilesPresetFromUrl, onTilesPresetChanged, updateTilesUrlHint,
 import { $, setText, rcAlert, rcConfirm, rcToast, formatBytes,
          applyTheme, setupTabs, toggleTheme } from './rasicross.js';
 import { initGViewToggle, initKartModelUploader } from './kart3d-ui.js';
-import { initKartSettings } from './kart-settings.js';
 import { initKartSettingsWindows } from './kart-settings-window.js';
 
 // ============================================================
@@ -163,8 +162,6 @@ function init() {
   $('demoStartBtn').onclick = startDemo;
   $('demoStopBtn').onclick = stopDemo;
   // Settings tab
-  // Kalibrier-/ESP-Handler leben seit Phase 47 in kart-settings.js
-  initKartSettings();
   initKartSettingsWindows();
   $('exportAllBtn').onclick = exportAll;
   $('importAllBtn').onclick = () => $('importAllFile').click();

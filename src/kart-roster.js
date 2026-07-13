@@ -62,15 +62,15 @@
              invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0 };
   }
 
-  // Dropdown-Auswahl der Kart-Einstellungen (Phase 47): gewaehlte MAC,
-  // solange sie im Roster ist; sonst aktive MAC; sonst erste Roster-MAC.
-  function resolveSelectedMac(selected, activeMac, macs) {
-    const list = Array.isArray(macs) ? macs : [];
-    if (selected && list.indexOf(selected) >= 0) return selected;
-    if (activeMac && list.indexOf(activeMac) >= 0) return activeMac;
-    return list.length ? list[0] : null;
+  // config_ack-Zustellung (Phase 48): from_mac bestimmt das Fenster; Acks
+  // alter Firmware ohne from_mac gehen an das zuletzt anfragende Fenster.
+  // Kein passendes offenes Fenster -> null (Ack verwerfen).
+  function ackTargetMac(fromMac, lastMac, openMacs) {
+    const list = Array.isArray(openMacs) ? openMacs : [];
+    const mac = fromMac || lastMac || null;
+    return (mac && list.indexOf(mac) >= 0) ? mac : null;
   }
 
   // ESM-Export: Default-Objekt (Konvention der Objekt-Module, Phase 42)
   export default { PALETTE, isDemoMac, metaDefaults, ensureMeta,
-                   migrateLegacyMeta, rosterMacs, clampServiceH, calDefaults, resolveSelectedMac };
+                   migrateLegacyMeta, rosterMacs, clampServiceH, calDefaults, ackTargetMac };

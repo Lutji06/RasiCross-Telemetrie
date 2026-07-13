@@ -12,7 +12,7 @@
 import { state, rcToast, rcConfirm, saveData, saveDataDebounced,
          kartMetaFor, kartRosterMacs, kartCalFor, kartEngineFor, kartStatsFor,
          updateKartMeta, bridgeSend } from './rasicross.js';
-import { ESP_CFG_FIELDS } from './esp-config.js';
+import { ESP_CFG_FIELDS, applyEspConfigAck } from './esp-config.js';
 import { drawGMeter } from './gauges.js';
 import RasiEngine from './engine.js';
 import RasiKartRoster from './kart-roster.js';
@@ -22,6 +22,10 @@ import { renderKartsTab, forgetKart } from './karts-page.js';
 
 // mac -> { mac, win, doc, ackTimer, zeroBusy, lastEspUsable }
 const _wins = new Map();
+
+// Letztes config/config_get-Ziel — Acks alter Firmware ohne from_mac
+// gehen an dieses Fenster.
+let _lastCfgMac = null;
 
 function _el(r, id) { return r.doc.getElementById(id); }
 
@@ -86,6 +90,27 @@ function _markup() {
     +   '<div style="font-size:11px;color:var(--mut);margin:0 0 4px">⚠ Nullen nur auf <b>ebener Fläche</b> — am Hang genullt wäre jede spätere Messung um die Hangneigung verschoben.</div>'
     +   '<p id="kartCalHint" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:6px;min-height:14px"></p>'
     + '</section>'
+    + '<section class="settings-group active" id="kartEspPanel" style="margin-top:14px">'
+    +   '<header class="settings-group-head">'
+    +     '<div><h2 class="settings-group-title">ESP32 / Sender</h2><p class="settings-group-sub">Sender-Konfig dieses Karts</p></div>'
+    +   '</header>'
+    +   '<p class="settings-block-note">Werte unten gehen erst per „An ESP32 senden" an den Kart und wirken dann sofort.</p>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Max RPM (Sender)</span><span class="settings-row-desc">Drehzahl-Obergrenze im Sender</span></div><input type="number" id="espMaxRpm" value="6000"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Warn RPM (Sender)</span><span class="settings-row-desc">Warnschwelle im Sender</span></div><input type="number" id="espWarnRpm" value="5500"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Sende-Intervall</span><span class="settings-row-desc">Telemetrie-Rate des Senders (ms)</span></div><input type="number" id="espSendMs" value="80" min="20" max="500"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Pulses per Revolution</span><span class="settings-row-desc">Sensor-Pulse pro Wellenumdrehung</span></div><input type="number" id="espPulses" value="1" min="1" max="32"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Radumfang</span><span class="settings-row-desc">Meter pro Radumdrehung (0 = nur GPS)</span></div><input type="number" id="espWheelCirc" value="0" min="0" step="0.001"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Übersetzung Welle:Rad</span><span class="settings-row-desc">Getriebeverhältnis (1 = 1:1)</span></div><input type="number" id="espGearRatio" value="1" min="0.01" step="0.01"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Akkuzellen in Reihe</span><span class="settings-row-desc">Anzahl LiPo-Zellen (cells in series)</span></div><input type="number" id="espBattCells" value="1" min="1" max="14"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Akku Warn-Schwelle</span><span class="settings-row-desc">Warnung ab dieser Spannung pro Zelle (V)</span></div><input type="number" id="espBattWarnV" value="3.5" min="2.5" max="4.4" step="0.05"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Akku Kritisch-Schwelle</span><span class="settings-row-desc">Kritisch ab dieser Spannung pro Zelle (V)</span></div><input type="number" id="espBattCritV" value="3.3" min="2.0" max="4.4" step="0.05"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Akku Feinkalibrierung</span><span class="settings-row-desc">Multiplikator auf die gemessene Spannung (Abgleich mit Multimeter)</span></div><input type="number" id="espBattCal" value="1.0" min="0.5" max="2.0" step="0.01"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">RPM Glitch-Schwelle</span><span class="settings-row-desc">Flanken oberhalb dieser Drehzahl gelten als Störimpuls (Zünd-EMI); 0 = Filter aus</span></div><input type="number" id="espRpmCeiling" value="16000" min="0" max="30000" step="500"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">RPM-Glättung</span><span class="settings-row-desc">EMA-Gewicht des neuen Werts: 1 = ungefiltert, klein = träge</span></div><input type="number" id="espRpmAlpha" value="0.25" min="0.05" max="1" step="0.05"></div>'
+    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">OLED Seitenwechsel</span><span class="settings-row-desc">Auto-Seitenwechsel des Kart-Displays (ms)</span></div><input type="number" id="espPageMs" value="4000" min="1000" max="20000" step="500"></div>'
+    +   '<div class="row" style="margin:6px 0 4px"><button class="btn primary" id="espSendBtn" style="flex:1">An ESP32 senden</button></div>'
+    +   '<p id="espSendStatus" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:6px;text-align:center;min-height:14px"></p>'
+    + '</section>'
     + '<section class="settings-group active" id="kartServicePanel" style="margin-top:14px">'
     +   '<header class="settings-group-head">'
     +     '<div><h2 class="settings-group-title">Wartung</h2><p class="settings-group-sub">Motorstunden &amp; Intervall</p></div>'
@@ -135,6 +160,11 @@ function openKartSettings(mac) {
   _el(r, 'kartMacText').textContent = mac;
   _bindHandlers(r);
   _refreshWin(r);
+  // Ist-Konfig anfragen — config_ack fuellt das Formular (routeConfigAck).
+  if (state.serial && state.serial.connected && _liveKart(mac)) {
+    _lastCfgMac = mac;
+    try { _sendTo(mac, { type: 'config_get' }); } catch (e) {}
+  }
 }
 
 function _bindHandlers(r) {
@@ -281,6 +311,45 @@ function _bindHandlers(r) {
     try { r.win.close(); } catch (e) {}
     _wins.delete(r.mac);
   };
+  if (_el(r, 'espSendBtn')) _el(r, 'espSendBtn').onclick = () => {
+    const k = _liveKart(r.mac);
+    const doc = r.doc;
+    const num = (id) => Number(doc.getElementById(id).value);
+    const cfg = {
+      type: 'config',
+      max_rpm: num('espMaxRpm') || 6000,
+      warn_rpm: num('espWarnRpm') || 5500,
+      send_ms: num('espSendMs') || 80,
+      pulses_per_rev: num('espPulses') || 1,
+      wheel_circ_m: num('espWheelCirc') || 0,
+      gear_ratio: num('espGearRatio') || 1,
+      batt_cells: num('espBattCells') || 1,
+      batt_warn_v: num('espBattWarnV') || 3.5,
+      batt_crit_v: num('espBattCritV') || 3.3,
+      batt_cal: num('espBattCal') || 1.0,
+      rpm_ceiling: Math.max(0, num('espRpmCeiling') || 0),
+      rpm_alpha: num('espRpmAlpha') || 0.25,
+      page_ms: num('espPageMs') || 4000,
+    };
+    const stEl = _el(r, 'espSendStatus');
+    if (!state.serial.connected || !k) {
+      if (stEl) stEl.textContent = !state.serial.connected ? 'Nicht verbunden' : 'Kart nicht verbunden';
+      return;
+    }
+    k.batt.cells = cfg.batt_cells;
+    try {
+      _lastCfgMac = r.mac;
+      _sendTo(r.mac, cfg);
+      if (stEl) stEl.textContent = '✓ Gesendet — warte auf Bestätigung…';
+      clearTimeout(r.ackTimer);
+      r.ackTimer = setTimeout(() => {
+        const el = _el(r, 'espSendStatus');
+        if (el) el.textContent = '⚠ Keine Bestätigung vom Kart — Funkverbindung prüfen';
+      }, 3000);
+    } catch (e) {
+      if (stEl) stEl.textContent = '✗ Fehler';
+    }
+  };
 }
 
 function _renderPalette(r) {
@@ -321,6 +390,7 @@ function _refreshWin(r) {
   }
   _renderCal(r, typing);
   _renderService(r, typing);
+  _renderEsp(r);
 }
 
 function _renderCal(r, typing) {
@@ -364,6 +434,32 @@ function _renderService(r, typing) {
   if (_el(r, 'kartServiceBtn')) _el(r, 'kartServiceBtn').disabled = false;
 }
 
+function _renderEsp(r) {
+  const online = !!_liveKart(r.mac);
+  const usable = online && !!(state.serial && state.serial.connected);
+  for (const [id] of ESP_CFG_FIELDS) { const el = _el(r, id); if (el) el.disabled = !usable; }
+  if (_el(r, 'espSendBtn')) _el(r, 'espSendBtn').disabled = !usable;
+  // Status nur bei ZUSTANDSWECHSEL schreiben — Sende-/Ack-Meldungen sonst
+  // nicht bei jedem 1-Hz-Refresh ueberschreiben.
+  if (usable !== r.lastEspUsable) {
+    r.lastEspUsable = usable;
+    const el = _el(r, 'espSendStatus');
+    if (el) el.textContent = usable ? ''
+      : (online ? 'Bridge nicht verbunden' : 'Kart nicht verbunden — Konfig erscheint bei Live-Telemetrie');
+  }
+}
+
+// config_ack-Zustellung: from_mac -> Fenster dieses Karts; ohne from_mac
+// (alte Firmware) -> zuletzt anfragendes Fenster; sonst verwerfen.
+function routeConfigAck(d) {
+  const mac = RasiKartRoster.ackTargetMac(d.from_mac, _lastCfgMac, Array.from(_wins.keys()));
+  const r = mac ? _wins.get(mac) : null;
+  if (!r || !r.win || r.win.closed) return;
+  clearTimeout(r.ackTimer);
+  r.ackTimer = null;
+  applyEspConfigAck(d, r.doc);
+}
+
 // 1-Hz-Hook (live-ui.js): geschlossene Fenster aufraeumen, verschwundene
 // Roster-Karts schliessen (Demo-Ende, Vergessen), Rest aktualisieren.
 function refreshKartSettingsWindows() {
@@ -395,9 +491,4 @@ function initKartSettingsWindows() {
 
 // ESM-Export (Phase 48)
 export { openKartSettings, refreshKartSettingsWindows, closeAllKartSettings,
-         initKartSettingsWindows };
-
-// Interface-Marker (Phase 48 Task 4): Task 6 nutzt diesen Import fuers
-// ESP-Panel — hier nur ESLint no-unused-vars ruhig stellen; wieder
-// entfernen, sobald benutzt.
-void [ESP_CFG_FIELDS];
+         initKartSettingsWindows, routeConfigAck };
