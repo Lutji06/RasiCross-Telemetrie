@@ -68,6 +68,15 @@ function kartFor(mac) {
       serviceIntervalH: pe.serviceIntervalH != null ? (Number(pe.serviceIntervalH) || 10) : 10,
     });
   }
+  // Phase 48: Lebens-Statistik ebenfalls rehydrieren -- sonst nullt der naechste Save die persistierten km.
+  if (k && isNew && _persistedKarts.stats[key]) {
+    const ps = _persistedKarts.stats[key];
+    Object.assign(k.stats, {
+      odoM: Number(ps.odoM) || 0,
+      moveMs: Number(ps.moveMs) || 0,
+      topKmh: Number(ps.topKmh) || 0,
+    });
+  }
   // Phase 39: Demo-Karts (DE:MO:*) adoptieren den default-Bucket NICHT —
   // sonst wandern echte Kalibrierung/Motorstunden auf einen Wegwerf-Kart.
   if (k && isNew && key !== KartRegistry.DEFAULT_MAC && key.indexOf('DE:MO:') !== 0

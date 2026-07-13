@@ -122,7 +122,7 @@ function forgetKart(mac) {
 }
 
 async function resetAllKarts() {
-  if (!await rcConfirm('Alle bekannten Karts vergessen? Namen/Farben, Kalibrierung und Motorstunden bleiben erhalten.',
+  if (!await rcConfirm('Alle bekannten Karts vergessen? Namen/Farben, Kalibrierung, Motorstunden und Statistik bleiben erhalten.',
       'Karts zurücksetzen', 'Zurücksetzen', true)) return;
   state.karts.reset();
   state._kartHz = {};

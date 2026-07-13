@@ -73,5 +73,5 @@ test('DEFAULT_MAC bucket is usable like any mac', () => {
 
 test('makeKartState: stats-Defaults (Phase 48)', () => {
   const k = KartRegistry.makeKartState();
-  assert.deepEqual(k.stats, { odoM: 0, moveMs: 0, topKmh: 0, lastAt: null, _unsavedMs: 0 });
+  assert.deepStrictEqual(k.stats, { odoM: 0, moveMs: 0, topKmh: 0, lastAt: null, _unsavedMs: 0 });
 });
