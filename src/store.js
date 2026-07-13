@@ -94,12 +94,13 @@ let _quotaWarned = false;
 // Registry) Kalibrierung + Motorstunden NICHT verliert. Nur "Kart
 // vergessen" loescht Eintraege (rasiPersistForget). Demo-Karts (DE:MO:*)
 // werden nie persistiert.
-const _persistedKarts = { cal: {}, eng: {}, meta: {} };
+const _persistedKarts = { cal: {}, eng: {}, meta: {}, stats: {} };
 // Demo-Karts (DE:MO:*) bekommen Session-Meta, nie Persistenz (Phase 46).
 const _demoMeta = {};
 function rasiPersistForget(mac) {
   delete _persistedKarts.cal[mac];
   delete _persistedKarts.eng[mac];
+  delete _persistedKarts.stats[mac];
   delete _persistedKarts.meta[mac];
   delete _demoMeta[mac];
 }
@@ -132,6 +133,10 @@ function kartCalFor(mac) {
 function kartEngineFor(mac) {
   if (state.karts.has(mac)) return state.karts.get(mac).engine;
   return _persistedKarts.eng[mac] || null;
+}
+function kartStatsFor(mac) {
+  if (state.karts.has(mac)) return state.karts.get(mac).stats;
+  return _persistedKarts.stats[mac] || null;
 }
 // Races fuer die Persistenz verschlanken: speedTrace auf max. 1000 Punkte
 // downsamplen. Im RAM bleibt die volle Aufloesung erhalten — nur die
@@ -169,18 +174,22 @@ function saveData() {
     // (calibration/engine) bleiben fuer Downgrade-Gnade aus dem aktiven Kart.
     const _kartsCal = Object.assign({}, _persistedKarts.cal);
     const _kartsEngine = Object.assign({}, _persistedKarts.eng);
+    const _kartsStats = Object.assign({}, _persistedKarts.stats);
     for (const mac of state.karts.macs()) {
       if (mac.indexOf('DE:MO:') === 0) continue;   // Demo-Karts nie persistieren
       const kk = state.karts.get(mac);
       _kartsCal[mac] = kk.calibration;
       _kartsEngine[mac] = { totalMs: kk.engine.totalMs, lastServiceMs: kk.engine.lastServiceMs, serviceIntervalH: kk.engine.serviceIntervalH };
+      _kartsStats[mac] = { odoM: kk.stats.odoM, moveMs: kk.stats.moveMs, topKmh: kk.stats.topKmh };
     }
     _persistedKarts.cal = _kartsCal;
     _persistedKarts.eng = _kartsEngine;
+    _persistedKarts.stats = _kartsStats;
     const payload = {
       version: '9.6', savedAt: new Date().toISOString(),
       settings: state.settings, calibration: k.calibration, theme: state.theme,
       kartsCal: _kartsCal, kartsEngine: _kartsEngine,
+      kartsStats: _kartsStats,
       kartsMeta: _persistedKarts.meta,
       drivers: state.drivers, races: state.races.map(_persistRace), savedTracks: state.savedTracks,
       activeRaceId: state.activeRaceId, selectedRaceId: state.selectedRaceId,
@@ -235,7 +244,8 @@ function loadData() {
     // realen Kart adoptiert, sobald er funkt — siehe kartFor()).
     const _cal = d.kartsCal || (d.calibration ? { [KartRegistry.DEFAULT_MAC]: d.calibration } : {});
     const _eng = d.kartsEngine || (d.engine ? { [KartRegistry.DEFAULT_MAC]: d.engine } : {});
-    for (const mac of new Set([...Object.keys(_cal), ...Object.keys(_eng)])) {
+    const _stats = (d.kartsStats && typeof d.kartsStats === 'object') ? d.kartsStats : {};
+    for (const mac of new Set([...Object.keys(_cal), ...Object.keys(_eng), ...Object.keys(_stats)])) {
       const kk = state.karts.get(mac);   // legt Bucket an (Cap beachtet)
       if (!kk) continue;
       if (_cal[mac]) Object.assign(kk.calibration, _cal[mac]);
@@ -244,9 +254,15 @@ function loadData() {
         lastServiceMs: Number(_eng[mac].lastServiceMs) || 0,
         serviceIntervalH: _eng[mac].serviceIntervalH != null ? (Number(_eng[mac].serviceIntervalH) || 10) : 10,
       });
+      if (_stats[mac]) Object.assign(kk.stats, {
+        odoM: Number(_stats[mac].odoM) || 0,
+        moveMs: Number(_stats[mac].moveMs) || 0,
+        topKmh: Number(_stats[mac].topKmh) || 0,
+      });
     }
     Object.assign(_persistedKarts.cal, _cal);
     Object.assign(_persistedKarts.eng, _eng);
+    Object.assign(_persistedKarts.stats, _stats);
     if (d.kartsMeta && typeof d.kartsMeta === 'object') Object.assign(_persistedKarts.meta, d.kartsMeta);
     state.activeKartMac = state.karts.activeMac();
   } catch (e) { console.warn('loadData:', e); }
@@ -265,6 +281,6 @@ window.addEventListener('beforeunload', saveData);
 
 export {
   SAVE_KEY, state, activeKart, kartFor, rasiPersistForget,
-  kartMetaFor, updateKartMeta, kartRosterMacs, kartCalFor, kartEngineFor,
+  kartMetaFor, updateKartMeta, kartRosterMacs, kartCalFor, kartEngineFor, kartStatsFor,
   saveData, saveDataDebounced, loadData, migrateLegacyKartMeta,
 };
