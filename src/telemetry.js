@@ -10,12 +10,12 @@ import KartRegistry from './kart-registry.js';
 import RasiAttitude from './attitude.js';
 import RasiDrift from './drift.js';
 import RasiEngine from './engine.js';
+import RasiKartStats from './kart-stats.js';
 import RasiKartBar from './kart-bar.js';
 import RasiLapEngine from './lap-engine.js';
 import RasiReplay from './replay.js';
 import { rcToast, rcAudio } from './rasicross.js';
-import { applyEspConfigAck } from './esp-config.js';
-import { selectedKartMac } from './kart-settings.js';
+import { routeConfigAck } from './kart-settings-window.js';
 import { state, activeKart, kartFor, saveDataDebounced, kartMetaFor } from './store.js';
 
 // Crash-Sicherung (Phase 24): recordPacket sammelt NDJSON-Zeilen und schiebt
@@ -110,7 +110,7 @@ function processTelemetry(d) {
       RasiKartBar.render(state);
       return;
     }
-    if (d.type === 'config_ack') { applyEspConfigAck(d, selectedKartMac()); return; }
+    if (d.type === 'config_ack') { routeConfigAck(d); return; }
     // Ziel-Kart aufloesen (MAC = Identitaet). Schreibpfade laufen explizit
     // ueber k statt ueber die aktive-Kart-Proxy-Fassade, damit Hintergrund-
     // Karts ihren eigenen Zustand fuellen.
@@ -171,6 +171,21 @@ function processTelemetry(d) {
         rcToast('🔧 Wartung fällig — '
           + RasiEngine.hoursText(RasiEngine.sinceServiceMs(k.engine.totalMs, k.engine.lastServiceMs))
           + ' seit letzter Wartung', 6000);
+      }
+    }
+    // Lebens-Statistik (Phase 48): Odometer/Fahrzeit/Topspeed. Zaehlt jede
+    // Live-Quelle (Serial + Demo-Session-Bucket), nie Replay — der wuerde
+    // gefahrene Kilometer doppelt zaehlen.
+    if (!k.replay.active) {
+      const _st = RasiKartStats.statsStep(k.stats, speed, Date.now());
+      k.stats.odoM = _st.odoM;
+      k.stats.moveMs = _st.moveMs;
+      k.stats.topKmh = _st.topKmh;
+      k.stats.lastAt = _st.lastAt;
+      k.stats._unsavedMs += _st.addedMs;
+      if (k.stats._unsavedMs >= 60000) {   // 1x pro Fahr-Minute persistieren
+        k.stats._unsavedMs = 0;
+        saveDataDebounced();
       }
     }
     let gx = (Number(d.gx) || 0) - k.calibration.gxZero;

@@ -82,7 +82,7 @@ function setHtmlShared(key, html) {
 // gpsDist / headingFromPoints / segmentsCross / crossingDirectionOk / lineEndpointsFromGate moved to geo.js
 function logTime(ts = Date.now()) { return new Date(ts).toLocaleTimeString('de-DE'); }
 
-export { SAVE_KEY, state, activeKart, kartFor, rasiPersistForget, kartMetaFor, updateKartMeta, kartRosterMacs, kartCalFor, kartEngineFor, saveData, saveDataDebounced, loadData, migrateLegacyKartMeta } from './store.js';
+export { SAVE_KEY, state, activeKart, kartFor, rasiPersistForget, kartMetaFor, updateKartMeta, kartRosterMacs, kartCalFor, kartEngineFor, kartStatsFor, saveData, saveDataDebounced, loadData, migrateLegacyKartMeta } from './store.js';
 
 // ============================================================
 // 4. CUSTOM DIALOGS

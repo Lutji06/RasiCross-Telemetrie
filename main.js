@@ -453,6 +453,23 @@ function createWindow() {
     },
   });
   mainWindow.setMenuBarVisibility(false);
+  // Phase 48: Kart-Einstellungs-Fenster (window.open aus dem Renderer) --
+  // echte BrowserWindows mit App-Optik, ohne Menueleiste.
+  mainWindow.webContents.setWindowOpenHandler(() => ({
+    action: "allow",
+    overrideBrowserWindowOptions: {
+      width: 460,
+      height: 720,
+      minWidth: 380,
+      minHeight: 500,
+      autoHideMenuBar: true,
+      backgroundColor: "#08080a",
+      icon: path.join(__dirname, "icon.ico"),
+    },
+  }));
+  mainWindow.webContents.on("did-create-window", (win) => {
+    win.setMenuBarVisibility(false);
+  });
   // Phase 42: Dev laedt den Vite-Server (HMR), sonst den Vite-Build.
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);

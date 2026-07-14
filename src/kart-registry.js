@@ -44,6 +44,7 @@
                      invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0 },
       engine: { totalMs: 0, lastServiceMs: 0, serviceIntervalH: 10, lastAt: null,
                 _unsavedMs: 0, _warned: false },
+      stats: { odoM: 0, moveMs: 0, topKmh: 0, lastAt: null, _unsavedMs: 0 },
       activeRaceId: null,
       name: null, color: null,
       _attLastMs: 0,

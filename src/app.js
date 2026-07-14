@@ -39,7 +39,7 @@ import './rasicross.js';
 import './kart-bar.js';
 import './kart-overview.js';
 import './karts-page.js';
-import './kart-settings.js';
+import './kart-settings-window.js';
 
 import { state, saveData, activeKart, armRecording,
          updateKartMeta, kartRosterMacs } from './rasicross.js';
