@@ -1,3 +1,7 @@
+// Styles zuerst (Phase 49): reiner CSS-Import, fuehrt kein JS aus.
+// Die Regel "app-init.js MUSS erster Import sein" (unten) betrifft
+// nur Module mit Ausfuehrungsreihenfolge.
+import './styles/index.css';
 // RasiCross Entry (Phase 42): laedt alle Module in der Reihenfolge der
 // frueheren <script>-Tags. app-init.js bootet sich beim Import selbst
 // (Top-Level init(); die Tags standen am Body-Ende, das DOM ist geparst).
