@@ -592,6 +592,16 @@ Commit-Message: `docs(plan): Phase 49 CSS-Fundament Implementierungsplan (Phase 
 - **Platzhalter-Scan:** Keine TBD/TODO; alle Skripte vollständig; die Masken-Liste `DYN` startet konkret (`canvas`, `.map`) und wächst über ein definiertes, selbst-verifizierendes Verfahren (zwei grüne Läufe in Folge) — kein offenes Ende.
 - **Namens-Konsistenz:** Dateiliste in `FILES` (split-css.mjs) == `ORDER` (verify-css.mjs) == `@import`-Liste (index.css) == File-Structure-Tabelle; Screenshot-Namen in Task 1 == Bootstrap-Zählung 11 in Task 2 (8 Tabs + 3 Demo).
 
+## Abweichungen bei Ausführung (Nachtrag, 2026-07-14)
+
+Die Screenshot-Gate-Mechanik wurde während Task 3 von der Realität überholt; der Shipped-Zustand weicht in drei Punkten vom obigen Plan ab (vollständige Fix-Kette in den Commit-Messages c7fb2cc → 125d500 → c82ef6a → 3d2c67c → 0005918):
+
+1. **Baselines regeneriert, Beweis-Semantik erhalten:** Die Task-2-Baselines racten gegen JS-Boot-Zustände (1-Hz-Tick, 200-ms-Sidebar-Spiegel). Der finale Harness (Tick-Wait in `prep()` + `#connOverviewGps`-Maske wegen eines vorbestehenden Dual-Writer-Bugs pit-wall.js/ui-glue.js) wurde auf den Prä-Extraktions-Stand 7837523 angewandt und die Baselines dort neu eingefroren — Baseline bleibt „Rendering vor der Extraktion".
+2. **`maxDiffPixels: 2` statt „nie Toleranzen aufweichen":** GitHub-Runner rendern Font-Kanten instanzabhängig minimal verschieden (nachgewiesener 1px-Jitter, identische Koordinate über 10 Tests). User-Entscheid 2026-07-14; die Task-1-Formulierung „nie Toleranzen aufweichen" ist damit überholt und gilt nicht als Referenz für Folgephasen.
+3. **`.sidebar`-Maske erprobt und zurückgenommen:** Ganz-Sidebar-Maskierung würde das Gate für Sidebar-Regressionen (Phase-50-Kernbereich) blind machen; außerdem sind nachträgliche Masken ohne Baseline-Regeneration strukturell unverträglich (Maske muss auf beiden Vergleichsseiten existieren).
+
+Für Phase 50 vorgemerkt (Final-Review): Dialog-/Modal-Screenshots ergänzen, bevor modals.css angefasst wird (Spec-Zusage „wichtigste Dialoge" wurde in diesem Plan stillschweigend verengt); 2× `#000` in tokens.css-*Regeln* (outdoor-Theme) auf Tokens umstellen oder das Gate auf Deklarationszeilen verschärfen; `on-pr-*`-Farbvarianten vereinheitlichen.
+
 ## Phase Map
 
 - Phasen 41–45: Technisches Redesign — merged. Phasen 46–48: Kart-Seite/-Einstellungen/-Fenster — merged (PR #75).
