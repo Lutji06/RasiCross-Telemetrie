@@ -59,6 +59,47 @@
   --t-sp:.4s cubic-bezier(.34,1.56,.64,1);
   /* Sidebar */
   --side-w:248px;
+  /* Phase 49: Solitaer-Farben, aus dem Bestand gehoben (Wert unveraendert) */
+  --white:#fff;
+  --on-pr:#0a0d18;
+  --on-pr-2:#0a0e0a;
+  --on-pr-3:#0d1117;
+  --on-pr-4:#0a0e02;
+  --on-green:#062818;
+  --on-blue:#06162a;
+  --on-orange:#1a0e00;
+  --pr-hover:#d6ff5a;
+  --orange-2:#ff7a1a;
+  --rec:#e85a7a;
+  --warn:#e8a13a;
+  --rollover:#ff2d2d;
+  --stage-1:#0d1224;
+  --stage-2:#03050b;
+  --map-bg-1:#0c1320;
+  --map-bg-2:#060a14;
+  /* Live-Kompakt-Widget (Chips/Karten): Farben theme-unabhaengig fest */
+  --lc-bg:#161a22;
+  --lc-fg:#e8edf4;
+  --lc-blue:#3aa0e8;
+  --lc-green:#5ad17a;
+  --lc-border:#2a3140;
+  --lc-stale:#f0a050;
+  --lc-purple:#b07bff;
+  /* Pit-Wall-Buehne (#pitwallOverlay): rendert immer dark; lokale
+     Redeklaration derselben Namen braucht theme-invariante Quellwerte,
+     sonst Zirkelbezug (--surf:var(--surf) waere ungueltig/vererbt). */
+  --dark-surf:#0e1220;
+  --dark-surf2:#141a2c;
+  --dark-soft:#161c2e;
+  --dark-soft2:#1d2440;
+  --dark-tx:#e8ecf6;
+  --dark-tx-dim:#b6bcd0;
+  --dark-mut:#6f7796;
+  --dark-dim:#444b66;
+  --dark-pr:#c8ff3d;
+  --dark-green:#3ee08a;
+  --dark-orange:#ffa336;
+  --dark-red:#ff5470;
 }
 
 [data-theme=light]{

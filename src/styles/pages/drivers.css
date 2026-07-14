@@ -16,7 +16,7 @@
   width:48px;height:48px;
   border-radius:12px;
   background:var(--driver,var(--pr));
-  color:#0a0d18;
+  color:var(--on-pr);
   display:grid;place-items:center;
   font-family:var(--mono);font-weight:800;
   font-size:17px;letter-spacing:-.04em;
@@ -101,7 +101,7 @@
   padding:2px 7px;border-radius:999px;border:1px solid var(--bor);color:var(--mut);margin-left:8px}
 .kc-badge.demo{color:var(--pr);border-color:var(--pr)}
 .kc-live{font-family:var(--mono);font-size:11px;color:var(--mut);margin-bottom:10px;display:flex;gap:12px;flex-wrap:wrap}
-.kc-live .rec{color:#e85a7a;font-weight:700}
+.kc-live .rec{color:var(--rec);font-weight:700}
 .kc-swatches{display:flex;gap:6px}
 .kc-sw{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent}
 .kc-sw.active{border-color:var(--tx)}
@@ -109,7 +109,7 @@
 .kc-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .kc-actions .grow{flex:1}
 .kc-interval{width:70px;text-align:right}
-.kc-warn{font-family:var(--mono);font-size:11px;color:#e8a13a;font-weight:700}
+.kc-warn{font-family:var(--mono);font-size:11px;color:var(--warn);font-weight:700}
 
 
 .thero-stat{

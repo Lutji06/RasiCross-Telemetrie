@@ -147,7 +147,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   background:var(--soft);color:var(--mut);border:1px solid var(--bor2);
   flex-shrink:0;
 }
-.pw-flow-step.active .pw-flow-marker{background:var(--pr);color:#0a0e0a;border-color:var(--pr);box-shadow:0 0 0 3px var(--pr-soft)}
+.pw-flow-step.active .pw-flow-marker{background:var(--pr);color:var(--on-pr-2);border-color:var(--pr);box-shadow:0 0 0 3px var(--pr-soft)}
 .pw-flow-step.done .pw-flow-marker{background:rgba(62,224,138,.12);color:var(--green);border-color:var(--green)}
 .pw-flow-text{display:flex;flex-direction:column;gap:1px}
 .pw-flow-num{font-family:var(--mono);font-size:9.5px;font-weight:800;color:var(--mut);letter-spacing:.1em}
@@ -170,7 +170,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   position:relative;aspect-ratio:1.7;
   background:
     radial-gradient(ellipse 70% 55% at 50% 45%, rgba(200,255,61,.05) 0%, transparent 70%),
-    radial-gradient(ellipse at center, #0c1320 0%, #060a14 100%);
+    radial-gradient(ellipse at center, var(--map-bg-1) 0%, var(--map-bg-2) 100%);
   overflow:hidden;
 }
 .pw-map-frame::before{
@@ -250,7 +250,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 }
 .pw-btn:hover{background:var(--soft2);border-color:var(--mut)}
 .pw-btn.primary{
-  background:var(--pr);color:#0a0e0a;border-color:var(--pr);
+  background:var(--pr);color:var(--on-pr-2);border-color:var(--pr);
   box-shadow:0 4px 18px var(--pr-glow);
 }
 .pw-btn.primary:hover{background:var(--pr-2);transform:translateY(-1px);box-shadow:0 6px 22px var(--pr-glow)}
@@ -294,7 +294,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .pw-mod-tag{
   width:22px;height:22px;border-radius:6px;
   display:flex;align-items:center;justify-content:center;
-  background:var(--pr);color:#0a0e0a;
+  background:var(--pr);color:var(--on-pr-2);
   font-family:var(--mono);font-weight:900;font-size:11px;
 }
 .pw-mod-action{

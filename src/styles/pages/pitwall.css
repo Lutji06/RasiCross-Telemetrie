@@ -5,15 +5,15 @@
   position:fixed;inset:0;z-index:300;
   /* Buehne: rendert immer dark. Theme-Variablen lokal festgenagelt, sonst
      unsichtbarer Text im Light-/Outdoor-Theme auf dem dunklen Grund. */
-  --surf:#0e1220;--surf2:#141a2c;--soft:#161c2e;--soft2:#1d2440;
-  --tx:#e8ecf6;--tx-dim:#b6bcd0;--mut:#6f7796;--dim:#444b66;
+  --surf:var(--dark-surf);--surf2:var(--dark-surf2);--soft:var(--dark-soft);--soft2:var(--dark-soft2);
+  --tx:var(--dark-tx);--tx-dim:var(--dark-tx-dim);--mut:var(--dark-mut);--dim:var(--dark-dim);
   --bor:rgba(255,255,255,.07);--bor2:rgba(255,255,255,.13);
-  --pr:#c8ff3d;--pr-rgb:200,255,61;--pr-glow:rgba(200,255,61,.35);
-  --green:#3ee08a;--green-glow:rgba(62,224,138,.3);
-  --orange:#ffa336;
-  --red:#ff5470;--red-glow:rgba(255,84,112,.3);
+  --pr:var(--dark-pr);--pr-rgb:200,255,61;--pr-glow:rgba(200,255,61,.35);
+  --green:var(--dark-green);--green-glow:rgba(62,224,138,.3);
+  --orange:var(--dark-orange);
+  --red:var(--dark-red);--red-glow:rgba(255,84,112,.3);
   --sh-md:0 8px 28px rgba(0,0,0,.35);
-  background:radial-gradient(ellipse at center,#0d1224 0%,#03050b 80%);
+  background:radial-gradient(ellipse at center,var(--stage-1) 0%,var(--stage-2) 80%);
   display:none;flex-direction:column;
   padding:18px 24px;
   font-family:var(--sans);
@@ -237,7 +237,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 .replay-bar .rp-drift-strip{position:absolute;left:0;right:0;top:-7px;height:4px;pointer-events:none}
 .replay-bar .rp-drift-strip i{position:absolute;top:0;height:4px;background:var(--orange);border-radius:2px;min-width:2px}
 .replay-bar .rp-roll-strip{position:absolute;left:0;right:0;top:-7px;height:4px;pointer-events:none}
-.replay-bar .rp-roll-strip i{position:absolute;top:0;height:4px;width:3px;margin-left:-1.5px;background:#ff2d2d;box-shadow:0 0 4px #ff2d2d}
+.replay-bar .rp-roll-strip i{position:absolute;top:0;height:4px;width:3px;margin-left:-1.5px;background:var(--rollover);box-shadow:0 0 4px var(--rollover)}
 .replay-bar .rp-time{font-family:var(--mono);font-size:12px;color:var(--mut);white-space:nowrap}
 .replay-bar select{background:var(--soft);color:var(--tx);border:1px solid var(--bor);border-radius:8px;padding:6px 8px;font-size:12px}
 .replay-bar #rpPlayBtn{min-width:44px;font-size:15px}
@@ -249,7 +249,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 .settings-search input::placeholder{color:var(--mut)}
 .settings-nav-item{text-align:left;background:transparent;border:0;color:var(--tx-dim);font-family:var(--sans);font-size:13.5px;font-weight:600;padding:9px 11px;border-radius:var(--r-sm);cursor:pointer;transition:var(--t)}
 .settings-nav-item:hover{background:var(--soft);color:var(--tx)}
-.settings-nav-item.active{background:var(--pr);color:#0a0e02;box-shadow:0 0 20px var(--pr-soft)}
+.settings-nav-item.active{background:var(--pr);color:var(--on-pr-4);box-shadow:0 0 20px var(--pr-soft)}
 .settings-nav-item.search-hit{box-shadow:inset 2px 0 0 var(--pr)}
 .settings-nav-item.search-dim{opacity:.35}
 

@@ -17,8 +17,8 @@
 /* Multi-Kart Chip-Leiste (Live-Tab). display wird per JS (none/flex) gesteuert. */
 .kart-bar{display:none;gap:8px;flex-wrap:wrap;margin:0 0 10px}
 .kart-chip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
-  background:var(--panel,#161a22);color:var(--fg,#e8edf4);
-  border:2px solid #3aa0e8;border-radius:999px;padding:5px 12px;
+  background:var(--panel,var(--lc-bg));color:var(--fg,var(--lc-fg));
+  border:2px solid var(--lc-blue);border-radius:999px;padding:5px 12px;
   font-size:12px;line-height:1.2;white-space:nowrap;transition:transform .08s,box-shadow .12s}
 .kart-chip span{opacity:.75;font-variant-numeric:tabular-nums}
 .kart-chip:hover{transform:translateY(-1px)}
@@ -26,7 +26,7 @@
   background:rgba(58,160,232,.12)}
 .kart-chip.stale{opacity:.45;filter:grayscale(.6)}
 .kart-badge{display:inline-block;font-size:10px;font-weight:600;vertical-align:middle;
-  margin-left:8px;padding:1px 7px;border:1px solid #3aa0e8;border-radius:999px;line-height:1.5}
+  margin-left:8px;padding:1px 7px;border:1px solid var(--lc-blue);border-radius:999px;line-height:1.5}
 
 /* Multi-Kart Verwaltung: Haupt-Button + Edit-Icon als Geschwister im Chip
    (Phase 39: kein Button-in-Button mehr — valides HTML, Tastatur-bedienbar) */
@@ -36,8 +36,8 @@
 
 /* Multi-Kart: Übersicht-Button in der Chip-Leiste */
 .kart-overview-btn{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
-  background:var(--panel,#161a22);color:var(--fg,#e8edf4);
-  border:2px solid #5ad17a;border-radius:999px;padding:5px 12px;
+  background:var(--panel,var(--lc-bg));color:var(--fg,var(--lc-fg));
+  border:2px solid var(--lc-green);border-radius:999px;padding:5px 12px;
   font-size:12px;line-height:1.2;white-space:nowrap;transition:transform .08s,box-shadow .12s}
 .kart-overview-btn:hover{transform:translateY(-1px)}
 .kart-overview-btn.active{box-shadow:0 0 0 2px rgba(90,209,122,.35),0 0 12px rgba(90,209,122,.25);
@@ -46,11 +46,11 @@
 /* Phase 39: Leaderboard-Strip unter der Chip-Leiste (nur Einzelansicht) */
 .leader-strip{display:none;gap:8px;flex-wrap:wrap;margin:0 0 10px}
 .ls-item{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
-  background:var(--panel,#161a22);color:var(--fg,#e8edf4);
-  border:1px solid var(--bor,#2a3140);border-radius:999px;padding:4px 10px;
+  background:var(--panel,var(--lc-bg));color:var(--fg,var(--lc-fg));
+  border:1px solid var(--bor,var(--lc-border));border-radius:999px;padding:4px 10px;
   font-size:12px;font-family:var(--mono);line-height:1.2;white-space:nowrap;
   font-variant-numeric:tabular-nums}
-.ls-item.active{border-color:#3aa0e8;box-shadow:0 0 0 1px rgba(58,160,232,.35)}
+.ls-item.active{border-color:var(--lc-blue);box-shadow:0 0 0 1px rgba(58,160,232,.35)}
 .ls-item .ls-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
 .ls-item .ls-gap{opacity:.7}
 body[data-live-view="overview"] #liveLeaderStrip{display:none !important}
@@ -63,8 +63,8 @@ body[data-live-view="overview"] #liveOverview{
   grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
 body[data-live-view="overview"] #tab-live .pw-liverow,
 body[data-live-view="overview"] #tab-live .pw-live-body{display:none}
-.ko-card{cursor:pointer;border:2px solid #3aa0e8;border-radius:14px;padding:12px 14px;
-  background:var(--panel,#161a22);display:flex;flex-direction:column;gap:6px;
+.ko-card{cursor:pointer;border:2px solid var(--lc-blue);border-radius:14px;padding:12px 14px;
+  background:var(--panel,var(--lc-bg));display:flex;flex-direction:column;gap:6px;
   transition:transform .08s,box-shadow .12s}
 .ko-card:hover{transform:translateY(-1px)}
 .ko-card.active{box-shadow:0 0 0 2px rgba(58,160,232,.35),0 0 14px rgba(58,160,232,.25)}
@@ -73,7 +73,7 @@ body[data-live-view="overview"] #tab-live .pw-live-body{display:none}
 .ko-card .ko-dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
 .ko-card .ko-name{font-weight:700;font-size:14px;flex:1;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
-.ko-card .ko-rec{color:#e85a7a;font-weight:700;font-size:11px}
+.ko-card .ko-rec{color:var(--rec);font-weight:700;font-size:11px}
 .ko-card .ko-speed{font-family:var(--mono);font-size:30px;font-weight:800;line-height:1}
 .ko-card .ko-speed small{font-size:13px;opacity:.6;font-weight:600;margin-left:3px}
 .ko-card .ko-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px}
@@ -81,15 +81,15 @@ body[data-live-view="overview"] #tab-live .pw-live-body{display:none}
 .ko-card .ko-v{font-family:var(--mono);font-size:15px;color:var(--tx)}
 .ko-card .ko-sub{font-size:11px;color:var(--mut)}
 .ko-card .ko-foot{font-family:var(--mono);font-size:10.5px;color:var(--mut);
-  border-top:1px solid var(--bor,#2a3140);padding-top:5px;margin-top:2px;
+  border-top:1px solid var(--bor,var(--lc-border));padding-top:5px;margin-top:2px;
   font-variant-numeric:tabular-nums}
-.ko-card.stale .ko-foot{color:var(--orange,#f0a050)}
+.ko-card.stale .ko-foot{color:var(--orange,var(--lc-stale))}
 .ko-card .ko-pos{font-family:var(--mono);font-weight:800;font-size:13px;color:var(--tx);
   background:rgba(255,255,255,.08);border-radius:6px;padding:1px 6px;flex:0 0 auto}
 .ko-card .ko-gap{font-family:var(--mono);font-size:11px;color:var(--mut)}
-.ko-card .ko-fl{font-family:var(--mono);font-weight:800;font-size:11px;color:#b07bff;
+.ko-card .ko-fl{font-family:var(--mono);font-weight:800;font-size:11px;color:var(--lc-purple);
   background:rgba(176,123,255,.14);border-radius:6px;padding:1px 5px;flex:0 0 auto;margin-left:4px}
-.ko-card .ko-v-fl{color:#b07bff}
+.ko-card .ko-v-fl{color:var(--lc-purple)}
 .ko-card.ko-overtake{box-shadow:0 0 0 2px rgba(255,200,60,.75),0 0 16px rgba(255,200,60,.55)}
 
 /* Live-only KPI tightening — keeps other tabs' KPI sizing intact */

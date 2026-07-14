@@ -221,7 +221,7 @@
   border-radius:50%;
   border:1px solid var(--bor);
   background:rgba(0,0,0,.55);
-  color:#fff;   /* Chip-Grund ist in jedem Theme dunkel */
+  color:var(--white);   /* Chip-Grund ist in jedem Theme dunkel */
   cursor:pointer;
   opacity:.8;
   z-index:2;
@@ -273,7 +273,7 @@
 .roll-ind{ margin:10px auto 0; max-width:280px; }
 .roll-val{ text-align:center; font-size:13px; margin-top:2px; }
 .roll-cap{ font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.1em; color:var(--mut); }
-.roll-over{ color:#ff2d2d; font-weight:700; animation:rollBlink .5s steps(1) infinite; }
+.roll-over{ color:var(--rollover); font-weight:700; animation:rollBlink .5s steps(1) infinite; }
 .roll-over.hidden{ display:none; }
 @keyframes rollBlink{ 50%{ opacity:.2; } }
 .g-view-toggle{
@@ -289,7 +289,7 @@
   transition:var(--t);
 }
 .g-view-toggle button.active{
-  background:var(--pr);color:#0d1117;
+  background:var(--pr);color:var(--on-pr-3);
 }
 .g-view-toggle button.disabled{
   opacity:0.4;cursor:not-allowed;
@@ -316,7 +316,7 @@
 }
 .heat-btn:hover{color:var(--tx);border-color:var(--bor2)}
 .heat-btn.active{
-  background:var(--orange);color:#1a0e00;
+  background:var(--orange);color:var(--on-orange);
   border-color:var(--orange);
 }
 

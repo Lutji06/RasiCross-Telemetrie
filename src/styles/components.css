@@ -22,27 +22,27 @@
 .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 .btn.primary{
-  background:var(--pr);color:#0a0d18;
+  background:var(--pr);color:var(--on-pr);
   border-color:var(--pr);
   font-weight:700;
   box-shadow:0 4px 18px var(--pr-glow);
 }
 .btn.primary:hover:not(:disabled){
-  background:#d6ff5a;
+  background:var(--pr-hover);
   box-shadow:0 6px 24px var(--pr-glow);
 }
 .btn.good{
-  background:var(--green);color:#062818;
+  background:var(--green);color:var(--on-green);
   border-color:var(--green);font-weight:700;
   box-shadow:0 4px 16px var(--green-glow);
 }
 .btn.danger{
-  background:var(--red);color:#fff;
+  background:var(--red);color:var(--white);
   border-color:var(--red);font-weight:700;
   box-shadow:0 4px 16px var(--red-glow);
 }
 .btn.blue{
-  background:var(--blue);color:#06162a;
+  background:var(--blue);color:var(--on-blue);
   border-color:var(--blue);font-weight:700;
   box-shadow:0 4px 16px var(--blue-glow);
 }
@@ -60,13 +60,13 @@
 .btn.lg{padding:13px 22px;font-size:14px;border-radius:13px}
 
 .btn.pitcall{
-  background:linear-gradient(135deg,var(--orange) 0%,#ff7a1a 100%);
-  color:#1a0e00;border-color:var(--orange);
+  background:linear-gradient(135deg,var(--orange) 0%,var(--orange-2) 100%);
+  color:var(--on-orange);border-color:var(--orange);
   font-weight:800;
   box-shadow:0 4px 18px var(--orange-glow);
 }
 .btn.pitcall.active{
-  background:var(--red);border-color:var(--red);color:#fff;
+  background:var(--red);border-color:var(--red);color:var(--white);
   animation:pitPulse 1s ease-in-out infinite;
 }
 @keyframes pitPulse{
@@ -257,7 +257,7 @@ select{
 }
 .toggle input:checked + .toggle-knob::after{
   transform:translateX(18px);
-  background:#0a0d18;
+  background:var(--on-pr);
 }
 .toggle-row{
   display:flex;justify-content:space-between;

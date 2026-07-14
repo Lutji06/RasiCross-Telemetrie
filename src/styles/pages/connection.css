@@ -18,7 +18,7 @@
 }
 .mode-tab:hover{color:var(--tx)}
 .mode-tab.active{
-  background:var(--pr);color:#0a0d18;
+  background:var(--pr);color:var(--on-pr);
   font-weight:700;
   box-shadow:0 4px 12px var(--pr-glow);
 }
