@@ -1,0 +1,322 @@
+/* ============================================================
+   HERO KPI ROW
+   ============================================================ */
+.kpi-row{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+}
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
+
+.kpi{
+  position:relative;overflow:hidden;
+  padding:22px 22px 48px;
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-xl);
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  row-gap:8px;
+  min-height:148px;
+  transition:var(--t);
+}
+.kpi:hover{border-color:var(--bor2);transform:translateY(-2px);box-shadow:var(--sh-md)}
+.kpi-head{
+  display:flex;justify-content:space-between;
+  align-items:center;
+}
+.kpi-l{
+  font-family:var(--mono);font-size:10px;
+  font-weight:700;text-transform:uppercase;
+  letter-spacing:.13em;color:var(--mut);
+}
+.kpi-icon{
+  width:28px;height:28px;border-radius:9px;
+  background:var(--pr-soft);
+  color:var(--pr);
+  display:grid;place-items:center;
+}
+.kpi-icon svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.kpi-v{
+  font-family:var(--mono);
+  font-size:clamp(40px,5.4vw,58px);
+  font-weight:700;color:var(--tx);
+  line-height:.95;letter-spacing:-.045em;
+  font-variant-numeric:tabular-nums;
+}
+/* Nur in der Grid-basierten .kpi-Karte den Wert nach unten in die mittlere Zeile ziehen.
+   In Flex-Column-Containern (z.B. .pw-kpi-cell) wuerde align-self:end den Wert
+   stattdessen auf der Cross-Achse nach RECHTS schieben — daher hier scoped. */
+.kpi > .kpi-v{align-self:end}
+.kpi #yawSparkCanvas{
+  position:absolute;left:22px;right:22px;bottom:14px;
+  height:24px;width:auto;margin:0;display:block;
+}
+.kpi.accent .kpi-v{color:var(--pr);text-shadow:0 0 24px var(--pr-glow)}
+.kpi-v small{
+  font-size:.32em;color:var(--mut);
+  margin-left:5px;font-weight:500;
+  text-shadow:none;
+  font-family:var(--mono);
+}
+.kpi-sub{
+  font-family:var(--mono);font-size:11.5px;
+  color:var(--mut);font-weight:500;
+  display:flex;align-items:center;gap:6px;
+}
+.kpi-sub b{color:var(--tx-dim);font-weight:700;font-variant-numeric:tabular-nums}
+
+.kpi-spark{
+  position:absolute;right:0;bottom:0;left:0;
+  height:42px;opacity:.35;
+  pointer-events:none;
+}
+
+/* ============================================================
+   RACE CONTROL BAR
+   ============================================================ */
+.race-bar{
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  gap:24px;align-items:center;
+  padding:18px 22px;
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-xl);
+  margin-bottom:18px;
+  position:relative;overflow:hidden;
+  box-shadow:var(--sh-sm);
+}
+.race-bar::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--pr),transparent);
+  opacity:.5;
+}
+.race-bar-l{
+  display:flex;flex-direction:column;gap:2px;
+}
+.race-bar-label{
+  font-family:var(--mono);font-size:10px;
+  text-transform:uppercase;letter-spacing:.12em;
+  color:var(--mut);font-weight:700;
+}
+.race-bar-cd{
+  font-family:var(--mono);font-size:42px;
+  font-weight:700;color:var(--pr);
+  line-height:1;letter-spacing:-.04em;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 0 24px var(--pr-glow);
+}
+.race-bar-meta{
+  font-family:var(--sans);font-size:13px;
+  color:var(--tx-dim);font-weight:500;
+  display:flex;flex-wrap:wrap;gap:14px;
+  align-items:center;
+}
+.race-bar-meta b{color:var(--tx);font-weight:700}
+.race-bar-meta .sep{color:var(--dim)}
+.race-bar-actions{
+  display:flex;gap:8px;flex-wrap:wrap;
+  justify-content:flex-end;
+}
+@media(max-width:900px){
+  .race-bar{grid-template-columns:1fr;text-align:center}
+  .race-bar-actions{justify-content:center}
+}
+
+/* ============================================================
+   DELTA BANNER
+   ============================================================ */
+.delta-banner{
+  display:flex;align-items:center;justify-content:center;gap:28px;
+  background:var(--surf);border:1px solid var(--bor);
+  border-radius:var(--r-xl);
+  padding:14px 24px;margin-bottom:18px;
+  position:relative;overflow:hidden;
+  box-shadow:var(--sh-sm);
+}
+.delta-banner.hidden{display:none}
+.delta-label{
+  font-family:var(--mono);font-size:11px;
+  color:var(--mut);font-weight:700;
+  text-transform:uppercase;letter-spacing:.12em;
+}
+.delta-time{
+  font-family:var(--mono);font-size:34px;
+  font-weight:700;font-variant-numeric:tabular-nums;
+  letter-spacing:-.04em;
+}
+.delta-time.faster{color:var(--green);text-shadow:0 0 14px var(--green-glow)}
+.delta-time.slower{color:var(--red);text-shadow:0 0 14px var(--red-glow)}
+.delta-time.same{color:var(--mut)}
+.delta-ref{
+  font-family:var(--mono);font-size:11px;
+  color:var(--mut);font-weight:500;
+}
+
+/* ============================================================
+   SECTORS
+   ============================================================ */
+.sector-panel{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;margin-bottom:18px;
+}
+.sector-card{
+  background:var(--surf);
+  border:1px solid var(--bor);
+  border-radius:var(--r-lg);
+  padding:16px 18px;
+  position:relative;overflow:hidden;
+  transition:var(--t);
+}
+.sector-card.active{
+  border-color:var(--pr);
+  box-shadow:0 0 0 3px var(--pr-soft),0 8px 24px var(--pr-glow);
+}
+.sector-card.active::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--pr);box-shadow:0 0 12px var(--pr-glow);
+}
+.sector-label{
+  font-family:var(--mono);font-size:10px;
+  font-weight:700;color:var(--mut);
+  letter-spacing:.12em;margin-bottom:6px;
+  text-transform:uppercase;
+}
+.sector-time{
+  font-family:var(--mono);font-size:23px;
+  font-weight:700;color:var(--tx);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.03em;line-height:1;
+}
+.sector-delta{
+  font-family:var(--mono);font-size:11px;
+  font-weight:600;margin-top:5px;
+  font-variant-numeric:tabular-nums;
+}
+.sector-delta.faster{color:var(--green)}
+.sector-delta.slower{color:var(--red)}
+.sector-delta.same{color:var(--mut)}
+
+/* ============================================================
+   MAP
+   ============================================================ */
+.map{
+  aspect-ratio:1.55;
+  background:radial-gradient(ellipse at center,var(--surf2) 0%,var(--surf) 100%);
+  border:1px solid var(--bor);
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  position:relative;
+}
+.map canvas{width:100%;height:100%;display:block}
+.map-toggle{
+  position:absolute;
+  top:6px;
+  left:6px;
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  border:1px solid var(--bor);
+  background:rgba(0,0,0,.55);
+  color:var(--white);   /* Chip-Grund ist in jedem Theme dunkel */
+  cursor:pointer;
+  opacity:.8;
+  z-index:2;
+  display:grid;place-items:center;
+}
+.map-toggle svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.map-toggle.off{opacity:.4}
+.map-toggle:hover{opacity:1}
+
+/* ============================================================
+   TACHO / RPM / G
+   ============================================================ */
+.tacho-wrap{
+  display:flex;flex-direction:column;
+  align-items:center;gap:14px;
+  padding:6px 0 4px;
+}
+.tacho-svg{
+  width:100%;max-width:300px;
+  display:block;
+  filter:drop-shadow(0 4px 16px rgba(0,0,0,.3));
+}
+.rpm-block{width:100%}
+.rpm-bar{
+  height:14px;border-radius:99px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  overflow:hidden;position:relative;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.3);
+}
+.rpm-fill{
+  height:100%;width:0;
+  background:linear-gradient(90deg,var(--green) 0%,var(--pr) 50%,var(--orange) 75%,var(--red) 100%);
+  transition:width .08s linear;
+  border-radius:99px;
+}
+.rpm-row{
+  display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:11px;
+  color:var(--mut);margin-top:7px;font-weight:600;
+}
+
+#gMeterCanvas, #gMeter3dCanvas{
+  display:block;margin:8px auto 0;
+  width:100%;max-width:200px;aspect-ratio:1;
+  border-radius:50%;
+}
+#gMeter3dCanvas.hidden, #gMeterCanvas.hidden{ display:none; }
+.roll-ind{ margin:10px auto 0; max-width:280px; }
+.roll-val{ text-align:center; font-size:13px; margin-top:2px; }
+.roll-cap{ font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.1em; color:var(--mut); }
+.roll-over{ color:var(--rollover); font-weight:700; animation:rollBlink .5s steps(1) infinite; }
+.roll-over.hidden{ display:none; }
+@keyframes rollBlink{ 50%{ opacity:.2; } }
+.g-view-toggle{
+  display:inline-flex;gap:4px;margin:0 auto 4px;
+  padding:3px;border-radius:999px;
+  background:var(--soft);border:1px solid var(--bor);
+}
+.g-view-toggle button{
+  padding:4px 12px;border:0;background:transparent;
+  font-family:var(--mono);font-size:10.5px;font-weight:700;
+  color:var(--mut);border-radius:999px;cursor:pointer;
+  text-transform:uppercase;letter-spacing:.08em;
+  transition:var(--t);
+}
+.g-view-toggle button.active{
+  background:var(--pr);color:var(--on-pr-3);
+}
+.g-view-toggle button.disabled{
+  opacity:0.4;cursor:not-allowed;
+}
+.g-readout{
+  display:flex;justify-content:center;gap:18px;
+  margin-top:10px;
+  font-family:var(--mono);font-size:12px;
+  color:var(--mut);font-weight:600;
+}
+.g-readout b{color:var(--tx);font-weight:700;font-variant-numeric:tabular-nums}
+
+/* ============================================================
+   HEAT BTN
+   ============================================================ */
+.heat-btn{
+  padding:7px 12px;font-family:var(--mono);
+  font-size:10.5px;font-weight:700;
+  border-radius:9px;
+  background:var(--soft);border:1px solid var(--bor);
+  color:var(--mut);cursor:pointer;
+  text-transform:uppercase;letter-spacing:.08em;
+  transition:var(--t);
+}
+.heat-btn:hover{color:var(--tx);border-color:var(--bor2)}
+.heat-btn.active{
+  background:var(--orange);color:var(--on-orange);
+  border-color:var(--orange);
+}
+

@@ -25,6 +25,8 @@ jobs:
           node --check tiles.js
       - name: Lint JS
         run: npm run lint
+      - name: CSS-Token-Gate
+        run: npm run lint:css
       - name: Unit tests
         run: npm test
 

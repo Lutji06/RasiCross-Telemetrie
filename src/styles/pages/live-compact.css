@@ -1,0 +1,209 @@
+/* ============================================================
+   LIVE-TAB COMPACT VARIANTS  (no-scroll on 1440x900)
+   ============================================================ */
+.pw-strip-delta-sectors{
+  display:grid;grid-template-columns:minmax(220px,1fr) 3fr;
+  gap:12px;margin-bottom:14px;align-items:stretch;
+}
+.pw-strip-delta-sectors > .delta-banner{margin-bottom:0;padding:10px 18px}
+.pw-strip-delta-sectors > .delta-banner .delta-time{font-size:24px}
+.pw-strip-delta-sectors > .sector-panel{margin-bottom:0}
+.pw-strip-delta-sectors > .sector-panel .sector-card{padding:10px 14px}
+.pw-strip-delta-sectors > .sector-panel .sector-time{font-size:18px}
+@media (max-width:900px){
+  .pw-strip-delta-sectors{grid-template-columns:1fr}
+}
+
+/* Multi-Kart Chip-Leiste (Live-Tab). display wird per JS (none/flex) gesteuert. */
+.kart-bar{display:none;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.kart-chip{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  background:var(--panel,var(--lc-bg));color:var(--fg,var(--lc-fg));
+  border:2px solid var(--lc-blue);border-radius:999px;padding:5px 12px;
+  font-size:12px;line-height:1.2;white-space:nowrap;transition:transform .08s,box-shadow .12s}
+.kart-chip span{opacity:.75;font-variant-numeric:tabular-nums}
+.kart-chip:hover{transform:translateY(-1px)}
+.kart-chip.active{box-shadow:0 0 0 2px rgba(58,160,232,.35),0 0 12px rgba(58,160,232,.25);
+  background:rgba(58,160,232,.12)}
+.kart-chip.stale{opacity:.45;filter:grayscale(.6)}
+.kart-badge{display:inline-block;font-size:10px;font-weight:600;vertical-align:middle;
+  margin-left:8px;padding:1px 7px;border:1px solid var(--lc-blue);border-radius:999px;line-height:1.5}
+
+/* Multi-Kart Verwaltung: Haupt-Button + Edit-Icon als Geschwister im Chip
+   (Phase 39: kein Button-in-Button mehr — valides HTML, Tastatur-bedienbar) */
+.kart-chip .kart-chip-main{display:inline-flex;align-items:center;gap:6px;
+  background:none;border:none;color:inherit;font:inherit;padding:0;
+  cursor:pointer;white-space:nowrap}
+
+/* Multi-Kart: Übersicht-Button in der Chip-Leiste */
+.kart-overview-btn{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  background:var(--panel,var(--lc-bg));color:var(--fg,var(--lc-fg));
+  border:2px solid var(--lc-green);border-radius:999px;padding:5px 12px;
+  font-size:12px;line-height:1.2;white-space:nowrap;transition:transform .08s,box-shadow .12s}
+.kart-overview-btn:hover{transform:translateY(-1px)}
+.kart-overview-btn.active{box-shadow:0 0 0 2px rgba(90,209,122,.35),0 0 12px rgba(90,209,122,.25);
+  background:rgba(90,209,122,.12)}
+
+/* Phase 39: Leaderboard-Strip unter der Chip-Leiste (nur Einzelansicht) */
+.leader-strip{display:none;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.ls-item{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  background:var(--panel,var(--lc-bg));color:var(--fg,var(--lc-fg));
+  border:1px solid var(--bor,var(--lc-border));border-radius:999px;padding:4px 10px;
+  font-size:12px;font-family:var(--mono);line-height:1.2;white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.ls-item.active{border-color:var(--lc-blue);box-shadow:0 0 0 1px rgba(58,160,232,.35)}
+.ls-item .ls-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.ls-item .ls-gap{opacity:.7}
+body[data-live-view="overview"] #liveLeaderStrip{display:none !important}
+
+/* Multi-Kart: Live-Übersicht-Grid (alle Karts auf einmal). Sichtbarkeit per
+   body[data-live-view]; im Single-Modus versteckt. */
+#liveOverview{display:none}
+body[data-live-view="overview"] #liveOverview{
+  display:grid;gap:12px;align-content:start;overflow:auto;min-height:0;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+body[data-live-view="overview"] #tab-live .pw-liverow,
+body[data-live-view="overview"] #tab-live .pw-live-body{display:none}
+.ko-card{cursor:pointer;border:2px solid var(--lc-blue);border-radius:14px;padding:12px 14px;
+  background:var(--panel,var(--lc-bg));display:flex;flex-direction:column;gap:6px;
+  transition:transform .08s,box-shadow .12s}
+.ko-card:hover{transform:translateY(-1px)}
+.ko-card.active{box-shadow:0 0 0 2px rgba(58,160,232,.35),0 0 14px rgba(58,160,232,.25)}
+.ko-card.stale{opacity:.45;filter:grayscale(.6)}
+.ko-card .ko-head{display:flex;align-items:center;gap:8px}
+.ko-card .ko-dot{width:12px;height:12px;border-radius:50%;flex:0 0 auto}
+.ko-card .ko-name{font-weight:700;font-size:14px;flex:1;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.ko-card .ko-rec{color:var(--rec);font-weight:700;font-size:11px}
+.ko-card .ko-speed{font-family:var(--mono);font-size:30px;font-weight:800;line-height:1}
+.ko-card .ko-speed small{font-size:13px;opacity:.6;font-weight:600;margin-left:3px}
+.ko-card .ko-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px}
+.ko-card .ko-l{color:var(--mut)}
+.ko-card .ko-v{font-family:var(--mono);font-size:15px;color:var(--tx)}
+.ko-card .ko-sub{font-size:11px;color:var(--mut)}
+.ko-card .ko-foot{font-family:var(--mono);font-size:10.5px;color:var(--mut);
+  border-top:1px solid var(--bor,var(--lc-border));padding-top:5px;margin-top:2px;
+  font-variant-numeric:tabular-nums}
+.ko-card.stale .ko-foot{color:var(--orange,var(--lc-stale))}
+.ko-card .ko-pos{font-family:var(--mono);font-weight:800;font-size:13px;color:var(--tx);
+  background:rgba(255,255,255,.08);border-radius:6px;padding:1px 6px;flex:0 0 auto}
+.ko-card .ko-gap{font-family:var(--mono);font-size:11px;color:var(--mut)}
+.ko-card .ko-fl{font-family:var(--mono);font-weight:800;font-size:11px;color:var(--lc-purple);
+  background:rgba(176,123,255,.14);border-radius:6px;padding:1px 5px;flex:0 0 auto;margin-left:4px}
+.ko-card .ko-v-fl{color:var(--lc-purple)}
+.ko-card.ko-overtake{box-shadow:0 0 0 2px rgba(255,200,60,.75),0 0 16px rgba(255,200,60,.55)}
+
+/* Live-only KPI tightening — keeps other tabs' KPI sizing intact */
+#tab-live .kpi{padding:12px 14px}
+#tab-live .kpi-v{font-size:clamp(24px,3vw,32px);margin-top:2px}
+#tab-live .kpi-sub{font-size:10.5px;margin-top:4px}
+#tab-live #yawSparkCanvas{height:22px}
+#tab-live .kpi-row{margin-bottom:12px}
+
+/* Live v2 — main body grid.
+   WICHTIG: Die Flex-Hoehenverteilung (Karte/Laps fuellen den Viewport)
+   lebt NUR im Fit-Modus-Media unten — ohne definierte Containerhoehe
+   wuerde .map{flex;min-height:0} auf 0 kollabieren (Phone/Tablet-Bug). */
+.pw-live-body{display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:stretch}
+@media(max-width:1100px){.pw-live-body{grid-template-columns:1fr}}
+.pw-live-map{display:flex;flex-direction:column;gap:12px}
+.pw-live-map .pw-module{display:flex;flex-direction:column}
+/* Live-Rundentabelle unter der Karte — scrollbar, Sticky-Header.
+   Ausserhalb des Fit-Modus: begrenzte Hoehe + eigener Scroll. */
+.pw-live-map .pw-live-laps .pw-laplist{overflow-y:auto;margin-top:8px;max-height:340px}
+.live-lap-table{width:100%;border-collapse:collapse;font-family:var(--mono)}
+.live-lap-table thead th{position:sticky;top:0;z-index:1;background:var(--surf);
+  font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
+  text-align:right;padding:5px 8px;border-bottom:1px solid var(--bor);white-space:nowrap}
+.live-lap-table thead th:first-child,
+.live-lap-table thead th:last-child{text-align:left}
+.live-lap-table tbody td{font-size:12px;padding:4px 8px;text-align:right;white-space:nowrap;
+  border-bottom:1px solid rgba(255,255,255,.04)}
+.live-lap-table tbody td:first-child{text-align:left;color:var(--mut);font-weight:700}
+.live-lap-table tbody td.llt-time{font-weight:700;color:var(--tx)}
+.live-lap-table tbody td.llt-drv{text-align:left;color:var(--mut)}
+.live-lap-table tbody tr.best td.llt-time{color:var(--pr);font-weight:800}
+.live-lap-table tbody tr.invalid{opacity:.5}
+.pw-live-side{display:flex;flex-direction:column;gap:12px}
+.pw-live-side .pw-module{padding:10px 12px}
+
+/* Speed + RPM combo card */
+.pw-kpi-combo{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pw-kpi-combo .pw-kpi-cell{display:flex;flex-direction:column;gap:2px}
+.pw-kpi-combo .pw-kpi-cell .kpi-l{font-size:10.5px;color:var(--mut);letter-spacing:.04em;text-transform:uppercase}
+.pw-kpi-combo .pw-kpi-cell .kpi-v{font-size:clamp(24px,2.6vw,30px);font-weight:700;font-family:'JetBrains Mono',monospace}
+.pw-kpi-combo .pw-kpi-cell .kpi-sub{font-size:10px;color:var(--mut)}
+#kSpeed,#kSpeedLive{color:var(--pr);text-shadow:0 0 18px var(--pr-glow)}
+
+/* Big Rundenzeit card */
+.pw-lap-big .kpi-v{font-size:clamp(40px,4.2vw,56px);font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:.02em;line-height:1.05}
+.pw-lap-big .kpi-sub{font-size:11px;color:var(--mut);margin-top:4px}
+
+/* Sektoren horizontal strip inside the right column */
+.pw-live-side #sectorPanel{display:flex;gap:8px}
+.pw-live-side #sectorPanel .sector-card{flex:1 1 0;padding:8px 10px}
+.pw-live-side #sectorPanel .sector-time{font-size:14px}
+.pw-live-side #sectorPanel .sector-delta{font-size:11px}
+
+/* G/3D card on Live — fills remaining vertical space */
+/* min-height = ehrliches Inhaltsminimum (Toggle + Canvas-Minimum + Roll +
+   Readout): darunter kollabiert das Modul nicht weiter, sondern die Seite
+   waechst und main.content scrollt (overflow:hidden wuerde sonst den
+   Canvas abschneiden, weil es das automatische Flex-Minimum auf 0 setzt). */
+.pw-live-side .pw-g3d{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:205px;overflow:hidden}
+/* Canvas schrumpft mit der verfuegbaren Spaltenhoehe (bleibt rund dank
+   aspect-ratio aus der Basisregel), statt am Modulrand abgeschnitten zu
+   werden. Unter der Mindesthoehe greift der Scroll-Fallback von
+   main.content (siehe body[data-tab="live"]-Block). */
+/* :is(#id) hebt die Spezifitaet ueber die Basisregel #gMeterCanvas
+   (width:100%) -- sonst gewinnt deren Breite und der Gauge wird oval. */
+.pw-live-side .pw-g3d :is(#gMeterCanvas, #gMeter3dCanvas){flex:0 1 auto;height:200px;min-height:96px;width:auto;aspect-ratio:1/1;max-width:100%}
+
+/* ------------------------------------------------------------
+   Live no-scroll: wenn Live-Tab aktiv (body[data-tab=live]),
+   sperrt der Body den Seiten-Scroll und der Live-Inhalt fuellt
+   exakt den Raum zwischen Topbar (sticky) und Statusbar (sticky).
+   Andere Tabs (Detail, Strecke, ...) duerfen weiter scrollen.
+   Nur ab Viewport-Hoehe >=760px aktiv, sonst (Mobile/landscape klein)
+   wuerde der Inhalt vertikal abgeschnitten werden.
+   ------------------------------------------------------------ */
+@media (min-height:760px) and (min-width:1100px){
+  html:has(body[data-tab="live"]),
+  body[data-tab="live"]{
+    height:100vh;overflow:hidden;
+  }
+  body[data-tab="live"] .main{height:100vh;min-height:0}
+  body[data-tab="live"] main.content{
+    flex:1;min-height:0;overflow:auto;   /* faellt der Platz knapp aus: scrollen statt abschneiden */
+    padding-top:18px;padding-bottom:14px;
+    display:flex;flex-direction:column;
+    /* safe center: bei Ueberlauf auf start ausweichen, sonst wird der
+       obere Teil unscrollbar und unten schneidet es trotz overflow:auto ab */
+    justify-content:safe center;
+  }
+  body[data-tab="live"] #tab-live.active{
+    display:flex;flex-direction:column;gap:12px;
+    flex:1;min-height:0;width:100%;
+  }
+  body[data-tab="live"] #tab-live .pw-liverow{flex:0 0 auto;margin-bottom:0}
+  body[data-tab="live"] #tab-live .pw-live-body{flex:1 1 auto;min-height:0}
+  body[data-tab="live"] #tab-live .pw-live-map,
+  body[data-tab="live"] #tab-live .pw-live-side{min-height:0}
+  /* Flex-Hoehenverteilung: Karte (2x) + Rundentabelle (1x) fuellen den
+     Viewport. Lebt bewusst NUR hier — siehe Kommentar bei .pw-live-body. */
+  body[data-tab="live"] #tab-live .pw-live-map .pw-module{flex:1 1 auto;min-height:0}
+  body[data-tab="live"] #tab-live .pw-live-map .pw-map-mod{flex:2 1 0}
+  body[data-tab="live"] #tab-live .pw-live-map .map{flex:1 1 auto;min-height:180px}
+  body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps{flex:1 1 0}
+  body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps .pw-laplist{flex:1 1 auto;min-height:0;max-height:none}
+  /* Übersicht-Grid füllt im No-Scroll-Layout den Live-Raum (eigenes Scrolling). */
+  body[data-tab="live"][data-live-view="overview"] #tab-live #liveOverview{
+    flex:1 1 auto;min-height:0}
+}
+
+/* Detail Diagnose block — 2-col label/value grid */
+.pw-diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 24px}
+.pw-diag-grid .pw-diag-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dashed var(--bor)}
+.pw-diag-grid .pw-diag-row:last-child{border-bottom:none}
+.pw-diag-grid .pw-diag-label{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.pw-diag-grid .pw-diag-val{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--tx)}
+

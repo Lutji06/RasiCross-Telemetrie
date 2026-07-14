@@ -1,0 +1,28 @@
+/* ============================================================
+   TRACK LIST
+   ============================================================ */
+.track-list{display:grid;gap:10px}
+.track-item{
+  padding:14px 16px;
+  background:var(--soft);
+  border:1px solid var(--bor);
+  border-radius:var(--r-md);
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  transition:var(--t);
+}
+.track-item:hover{
+  border-color:var(--bor2);
+  background:var(--soft2);
+}
+.track-item-info{flex:1;min-width:0}
+.track-item-info b{
+  font-family:var(--sans);color:var(--tx);
+  font-size:14px;font-weight:600;display:block;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.track-item-info span{
+  display:block;font-family:var(--mono);
+  font-size:10.5px;color:var(--mut);
+  margin-top:3px;font-weight:500;
+}
+
