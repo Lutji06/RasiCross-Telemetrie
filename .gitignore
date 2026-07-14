@@ -28,3 +28,7 @@ Thumbs.db
 test-results/
 playwright-report/
 release/
+
+# Screenshot-Baselines (Phase 49): nur die Linux-(CI-)Baselines sind
+# versioniert; lokale Windows-Baselines bleiben privat.
+e2e/**/*-win32.png
