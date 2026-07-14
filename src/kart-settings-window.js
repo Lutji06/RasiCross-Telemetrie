@@ -148,8 +148,10 @@ function openKartSettings(mac) {
   }
   const doc = win.document;
   doc.documentElement.dataset.theme = state.theme;
-  // Styles des Hauptfensters klonen: Vite inlined das App-CSS als <style>-
-  // Knoten (Dev: von Vite injizierte <style>; Fonts-<link> ist absolut).
+  // Styles des Hauptfensters klonen: im Build haengt das App-CSS als
+  // Vite-<link rel="stylesheet"> im Head (seit Phase 49, relativer href --
+  // das about:blank-Kind erbt die Base-URL des Openers), im Dev-Modus als
+  // von Vite injizierte <style>-Knoten; Fonts-<link> ist absolut.
   document.querySelectorAll('style, link[rel="stylesheet"]').forEach((n) => {
     doc.head.appendChild(doc.importNode(n, true));
   });
