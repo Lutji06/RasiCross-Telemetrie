@@ -26,10 +26,25 @@ const SHOT = { animations: 'disabled', caret: 'hide' };
 // #topConnPill steht drin, obwohl sein Text ("Offline") konstant ist: seine
 // Position haengt am variablen #hzPill davor (Ziffernzahl der Hz-Anzeige) --
 // ohne eigene Maske "blutet" die Textkante beim Verschieben in den Diff.
+// #connOverviewGps (Review-Fix 2, CI-Diff verifiziert): hat ZWEI Schreiber,
+// die sich gegenseitig ueberschreiben -- pit-wall.renderConnectionTab()
+// (1Hz) setzt direkt 'Fix'/'--', ui-glue.js spiegelt alle 200ms den Text
+// von #connGpsFix ('Fix'/'kein Fix') hinein. Ohne Fix im GPS ping-pongt der
+// Knoten dauerhaft zwischen '--' und 'kein Fix' -- kein Wait macht das
+// deterministisch, nur Maskierung.
+// .sidebar (Review-Fix 2, CI-Diff verifiziert -- "Nav-Indikator"): der
+// Leucht-Balken der aktiven Nav-Zeile ist ein ::before mit left:-16px
+// relativ zu .nav-item (dessen Box bei x=16 beginnt) -- er rendert also bei
+// x=0..3, ausserhalb der eigenen Bounding-Box von .nav-item/.nav-wrap.
+// Playwrights mask deckt nur die getBoundingClientRect() des Locators ab,
+// nicht ueberlaufende Pseudo-Elemente; per getComputedStyle(el,'::before')
+// lokal verifiziert (left:-16px, width:3px, box-shadow blur:12px). Einzige
+// Vorfahren-Box, die bei x=0 beginnt, ist .sidebar selbst (overflow-x:auto
+// clippt am Border-Edge) -- daher volle Sidebar maskiert statt Toleranz.
 const DYN = ['canvas', '.map', '.statusbar',
   '#kartBar', '#liveLeaderStrip', '.pw-clockbox', '#hzPill', '#topConnPill',
   '#battPill', '.pw-kpi-combo', '#latText', '#lonText', '#trackPoints',
-  '#packetsText', '.kc-live'];
+  '#packetsText', '.kc-live', '#connOverviewGps', '.sidebar'];
 
 async function prep(page, app) {
   await app.evaluate(({ BrowserWindow }, size) => {
