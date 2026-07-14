@@ -18,11 +18,15 @@ const TABS = ['live', 'detail', 'races', 'drivers', 'karts', 'track',
 // Feste Fenstergroesse: CI (xvfb) und lokal identisch.
 const WIN = { width: 1440, height: 900 };
 
-const SHOT = { animations: 'disabled', caret: 'hide' };
+// maxDiffPixels 2 (User-Entscheid 2026-07-14): GitHub-Runner rendern Font-Kanten
+// instanzabhaengig minimal verschieden (1px-Jitter, Task-3-Report Review-Fix 3);
+// echte Styling-Aenderungen liegen um Groessenordnungen darueber.
+const SHOT = { animations: 'disabled', caret: 'hide', maxDiffPixels: 2 };
 
 // Masken: alles, was zwischen zwei Frames wechselt (Karte, Canvas,
 // Live-Werte). Liste per Masken-Iteration ermittelt (Step 3) -- bei
-// spaeteren Diffs hier ergaenzen, nie Toleranzen aufweichen.
+// spaeteren Diffs hier ergaenzen; Toleranz nur per dokumentiertem
+// User-Entscheid (s. SHOT).
 // #topConnPill steht drin, obwohl sein Text ("Offline") konstant ist: seine
 // Position haengt am variablen #hzPill davor (Ziffernzahl der Hz-Anzeige) --
 // ohne eigene Maske "blutet" die Textkante beim Verschieben in den Diff.
