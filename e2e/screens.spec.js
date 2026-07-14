@@ -38,6 +38,14 @@ async function prep(page, app) {
     w.center();
   }, WIN);
   await page.evaluate(() => document.fonts.ready);
+  // Erster 1-Hz-Tick + 200ms-Sidebar-Spiegel muessen durch sein, sonst
+  // racet der Screenshot gegen die Boot-Zustaende (Phase 49: --/kein Fix).
+  // #connOverviewGps wird als LETZTES Glied der Kette gesetzt
+  // (live-ui 1Hz -> pit-wall renderConnectionTab -> ui-glue-Spiegel).
+  await page.waitForFunction(() => {
+    const el = document.querySelector('#connOverviewGps');
+    return !!el && el.textContent.trim() !== '--';
+  });
 }
 
 function masks(scope) { return DYN.map((s) => scope.locator(s)); }
