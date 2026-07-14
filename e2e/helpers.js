@@ -16,7 +16,17 @@ const CONSOLE_ERROR_ALLOWLIST = [];
 async function launchApp() {
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'rasicross-e2e-'));
   const app = await electron.launch({
-    args: ['.'].concat(process.env.CI ? ['--no-sandbox'] : []),
+    // --disable-gpu (Phase 50 Task 1): rcAlert/rcConfirm oeffnen erstmals in
+    // dieser Suite einen Overlay mit backdrop-filter:blur (modals.css). Unter
+    // Xvfb (Mesa-Softwarepipeline, kein echtes GPU) fuehrte das reproduzierbar
+    // zu einem Renderer-Crash direkt nach dem ersten Dialog-Screenshot --
+    // Playwright startete daraufhin fuer den naechsten Test einen neuen
+    // Worker (frisches launchApp, Tab wieder "live"), waehrend ein noch
+    // ausstehender Klick aus dem Vorlauf offenbar den frischen Dialog sofort
+    // wieder schloss (leeres Live-Tab-Bild statt Dialog in beiden CI-Laeufen,
+    // s. .superpowers/phase50/task1/trace-confirm). --disable-gpu erzwingt
+    // Software-Rendering durchgaengig statt eines instabilen GPU-Pfads.
+    args: ['.'].concat(process.env.CI ? ['--no-sandbox', '--disable-gpu'] : []),
     cwd: path.join(__dirname, '..'),
     env: Object.assign({}, process.env, { RASI_TEST_USERDATA: userData }),
   });
