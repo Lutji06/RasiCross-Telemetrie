@@ -76,6 +76,29 @@ test.describe('Ruhezustand', () => {
         Object.assign({ mask: masks(ctx.page) }, SHOT));
     });
   }
+
+  test('Dialog rcAlert', async () => {
+    await ctx.page.evaluate(() => { RasiTest.rcAlert('Aufzeichnung gespeichert.', 'Hinweis'); });
+    await ctx.page.waitForSelector('#rcAlertOverlay.show');
+    await expect(ctx.page).toHaveScreenshot('dialog-alert.png',
+      Object.assign({ mask: masks(ctx.page) }, SHOT));
+    await ctx.page.click('#rcAlertBtns .btn.primary');
+    // state:'attached' statt Default 'visible': .overlay setzt display:none
+    // sobald .show entfaellt (src/styles/modals.css), das Element wird also
+    // sofort unsichtbar -- 'visible' wuerde hier nie erfuellt (Timeout).
+    await ctx.page.waitForSelector('#rcAlertOverlay:not(.show)', { state: 'attached' });
+  });
+
+  test('Dialog rcConfirm (danger)', async () => {
+    await ctx.page.evaluate(() => {
+      RasiTest.rcConfirm('Diesen Eintrag wirklich loeschen?', 'Bestaetigung', 'Loeschen', true);
+    });
+    await ctx.page.waitForSelector('#rcAlertOverlay.show');
+    await expect(ctx.page).toHaveScreenshot('dialog-confirm.png',
+      Object.assign({ mask: masks(ctx.page) }, SHOT));
+    await ctx.page.click('#rcAlertBtns .btn.ghost');
+    await ctx.page.waitForSelector('#rcAlertOverlay:not(.show)', { state: 'attached' });
+  });
 });
 
 test.describe('Demo-Zustand', () => {
