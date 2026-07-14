@@ -11,6 +11,7 @@
     "test": "node --test",
     "test:e2e": "vite build && playwright test",
     "lint": "eslint .",
+    "lint:css": "node scripts/check-css-tokens.js",
     "build": "vite build && electron-builder",
     "build:win": "vite build && electron-builder --win --x64",
     "build:mac": "vite build && electron-builder --mac",
