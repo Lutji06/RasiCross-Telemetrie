@@ -6,55 +6,55 @@
   width:var(--side-w);
   background:var(--surf);
   border-right:1px solid var(--bor);
-  padding:22px 16px 18px;
-  display:flex;flex-direction:column;gap:6px;
+  padding:var(--sp-24) var(--sp-14) var(--sp-18);
+  display:flex;flex-direction:column;gap:var(--sp-6);
   z-index:50;
   overflow-y:auto;
 }
 .brand{
-  display:flex;flex-direction:column;gap:8px;
-  padding:0 0 18px;
+  display:flex;flex-direction:column;gap:var(--sp-8);
+  padding:0 0 var(--sp-18);
   margin-bottom:10px;
   border-bottom:1px solid var(--div);
 }
 .brand-mark{
   width:100%;aspect-ratio:216/76;
-  border-radius:14px;
+  border-radius:var(--r-md);
   background:linear-gradient(135deg,var(--pr) 0%,var(--pr-2) 100%);
   overflow:hidden;
-  box-shadow:0 6px 18px var(--pr-glow);
+  box-shadow:var(--glow-lg) var(--pr-glow);
   position:relative;
 }
 .brand-mark svg{width:100%;height:100%;display:block;position:relative;z-index:2}
 .brand-mark::after{
-  content:'';position:absolute;inset:1px;border-radius:13px;
+  content:'';position:absolute;inset:1px;border-radius:var(--r-md);
   background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 50%);
   pointer-events:none;z-index:3;
 }
-.brand-text{padding:0 4px}
+.brand-text{padding:0 var(--sp-4)}
 .brand-name{display:none}    /* RasiCross sitzt jetzt im SVG-Wordmark */
 .brand-sub{
-  font-family:var(--mono);font-size:10px;
+  font-family:var(--mono);font-size:var(--fs-10);
   color:var(--mut);font-weight:500;
   letter-spacing:.04em;
 }
 
 .nav-group{
-  display:flex;flex-direction:column;gap:2px;
+  display:flex;flex-direction:column;gap:var(--sp-2);
   margin-bottom:14px;
 }
 .nav-group-title{
-  font-family:var(--mono);font-size:9.5px;
+  font-family:var(--mono);font-size:var(--fs-9);
   text-transform:uppercase;letter-spacing:.14em;
   font-weight:700;color:var(--mut);
-  padding:8px 10px 6px;
+  padding:var(--sp-8) var(--sp-10) var(--sp-6);
 }
 .nav-item{
-  display:flex;align-items:center;gap:11px;
-  padding:10px 12px;border-radius:10px;
+  display:flex;align-items:center;gap:var(--sp-10);
+  padding:var(--sp-10) var(--sp-12);border-radius:var(--r-sm);
   background:transparent;border:1px solid transparent;
   color:var(--tx-dim);font-family:var(--sans);
-  font-size:13.5px;font-weight:500;
+  font-size:var(--fs-13);font-weight:500;
   cursor:pointer;transition:var(--t);
   text-align:left;width:100%;
   position:relative;
@@ -71,7 +71,7 @@
   width:3px;height:20px;
   background:var(--pr);border-radius:0 3px 3px 0;
   transform:translateY(-50%);
-  box-shadow:0 0 12px var(--pr-glow);
+  box-shadow:var(--glow-md) var(--pr-glow);
 }
 .nav-icon{
   width:18px;height:18px;flex-shrink:0;
@@ -84,14 +84,14 @@
   margin-top:auto;
   padding-top:14px;
   border-top:1px solid var(--div);
-  display:flex;flex-direction:column;gap:8px;
+  display:flex;flex-direction:column;gap:var(--sp-8);
 }
 
 .conn-card{
-  padding:12px;border-radius:12px;
+  padding:var(--sp-12);border-radius:var(--r-md);
   background:var(--soft);
   border:1px solid var(--bor);
-  display:flex;align-items:center;gap:10px;
+  display:flex;align-items:center;gap:var(--sp-10);
 }
 .conn-dot{
   width:10px;height:10px;border-radius:50%;
@@ -99,22 +99,22 @@
 }
 .conn-card.connected .conn-dot{
   background:var(--green);
-  box-shadow:0 0 0 4px rgba(62,224,138,.15),0 0 12px var(--green-glow);
+  box-shadow:var(--ring) rgba(62,224,138,.15),var(--glow-md) var(--green-glow);
   animation:pulseDot 2s ease-in-out infinite;
 }
 .conn-card.demo .conn-dot{
   background:var(--blue);
-  box-shadow:0 0 0 4px rgba(90,184,255,.15),0 0 12px var(--blue-glow);
+  box-shadow:var(--ring) rgba(90,184,255,.15),var(--glow-md) var(--blue-glow);
 }
 @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.5}}
 .conn-info{flex:1;min-width:0}
 .conn-info-l{
-  font-family:var(--mono);font-size:9px;
+  font-family:var(--mono);font-size:var(--fs-9);
   text-transform:uppercase;letter-spacing:.1em;
   color:var(--mut);font-weight:700;
 }
 .conn-info-v{
-  font-family:var(--mono);font-size:12px;
+  font-family:var(--mono);font-size:var(--fs-12);
   color:var(--tx);font-weight:700;
   margin-top:1px;
 }
@@ -132,30 +132,30 @@
 
 .topbar{
   position:sticky;top:0;z-index:40;
-  padding:18px 32px;
+  padding:var(--sp-18) var(--sp-24);
   background:rgba(7,9,18,.7);
   backdrop-filter:blur(20px) saturate(180%);
   -webkit-backdrop-filter:blur(20px) saturate(180%);
   border-bottom:1px solid var(--bor);
-  display:flex;align-items:center;gap:14px;
+  display:flex;align-items:center;gap:var(--sp-14);
   flex-wrap:wrap;
 }
 [data-theme=light] .topbar{background:rgba(255,255,255,.7)}
 [data-theme=outdoor] .topbar{background:rgba(255,255,255,.95)}
 .topbar-title{
   font-family:var(--sans);font-weight:700;
-  font-size:20px;letter-spacing:-.02em;
+  font-size:var(--fs-20);letter-spacing:-.02em;
   color:var(--tx);
 }
 .topbar-sub{
-  font-family:var(--mono);font-size:11px;
+  font-family:var(--mono);font-size:var(--fs-11);
   color:var(--mut);font-weight:500;
   margin-top:2px;
 }
 .topbar-spacer{flex:1}
 
 .content{
-  padding:24px 32px 40px;
+  padding:var(--sp-24) var(--sp-24) var(--sp-24);
   flex:1;
   max-width:1640px;
   width:100%;
