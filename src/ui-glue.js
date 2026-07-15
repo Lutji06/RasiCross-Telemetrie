@@ -125,6 +125,9 @@ import { rcAudio } from './rasicross.js';
       track:['Strecke','Aufnahme, Sektoren & gespeicherte Strecken'],
       races:['Rennen','Erstellen, starten und auswerten'],
       drivers:['Fahrer','Statistiken & Gesamtstrecke'],
+      // Ohne Eintrag behielte der Header den Titel des zuvor geklickten
+      // Tabs (reihenfolgeabhaengig -- stiller E2E-Flake bis Phase 50).
+      karts:['Karts','Flotte & Wartung'],
       connection:['Verbindung','USB-Bridge, Demo-Modus & Diagnose'],
       settings:['Einstellungen','Skalen, Kalibrierung, ESP32 & Daten']
     };
