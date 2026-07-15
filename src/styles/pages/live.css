@@ -289,7 +289,7 @@
   transition:var(--t);
 }
 .g-view-toggle button.active{
-  background:var(--pr);color:var(--on-pr-3);
+  background:var(--pr);color:var(--on-pr);
 }
 .g-view-toggle button.disabled{
   opacity:0.4;cursor:not-allowed;

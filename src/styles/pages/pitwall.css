@@ -249,7 +249,7 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 .settings-search input::placeholder{color:var(--mut)}
 .settings-nav-item{text-align:left;background:transparent;border:0;color:var(--tx-dim);font-family:var(--sans);font-size:13.5px;font-weight:600;padding:9px 11px;border-radius:var(--r-sm);cursor:pointer;transition:var(--t)}
 .settings-nav-item:hover{background:var(--soft);color:var(--tx)}
-.settings-nav-item.active{background:var(--pr);color:var(--on-pr-4);box-shadow:0 0 20px var(--pr-soft)}
+.settings-nav-item.active{background:var(--pr);color:var(--on-pr);box-shadow:0 0 20px var(--pr-soft)}
 .settings-nav-item.search-hit{box-shadow:inset 2px 0 0 var(--pr)}
 .settings-nav-item.search-dim{opacity:.35}
 
