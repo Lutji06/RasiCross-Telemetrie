@@ -4,13 +4,13 @@
 .kpi-row{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:14px;
+  gap:var(--sp-14);
 }
 @media(max-width:1100px){.kpi-row{grid-template-columns:repeat(2,1fr)}}
 
 .kpi{
   position:relative;overflow:hidden;
-  padding:22px 22px 48px;
+  padding:var(--sp-24) var(--sp-24) var(--sp-24);
   background:var(--surf);
   border:1px solid var(--bor);
   border-radius:var(--r-xl);
@@ -26,12 +26,12 @@
   align-items:center;
 }
 .kpi-l{
-  font-family:var(--mono);font-size:10px;
+  font-family:var(--mono);font-size:var(--fs-10);
   font-weight:700;text-transform:uppercase;
   letter-spacing:.13em;color:var(--mut);
 }
 .kpi-icon{
-  width:28px;height:28px;border-radius:9px;
+  width:28px;height:28px;border-radius:var(--r-sm);
   background:var(--pr-soft);
   color:var(--pr);
   display:grid;place-items:center;
@@ -60,9 +60,9 @@
   font-family:var(--mono);
 }
 .kpi-sub{
-  font-family:var(--mono);font-size:11.5px;
+  font-family:var(--mono);font-size:var(--fs-11);
   color:var(--mut);font-weight:500;
-  display:flex;align-items:center;gap:6px;
+  display:flex;align-items:center;gap:var(--sp-6);
 }
 .kpi-sub b{color:var(--tx-dim);font-weight:700;font-variant-numeric:tabular-nums}
 
@@ -78,8 +78,8 @@
 .race-bar{
   display:grid;
   grid-template-columns:auto 1fr auto;
-  gap:24px;align-items:center;
-  padding:18px 22px;
+  gap:var(--sp-24);align-items:center;
+  padding:var(--sp-18) var(--sp-24);
   background:var(--surf);
   border:1px solid var(--bor);
   border-radius:var(--r-xl);
@@ -94,10 +94,10 @@
   opacity:.5;
 }
 .race-bar-l{
-  display:flex;flex-direction:column;gap:2px;
+  display:flex;flex-direction:column;gap:var(--sp-2);
 }
 .race-bar-label{
-  font-family:var(--mono);font-size:10px;
+  font-family:var(--mono);font-size:var(--fs-10);
   text-transform:uppercase;letter-spacing:.12em;
   color:var(--mut);font-weight:700;
 }
@@ -109,15 +109,15 @@
   text-shadow:0 0 24px var(--pr-glow);
 }
 .race-bar-meta{
-  font-family:var(--sans);font-size:13px;
+  font-family:var(--sans);font-size:var(--fs-13);
   color:var(--tx-dim);font-weight:500;
-  display:flex;flex-wrap:wrap;gap:14px;
+  display:flex;flex-wrap:wrap;gap:var(--sp-14);
   align-items:center;
 }
 .race-bar-meta b{color:var(--tx);font-weight:700}
 .race-bar-meta .sep{color:var(--dim)}
 .race-bar-actions{
-  display:flex;gap:8px;flex-wrap:wrap;
+  display:flex;gap:var(--sp-8);flex-wrap:wrap;
   justify-content:flex-end;
 }
 @media(max-width:900px){
@@ -129,16 +129,16 @@
    DELTA BANNER
    ============================================================ */
 .delta-banner{
-  display:flex;align-items:center;justify-content:center;gap:28px;
+  display:flex;align-items:center;justify-content:center;gap:var(--sp-24);
   background:var(--surf);border:1px solid var(--bor);
   border-radius:var(--r-xl);
-  padding:14px 24px;margin-bottom:18px;
+  padding:var(--sp-14) var(--sp-24);margin-bottom:18px;
   position:relative;overflow:hidden;
   box-shadow:var(--sh-sm);
 }
 .delta-banner.hidden{display:none}
 .delta-label{
-  font-family:var(--mono);font-size:11px;
+  font-family:var(--mono);font-size:var(--fs-11);
   color:var(--mut);font-weight:700;
   text-transform:uppercase;letter-spacing:.12em;
 }
@@ -151,7 +151,7 @@
 .delta-time.slower{color:var(--red);text-shadow:0 0 14px var(--red-glow)}
 .delta-time.same{color:var(--mut)}
 .delta-ref{
-  font-family:var(--mono);font-size:11px;
+  font-family:var(--mono);font-size:var(--fs-11);
   color:var(--mut);font-weight:500;
 }
 
@@ -161,26 +161,26 @@
 .sector-panel{
   display:grid;
   grid-template-columns:repeat(3,1fr);
-  gap:12px;margin-bottom:18px;
+  gap:var(--sp-12);margin-bottom:18px;
 }
 .sector-card{
   background:var(--surf);
   border:1px solid var(--bor);
   border-radius:var(--r-lg);
-  padding:16px 18px;
+  padding:var(--sp-14) var(--sp-18);
   position:relative;overflow:hidden;
   transition:var(--t);
 }
 .sector-card.active{
   border-color:var(--pr);
-  box-shadow:0 0 0 3px var(--pr-soft),0 8px 24px var(--pr-glow);
+  box-shadow:var(--ring) var(--pr-soft),var(--glow-lg) var(--pr-glow);
 }
 .sector-card.active::before{
   content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:var(--pr);box-shadow:0 0 12px var(--pr-glow);
+  background:var(--pr);box-shadow:var(--glow-md) var(--pr-glow);
 }
 .sector-label{
-  font-family:var(--mono);font-size:10px;
+  font-family:var(--mono);font-size:var(--fs-10);
   font-weight:700;color:var(--mut);
   letter-spacing:.12em;margin-bottom:6px;
   text-transform:uppercase;
@@ -192,7 +192,7 @@
   letter-spacing:-.03em;line-height:1;
 }
 .sector-delta{
-  font-family:var(--mono);font-size:11px;
+  font-family:var(--mono);font-size:var(--fs-11);
   font-weight:600;margin-top:5px;
   font-variant-numeric:tabular-nums;
 }
@@ -236,8 +236,8 @@
    ============================================================ */
 .tacho-wrap{
   display:flex;flex-direction:column;
-  align-items:center;gap:14px;
-  padding:6px 0 4px;
+  align-items:center;gap:var(--sp-14);
+  padding:var(--sp-6) 0 var(--sp-4);
 }
 .tacho-svg{
   width:100%;max-width:300px;
@@ -246,7 +246,7 @@
 }
 .rpm-block{width:100%}
 .rpm-bar{
-  height:14px;border-radius:99px;
+  height:14px;border-radius:var(--r-pill);
   background:var(--soft);
   border:1px solid var(--bor);
   overflow:hidden;position:relative;
@@ -256,35 +256,35 @@
   height:100%;width:0;
   background:linear-gradient(90deg,var(--green) 0%,var(--pr) 50%,var(--orange) 75%,var(--red) 100%);
   transition:width .08s linear;
-  border-radius:99px;
+  border-radius:var(--r-pill);
 }
 .rpm-row{
   display:flex;justify-content:space-between;
-  font-family:var(--mono);font-size:11px;
+  font-family:var(--mono);font-size:var(--fs-11);
   color:var(--mut);margin-top:7px;font-weight:600;
 }
 
 #gMeterCanvas, #gMeter3dCanvas{
-  display:block;margin:8px auto 0;
+  display:block;margin:var(--sp-8) auto 0;
   width:100%;max-width:200px;aspect-ratio:1;
   border-radius:50%;
 }
 #gMeter3dCanvas.hidden, #gMeterCanvas.hidden{ display:none; }
-.roll-ind{ margin:10px auto 0; max-width:280px; }
-.roll-val{ text-align:center; font-size:13px; margin-top:2px; }
-.roll-cap{ font-family:var(--mono); font-size:9.5px; font-weight:800; letter-spacing:.1em; color:var(--mut); }
+.roll-ind{ margin:var(--sp-10) auto 0; max-width:280px; }
+.roll-val{ text-align:center; font-size:var(--fs-13); margin-top:2px; }
+.roll-cap{ font-family:var(--mono); font-size:var(--fs-9); font-weight:800; letter-spacing:.1em; color:var(--mut); }
 .roll-over{ color:var(--rollover); font-weight:700; animation:rollBlink .5s steps(1) infinite; }
 .roll-over.hidden{ display:none; }
 @keyframes rollBlink{ 50%{ opacity:.2; } }
 .g-view-toggle{
-  display:inline-flex;gap:4px;margin:0 auto 4px;
-  padding:3px;border-radius:999px;
+  display:inline-flex;gap:var(--sp-4);margin:0 auto var(--sp-4);
+  padding:var(--sp-2);border-radius:var(--r-pill);
   background:var(--soft);border:1px solid var(--bor);
 }
 .g-view-toggle button{
-  padding:4px 12px;border:0;background:transparent;
-  font-family:var(--mono);font-size:10.5px;font-weight:700;
-  color:var(--mut);border-radius:999px;cursor:pointer;
+  padding:var(--sp-4) var(--sp-12);border:0;background:transparent;
+  font-family:var(--mono);font-size:var(--fs-10);font-weight:700;
+  color:var(--mut);border-radius:var(--r-pill);cursor:pointer;
   text-transform:uppercase;letter-spacing:.08em;
   transition:var(--t);
 }
@@ -295,9 +295,9 @@
   opacity:0.4;cursor:not-allowed;
 }
 .g-readout{
-  display:flex;justify-content:center;gap:18px;
+  display:flex;justify-content:center;gap:var(--sp-18);
   margin-top:10px;
-  font-family:var(--mono);font-size:12px;
+  font-family:var(--mono);font-size:var(--fs-12);
   color:var(--mut);font-weight:600;
 }
 .g-readout b{color:var(--tx);font-weight:700;font-variant-numeric:tabular-nums}
@@ -306,9 +306,9 @@
    HEAT BTN
    ============================================================ */
 .heat-btn{
-  padding:7px 12px;font-family:var(--mono);
-  font-size:10.5px;font-weight:700;
-  border-radius:9px;
+  padding:var(--sp-6) var(--sp-12);font-family:var(--mono);
+  font-size:var(--fs-10);font-weight:700;
+  border-radius:var(--r-sm);
   background:var(--soft);border:1px solid var(--bor);
   color:var(--mut);cursor:pointer;
   text-transform:uppercase;letter-spacing:.08em;
