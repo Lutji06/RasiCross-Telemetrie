@@ -74,6 +74,11 @@ test.describe('Ruhezustand', () => {
   }
 
   test('Dialog rcAlert', async () => {
+    // Dialog-Kontext pinnen: im Voll-Durchlauf ist nach der Tab-Schleife
+    // settings aktiv, nach einem Worker-Neustart (Retry) aber live -- dort
+    // malen die Karten-Masken UEBER den Dialog. Expliziter Klick macht den
+    // Hintergrund kontext-unabhaengig (Lektion Pass A, Phase 50).
+    await ctx.page.click('.nav-item[data-tab="settings"]');
     await ctx.page.evaluate(() => { RasiTest.rcAlert('Aufzeichnung gespeichert.', 'Hinweis'); });
     await ctx.page.waitForSelector('#rcAlertOverlay.show');
     await expect(ctx.page).toHaveScreenshot('dialog-alert.png',
@@ -86,6 +91,8 @@ test.describe('Ruhezustand', () => {
   });
 
   test('Dialog rcConfirm (danger)', async () => {
+    // Kontext-Pin wie bei rcAlert (Worker-Neustart => sonst live-Tab).
+    await ctx.page.click('.nav-item[data-tab="settings"]');
     await ctx.page.evaluate(() => {
       RasiTest.rcConfirm('Diesen Eintrag wirklich loeschen?', 'Bestaetigung', 'Loeschen', true);
     });
