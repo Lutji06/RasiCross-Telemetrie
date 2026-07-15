@@ -30,17 +30,13 @@ const SHOT = { animations: 'disabled', caret: 'hide', maxDiffPixels: 2 };
 // #topConnPill steht drin, obwohl sein Text ("Offline") konstant ist: seine
 // Position haengt am variablen #hzPill davor (Ziffernzahl der Hz-Anzeige) --
 // ohne eigene Maske "blutet" die Textkante beim Verschieben in den Diff.
-// #connOverviewGps (Review-Fix 2, CI-Diff verifiziert): hat ZWEI Schreiber,
-// die sich gegenseitig ueberschreiben -- pit-wall.renderConnectionTab()
-// (1Hz) setzt direkt 'Fix'/'--', ui-glue.js spiegelt alle 200ms den Text
-// von #connGpsFix ('Fix'/'kein Fix') hinein. Ohne Fix im GPS ping-pongt der
-// Knoten dauerhaft zwischen '--' und 'kein Fix' -- kein Wait macht das
-// deterministisch, nur Maskierung.
+// #connOverviewGps ist seit dem Dual-Writer-Fix (Phase 50) deterministisch
+// (nur noch ui-glue-Spiegel); der prep()-Wait unten sichert den ersten Tick.
 // .sidebar wird NICHT maskiert: das Gate soll Sidebar-CSS-Regressionen sehen (Phase 50).
 const DYN = ['canvas', '.map', '.statusbar',
   '#kartBar', '#liveLeaderStrip', '.pw-clockbox', '#hzPill', '#topConnPill',
   '#battPill', '.pw-kpi-combo', '#latText', '#lonText', '#trackPoints',
-  '#packetsText', '.kc-live', '#connOverviewGps'];
+  '#packetsText', '.kc-live'];
 
 async function prep(page, app) {
   await app.evaluate(({ BrowserWindow }, size) => {
