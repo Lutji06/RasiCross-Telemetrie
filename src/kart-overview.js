@@ -128,7 +128,7 @@ import RasiLapEngine from './lap-engine.js';
         const mac = card.getAttribute('data-mac');
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
-          setLiveView('single');
+          setLiveView('single', true);
         }
       };
     });
