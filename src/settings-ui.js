@@ -7,6 +7,7 @@ import { drawTrack } from './map-draw.js';
 import { renderSavedTracks } from './track.js';
 import { restartDisplayUpdateInterval } from './pit-wall.js';
 import RasiSettings from './settings.js';
+import RasiLiveView from './live-view.js';
 import RasiTileRenderer from './tile-renderer.js';
 import { state, saveData } from './store.js';
 import { $, setText, rcAlert, rcConfirm, rcToast, formatBytes } from './rasicross.js';
@@ -96,6 +97,8 @@ function loadSettingsToUi() {
   $('setRpmWarn').value = state.settings.rpmWarning;
   $('setGScale').value = state.settings.gScale;
   $('setMinLap').value = state.settings.minLapSeconds;
+  if ($('setLiveStartView')) $('setLiveStartView').value =
+    RasiLiveView.START_MODES.includes(state.settings.liveStartView) ? state.settings.liveStartView : 'auto';
   if ($('setDriftTol')) $('setDriftTol').value = state.settings.drift.tol;
   if ($('setDriftMinSpeed')) $('setDriftMinSpeed').value = state.settings.drift.minSpeedKmh;
   if ($('setRolloverAngle')) $('setRolloverAngle').value = (state.settings.rollover && state.settings.rollover.angleDeg) || 75;
@@ -131,6 +134,8 @@ function saveSettingsFromUi() {
   state.settings.rpmWarning = Math.max(2000, Math.min(state.settings.maxRpm, Number($('setRpmWarn').value) || 9000));
   state.settings.gScale = Math.max(2, Math.min(5, Number($('setGScale').value) || 3));
   state.settings.minLapSeconds = Math.max(3, Math.min(300, Number($('setMinLap').value) || 10));
+  const _lsv = $('setLiveStartView') ? $('setLiveStartView').value : 'auto';
+  state.settings.liveStartView = RasiLiveView.START_MODES.includes(_lsv) ? _lsv : 'auto';
   if (!state.settings.drift) state.settings.drift = { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 };
   state.settings.drift.tol = Math.max(0.05, Math.min(1, Number($('setDriftTol')?.value) || 0.25));
   state.settings.drift.minSpeedKmh = Math.max(1, Math.min(60, Number($('setDriftMinSpeed')?.value) || 5));
