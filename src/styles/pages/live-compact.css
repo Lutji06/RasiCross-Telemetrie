@@ -74,8 +74,12 @@ body[data-live-view="overview"] #tab-live .pw-live-body{display:none}
 .ko-card .ko-name{font-weight:700;font-size:var(--fs-14);flex:1;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 .ko-card .ko-rec{color:var(--rec);font-weight:700;font-size:var(--fs-11)}
-.ko-card .ko-speed{font-family:var(--mono);font-size:30px;font-weight:800;line-height:1}
+.ko-card .ko-speed{font-family:var(--mono);font-size:26px;font-weight:800;line-height:1}
 .ko-card .ko-speed small{font-size:var(--fs-13);opacity:.6;font-weight:600;margin-left:3px}
+.ko-card .ko-big{display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-10)}
+.ko-card .ko-rpm{font-family:var(--mono);font-size:26px;font-weight:800;line-height:1;color:var(--tx)}
+.ko-card .ko-rpm small{font-size:var(--fs-13);opacity:.6;font-weight:600;margin-left:3px}
+.ko-card .ko-rpm.warn{color:var(--red)}
 .ko-card .ko-row{display:flex;justify-content:space-between;align-items:baseline;font-size:var(--fs-12)}
 .ko-card .ko-l{color:var(--mut)}
 .ko-card .ko-v{font-family:var(--mono);font-size:var(--fs-15);color:var(--tx)}
