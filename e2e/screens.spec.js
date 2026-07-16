@@ -145,7 +145,10 @@ test.describe('Demo-Zustand', () => {
     await ctx.page.click('.nav-item[data-tab="live"]');
     await ctx.page.waitForFunction(() => document.body.dataset.liveView === 'overview');
     // Karten-Klick = Hand-Wahl (manual): waehlt Kart 1, Einzel-Ansicht bleibt.
-    await ctx.page.click('#liveOverview .ko-card:nth-child(1)');
+    // Deterministisch Kart 1 waehlen: nth-child ist ranking-sortiert und
+    // kann mitten im Demo-Rennen umsortieren (Final-Review Phase 55).
+    const mac = await ctx.page.evaluate(() => RasiTest.state.karts.macs()[0]);
+    await ctx.page.click('#liveOverview .ko-card[data-mac="' + mac + '"]');
     await ctx.page.waitForFunction(() => document.body.dataset.liveView === 'single');
     await expect(ctx.page).toHaveScreenshot('demo-live-single.png',
       Object.assign({ mask: masks(ctx.page) }, SHOT));
