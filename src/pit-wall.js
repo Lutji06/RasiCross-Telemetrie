@@ -190,11 +190,9 @@ function renderConnectionTab() {
     setText('connModePill', c.source === 'serial' ? 'USB Serial' : c.source === 'demo' ? 'Demo' : 'Offline');
     setText('connBridgeState', state.serial.connected ? 'Online' : 'Offline');
     setText('connPacketsMini', c.packets.toLocaleString('de-DE'));
-    // Overview
-    setText('connOverviewState', c.source === 'serial' ? 'Verbunden' : c.source === 'demo' ? 'Demo' : 'Offline');
-    setText('connOverviewHz', (state._lastHz || 0) + ' Hz');
-    setText('connOverviewLost', c.lost);
-    setText('connOverviewGps', k.gps.fix ? 'Fix' : '--');
+    // Overview-Felder schreibt ausschliesslich der 200-ms-Spiegel in
+    // ui-glue.js (Single Source; Phase 50 -- vorher Dual-Writer-Ping-Pong
+    // auf connOverviewGps: '--' vs 'kein Fix').
     setText('connOverviewSignal', c.rssi != null ? c.rssi + ' dBm' : '--');
     // Diagram
     setText('kartStatePill', c.lastPacketAt ? (Date.now() - c.lastPacketAt < 2000 ? 'aktiv' : 'inaktiv') : 'wartet');

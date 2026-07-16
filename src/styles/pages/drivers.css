@@ -4,8 +4,8 @@
 .driver-card{
   display:grid;
   grid-template-columns:auto 1fr auto;
-  gap:14px;align-items:center;
-  padding:14px 16px;
+  gap:var(--sp-14);align-items:center;
+  padding:var(--sp-14) var(--sp-14);
   background:var(--soft);
   border:1px solid var(--bor);
   border-radius:var(--r-md);
@@ -14,26 +14,26 @@
 .driver-card:hover{border-color:var(--bor2);background:var(--soft2)}
 .driver-num{
   width:48px;height:48px;
-  border-radius:12px;
+  border-radius:var(--r-md);
   background:var(--driver,var(--pr));
   color:var(--on-pr);
   display:grid;place-items:center;
   font-family:var(--mono);font-weight:800;
-  font-size:17px;letter-spacing:-.04em;
-  box-shadow:0 4px 14px rgba(0,0,0,.3);
+  font-size:var(--fs-17);letter-spacing:-.04em;
+  box-shadow:var(--glow-lg) rgba(0,0,0,.3);
 }
 .driver-name{
-  font-family:var(--sans);font-size:14.5px;
+  font-family:var(--sans);font-size:var(--fs-14);
   color:var(--tx);font-weight:600;
 }
 .driver-name span{
   display:block;font-family:var(--mono);
-  font-size:10.5px;color:var(--mut);
+  font-size:var(--fs-10);color:var(--mut);
   margin-top:3px;font-weight:500;
 }
 
 .driver-stat-card{
-  padding:18px;
+  padding:var(--sp-18);
   background:var(--surf);
   border:1px solid var(--bor);
   border-radius:var(--r-xl);
@@ -43,32 +43,32 @@
 .driver-stat-head{
   display:grid;
   grid-template-columns:auto 1fr auto;
-  gap:14px;align-items:center;
+  gap:var(--sp-14);align-items:center;
   margin-bottom:14px;
 }
 .driver-stat-name{
-  font-family:var(--sans);font-size:17px;
+  font-family:var(--sans);font-size:var(--fs-17);
   font-weight:700;color:var(--tx);
   letter-spacing:-.02em;
 }
 .driver-stat-sub{
-  font-family:var(--mono);font-size:10.5px;
+  font-family:var(--mono);font-size:var(--fs-10);
   color:var(--mut);font-weight:600;margin-top:3px;
 }
 .driver-stat-grid{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(110px,1fr));
-  gap:8px;
+  gap:var(--sp-8);
 }
 .dstat{
-  padding:10px 12px;
+  padding:var(--sp-10) var(--sp-12);
   background:var(--soft);
   border:1px solid var(--bor);
   border-radius:var(--r-md);
 }
 .dstat span{
   display:block;
-  font-family:var(--mono);font-size:9px;
+  font-family:var(--mono);font-size:var(--fs-9);
   text-transform:uppercase;
   letter-spacing:.1em;
   color:var(--mut);font-weight:700;
@@ -76,7 +76,7 @@
 }
 .dstat b{
   display:block;
-  font-family:var(--mono);font-size:16px;
+  font-family:var(--mono);font-size:var(--fs-15);
   font-weight:700;color:var(--tx);
   font-variant-numeric:tabular-nums;
   letter-spacing:-.02em;
@@ -85,48 +85,48 @@
 .dstat.highlight b{color:var(--driver,var(--pr))}
 
 /* ── Karts-Tab (Phase 46): Karte pro Kart, Stil wie driver-stat-card ── */
-.kart-card{padding:16px;background:var(--surf);border:1px solid var(--bor);
+.kart-card{padding:var(--sp-14);background:var(--surf);border:1px solid var(--bor);
   border-radius:var(--r-xl);border-left:4px solid var(--kart,var(--pr));
   margin-bottom:10px;transition:var(--t)}
 .kart-card.active{box-shadow:0 0 0 1px var(--kart,var(--pr)) inset}
 .kart-card.offline{opacity:.72}
-.kc-head{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin-bottom:10px}
+.kc-head{display:grid;grid-template-columns:auto 1fr auto;gap:var(--sp-12);align-items:center;margin-bottom:10px}
 .kc-dot{width:14px;height:14px;border-radius:50%;background:var(--kart,var(--pr))}
-.kart-card .kc-name{font-weight:600;font-size:14px}
-.kc-name-input{font-family:var(--sans);font-size:16px;font-weight:700;color:var(--tx);
-  background:transparent;border:1px solid transparent;border-radius:var(--r-md);padding:4px 8px;max-width:220px}
+.kart-card .kc-name{font-weight:600;font-size:var(--fs-14)}
+.kc-name-input{font-family:var(--sans);font-size:var(--fs-15);font-weight:700;color:var(--tx);
+  background:transparent;border:1px solid transparent;border-radius:var(--r-md);padding:var(--sp-4) var(--sp-8);max-width:220px}
 .kc-name-input:hover,.kc-name-input:focus{border-color:var(--bor);background:var(--soft)}
-.kc-mac{font-family:var(--mono);font-size:10.5px;color:var(--mut);font-weight:600;margin-top:2px}
-.kc-badge{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.08em;
-  padding:2px 7px;border-radius:999px;border:1px solid var(--bor);color:var(--mut);margin-left:8px}
+.kc-mac{font-family:var(--mono);font-size:var(--fs-10);color:var(--mut);font-weight:600;margin-top:2px}
+.kc-badge{font-family:var(--mono);font-size:var(--fs-9);font-weight:700;letter-spacing:.08em;
+  padding:var(--sp-2) var(--sp-6);border-radius:var(--r-pill);border:1px solid var(--bor);color:var(--mut);margin-left:8px}
 .kc-badge.demo{color:var(--pr);border-color:var(--pr)}
-.kc-live{font-family:var(--mono);font-size:11px;color:var(--mut);margin-bottom:10px;display:flex;gap:12px;flex-wrap:wrap}
+.kc-live{font-family:var(--mono);font-size:var(--fs-11);color:var(--mut);margin-bottom:10px;display:flex;gap:var(--sp-12);flex-wrap:wrap}
 .kc-live .rec{color:var(--rec);font-weight:700}
-.kc-swatches{display:flex;gap:6px}
+.kc-swatches{display:flex;gap:var(--sp-6)}
 .kc-sw{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent}
 .kc-sw.active{border-color:var(--tx)}
-.kc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:10px}
-.kc-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.kc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:var(--sp-8);margin-bottom:10px}
+.kc-actions{display:flex;gap:var(--sp-8);flex-wrap:wrap;align-items:center}
 .kc-actions .grow{flex:1}
 .kc-interval{width:70px;text-align:right}
-.kc-warn{font-family:var(--mono);font-size:11px;color:var(--warn);font-weight:700}
+.kc-warn{font-family:var(--mono);font-size:var(--fs-11);color:var(--warn);font-weight:700}
 
 
 .thero-stat{
-  padding:12px 14px;
+  padding:var(--sp-12) var(--sp-14);
   background:var(--soft);
   border:1px solid var(--bor);
   border-radius:var(--r-md);
 }
 .thero-stat span{
   display:block;font-family:var(--mono);
-  font-size:9px;text-transform:uppercase;
+  font-size:var(--fs-9);text-transform:uppercase;
   letter-spacing:.11em;color:var(--mut);
   font-weight:700;margin-bottom:5px;
 }
 .thero-stat b{
   display:block;font-family:var(--mono);
-  font-size:19px;font-weight:700;color:var(--tx);
+  font-size:var(--fs-18);font-weight:700;color:var(--tx);
   font-variant-numeric:tabular-nums;
   letter-spacing:-.02em;
 }
