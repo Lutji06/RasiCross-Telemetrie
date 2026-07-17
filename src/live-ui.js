@@ -18,6 +18,7 @@ import { renderKartsTab } from './karts-page.js';
 import { refreshKartSettingsWindows } from './kart-settings-window.js';
 import RasiKartRank from './kart-rank.js';
 import RasiLapEngine from './lap-engine.js';
+import RasiLiveView from './live-view.js';
 
 // ============================================================
 // LIVE CHARTS (Speed/RPM + G-Kraft)
@@ -464,8 +465,10 @@ function animLoop() {
 // 'single' (Single-Kart-Regression). Steuert die Sichtbarkeit per
 // body[data-live-view]; CSS blendet .pw-liverow/.pw-live-body bzw.
 // #liveOverview entsprechend ein/aus.
-function setLiveView(mode) {
+function setLiveView(mode, manual) {
   if (mode === 'overview' && state.karts.macs().length <= 1) mode = 'single';
+  // Phase 55: Hand-Wahl pausiert die Start-Automatik fuer die Sitzung.
+  if (manual === true) _liveViewManual = true;
   state.liveView = mode;
   document.body.dataset.liveView = mode;
   RasiKartBar.render(state);
@@ -519,11 +522,27 @@ function renderLeaderStrip() {
         const mac = b.getAttribute('data-mac');
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
-          setLiveView('single');
+          setLiveView('single', true);
         }
       };
     });
   } catch (e) { console.warn('renderLeaderStrip:', e); }
+}
+
+// Phase 55: Start-Automatik der Live-Ansicht. Session-Zustand: Hand-Wahl-Flag
+// (Reset, sobald die Kartzahl unter 2 faellt) + letzte Kartzahl fuer die
+// auto-Flanke. Entscheidung ist pur in live-view.js (unit-getestet).
+let _liveViewManual = false;
+let _prevKartCount = 0;
+function autoLiveView() {
+  const count = state.karts.macs().length;
+  if (count < 2) _liveViewManual = false;
+  const next = RasiLiveView.liveViewAutoReducer({
+    view: state.liveView, prevCount: _prevKartCount, count,
+    setting: state.settings.liveStartView, manual: _liveViewManual,
+  });
+  _prevKartCount = count;
+  if (next && next !== state.liveView) setLiveView(next);
 }
 
 // Im 1-Hz-/200-ms-Loop aufgerufen: hält das Übersicht-Grid aktuell und
@@ -539,7 +558,7 @@ function refreshOverview() {
 function initLiveUiLoops() {
 // Backup tick (läuft auch wenn rAF im Hintergrund-Iframe pausiert)
 setInterval(() => {
-  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); refreshOverview(); renderLeaderStrip(); } catch(e){}
+  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); autoLiveView(); refreshOverview(); renderLeaderStrip(); } catch(e){}
 }, 200);
 
 // 1Hz UI loop
@@ -555,6 +574,7 @@ setInterval(() => {
   // Stale-Markierung mit der Zeit greift).
   RasiKartBar.render(state);
   // Übersicht-Grid (falls aktiv) auffrischen; erzwingt single bei <=1 Kart.
+  autoLiveView();
   refreshOverview();
   // Leaderboard-Strip (Einzelansicht) aktuell halten.
   renderLeaderStrip();

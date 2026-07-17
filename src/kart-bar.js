@@ -30,7 +30,7 @@ import { setLiveView } from './live-ui.js';
     ovBtn.type = 'button';
     ovBtn.className = 'kart-overview-btn' + (state.liveView === 'overview' ? ' active' : '');
     ovBtn.innerHTML = '⊞ Übersicht';
-    ovBtn.onclick = () => { setLiveView('overview'); };
+    ovBtn.onclick = () => { setLiveView('overview', true); };
     el.appendChild(ovBtn);
     macs.forEach((mac, i) => {
       const k = state.karts.get(mac);
@@ -57,7 +57,7 @@ import { setLiveView } from './live-ui.js';
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
           // Chip-Klick wählt immer die Einzelansicht dieses Karts.
-          setLiveView('single');
+          setLiveView('single', true);
         }
       };
       el.appendChild(chip);

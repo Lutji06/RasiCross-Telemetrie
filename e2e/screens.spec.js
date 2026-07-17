@@ -33,10 +33,14 @@ const SHOT = { animations: 'disabled', caret: 'hide', maxDiffPixels: 2 };
 // #connOverviewGps ist seit dem Dual-Writer-Fix (Phase 50) deterministisch
 // (nur noch ui-glue-Spiegel); der prep()-Wait unten sichert den ersten Tick.
 // .sidebar wird NICHT maskiert: das Gate soll Sidebar-CSS-Regressionen sehen (Phase 50).
+// #liveOverview wird KOMPLETT maskiert: die Demo faehrt ein Auto-Rennen,
+// das Ranking kann die Karten zwischen den zwei Vergleichs-Frames umsortieren
+// (Phase 55) -- Feld-Masken koennen Reihenfolge nicht ausgleichen. Getestet
+// bleibt das Layout drumherum; die Einzel-Ansicht deckt demo-live-single ab.
 const DYN = ['canvas', '.map', '.statusbar',
   '#kartBar', '#liveLeaderStrip', '.pw-clockbox', '#hzPill', '#topConnPill',
   '#battPill', '.pw-kpi-combo', '#latText', '#lonText', '#trackPoints',
-  '#packetsText', '.kc-live'];
+  '#packetsText', '.kc-live', '#liveOverview'];
 
 async function prep(page, app) {
   await app.evaluate(({ BrowserWindow }, size) => {
@@ -131,7 +135,22 @@ test.describe('Demo-Zustand', () => {
 
   test('Live-Tab mit Demo', async () => {
     await ctx.page.click('.nav-item[data-tab="live"]');
+    // Phase 55: 3 Demo-Karts => Start-Automatik schaltet auf die Uebersicht.
+    await ctx.page.waitForFunction(() => document.body.dataset.liveView === 'overview');
     await expect(ctx.page).toHaveScreenshot('demo-live.png',
+      Object.assign({ mask: masks(ctx.page) }, SHOT));
+  });
+
+  test('Live-Tab Einzel-Ansicht nach Karten-Klick', async () => {
+    await ctx.page.click('.nav-item[data-tab="live"]');
+    await ctx.page.waitForFunction(() => document.body.dataset.liveView === 'overview');
+    // Karten-Klick = Hand-Wahl (manual): waehlt Kart 1, Einzel-Ansicht bleibt.
+    // Deterministisch Kart 1 waehlen: nth-child ist ranking-sortiert und
+    // kann mitten im Demo-Rennen umsortieren (Final-Review Phase 55).
+    const mac = await ctx.page.evaluate(() => RasiTest.state.karts.macs()[0]);
+    await ctx.page.click('#liveOverview .ko-card[data-mac="' + mac + '"]');
+    await ctx.page.waitForFunction(() => document.body.dataset.liveView === 'single');
+    await expect(ctx.page).toHaveScreenshot('demo-live-single.png',
       Object.assign({ mask: masks(ctx.page) }, SHOT));
   });
 

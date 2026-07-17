@@ -80,6 +80,8 @@ import RasiLapEngine from './lap-engine.js';
       const age = k.connection.lastPacketAt ? (now - k.connection.lastPacketAt) : 99999;
       const stale = age > 2000;
       const speed = (k.telemetry.speed || 0).toFixed(0);
+      const rpm = Math.round(k.telemetry.rpm || 0);
+      const rpmWarn = rpm >= (state.settings.rpmWarning || 9000);
       const lapCur = k.lapStart ? lap(now - k.lapStart) : '--:--.---';
       const lapBest = lap(k.bestLapMs);
       // Phase 30: Rundenzahl dieses Karts im aktiven Rennen (Teilnehmer-Slot).
@@ -115,7 +117,10 @@ import RasiLapEngine from './lap-engine.js';
       return '<div class="' + cls + '" data-mac="' + mac + '" style="border-color:' + m.color + '">'
         + '<div class="ko-head">' + posBadge + '<span class="ko-dot" style="background:' + m.color + '"></span>'
         +   '<span class="ko-name" style="color:' + m.color + '">' + esc(m.name) + '</span>' + rec + flBadge + '</div>'
-        + '<div class="ko-speed">' + speed + '<small>km/h</small></div>'
+        + '<div class="ko-big">'
+        +   '<div class="ko-speed">' + speed + '<small>km/h</small></div>'
+        +   '<div class="ko-rpm' + (rpmWarn ? ' warn' : '') + '">' + rpm + '<small>rpm</small></div>'
+        + '</div>'
         + '<div class="ko-row"><span class="ko-l">Aktuelle Runde</span><span class="ko-v">' + lapCur + '</span></div>'
         + '<div class="ko-row"><span class="ko-l">Letzte Runde</span><span class="ko-v">' + lapLast + '</span></div>'
         + '<div class="ko-row"><span class="ko-l">Beste Runde</span><span class="' + bestCls + '">' + lapBest + '</span></div>'
@@ -128,7 +133,7 @@ import RasiLapEngine from './lap-engine.js';
         const mac = card.getAttribute('data-mac');
         if (state.karts.setActive(mac)) {
           state.activeKartMac = mac;
-          setLiveView('single');
+          setLiveView('single', true);
         }
       };
     });
