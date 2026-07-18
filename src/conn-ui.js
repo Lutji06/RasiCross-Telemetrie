@@ -77,7 +77,7 @@ function _kartCard(r, meta, now) {
   const vals = '<div class="cc-vals">'
     + '<span><i>Signal</i><b>' + (c.rssi != null ? c.rssi + ' dBm' : '—') + '</b></span>'
     + '<span><i>Rate</i><b>' + r.hz + ' Hz</b></span>'
-    + '<span><i>Verloren</i><b>' + c.lost + '</b></span>'
+    + '<span><i>Verl.</i><b>' + c.lost + '</b></span>'
     + '<span><i>GPS</i><b>' + (r.k.gps.fix ? 'Fix' : 'kein Fix') + '</b></span>'
     + '<span><i>Alter</i><b>' + _fmtAge(c.lastPacketAt, now) + '</b></span>'
     + '</div>';
@@ -164,9 +164,20 @@ function render() {
       log.innerHTML = _packetLog.slice(0, 8).map(p =>
         '<div><b>' + p.t + '</b><span>' + esc(p.line.slice(0, 200)) + '</span></div>').join('');
     }
-    // 5) Kart-Grid in Registry-Reihenfolge + gestrichelter Platzhalter
+    // 5) Kart-Grid in Registry-Reihenfolge + gestrichelter Platzhalter.
+    //    Ohne sichtbare Karts: Empty-State-Panel mit Demo-Einstieg (56b);
+    //    #emptyDemoBtn ist per Delegation auf #connGrid verdrahtet (app-init).
     const grid = $('connGrid');
     if (grid) {
+      if (results.length === 0) {
+        grid.innerHTML = '<div class="conn-empty">'
+          + '<div class="ce-icon">📡</div>'
+          + '<div class="ce-title">Warte auf Karts…</div>'
+          + '<div class="ce-sub">Bridge per USB anschließen und <b>Verbinden</b> drücken —<br>oder ohne Hardware ausprobieren:</div>'
+          + '<button class="conn-chip" id="emptyDemoBtn">▶ Demo starten</button>'
+          + '</div>';
+        return;
+      }
       const cards = results.map(r => _kartCard(r, RasiKartBar.metaFor(state, r.mac, macs.indexOf(r.mac)), now));
       if (macs.length < KartRegistry.MAX_KARTS) {
         cards.push('<div class="conn-card conn-wait">wartet auf weitere Karts…</div>');

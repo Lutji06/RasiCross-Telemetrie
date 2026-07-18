@@ -96,8 +96,8 @@
   border:1px solid var(--bor);
   border-radius:var(--r-xl);
 }
-.conn-card.warn{border-color:var(--orange);box-shadow:var(--glow-sm) var(--orange-glow)}
-.conn-card.off{border-color:var(--red);box-shadow:var(--glow-sm) var(--red-glow)}
+.conn-card.warn{border-left:3px solid var(--orange)}
+.conn-card.off{border-left:3px solid var(--red)}
 .conn-card.conn-wait{
   border-style:dashed;color:var(--mut);
   display:grid;place-items:center;
@@ -110,12 +110,15 @@
   font-weight:700;color:var(--tx);flex:1;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.cc-badge{font-family:var(--mono);font-size:var(--fs-10);font-weight:700;white-space:nowrap}
+.cc-badge{
+  font-family:var(--mono);font-size:var(--fs-10);font-weight:700;white-space:nowrap;
+  text-transform:uppercase;letter-spacing:.06em;
+}
 .cc-badge.ok{color:var(--green)}
 .cc-badge.warn{color:var(--orange)}
 .cc-badge.off{color:var(--red)}
 .cc-vals{
-  display:flex;flex-wrap:wrap;gap:var(--sp-8) var(--sp-14);
+  display:grid;grid-template-columns:repeat(5,1fr);gap:var(--sp-8);
 }
 .cc-vals i{
   display:block;font-style:normal;
@@ -132,13 +135,30 @@
 .cc-hints{
   margin-top:10px;padding:var(--sp-8) var(--sp-10);
   background:var(--soft);border-radius:var(--r-sm);
+  border-left:3px solid var(--orange);
   font-size:var(--fs-12);color:var(--orange);line-height:1.5;
 }
-.conn-card.off .cc-hints{color:var(--red)}
+.conn-card.off .cc-hints{color:var(--red);border-left-color:var(--red)}
 .cc-diag-btn{
-  margin-top:10px;padding:var(--sp-4) var(--sp-8);
-  background:transparent;border:0;color:var(--mut);
+  display:block;width:100%;text-align:left;
+  border:0;border-top:1px solid var(--div);
+  margin-top:12px;padding:var(--sp-8) 0 0;
+  background:transparent;color:var(--mut);
   font-family:var(--mono);font-size:var(--fs-11);cursor:pointer;
 }
 .cc-diag-btn:hover{color:var(--tx)}
 .cc-diag{margin-top:var(--sp-8)}
+
+/* Empty-State (56b): volle Grid-Breite, erklaert Verbinden + Demo */
+.conn-empty{
+  grid-column:1 / -1;
+  border:2px dashed var(--bor);border-radius:var(--r-xl);
+  padding:var(--sp-24) var(--sp-18);text-align:center;color:var(--tx);
+}
+.ce-icon{font-size:26px;margin-bottom:10px}
+.ce-title{font-size:var(--fs-15);font-weight:700}
+.ce-sub{
+  color:var(--mut);font-size:var(--fs-12);line-height:1.6;
+  margin-top:8px;margin-bottom:14px;
+}
+.ce-sub b{color:var(--pr)}

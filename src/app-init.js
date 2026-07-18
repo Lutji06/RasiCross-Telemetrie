@@ -135,6 +135,10 @@ function init() {
     }
   };
   $('connDetailsBtn').onclick = () => $('connDetails').classList.toggle('hidden');
+  // Empty-State-Demo-Chip (56b): lebt im 1-Hz-gerenderten Grid -> Delegation
+  $('connGrid').addEventListener('click', (e) => {
+    if (e.target.closest('#emptyDemoBtn') && !state.demo.running) startDemo();
+  });
   $('serialRefreshBtn').onclick = listSerialPorts;
   $('serialConnectBtn').onclick = () => state.serial.connected ? disconnectSerial() : connectSerial();
   $('autoConnectToggle').checked = state.settings.serialAutoConnect !== false;
