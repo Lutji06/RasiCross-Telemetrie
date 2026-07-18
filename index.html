@@ -795,6 +795,11 @@
           <span>VERBINDUNG &amp; DIAGNOSE</span>
         </div>
         <div class="conn-port-line idle" id="connPortLine">Nicht verbunden</div>
+        <div class="conn-hero-actions">
+          <button class="btn primary" id="connActionBtn">Verbinden</button>
+          <button class="conn-chip" id="demoChip">▶ Demo</button>
+          <button class="conn-details-link" id="connDetailsBtn">Details</button>
+        </div>
       </div>
       <div class="pw-hero-telemetry">
         <div class="pw-tel">
@@ -808,11 +813,6 @@
         <div class="pw-tel">
           <div class="pw-tel-label">GPS</div>
           <div class="pw-tel-value mono" id="heroGps">--</div>
-        </div>
-        <div class="conn-hero-actions">
-          <button class="conn-chip" id="demoChip">▶ Demo</button>
-          <button class="btn primary" id="connActionBtn">Verbinden</button>
-          <button class="btn ghost" id="connDetailsBtn">Details</button>
         </div>
       </div>
     </div>
@@ -860,7 +860,7 @@
     <div class="row">
       <button class="btn ghost" id="recSaveBtn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Aufnahme speichern</button>
       <button class="btn ghost" id="recCsvBtn" title="Aufnahme als CSV exportieren (Excel-kompatibel); bei laufendem Replay wird die geladene Aufnahme exportiert"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-6M13 17V8M18 17v-3"/></svg>CSV exportieren</button>
-      <button class="btn primary" id="recLoadBtn"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Aufnahme laden &amp; abspielen</button>
+      <button class="btn ghost" id="recLoadBtn"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Aufnahme laden &amp; abspielen</button>
       <input type="file" id="recLoadFile" accept=".ndjson,.jsonl,application/x-ndjson" style="display:none">
     </div>
   </div>

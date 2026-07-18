@@ -13,8 +13,23 @@
 .conn-port-line.warn{color:var(--orange)}
 .conn-port-line.err{color:var(--red)}
 
+/* Verbinden-Cockpit (56b): Aktions-Zeile unter der Portstatus-Zeile links */
+#tab-connection .pw-hero-content{align-items:flex-start}
 .conn-hero-actions{
-  display:flex;align-items:center;gap:var(--sp-8);
+  display:flex;align-items:center;gap:var(--sp-10);
+  margin-top:12px;
+}
+.conn-details-link{
+  background:transparent;border:0;cursor:pointer;
+  color:var(--mut);font-size:var(--fs-12);font-weight:600;
+  text-decoration:underline dotted;padding:var(--sp-4) var(--sp-2);
+  transition:var(--t);
+}
+.conn-details-link:hover{color:var(--tx)}
+#connActionBtn:disabled{
+  background:var(--soft);color:var(--mut);
+  border:1px solid var(--bor);box-shadow:none;
+  cursor:default;transform:none;
 }
 .conn-chip{
   padding:var(--sp-6) var(--sp-12);border-radius:var(--r-pill);
