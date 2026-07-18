@@ -242,7 +242,16 @@ function startDemo() {
   }));
   state.kartMeta = state.kartMeta || {};
   DEMO_KART_DEFS.forEach(def => {
-    kartFor(def.mac);
+    const dk = kartFor(def.mac);
+    // Phase 56b: Demo-Karts sind selbst Demo-Quellen. Vorher blieb ihre
+    // source fuer immer 'offline' (processTelemetry kennt nur 'serial'),
+    // nur der Vor-Demo-Bucket bekam 'demo' -- Sidebar-/Statusanzeigen
+    // hingen dadurch davon ab, welcher Kart gerade aktiv war (Flake).
+    if (dk) {
+      dk.connection.source = 'demo';
+      dk.connection.bridgeMac = 'DE:MO:00:00:00:01';
+      dk.connection.kartMac = def.mac;
+    }
     if (!state.kartMeta[def.mac]) state.kartMeta[def.mac] = { name: def.name, color: def.color };
   });
   state.karts.setActive(DEMO_KART_DEFS[0].mac);
