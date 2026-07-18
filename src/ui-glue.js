@@ -19,8 +19,8 @@ import { rcAudio } from './rasicross.js';
     try{
       // Pit-Wall (das Original updated nur wenn .show-Klasse, das ist OK)
       // Footer / Hz-Pill / Total km
-      const hz = $$('connHz')?.textContent || '0';
-      txt('hzText', hz);
+      // Phase 56: #connHz ist entfallen -- Hz direkt aus dem State spiegeln.
+      txt('hzText', String(state._lastHz || 0));
       const tk = $$('totalDistance');
       if (tk) {
         // Einheit aus dem <small>-Element der Hero-Kachel mitnehmen,
@@ -47,12 +47,6 @@ import { rcAudio } from './rasicross.js';
           }
         }
       } catch(e){}
-      // Conn-overview Hz / Lost / GPS
-      txt('connOverviewHz', ($$('connHz')?.textContent || '0') + ' Hz');
-      txt('connOverviewLost', $$('connLost')?.textContent || '0');
-      txt('connOverviewGps', $$('connGpsFix')?.textContent || '--');
-      txt('connOverviewState', $$('topConnText')?.textContent || 'Offline');
-
       // Strecke-Tab Live-Stats
       if (state.track) {
         const pts = state.track.points?.length || 0;

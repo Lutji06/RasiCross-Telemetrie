@@ -11,7 +11,7 @@ import { activeRace, endRace, raceValidLaps, renderRaces, startRace } from './ra
 import { calcAutoSectors, onGpsUpdate, updateBounds, updateSectorPanel } from './track.js';
 import { drawTrack } from './map-draw.js';
 import { renderDrivers, renderDriverOptions } from './laps-drivers.js';
-import { pushPacketLog } from './pit-wall.js';
+import ConnUi from './conn-ui.js';
 import RasiKartBar from './kart-bar.js';
 
 // 19. SERIAL / DEMO
@@ -158,7 +158,7 @@ function handleSerialLine(line) {
   if (!line || !line.startsWith('{')) return;
   try {
     const d = JSON.parse(line);
-    pushPacketLog(line);
+    ConnUi.pushPacketLog(line);
     processTelemetry(d);
     if (d.lat && d.lon) onGpsUpdate(d.lat, d.lon);
   } catch (e) { activeKart().connection.errors++; }
