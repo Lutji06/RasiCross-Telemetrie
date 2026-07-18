@@ -127,6 +127,13 @@ test.describe('Demo-Zustand', () => {
       const ak = RasiTest.activeKart();
       return RasiTest.state.karts.macs().length >= 3 && ak && ak.batt.present;
     });
+    // Eingeschwungenen Zustand erzwingen (Phase 56b): Sidebar-Status schreibt
+    // erst der 1-Hz-Loop ('Offline' -> 'Demo'), die Batterie-Pille der
+    // 200-ms-Loop. Ohne diese Waits friert ein fruehes Shot Boot-Zustaende
+    // ein -- die alte demo-karts-Baseline trug genau so einen (Flake-Quelle).
+    await ctx.page.waitForFunction(() =>
+      document.querySelector('#sideConnText').textContent === 'Demo'
+      && !document.querySelector('#battPill').classList.contains('hidden'));
   });
   test.afterAll(async () => { await closeApp(ctx.app, ctx.userData); });
 
@@ -152,18 +159,42 @@ test.describe('Demo-Zustand', () => {
   });
 
   test('Karts-Tab mit 3 Demo-Karts', async () => {
+    // Aktiven Kart deterministisch pinnen (Demo-Kart 1): Sidebar-Status
+    // ('Demo' schreibt der 1-Hz-Loop nur fuer den aktiven Kart) und der
+    // Aktiv-Ring der Karte sind sonst reihenfolge-/retry-abhaengig -- die
+    // alte Baseline trug so einen Zufallszustand (Phase 56b-Fund).
+    // macs()[0] waere der lazy default-Bucket, nie der erste Demo-Kart.
+    await ctx.page.evaluate(() => {
+      const m = RasiTest.state.karts.macs().find((x) => x.indexOf('DE:MO:') === 0);
+      RasiTest.state.karts.setActive(m);
+      RasiTest.state.activeKartMac = m;
+    });
     await ctx.page.click('.nav-item[data-tab="karts"]');
     await ctx.page.waitForFunction(() =>
-      document.querySelectorAll('#kartCardsList [data-action="settings"]').length >= 3);
+      document.querySelectorAll('#kartCardsList [data-action="settings"]').length >= 3
+      && !!document.querySelector('#kartCardsList .kart-card.active')
+      && document.querySelector('#sideConnText').textContent === 'Demo');
+    // Maus parken: sonst laege sie reihenfolgeabhaengig ueber einer Karte.
+    await ctx.page.mouse.move(0, 0);
     await expect(ctx.page).toHaveScreenshot('demo-karts.png',
       Object.assign({ mask: masks(ctx.page) }, SHOT));
   });
 
   test('Verbindungsseite mit laufender Demo', async () => {
+    // Aktiven Kart pinnen wie im Karts-Test: Sidebar-Status bleibt sonst
+    // vom Vortest abhaengig (unmaskiert im Shot).
+    await ctx.page.evaluate(() => {
+      const m = RasiTest.state.karts.macs().find((x) => x.indexOf('DE:MO:') === 0);
+      RasiTest.state.karts.setActive(m);
+      RasiTest.state.activeKartMac = m;
+    });
     await ctx.page.click('.nav-item[data-tab="connection"]');
-    // Grid gefuellt: 3 Demo-Kart-Karten vom 1-Hz-Renderer (conn-ui.js).
+    // Grid gefuellt: 3 Demo-Kart-Karten vom 1-Hz-Renderer (conn-ui.js);
+    // Sidebar im eingeschwungenen Demo-Zustand.
     await ctx.page.waitForFunction(() =>
-      document.querySelectorAll('#connGrid .cc-card[data-mac]').length >= 3);
+      document.querySelectorAll('#connGrid .cc-card[data-mac]').length >= 3
+      && document.querySelector('#sideConnText').textContent === 'Demo');
+    await ctx.page.mouse.move(0, 0);
     // Dynamische Wertefelder maskieren (RSSI-Jitter, Paketalter, Summen-Hz).
     // Maske und Baseline entstehen im selben Schritt (Lektion Phase 49).
     // Portstatus (Demo-Modus aktiv), Karts 3/3 und GPS 3x Fix sind statisch;
