@@ -90,15 +90,18 @@
   grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
   gap:var(--sp-14);
 }
-.conn-card{
+/* cc-card, NICHT conn-card: .conn-card ist die Sidebar-Verbindungskarte
+   (base.css:90, display:flex) -- die Namenskollision legte die Grid-Karten
+   flach (56b-Debug-Fund). */
+.cc-card{
   padding:var(--sp-14);
   background:var(--surf);
   border:1px solid var(--bor);
   border-radius:var(--r-xl);
 }
-.conn-card.warn{border-left:3px solid var(--orange)}
-.conn-card.off{border-left:3px solid var(--red)}
-.conn-card.conn-wait{
+.cc-card.warn{border-left:3px solid var(--orange)}
+.cc-card.off{border-left:3px solid var(--red)}
+.cc-card.cc-wait{
   border-style:dashed;color:var(--mut);
   display:grid;place-items:center;
   font-size:var(--fs-12);min-height:96px;
@@ -138,7 +141,7 @@
   border-left:3px solid var(--orange);
   font-size:var(--fs-12);color:var(--orange);line-height:1.5;
 }
-.conn-card.off .cc-hints{color:var(--red);border-left-color:var(--red)}
+.cc-card.off .cc-hints{color:var(--red);border-left-color:var(--red)}
 .cc-diag-btn{
   display:block;width:100%;text-align:left;
   border:0;border-top:1px solid var(--div);

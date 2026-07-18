@@ -163,7 +163,7 @@ test.describe('Demo-Zustand', () => {
     await ctx.page.click('.nav-item[data-tab="connection"]');
     // Grid gefuellt: 3 Demo-Kart-Karten vom 1-Hz-Renderer (conn-ui.js).
     await ctx.page.waitForFunction(() =>
-      document.querySelectorAll('#connGrid .conn-card[data-mac]').length >= 3);
+      document.querySelectorAll('#connGrid .cc-card[data-mac]').length >= 3);
     // Dynamische Wertefelder maskieren (RSSI-Jitter, Paketalter, Summen-Hz).
     // Maske und Baseline entstehen im selben Schritt (Lektion Phase 49).
     // Portstatus (Demo-Modus aktiv), Karts 3/3 und GPS 3x Fix sind statisch;

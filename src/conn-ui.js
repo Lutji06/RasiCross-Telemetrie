@@ -94,7 +94,7 @@ function _kartCard(r, meta, now) {
       + 'Errors: <b>' + c.errors + '</b>'
       + '</div>'
     : '';
-  return '<div class="conn-card ' + r.res.level + '" data-mac="' + r.mac + '">'
+  return '<div class="cc-card ' + r.res.level + '" data-mac="' + r.mac + '">'
     + '<div class="cc-head">'
     +   '<span class="cc-dot" style="background:' + meta.color + '"></span>'
     +   '<span class="cc-name">' + esc(meta.name) + '</span>'
@@ -180,7 +180,7 @@ function render() {
       }
       const cards = results.map(r => _kartCard(r, RasiKartBar.metaFor(state, r.mac, macs.indexOf(r.mac)), now));
       if (macs.length < KartRegistry.MAX_KARTS) {
-        cards.push('<div class="conn-card conn-wait">wartet auf weitere Karts…</div>');
+        cards.push('<div class="cc-card cc-wait">wartet auf weitere Karts…</div>');
       }
       grid.innerHTML = cards.join('');
       grid.querySelectorAll('.cc-diag-btn').forEach((b) => {
