@@ -783,7 +783,8 @@
      ============================================================ -->
 <section class="tab" id="tab-connection">
 
-  <!-- HERO: kompakte Leiste wie auf Detail/Strecke/Rennen/Fahrer -->
+  <!-- HERO: Verbindungszentrale (Phase 56) -- Portstatus links,
+       Aggregat-Werte + Demo-Chip + Verbinden-Aktion rechts -->
   <div class="pw-hero">
     <div class="pw-hero-bg"></div>
     <div class="pw-hero-grid"></div>
@@ -793,157 +794,63 @@
           <span class="pw-eyebrow-dot"></span>
           <span>VERBINDUNG &amp; DIAGNOSE</span>
         </div>
+        <div class="conn-port-line idle" id="connPortLine">Nicht verbunden</div>
       </div>
       <div class="pw-hero-telemetry">
         <div class="pw-tel">
-          <div class="pw-tel-label">Status</div>
-          <div class="pw-tel-value" id="connOverviewState">Offline</div>
+          <div class="pw-tel-label">Karts</div>
+          <div class="pw-tel-value mono" id="heroKarts">--</div>
         </div>
         <div class="pw-tel">
           <div class="pw-tel-label">Datenrate</div>
-          <div class="pw-tel-value mono" id="connOverviewHz">0 Hz</div>
-        </div>
-        <div class="pw-tel">
-          <div class="pw-tel-label">Verloren</div>
-          <div class="pw-tel-value mono" id="connOverviewLost">0</div>
+          <div class="pw-tel-value mono" id="heroRate">--</div>
         </div>
         <div class="pw-tel">
           <div class="pw-tel-label">GPS</div>
-          <div class="pw-tel-value mono" id="connOverviewGps">--</div>
+          <div class="pw-tel-value mono" id="heroGps">--</div>
         </div>
-        <div class="pw-tel">
-          <div class="pw-tel-label">Signal</div>
-          <div class="pw-tel-value" id="connOverviewSignal">--</div>
+        <div class="conn-hero-actions">
+          <button class="conn-chip" id="demoChip">▶ Demo</button>
+          <button class="btn primary" id="connActionBtn">Verbinden</button>
+          <button class="btn ghost" id="connDetailsBtn">Details</button>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="row" style="margin-bottom:18px;gap:8px;align-items:center;justify-content:flex-end">
-    <span class="pill" id="connModePill"><span class="dot"></span><span id="connModeText">Offline</span></span>
-    <span class="pill hidden" id="connBridgePill"><span class="dot"></span><span id="connBridgeState">Offline</span></span>
-    <span class="pill"><span id="connPacketsMini">0</span> Pakete</span>
-    <button class="btn ghost" id="diagToggleBtn" style="padding:6px 12px;font-size:11px">Diagnose</button>
-  </div>
-
-  <div id="connDetailTitle" class="muted" style="margin:0 0 8px;font-size:12px"></div>
-
-  <div class="mode-tabs">
-    <button class="mode-tab active" id="modeSerialBtn">USB Serial</button>
-    <button class="mode-tab" id="modeDemoBtn">Demo-Modus</button>
-  </div>
-
-  <div id="serialPanel">
-    <div class="grid g2" style="margin-bottom:18px">
-      <div class="card">
-        <div class="card-head"><span class="card-title">USB-Verbindung</span><span class="card-sub">COM-Port</span></div>
-        <div class="serial-form" style="margin-bottom:14px">
-          <div class="field"><label>Port</label><select id="serialPortSelect"></select></div>
-          <div class="field"><label>Baudrate</label>
-            <select id="serialBaud">
-              <option value="115200" selected>115200</option>
-              <option value="921600">921600</option>
-              <option value="500000">500000</option>
-              <option value="230400">230400</option>
-              <option value="57600">57600</option>
-            </select>
-          </div>
-          <button class="btn ghost" id="serialRefreshBtn">↻</button>
-          <button class="btn primary" id="serialConnectBtn">Verbinden</button>
-        </div>
-        <div class="toggle-row">
-          <span class="label-text">Auto-Reconnect</span>
-          <label class="toggle"><input type="checkbox" id="autoReconnectToggle" checked><span class="toggle-knob"></span></label>
-        </div>
-        <p id="reconnectStatus" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:10px">Inaktiv</p>
+  <!-- Details-Aufklapper (Session-State, startet zu): Portwahl,
+       Auto-Verbinden, Bridge-MAC, RSSI-Verlauf, Paket-Log -->
+  <div class="card conn-details hidden" id="connDetails">
+    <div class="card-head"><span class="card-title">Verbindungs-Details</span><span class="card-sub">Port &amp; Diagnose</span></div>
+    <div class="serial-form" style="margin-bottom:14px">
+      <div class="field"><label>Port</label><select id="serialPortSelect"></select></div>
+      <div class="field"><label>Baudrate</label>
+        <select id="serialBaud">
+          <option value="115200" selected>115200</option>
+          <option value="921600">921600</option>
+          <option value="500000">500000</option>
+          <option value="230400">230400</option>
+          <option value="57600">57600</option>
+        </select>
       </div>
-
-      <div class="card">
-        <div class="card-head"><span class="card-title">Verbindungsqualität</span><span class="card-sub">RSSI</span></div>
-        <div style="display:flex;gap:18px;align-items:center">
-          <div class="signal-bars" id="signalBars"><i></i><i></i><i></i><i></i></div>
-          <div>
-            <div style="font-family:var(--sans);font-size:18px;font-weight:700" id="connQualityText">Keine Daten</div>
-            <div style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:3px"><span id="connRssi">--</span> · Latenz <span id="connLatency">--</span>ms</div>
-          </div>
-        </div>
-        <canvas id="rssiSpark" width="320" height="36" style="width:100%;height:36px;margin-top:10px;display:block" title="RSSI-Verlauf (letzte 3 Minuten)"></canvas>
-      </div>
+      <button class="btn ghost" id="serialRefreshBtn">↻</button>
+      <button class="btn primary" id="serialConnectBtn">Verbinden</button>
     </div>
-
-    <div class="card" style="margin-bottom:18px">
-      <div class="card-head"><span class="card-title">Datenfluss</span><span class="card-sub">Mäher → Bridge → Dashboard</span></div>
-      <div class="conn-diagram">
-        <div class="node-card kart">
-          <div class="node-title"><span>Mäher</span><span class="pill green" id="kartStatePill"><span class="dot"></span>wartet</span></div>
-          <div class="node-main" id="kartMainValue">0 km/h</div>
-          <div class="node-sub">RasiCross-Sender</div>
-          <div class="node-stats">
-            <div><span>Sequenz</span><b id="connSeq">--</b></div>
-            <div><span>Alter</span><b id="connAge">--</b></div>
-            <div><span>Speed</span><b id="connSpeed">0</b></div>
-            <div><span>RPM</span><b id="connRpm">0</b></div>
-          </div>
-        </div>
-        <div class="link-column">
-          <div class="link-dot">USB</div>
-          <div class="link-line"></div>
-          <div class="link-dot">RF</div>
-        </div>
-        <div class="node-card pit">
-          <div class="node-title"><span>Pit / Dashboard</span><span class="pill blue" id="pitStatePill"><span class="dot"></span>offline</span></div>
-          <div class="node-main" id="pitMainValue">OFF</div>
-          <div class="node-sub">Dieser Browser</div>
-          <div class="node-stats">
-            <div><span>USB</span><b id="connUsbState">OFF</b></div>
-            <div><span>Hz</span><b id="connHz">0</b></div>
-            <div><span>Verloren</span><b id="connLost">0</b></div>
-            <div><span>GPS</span><b id="connGpsFix">--</b></div>
-          </div>
-        </div>
-      </div>
+    <div class="toggle-row">
+      <span class="label-text">Automatisch verbinden</span>
+      <label class="toggle"><input type="checkbox" id="autoConnectToggle" checked><span class="toggle-knob"></span></label>
     </div>
-
-    <div class="grid g2 diagnose-only" style="margin-bottom:18px">
-      <div class="card">
-        <div class="card-head"><span class="card-title">MAC-Adressen</span><span class="card-sub">Diagnose</span></div>
-        <div class="mono-box">
-          Bridge: <b id="connBridgeMac">--</b><br>
-          Kart: <b id="connRasiMac">--</b><br>
-          GPS-Alter: <b id="connGpsAge">--</b>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head"><span class="card-title">Raw-Werte</span><span class="card-sub">Sensor</span></div>
-        <div class="stat-flex">
-          <div class="stat"><div class="t">RPM Pulse/s</div><div class="n" id="connPulseHz">--</div></div>
-          <div class="stat"><div class="t">Pulse Count</div><div class="n" id="connPulseCount">--</div></div>
-          <div class="stat"><div class="t">Raw G</div><div class="n" id="connRawG">--</div></div>
-          <div class="stat"><div class="t">Errors</div><div class="n" id="connErrCount">0</div></div>
-        </div>
-      </div>
+    <div class="mono-box" style="margin-top:14px">
+      Bridge: <b id="connBridgeMac">--</b>
     </div>
-
-    <div class="card diagnose-only">
-      <div class="card-head"><span class="card-title">Live Paket-Log</span><span class="card-sub">letzte Daten</span></div>
-      <div class="packet-log" id="packetLog">
-        <div><b>--:--:--</b><span>Warte auf Daten…</span></div>
-      </div>
+    <canvas id="rssiSpark" width="320" height="36" style="width:100%;height:36px;margin-top:10px;display:block" title="RSSI-Verlauf (letzte 3 Minuten, USB/Bridge-Strecke)"></canvas>
+    <div class="packet-log" id="packetLog" style="margin-top:10px">
+      <div><b>--:--:--</b><span>Warte auf Daten…</span></div>
     </div>
   </div>
 
-  <div id="demoPanel" class="hidden">
-    <div class="card">
-      <div class="card-head"><span class="card-title">Demo-Modus</span><span class="card-sub" id="demoModeText">Bereit</span></div>
-      <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
-        Simuliert eine Runde auf einer virtuellen Strecke. Ideal zum Testen aller Funktionen ohne Hardware.
-      </p>
-      <div class="row">
-        <button class="btn primary" id="demoStartBtn">Demo starten</button>
-        <button class="btn danger hidden" id="demoStopBtn">Demo stoppen</button>
-      </div>
-    </div>
-  </div>
+  <!-- Kart-Karten-Grid: eine Statuskarte pro Session-Kart (conn-ui.js) -->
+  <div class="conn-grid" id="connGrid"></div>
 
   <div class="card" style="margin-top:18px">
     <div class="card-head"><span class="card-title">Aufnahme &amp; Replay</span><span class="card-sub" id="recStatusText">Bereit</span></div>

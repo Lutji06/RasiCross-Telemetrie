@@ -11,7 +11,7 @@ import { activeRace, endRace, raceValidLaps, renderRaces, startRace } from './ra
 import { calcAutoSectors, onGpsUpdate, updateBounds, updateSectorPanel } from './track.js';
 import { drawTrack } from './map-draw.js';
 import { renderDrivers, renderDriverOptions } from './laps-drivers.js';
-import { pushPacketLog, renderConnectionTab } from './pit-wall.js';
+import { pushPacketLog } from './pit-wall.js';
 import RasiKartBar from './kart-bar.js';
 
 // 19. SERIAL / DEMO
@@ -252,9 +252,8 @@ function startDemo() {
   // Demo aktiven Kart, und die Demo-Karts zeichneten nichts auf.
   if (state.settings.recordAutoArm) armRecording();
   RasiKartBar.render(state);
-  $('demoStartBtn').classList.add('hidden');
-  $('demoStopBtn').classList.remove('hidden');
-  setText('demoModeText', 'Läuft');
+  const chip = $('demoChip');
+  if (chip) { chip.classList.add('on'); chip.textContent = '■ Demo läuft'; }
   $('connectBtn').textContent = 'Demo läuft';
   $('connectBtn').className = 'btn blue w100';
   // Generate demo track if no track loaded
@@ -294,9 +293,8 @@ function stopDemo() {
   if (state.demo.interval) clearInterval(state.demo.interval);
   state.demo.interval = null;
   activeKart().connection.source = 'offline';
-  $('demoStartBtn').classList.remove('hidden');
-  $('demoStopBtn').classList.add('hidden');
-  setText('demoModeText', 'Bereit');
+  const chip = $('demoChip');
+  if (chip) { chip.classList.remove('on'); chip.textContent = '▶ Demo'; }
   $('connectBtn').textContent = 'USB verbinden';
   $('connectBtn').className = 'btn primary w100';
   // Demo-Race aufraeumen: das selbst angelegte ohne gueltige Runden ist
@@ -321,7 +319,6 @@ function stopDemo() {
   state.demo.karts = [];
   state.activeKartMac = state.karts.activeMac();
   RasiKartBar.render(state);
-  renderConnectionTab();
 }
 function demoTick() {
   try {

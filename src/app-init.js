@@ -9,7 +9,7 @@ import { closeDriverModal, confirmDriverChange,
          createRace, deleteRace, endRace, openDriverChange, renderRaces,
          renderTrackOptions, selectRace, setActiveRace, toggleRaceExpand,
          toggleRaceRun, updateRaceControls } from './races.js';
-import { connectSerial, disconnectSerial, listSerialPorts,
+import { autoConnect, connectSerial, disconnectSerial, listSerialPorts,
          startDemo, stopDemo } from './serial-demo.js';
 import { activateSectorClick, clearManualSectors,
          clearTrack, closeTrackEditor, deleteSavedTrack, editorClickTarget,
@@ -21,7 +21,7 @@ import { addDriver, deleteDriver, renderDriverOptions,
          renderDrivers, renderLapTable } from './laps-drivers.js';
 import { animLoop, initLiveCharts, initLiveUiLoops } from './live-ui.js';
 import { closePitWall, openPitWall, restartDisplayUpdateInterval,
-         sendDisplayUpdate, toggleDiagnose, togglePitCall } from './pit-wall.js';
+         sendDisplayUpdate, togglePitCall } from './pit-wall.js';
 import { enterReplay, exitReplay, exportAll, exportRecordingCsv, importAll,
          initRecStore, loadRecordingFile, replayRace, replaySeek, resetAll,
          saveRecording, setReplaySpeed, toggleReplayPlay,
@@ -117,23 +117,32 @@ function init() {
   $('createRaceBtn').onclick = createRace;
   // Drivers tab
   $('addDriverBtn').onclick = addDriver;
-  // Connection tab
-  $('modeSerialBtn').onclick = () => {
-    $('modeSerialBtn').classList.add('active');
-    $('modeDemoBtn').classList.remove('active');
-    $('serialPanel').classList.remove('hidden');
-    $('demoPanel').classList.add('hidden');
+  // Connection tab (Phase 56): Demo-Chip, Hero-Aktion, Details-Aufklapper
+  $('demoChip').onclick = () => state.demo.running ? stopDemo() : startDemo();
+  $('connActionBtn').onclick = async () => {
+    if (state.demo.running) return;   // Button ist disabled (conn-ui) -- Gurt + Hosentraeger
+    if (state.serial.connected) { disconnectSerial(); return; }
+    const last = state.settings.serialLastPath;
+    await listSerialPorts();
+    const sel = $('serialPortSelect');
+    if (last && Array.from(sel.options).some(o => o.value === last)) {
+      sel.value = last;
+      if ($('serialBaud')) $('serialBaud').value = String(state.settings.serialLastBaud || 115200);
+      connectSerial();
+    } else {
+      // Kein (auffindbarer) letzter Port -> Aufklapper mit Portliste zeigen
+      $('connDetails').classList.remove('hidden');
+    }
   };
-  $('modeDemoBtn').onclick = () => {
-    $('modeDemoBtn').classList.add('active');
-    $('modeSerialBtn').classList.remove('active');
-    $('demoPanel').classList.remove('hidden');
-    $('serialPanel').classList.add('hidden');
-  };
-  if ($('diagToggleBtn')) $('diagToggleBtn').onclick = toggleDiagnose;
+  $('connDetailsBtn').onclick = () => $('connDetails').classList.toggle('hidden');
   $('serialRefreshBtn').onclick = listSerialPorts;
   $('serialConnectBtn').onclick = () => state.serial.connected ? disconnectSerial() : connectSerial();
-  $('autoReconnectToggle').onchange = () => { state.serial.autoReconnect = $('autoReconnectToggle').checked; };
+  $('autoConnectToggle').checked = state.settings.serialAutoConnect !== false;
+  $('autoConnectToggle').onchange = () => {
+    state.settings.serialAutoConnect = $('autoConnectToggle').checked;
+    state.serial.autoReconnect = $('autoConnectToggle').checked;
+    saveData();
+  };
   if ($('recAutoArmToggle')) $('recAutoArmToggle').onchange = () => { state.settings.recordAutoArm = $('recAutoArmToggle').checked; saveData(); };
   if ($('setTilesUrl')) $('setTilesUrl').addEventListener('input', function () { updateTilesUrlHint(); applyTilesPresetFromUrl(); });
   if ($('setTilesPreset')) $('setTilesPreset').addEventListener('change', onTilesPresetChanged);
@@ -159,8 +168,6 @@ function init() {
       try { drawTrack(); } catch (e) {}
     });
   }
-  $('demoStartBtn').onclick = startDemo;
-  $('demoStopBtn').onclick = stopDemo;
   // Settings tab
   initKartSettingsWindows();
   $('exportAllBtn').onclick = exportAll;
@@ -228,8 +235,8 @@ function init() {
   updateRaceControls();
   updateSectorPanel();
   if (state.startGate.enabled) setText('gateSizeText', (state.startGate.width || 14) + 'm');
-  // Auto-list ports
-  listSerialPorts();
+  // Ports listen, dann Auto-Connect-Versuch mit dem persistierten Port (Phase 56)
+  listSerialPorts().then(autoConnect).catch(() => {});
   // Start animation loop
   requestAnimationFrame(animLoop);
   // Statische Modal-Buttons CSP-konform verdrahten (kein inline onclick)
