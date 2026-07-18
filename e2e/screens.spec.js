@@ -30,8 +30,7 @@ const SHOT = { animations: 'disabled', caret: 'hide', maxDiffPixels: 2 };
 // #topConnPill steht drin, obwohl sein Text ("Offline") konstant ist: seine
 // Position haengt am variablen #hzPill davor (Ziffernzahl der Hz-Anzeige) --
 // ohne eigene Maske "blutet" die Textkante beim Verschieben in den Diff.
-// #connOverviewGps ist seit dem Dual-Writer-Fix (Phase 50) deterministisch
-// (nur noch ui-glue-Spiegel); der prep()-Wait unten sichert den ersten Tick.
+// Der prep()-Wait unten sichert den ersten 1-Hz-Tick (#heroGps, Phase 56).
 // .sidebar wird NICHT maskiert: das Gate soll Sidebar-CSS-Regressionen sehen (Phase 50).
 // #liveOverview wird KOMPLETT maskiert: die Demo faehrt ein Auto-Rennen,
 // das Ranking kann die Karten zwischen den zwei Vergleichs-Frames umsortieren
@@ -49,12 +48,11 @@ async function prep(page, app) {
     w.center();
   }, WIN);
   await page.evaluate(() => document.fonts.ready);
-  // Erster 1-Hz-Tick + 200ms-Sidebar-Spiegel muessen durch sein, sonst
-  // racet der Screenshot gegen die Boot-Zustaende (Phase 49: --/kein Fix).
-  // #connOverviewGps wird als LETZTES Glied der Kette gesetzt
-  // (live-ui 1Hz -> pit-wall renderConnectionTab -> ui-glue-Spiegel).
+  // Erster 1-Hz-Tick muss durch sein, sonst racet der Screenshot gegen die
+  // Boot-Zustaende (Phase 49). conn-ui.render() schreibt #heroGps vom
+  // Markup-Initial '--' auf 'N× Fix' -- letztes Glied der Boot-Kette (Phase 56).
   await page.waitForFunction(() => {
-    const el = document.querySelector('#connOverviewGps');
+    const el = document.querySelector('#heroGps');
     return !!el && el.textContent.trim() !== '--';
   });
 }
@@ -113,10 +111,9 @@ test.describe('Demo-Zustand', () => {
   test.beforeAll(async () => {
     ctx = await launchApp();
     await prep(ctx.page, ctx.app);
-    // Demo starten: Verbindungs-Tab -> Demo-Modus -> Start (wie demo.spec.js)
+    // Demo starten: Verbindungs-Tab -> Demo-Chip (Phase 56, wie demo.spec.js)
     await ctx.page.click('.nav-item[data-tab="connection"]');
-    await ctx.page.click('#modeDemoBtn');
-    await ctx.page.click('#demoStartBtn');
+    await ctx.page.click('#demoChip');
     await ctx.page.waitForFunction(() => RasiTest.state.demo.running === true);
     // state.karts ist die KartRegistry (get/has/macs/...), kein Map -- .size
     // existiert dort nicht (immer undefined >= 3 == false, Timeout). macs()
@@ -160,6 +157,23 @@ test.describe('Demo-Zustand', () => {
       document.querySelectorAll('#kartCardsList [data-action="settings"]').length >= 3);
     await expect(ctx.page).toHaveScreenshot('demo-karts.png',
       Object.assign({ mask: masks(ctx.page) }, SHOT));
+  });
+
+  test('Verbindungsseite mit laufender Demo', async () => {
+    await ctx.page.click('.nav-item[data-tab="connection"]');
+    // Grid gefuellt: 3 Demo-Kart-Karten vom 1-Hz-Renderer (conn-ui.js).
+    await ctx.page.waitForFunction(() =>
+      document.querySelectorAll('#connGrid .conn-card[data-mac]').length >= 3);
+    // Dynamische Wertefelder maskieren (RSSI-Jitter, Paketalter, Summen-Hz).
+    // Maske und Baseline entstehen im selben Schritt (Lektion Phase 49).
+    // Portstatus (Demo-Modus aktiv), Karts 3/3 und GPS 3x Fix sind statisch;
+    // Demo-RSSI (-52/-63/-71 +-3) bleibt ueber -75 -> Ampel stabil gruen.
+    const dyn = masks(ctx.page).concat([
+      ctx.page.locator('#connGrid .cc-vals'),
+      ctx.page.locator('#heroRate'),
+    ]);
+    await expect(ctx.page).toHaveScreenshot('demo-connection.png',
+      Object.assign({ mask: dyn }, SHOT));
   });
 
   test('Kart-Fenster', async () => {

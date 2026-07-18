@@ -10,10 +10,9 @@ let app, page, errors, userData;
 
 test.beforeEach(async () => {
   ({ app, page, errors, userData } = await launchApp());
-  // Demo starten: Verbindungs-Tab -> Demo-Modus einblenden -> Start.
+  // Demo starten: Verbindungs-Tab -> Demo-Chip (Phase 56).
   await page.click('.nav-item[data-tab="connection"]');
-  await page.click('#modeDemoBtn');
-  await page.click('#demoStartBtn');
+  await page.click('#demoChip');
   await page.waitForFunction(() => RasiTest.state.demo.running === true);
 });
 

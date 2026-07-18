@@ -16,8 +16,7 @@ test.afterEach(async () => {
 
 async function startDemo() {
   await page.click('.nav-item[data-tab="connection"]');
-  await page.click('#modeDemoBtn');
-  await page.click('#demoStartBtn');
+  await page.click('#demoChip');
   await page.waitForFunction(() => RasiTest.state.demo.running === true);
 }
 
