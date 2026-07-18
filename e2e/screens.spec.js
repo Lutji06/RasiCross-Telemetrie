@@ -189,10 +189,12 @@ test.describe('Demo-Zustand', () => {
       RasiTest.state.activeKartMac = m;
     });
     await ctx.page.click('.nav-item[data-tab="connection"]');
-    // Grid gefuellt: 3 Demo-Kart-Karten vom 1-Hz-Renderer (conn-ui.js);
-    // Sidebar im eingeschwungenen Demo-Zustand.
+    // Grid gefuellt UND eingeschwungen: der allererste Render zeigt 0 Hz
+    // (frisches Paketzaehler-Fenster) -> alle Karten kurz 'schwach' mit
+    // Hinweis 'Datenrate niedrig' -- auf ok-Ampel warten, sonst friert der
+    // Shot den Boot-Zustand ein (CI-Fund Phase 56b).
     await ctx.page.waitForFunction(() =>
-      document.querySelectorAll('#connGrid .cc-card[data-mac]').length >= 3
+      document.querySelectorAll('#connGrid .cc-card.ok[data-mac]').length >= 3
       && document.querySelector('#sideConnText').textContent === 'Demo');
     await ctx.page.mouse.move(0, 0);
     // Dynamische Wertefelder maskieren (RSSI-Jitter, Paketalter, Summen-Hz).
