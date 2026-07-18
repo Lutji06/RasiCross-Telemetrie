@@ -6,12 +6,10 @@
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
 import { fmtClock, fmtMs, structuralRaceKey } from './geo.js';
-import { state, $, css, esc, setText, rcAlert, rcToast,
-         logTime, activeKart } from './rasicross.js';
+import { state, $, setText, rcAlert, rcToast, activeKart } from './rasicross.js';
 import { activeRace, raceElapsedMs } from './races.js';
 import { theoreticalBestMs } from './laps-drivers.js';
 import KartRegistry from './kart-registry.js';
-import RasiKartBar from './kart-bar.js';
 import RasiLapEngine from './lap-engine.js';
 
 // ============================================================
@@ -135,125 +133,9 @@ function updatePitWall() {
   }
 }
 
-// ============================================================
-
-// ============================================================
-
-// ============================================================
-// CONNECTION TAB Updates
-// ============================================================
-let _packetLog = [];
-// RSSI-Sparkline (Phase 24): 1Hz-Historie (max 3 min), gezeichnet im
-// Verbindungs-Tab. Kein Persist -- Session-Verlauf reicht fuer Funkloecher.
-const RSSI_HIST_MAX = 180;
-let _rssiHist = [];
-function drawRssiSparkline() {
-  const cv = $('rssiSpark');
-  if (!cv) return;
-  const ctx = cv.getContext('2d');
-  if (!ctx) return;
-  const w = cv.width, h = cv.height;
-  ctx.clearRect(0, 0, w, h);
-  if (_rssiHist.length < 2) return;
-  const MIN = -100, MAX = -30;            // dBm-Skala
-  const y = v => h - 2 - ((Math.max(MIN, Math.min(MAX, v)) - MIN) / (MAX - MIN)) * (h - 4);
-  // Schwellen-Linie (-85 dBm = "Schwach")
-  ctx.strokeStyle = 'rgba(255,255,255,0.10)';
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, y(-85)); ctx.lineTo(w, y(-85)); ctx.stroke();
-  // Verlauf
-  const last = _rssiHist[_rssiHist.length - 1];
-  const color = last > -70 ? (css('--green') || '#5ad17a')
-              : last > -85 ? (css('--orange') || '#f0a050')
-              : (css('--red') || '#e05555');
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  for (let i = 0; i < _rssiHist.length; i++) {
-    const x = (i / (RSSI_HIST_MAX - 1)) * w;
-    if (i === 0) ctx.moveTo(x, y(_rssiHist[i])); else ctx.lineTo(x, y(_rssiHist[i]));
-  }
-  ctx.stroke();
-  // Endpunkt
-  const xe = ((_rssiHist.length - 1) / (RSSI_HIST_MAX - 1)) * w;
-  ctx.fillStyle = color;
-  ctx.beginPath(); ctx.arc(xe, y(last), 2.4, 0, Math.PI * 2); ctx.fill();
-}
-function renderConnectionTab() {
-  try {
-    const k = activeKart();
-    const c = k.connection;
-    const _am = state.activeKartMac;
-    const _meta = _am ? RasiKartBar.metaFor(state, _am, 0) : null;
-    setText('connDetailTitle', _meta ? ('Detail: ' + _meta.name) : '');
-    // Pills oben
-    setText('connModePill', c.source === 'serial' ? 'USB Serial' : c.source === 'demo' ? 'Demo' : 'Offline');
-    setText('connBridgeState', state.serial.connected ? 'Online' : 'Offline');
-    setText('connPacketsMini', c.packets.toLocaleString('de-DE'));
-    // Overview-Felder schreibt ausschliesslich der 200-ms-Spiegel in
-    // ui-glue.js (Single Source; Phase 50 -- vorher Dual-Writer-Ping-Pong
-    // auf connOverviewGps: '--' vs 'kein Fix').
-    setText('connOverviewSignal', c.rssi != null ? c.rssi + ' dBm' : '--');
-    // Diagram
-    setText('kartStatePill', c.lastPacketAt ? (Date.now() - c.lastPacketAt < 2000 ? 'aktiv' : 'inaktiv') : 'wartet');
-    setText('kartMainValue', k.telemetry.speed.toFixed(0) + ' km/h');
-    setText('pitStatePill', state.serial.connected ? 'online' : c.source === 'demo' ? 'demo' : 'offline');
-    setText('pitMainValue', state.serial.connected ? 'USB' : c.source === 'demo' ? 'DEMO' : 'OFF');
-    setText('connSeq', c.seq != null ? c.seq : '--');
-    setText('connAge', c.lastPacketAt ? ((Date.now() - c.lastPacketAt) / 1000).toFixed(1) + 's' : '--');
-    setText('connSpeed', k.telemetry.speed.toFixed(0));
-    setText('connRpm', Math.round(k.telemetry.rpm));
-    setText('connUsbState', state.serial.connected ? 'ON' : 'OFF');
-    setText('connHz', state._lastHz || 0);
-    setText('connRssi', c.rssi != null ? c.rssi + ' dBm' : '--');
-    setText('connLost', c.lost);
-    setText('connBridgeMac', c.bridgeMac || '--');
-    setText('connRasiMac', c.kartMac || '--');
-    setText('connGpsFix', k.gps.fix ? 'Fix' : 'kein Fix');
-    setText('connGpsAge', k.gps.lastAt ? ((Date.now() - k.gps.lastAt) / 1000).toFixed(1) + 's' : '--');
-    // Signal-Bars
-    const bars = document.querySelectorAll('#signalBars i');
-    if (bars.length === 4 && c.rssi != null) {
-      const r = c.rssi;
-      let lvl = r > -55 ? 4 : r > -70 ? 3 : r > -85 ? 2 : r > -95 ? 1 : 0;
-      bars.forEach((b, i) => {
-        b.classList.remove('on', 'warn');
-        if (i < lvl) b.classList.add(lvl <= 2 ? 'warn' : 'on');
-      });
-      setText('connQualityText', lvl >= 3 ? 'Sehr gut' : lvl === 2 ? 'OK' : lvl === 1 ? 'Schwach' : 'Verloren');
-    } else {
-      bars.forEach(b => b.classList.remove('on', 'warn'));
-      setText('connQualityText', 'Keine Daten');
-    }
-    setText('connLatency', c.lastPacketAt ? Math.round(Date.now() - c.lastPacketAt) : '--');
-    // RSSI-Historie (1Hz, da dieser Renderer im 1Hz-Loop laeuft)
-    if (c.rssi != null && (c.source === 'serial' || c.source === 'demo')) {
-      _rssiHist.push(c.rssi);
-      if (_rssiHist.length > RSSI_HIST_MAX) _rssiHist.shift();
-    }
-    drawRssiSparkline();
-    setText('connRawG', `${k.raw.gx.toFixed(2)} / ${k.raw.gy.toFixed(2)}`);
-    setText('connPulseHz', k.raw.pulseHz?.toFixed(1) || '--');
-    setText('connPulseCount', k.raw.pulseCount || '--');
-    setText('connErrCount', c.errors);
-    // Packet log
-    const log = $('packetLog');
-    if (log && _packetLog.length) {
-      log.innerHTML = _packetLog.slice(0, 8).map(p =>
-        `<div><b>${p.t}</b><span>${esc(p.line.slice(0, 200))}</span></div>`
-      ).join('');
-    }
-  } catch (e) { console.warn('renderConnectionTab:', e); }
-}
-function pushPacketLog(line) {
-  _packetLog.unshift({ t: logTime(), line: line });
-  _packetLog = _packetLog.slice(0, 20);
-}
-function toggleDiagnose() {
-  document.body.classList.toggle('diagnose-on');
-  const btn = $('diagToggleBtn');
-  if (btn) btn.classList.toggle('primary', document.body.classList.contains('diagnose-on'));
-}
+// Phase 56: Der Connection-Tab-Renderer (renderConnectionTab), Paket-Log
+// und die RSSI-Sparkline sind nach conn-ui.js umgezogen -- die Verbindungs-
+// seite hat dort ihren einzigen 1-Hz-Writer.
 
 // PIT-CALL — Boxenruf an Sender-ESP
 // ============================================================
@@ -465,14 +347,12 @@ function togglePitCall() {
 // Interface-Marker: von rasicross.js (init-Bindings, 1Hz-Loop)/serial-demo.js
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [openPitWall, closePitWall, pwKeyHandler, updatePitWall,
-      renderConnectionTab, pushPacketLog, toggleDiagnose,
       buildRaceDataForKart, sendDisplayUpdate, restartDisplayUpdateInterval,
       sendPitCall, cancelPitCall, togglePitCall];
 
 // ESM-Export (Phase 42): bisherige Interface-Globals von pit-wall.js
 export {
   openPitWall, closePitWall, pwKeyHandler, updatePitWall,
-  renderConnectionTab, pushPacketLog, toggleDiagnose,
   buildRaceDataForKart, sendDisplayUpdate, restartDisplayUpdateInterval,
   sendPitCall, cancelPitCall, togglePitCall,
 };

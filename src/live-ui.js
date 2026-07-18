@@ -10,7 +10,8 @@ import { activeRace, activePart, raceElapsedMs, endRace } from './races.js';
 import { drawTrack, resizeCanvases } from './map-draw.js';
 import { getTotalStats } from './laps-drivers.js';
 import { renderDriftBadge, renderGauges, renderRollBar } from './gauges.js';
-import { renderConnectionTab, updatePitWall } from './pit-wall.js';
+import { updatePitWall } from './pit-wall.js';
+import ConnUi from './conn-ui.js';
 import DomTargets from './dom-targets.js';
 import RasiKartBar from './kart-bar.js';
 import RasiKartOverview from './kart-overview.js';
@@ -591,15 +592,9 @@ setInterval(() => {
     setText('topConnText', 'Offline'); setText('sideConnText', 'Offline');
   }
 
-  // Connection-Tab (das hat vorher gefehlt!)
-  renderConnectionTab();
-
-  // Reconnect-Status
-  if (state.serial.reconnectTimer) {
-    setText('reconnectStatus', `Reconnect-Versuch ${state.serial.reconnectAttempts}...`);
-  } else {
-    setText('reconnectStatus', state.serial.connected ? '--' : 'Inaktiv');
-  }
+  // Verbindungsseite (Phase 56): conn-ui.js ist der einzige Writer;
+  // der Reconnect-Status steckt jetzt in der Portstatus-Zeile (heroStatus).
+  ConnUi.render();
 
   // Footer-KM live aktualisieren
   try {

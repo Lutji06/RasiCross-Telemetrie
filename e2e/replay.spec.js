@@ -17,8 +17,7 @@ test.afterEach(async () => {
 
 test('Recording/Replay-Roundtrip', async () => {
   await page.click('.nav-item[data-tab="connection"]');
-  await page.click('#modeDemoBtn');
-  await page.click('#demoStartBtn');
+  await page.click('#demoChip');
   await page.waitForFunction(() => RasiTest.state.demo.running === true);
   // recordAutoArm (Default true) armiert den aktiven Demo-Kart automatisch
   // (Fix des Phase-41-Funds: armRecording() laeuft in startDemo jetzt NACH

@@ -42,6 +42,7 @@ import './kart-registry.js';
 import './rasicross.js';
 import './kart-bar.js';
 import './kart-overview.js';
+import './conn-ui.js';
 import './karts-page.js';
 import './kart-settings-window.js';
 

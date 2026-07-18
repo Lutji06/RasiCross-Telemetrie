@@ -11,7 +11,7 @@ import { activeRace, endRace, raceValidLaps, renderRaces, startRace } from './ra
 import { calcAutoSectors, onGpsUpdate, updateBounds, updateSectorPanel } from './track.js';
 import { drawTrack } from './map-draw.js';
 import { renderDrivers, renderDriverOptions } from './laps-drivers.js';
-import { pushPacketLog, renderConnectionTab } from './pit-wall.js';
+import ConnUi from './conn-ui.js';
 import RasiKartBar from './kart-bar.js';
 
 // 19. SERIAL / DEMO
@@ -37,11 +37,14 @@ async function listSerialPorts() {
     }
   } catch (e) { console.warn('listSerialPorts:', e); sel.innerHTML = '<option value="">Fehler</option>'; }
 }
-async function connectSerial() {
+async function connectSerial(opts) {
+  const _auto = !!(opts && opts.auto);
   if (activeKart().replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
-  if (state.demo.running) stopDemo();
+  // Phase 56: Verbinden stoppt die Demo nie automatisch (Locked Decision) --
+  // der Demo-Chip muss zuerst gestoppt werden.
+  if (state.demo.running) { rcToast('Demo läuft — zuerst Demo stoppen'); return; }
   stopReconnect();
-  state.serial.autoReconnect = $('autoReconnectToggle').checked;
+  state.serial.autoReconnect = state.settings.serialAutoConnect !== false;
   state.serial.baud = Number($('serialBaud').value) || 115200;
   try {
     if (window.rasiSerial) {
@@ -56,6 +59,12 @@ async function connectSerial() {
       if (state.settings.recordAutoArm) armRecording();
       state.serial.portName = path;
       state.serial.lastPath = path;
+      state.serial.dropped = false;
+      state.serial.autoConnected = _auto;
+      // Phase 56: letzten Port + Baud persistieren -> Auto-Connect beim Start
+      state.settings.serialLastPath = path;
+      state.settings.serialLastBaud = state.serial.baud;
+      saveDataDebounced();
       // Nach await frisch aufloesen -- der aktive Kart kann waehrend des
       // Verbindungsaufbaus gewechselt worden sein (Fassaden-Semantik: Read-Zeit).
       activeKart().connection.source = 'serial';
@@ -73,6 +82,8 @@ async function connectSerial() {
       state.serial.port = port;
       state.serial.connected = true;
       state.serial.portName = 'WebSerial';
+      state.serial.dropped = false;
+      state.serial.autoConnected = false;   // WebSerial hat keinen persistierbaren Pfad
       activeKart().connection.source = 'serial';
       $('connectBtn').textContent = 'USB trennen';
       readWebSerial(port);
@@ -82,12 +93,21 @@ async function connectSerial() {
   } catch (e) {
     activeKart().connection.errors++;
     state.serial.connected = false;
-    rcAlert('Verbindung fehlgeschlagen:\n' + (e?.message || e), 'Fehler');
+    if (_auto) {
+      // Auto-Versuch scheitert leise -- der bestehende Backoff uebernimmt
+      // (Spec Auto-Connect); kein rcAlert-Spam beim App-Start.
+      state.serial.lastPath = state.serial.lastPath || state.settings.serialLastPath;
+      scheduleReconnect();
+    } else {
+      rcAlert('Verbindung fehlgeschlagen:\n' + (e?.message || e), 'Fehler');
+    }
   }
 }
 async function disconnectSerial() {
   stopReconnect();
   state.serial.autoReconnect = false;
+  state.serial.dropped = false;         // manuell getrennt = gewollt, keine Stoerung
+  state.serial.autoConnected = false;
   try {
     if (window.rasiSerial) await window.rasiSerial.close();
     if (state.serial.port) await state.serial.port.close();
@@ -101,6 +121,7 @@ async function disconnectSerial() {
 }
 function onSerialClose() {
   state.serial.connected = false;
+  state.serial.dropped = true;          // Klartext-Stoerung in der Portstatus-Zeile
   activeKart().connection.source = 'offline';
   $('connectBtn').textContent = 'USB verbinden';
   $('connectBtn').className = 'btn primary w100';
@@ -137,7 +158,7 @@ function handleSerialLine(line) {
   if (!line || !line.startsWith('{')) return;
   try {
     const d = JSON.parse(line);
-    pushPacketLog(line);
+    ConnUi.pushPacketLog(line);
     processTelemetry(d);
     if (d.lat && d.lon) onGpsUpdate(d.lat, d.lon);
   } catch (e) { activeKart().connection.errors++; }
@@ -159,6 +180,8 @@ function scheduleReconnect() {
         state.serial.portName = state.serial.lastPath;
         activeKart().connection.source = 'serial';
         state.serial.reconnectAttempts = 0;
+        state.serial.dropped = false;
+        state.serial.autoConnected = true;
         $('connectBtn').textContent = 'USB trennen';
         $('connectBtn').className = 'btn danger w100';
       }
@@ -170,6 +193,24 @@ function scheduleReconnect() {
 function stopReconnect() {
   if (state.serial.reconnectTimer) { clearTimeout(state.serial.reconnectTimer); state.serial.reconnectTimer = null; }
   state.serial.reconnectAttempts = 0;
+}
+
+// Phase 56: Auto-Connect beim App-Start -- genau ein Versuch mit dem
+// persistierten Port, nur wenn er in der aktuellen Portliste auftaucht
+// (sonst: kein Versuch, kein Fehler-Spam). Fehlversuche laufen ueber den
+// bestehenden scheduleReconnect()-Backoff. Aufrufer hat listSerialPorts()
+// bereits ausgefuehrt (app-init.js).
+async function autoConnect() {
+  if (state.settings.serialAutoConnect === false) return;
+  const path = state.settings.serialLastPath;
+  if (!path || state.demo.running || state.serial.connected) return;
+  if (!window.rasiSerial) return;   // WebSerial braucht eine User-Geste
+  const sel = $('serialPortSelect');
+  if (!sel || !Array.from(sel.options).some(o => o.value === path)) return;
+  sel.value = path;
+  const baudSel = $('serialBaud');
+  if (baudSel) baudSel.value = String(state.settings.serialLastBaud || 115200);
+  await connectSerial({ auto: true });
 }
 
 // Demo
@@ -211,9 +252,8 @@ function startDemo() {
   // Demo aktiven Kart, und die Demo-Karts zeichneten nichts auf.
   if (state.settings.recordAutoArm) armRecording();
   RasiKartBar.render(state);
-  $('demoStartBtn').classList.add('hidden');
-  $('demoStopBtn').classList.remove('hidden');
-  setText('demoModeText', 'Läuft');
+  const chip = $('demoChip');
+  if (chip) { chip.classList.add('on'); chip.textContent = '■ Demo läuft'; }
   $('connectBtn').textContent = 'Demo läuft';
   $('connectBtn').className = 'btn blue w100';
   // Generate demo track if no track loaded
@@ -253,9 +293,8 @@ function stopDemo() {
   if (state.demo.interval) clearInterval(state.demo.interval);
   state.demo.interval = null;
   activeKart().connection.source = 'offline';
-  $('demoStartBtn').classList.remove('hidden');
-  $('demoStopBtn').classList.add('hidden');
-  setText('demoModeText', 'Bereit');
+  const chip = $('demoChip');
+  if (chip) { chip.classList.remove('on'); chip.textContent = '▶ Demo'; }
   $('connectBtn').textContent = 'USB verbinden';
   $('connectBtn').className = 'btn primary w100';
   // Demo-Race aufraeumen: das selbst angelegte ohne gueltige Runden ist
@@ -280,7 +319,6 @@ function stopDemo() {
   state.demo.karts = [];
   state.activeKartMac = state.karts.activeMac();
   RasiKartBar.render(state);
-  renderConnectionTab();
 }
 function demoTick() {
   try {
@@ -358,7 +396,7 @@ function generateDemoTrack() {
 
 // ESM-Export (Phase 42): bisherige Interface-Globals von serial-demo.js
 export {
-  listSerialPorts, connectSerial, disconnectSerial,
+  listSerialPorts, connectSerial, disconnectSerial, autoConnect,
   startDemo, stopDemo, stopReconnect, scheduleReconnect,
   handleSerialLine, generateDemoTrack,
 };
