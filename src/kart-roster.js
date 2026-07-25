@@ -13,7 +13,28 @@
 
   function metaDefaults(idx) {
     const i = Math.max(0, Number(idx) || 0);
-    return { name: 'Kart ' + (i + 1), color: PALETTE[i % PALETTE.length], lastSeenAt: null };
+    return { name: 'Kart ' + (i + 1), color: PALETTE[i % PALETTE.length], lastSeenAt: null,
+             equip: equipDefaults(), equipSet: false };
+  }
+
+  // Ausstattung (Phase 57): Alt-Metas ohne equip-Feld gelten als voll
+  // ausgestattet; fehlende oder unbrauchbare Einzel-Flags fallen auf true.
+  function equipDefaults() { return { rpm: true, display: true }; }
+
+  function equipFor(meta) {
+    const e = meta && meta.equip;
+    return {
+      rpm: (e && typeof e.rpm === 'boolean') ? e.rpm : true,
+      display: (e && typeof e.display === 'boolean') ? e.display : true,
+    };
+  }
+
+  // Erst-Verbindungs-Dialog nur fuer echte, unbestaetigte Karts —
+  // nie Demo (DE:MO:*), nie der default-Platzhalter-Bucket.
+  function needsEquipDialog(meta, mac) {
+    if (!meta || meta.equipSet) return false;
+    if (isDemoMac(mac) || mac === 'default') return false;
+    return true;
   }
 
   function ensureMeta(map, mac, idx) {
@@ -73,4 +94,5 @@
 
   // ESM-Export: Default-Objekt (Konvention der Objekt-Module, Phase 42)
   export default { PALETTE, isDemoMac, metaDefaults, ensureMeta,
-                   migrateLegacyMeta, rosterMacs, clampServiceH, calDefaults, ackTargetMac };
+                   migrateLegacyMeta, rosterMacs, clampServiceH, calDefaults, ackTargetMac,
+                   equipDefaults, equipFor, needsEquipDialog };
