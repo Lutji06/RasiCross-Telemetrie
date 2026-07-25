@@ -13,6 +13,8 @@ import { state, rcToast, rcConfirm, saveData, saveDataDebounced,
          kartMetaFor, kartRosterMacs, kartCalFor, kartEngineFor, kartStatsFor,
          updateKartMeta, bridgeSend } from './rasicross.js';
 import { ESP_CFG_FIELDS, applyEspConfigAck } from './esp-config.js';
+import { equipSectionMarkup, bindEquipSection, refreshEquipSection,
+         applyEquipToEspPanel, equipForMac } from './kart-equip.js';
 import { drawGMeter } from './gauges.js';
 import RasiEngine from './engine.js';
 import RasiKartRoster from './kart-roster.js';
@@ -68,6 +70,7 @@ function _markup() {
     +   '<div class="row" id="kartPaletteRow" style="gap:8px;margin:4px 0 8px"></div>'
     +   '<div class="kc-mac" id="kartMacText"></div>'
     + '</section>'
+    + equipSectionMarkup()
     + '<section class="settings-group active" id="kartCalPanel" style="margin-top:14px">'
     +   '<header class="settings-group-head">'
     +     '<div><h2 class="settings-group-title">Kalibrierung</h2><p class="settings-group-sub">IMU · Nullpunkt &amp; Achsen</p></div>'
@@ -161,6 +164,7 @@ function openKartSettings(mac) {
   _wins.set(mac, r);
   _el(r, 'kartMacText').textContent = mac;
   _bindHandlers(r);
+  bindEquipSection(r);
   _refreshWin(r);
   // Ist-Konfig anfragen — config_ack fuellt das Formular (routeConfigAck).
   if (state.serial && state.serial.connected && _liveKart(mac)) {
@@ -390,6 +394,7 @@ function _refreshWin(r) {
     }
     _renderPalette(r);
   }
+  refreshEquipSection(r);
   _renderCal(r, typing);
   _renderService(r, typing);
   _renderEsp(r);
@@ -440,6 +445,7 @@ function _renderEsp(r) {
   const online = !!_liveKart(r.mac);
   const usable = online && !!(state.serial && state.serial.connected);
   for (const [id] of ESP_CFG_FIELDS) { const el = _el(r, id); if (el) el.disabled = !usable; }
+  applyEquipToEspPanel(r.doc, equipForMac(r.mac));
   if (_el(r, 'espSendBtn')) _el(r, 'espSendBtn').disabled = !usable;
   // Status nur bei ZUSTANDSWECHSEL schreiben — Sende-/Ack-Meldungen sonst
   // nicht bei jedem 1-Hz-Refresh ueberschreiben.
