@@ -14,6 +14,7 @@ import { activeRace } from './races.js';
 import { setLiveView } from './live-ui.js';
 import RasiKartBar from './kart-bar.js';
 import RasiKartRank from './kart-rank.js';
+import RasiKartRoster from './kart-roster.js';
 import RasiLapEngine from './lap-engine.js';
 
   function esc(s) {
@@ -119,7 +120,10 @@ import RasiLapEngine from './lap-engine.js';
         +   '<span class="ko-name" style="color:' + m.color + '">' + esc(m.name) + '</span>' + rec + flBadge + '</div>'
         + '<div class="ko-big">'
         +   '<div class="ko-speed">' + speed + '<small>km/h</small></div>'
-        +   '<div class="ko-rpm' + (rpmWarn ? ' warn' : '') + '">' + rpm + '<small>rpm</small></div>'
+        // Phase 57: RPM-Zelle nur fuer Karts mit Sensor.
+        +   (RasiKartRoster.equipFor(m).rpm
+              ? '<div class="ko-rpm' + (rpmWarn ? ' warn' : '') + '">' + rpm + '<small>rpm</small></div>'
+              : '')
         + '</div>'
         + '<div class="ko-row"><span class="ko-l">Aktuelle Runde</span><span class="ko-v">' + lapCur + '</span></div>'
         + '<div class="ko-row"><span class="ko-l">Letzte Runde</span><span class="ko-v">' + lapLast + '</span></div>'

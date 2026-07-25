@@ -20,6 +20,7 @@ import { refreshKartSettingsWindows } from './kart-settings-window.js';
 import RasiKartRank from './kart-rank.js';
 import RasiLapEngine from './lap-engine.js';
 import RasiLiveView from './live-view.js';
+import { equipForMac } from './kart-equip.js';
 
 // ============================================================
 // LIVE CHARTS (Speed/RPM + G-Kraft)
@@ -120,13 +121,13 @@ function drawLiveCharts() {
   try {
     if (!_srCtx || !_gCtx) return;
     const k = activeKart();
-    drawChart(_srCtx, _srCanvas,
-      [
-        { data: k.charts.speed, color: css('--pr'), label: 'Speed', fill: true },
-        { data: k.charts.rpm.map(v => v / state.settings.maxRpm * state.settings.maxSpeed), raw: k.charts.rpm, color: css('--red'), label: 'RPM', dash: true }
-      ],
+    // Phase 57: RPM-Serie nur fuer Karts mit Sensor zeichnen.
+    const _rpmOn = equipForMac(state.karts.activeMac() || 'default').rpm;
+    const _srSeries = [{ data: k.charts.speed, color: css('--pr'), label: 'Speed', fill: true }];
+    if (_rpmOn) _srSeries.push({ data: k.charts.rpm.map(v => v / state.settings.maxRpm * state.settings.maxSpeed), raw: k.charts.rpm, color: css('--red'), label: 'RPM', dash: true });
+    drawChart(_srCtx, _srCanvas, _srSeries,
       0, state.settings.maxSpeed,
-      { unit: 'km/h', right: 'rpm', maxRight: state.settings.maxRpm }
+      _rpmOn ? { unit: 'km/h', right: 'rpm', maxRight: state.settings.maxRpm } : { unit: 'km/h' }
     );
     drawChart(_gCtx, _gCanvas,
       [
@@ -209,6 +210,18 @@ const KPI_UPDATE_MS = 100;   // 10 Updates pro Sekunde
 const _kpiDisplay = { speed: 0, rpm: 0, gx: 0, gy: 0 };
 let _lastKpiUpdate = 0;
 let _lastKpiText = { speed: '', rpm: '', g: '', lap: '', count: '', spdSrc: '', batt: '' };
+// Phase 57: RPM-Karten (Einzel #kRpm, Kompakt #kRpmLive) folgen der
+// Kart-Ausstattung; Container einmalig aufloesen, nur bei Wechsel schalten.
+let _rpmKpiNodes = null;
+let _lastEqRpm = null;
+function _rpmKpiEls() {
+  if (!_rpmKpiNodes) {
+    const a = document.getElementById('kRpm');
+    const b = document.getElementById('kRpmLive');
+    _rpmKpiNodes = [a && a.closest('.kpi'), b && b.closest('.pw-kpi-cell')].filter(Boolean);
+  }
+  return _rpmKpiNodes;
+}
 // 3D-Viewer-State (_kart3dReady/_kart3dLastTick/_attLastMs) ist in
 // rasicross.js deklariert (G-View-Glue bleibt im Kern, Phase 23).
 
@@ -219,6 +232,12 @@ function updateLiveKPIs() {
   try {
     const k = activeKart();
     const t = k.telemetry;
+    // Phase 57: Kart ohne RPM-Sensor — Karten ausblenden, Texte ueberspringen.
+    const _eqRpm = equipForMac(state.karts.activeMac() || 'default').rpm;
+    if (_eqRpm !== _lastEqRpm) {
+      _lastEqRpm = _eqRpm;
+      for (const el of _rpmKpiEls()) el.style.display = _eqRpm ? '' : 'none';
+    }
     // Eigenes, langsameres Smoothing für Anzeige-Werte
     _kpiDisplay.speed += (t.speed - _kpiDisplay.speed) * KPI_SMOOTH;
     _kpiDisplay.rpm   += (t.rpm   - _kpiDisplay.rpm)   * KPI_SMOOTH;
@@ -281,7 +300,7 @@ function updateLiveKPIs() {
     // RPM in 50er-Schritten runden damit es nicht so wackelt
     const rpmRounded = Math.round(_kpiDisplay.rpm / 50) * 50;
     const rpmText = rpmRounded.toLocaleString('de-DE');
-    if (rpmText !== _lastKpiText.rpm) {
+    if (_eqRpm && rpmText !== _lastKpiText.rpm) {
       setTextShared('rpm', rpmText);
       _lastKpiText.rpm = rpmText;
     }
@@ -293,7 +312,7 @@ function updateLiveKPIs() {
     }
     // Max-Werte: aktualisieren sich seltener (bei jedem Update OK)
     setTextShared('speedMax', k.max.speed.toFixed(0));
-    setTextShared('rpmMax', String(Math.round(k.max.rpm / 50) * 50));
+    if (_eqRpm) setTextShared('rpmMax', String(Math.round(k.max.rpm / 50) * 50));
     setText('kGMax', k.max.g.toFixed(1));
     setText('kYaw', Math.round(k.imu.yaw));
     setText('kMtemp', k.imu.mtemp == null ? '--' : Math.round(k.imu.mtemp));
@@ -381,7 +400,8 @@ function updateLiveUi() {
       ? `${Math.abs(t.lat).toFixed(4)}°${t.lat >= 0 ? 'N' : 'S'} · ${Math.abs(t.lon).toFixed(4)}°${t.lon >= 0 ? 'E' : 'W'}`
       : '--°N · --°E');
     setText('trackPoints', state.track.points.length);
-    document.body.classList.toggle('rpm-warn', t.rpm >= state.settings.rpmWarning);
+    document.body.classList.toggle('rpm-warn',
+      equipForMac(state.karts.activeMac() || 'default').rpm && t.rpm >= state.settings.rpmWarning);
     const gpsAge = k.gps.lastAt ? Date.now() - k.gps.lastAt : null;
     document.body.classList.toggle('gps-warn', !!(gpsAge && gpsAge > 3000));
     // Race-Status (Countdown läuft im 60fps-Loop, hier nur Meta)
