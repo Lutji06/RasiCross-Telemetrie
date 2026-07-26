@@ -89,19 +89,19 @@ function _kartCard(r, meta, now) {
       + 'MAC: <b>' + esc(c.kartMac !== '--' ? c.kartMac : r.mac) + '</b><br>'
       + 'Seq: <b>' + (c.seq != null ? c.seq : '--') + '</b><br>'
       + 'RPM Pulse/s: <b>' + (r.k.raw.pulseHz != null ? r.k.raw.pulseHz.toFixed(1) : '--') + '</b><br>'
-      + 'Pulse Count: <b>' + (r.k.raw.pulseCount || '--') + '</b><br>'
+      + 'Pulse Count: <b>' + (r.k.raw.pulseCount != null ? r.k.raw.pulseCount : '--') + '</b><br>'
       + 'Raw-G: <b>' + r.k.raw.gx.toFixed(2) + ' / ' + r.k.raw.gy.toFixed(2) + '</b><br>'
       + 'Errors: <b>' + c.errors + '</b>'
       + '</div>'
     : '';
-  return '<div class="cc-card ' + r.res.level + '" data-mac="' + r.mac + '">'
+  return '<div class="cc-card ' + r.res.level + '" data-mac="' + esc(r.mac) + '">'
     + '<div class="cc-head">'
-    +   '<span class="cc-dot" style="background:' + meta.color + '"></span>'
+    +   '<span class="cc-dot" style="background:' + esc(meta.color) + '"></span>'
     +   '<span class="cc-name">' + esc(meta.name) + '</span>'
     +   '<span class="cc-badge ' + r.res.level + '">' + _BADGE[r.res.level] + '</span>'
     + '</div>'
     + vals + hints
-    + '<button class="cc-diag-btn" data-mac="' + r.mac + '">Diagnose ' + (open ? '▾' : '▸') + '</button>'
+    + '<button class="cc-diag-btn" data-mac="' + esc(r.mac) + '">Diagnose ' + (open ? '▾' : '▸') + '</button>'
     + diag
     + '</div>';
 }
