@@ -168,22 +168,32 @@ function rcToast(msg, ms = 2000) {
 // sobald es am Loslassen haengt, faellt das Gefuehl von Direktheit ab.
 // Ein delegierter Handler statt Bindungen pro Element: die Oberflaeche
 // baut Karten, Chips und Zeilen zur Laufzeit nach.
-const PRESS_SEL = '.btn,.nav-item,.kart-chip,.card.clickable,tr.clickable';
+const PRESS_SEL = '.btn,.nav-item,.kart-chip,.kart-card,.race-card,.ko-card';
 let _lastPressEl = null;
+// Das aktuell gedrueckte Element wird festgehalten: beim Loslassen zaehlt
+// DIESE Referenz, nicht das Ereignisziel. Sonst bliebe ein Element
+// gedrueckt stehen, sobald man wegzieht und woanders loslaesst.
+let _pressedEl = null;
 function lastPressEl() { return _lastPressEl; }
+function pressDisabled(el) {
+  // label.btn (index.html:953) hat keine disabled-Eigenschaft -- deshalb
+  // zusaetzlich die ARIA- und Klassen-Variante pruefen.
+  return !!(el.disabled || el.getAttribute('aria-disabled') === 'true'
+    || el.classList.contains('disabled'));
+}
 function setupPressFeedback() {
   document.addEventListener('pointerdown', (e) => {
     const el = e.target && e.target.closest && e.target.closest(PRESS_SEL);
-    if (!el || el.disabled) return;
+    if (!el || pressDisabled(el)) return;
     _lastPressEl = el;
+    _pressedEl = el;
     el.classList.add('is-pressed');
     RasiMotion.animate(el, 'scale', 0.97, { response: 0.12 });
   }, { passive: true });
-  // pointerup faengt den Normalfall, pointercancel das Wegziehen --
-  // ohne beides bliebe ein Element gedrueckt stehen.
-  const release = (e) => {
-    const el = e.target && e.target.closest && e.target.closest(PRESS_SEL);
+  const release = () => {
+    const el = _pressedEl;
     if (!el) return;
+    _pressedEl = null;
     el.classList.remove('is-pressed');
     // reset() im onDone: sonst bleibt ein Inline-transform stehen und der
     // Hover-Lift aus dem CSS waere ab dem ersten Klick ueberschrieben.
@@ -193,6 +203,8 @@ function setupPressFeedback() {
   };
   document.addEventListener('pointerup', release, { passive: true });
   document.addEventListener('pointercancel', release, { passive: true });
+  // Loslassen ausserhalb des Fensters erzeugt im Dokument gar kein Ereignis.
+  window.addEventListener('blur', release);
 }
 
 // ============================================================
