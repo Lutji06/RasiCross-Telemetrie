@@ -134,7 +134,7 @@ function exportRecordingCsv() {
 // GLOBALEN state-Felder (hz, sectors, drivers, races, activeRaceId,
 // selectedRaceId, gateFlashUntil) werden darunter explizit behandelt.
 const REPLAY_KART_KEYS = ['connection','telemetry','raw','display','gps','spdSrc',
-  'batt','max','charts','imu','drift','driftSmooth','attitude','heatmap','sectorsLive','lapStart','currentLapMax',
+  'batt','max','charts','imu','drift','driftSmooth','attitude','heatmap','sectorsLive','sectorsBest','lapStart','currentLapMax',
   'currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta','autoLap'];
 
 function snapshotReplayState() {
@@ -184,8 +184,10 @@ function resetReplayDerived() {
   resetAttitudeClock();
   k.heatmap = { on: k.heatmap.on, lapMaxSpeed: 0 };
   // Sektor-Konfiguration (boundaries/manual) bleibt erhalten; Bests + Live-
-  // Sektorzeiten (pro Kart) zuruecksetzen.
-  state.sectors.best = [null, null, null];
+  // Sektorzeiten (pro Kart) zuruecksetzen. Phase 60: k.sectorsBest ist das
+  // echte Ziel -- vorher wurde die tote Globale genullt, sodass ein Replay
+  // die realen Bestzeiten ueberschrieb (und via Snapshot nie zurueckkam).
+  k.sectorsBest = [null, null, null];
   state.sectors.clickTarget = null;
   k.sectorsLive = { cur: 0, sectorStart: null, lapSectors: [null, null, null], lastLapSectors: null };
   k.lapStart = null;
