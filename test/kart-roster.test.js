@@ -14,7 +14,7 @@ test('isDemoMac: DE:MO:-Prefix erkannt, echte MACs nicht', () => {
 
 test('metaDefaults: Name nach Index, Farbe aus Palette (Modulo)', () => {
   assert.deepEqual(metaDefaults(0), { name: 'Kart 1', color: PALETTE[0], lastSeenAt: null,
-                                      equip: { rpm: true, display: true }, equipSet: false });
+                                      equip: { rpm: true }, equipSet: false });
   assert.equal(metaDefaults(5).color, PALETTE[0]);   // 5 % 5 = 0
   assert.equal(metaDefaults(6).name, 'Kart 7');
 });
@@ -22,19 +22,21 @@ test('metaDefaults: Name nach Index, Farbe aus Palette (Modulo)', () => {
 test('equipDefaults: volle Ausstattung, frisches Objekt', () => {
   const a = equipDefaults(); const b = equipDefaults();
   assert.notEqual(a, b);
-  assert.deepEqual(a, { rpm: true, display: true });
+  assert.deepEqual(a, { rpm: true });
 });
 
 test('equipFor: Alt-Meta ohne equip-Feld gilt als voll ausgestattet', () => {
-  assert.deepEqual(equipFor(undefined), { rpm: true, display: true });
+  assert.deepEqual(equipFor(undefined), { rpm: true });
   assert.deepEqual(equipFor({ name: 'Alt', color: '#fff', lastSeenAt: 1 }),
-                   { rpm: true, display: true });
+                   { rpm: true });
 });
 
-test('equipFor: fehlende Einzel-Flags fallen auf true zurueck', () => {
-  assert.deepEqual(equipFor({ equip: { rpm: false } }), { rpm: false, display: true });
-  assert.deepEqual(equipFor({ equip: { display: false } }), { rpm: true, display: false });
-  assert.deepEqual(equipFor({ equip: { rpm: 'ja' } }), { rpm: true, display: true });
+test('equipFor: fehlende oder unbrauchbare Flags fallen auf true zurueck', () => {
+  assert.deepEqual(equipFor({ equip: { rpm: false } }), { rpm: false });
+  assert.deepEqual(equipFor({ equip: {} }), { rpm: true });
+  assert.deepEqual(equipFor({ equip: { rpm: 'ja' } }), { rpm: true });
+  // Alt-Save mit entferntem display-Flag bleibt ladbar (Feld wird ignoriert)
+  assert.deepEqual(equipFor({ equip: { rpm: false, display: true } }), { rpm: false });
 });
 
 test('needsEquipDialog: nur echte, unbestaetigte Karts', () => {

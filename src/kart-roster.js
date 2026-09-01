@@ -19,13 +19,14 @@
 
   // Ausstattung (Phase 57): Alt-Metas ohne equip-Feld gelten als voll
   // ausgestattet; fehlende oder unbrauchbare Einzel-Flags fallen auf true.
-  function equipDefaults() { return { rpm: true, display: true }; }
+  // Phase 58: nur noch das RPM-Flag — das Display ist entfernt; alte
+  // Saves mit equip.display bleiben ladbar (Feld wird ignoriert).
+  function equipDefaults() { return { rpm: true }; }
 
   function equipFor(meta) {
     const e = meta && meta.equip;
     return {
       rpm: (e && typeof e.rpm === 'boolean') ? e.rpm : true,
-      display: (e && typeof e.display === 'boolean') ? e.display : true,
     };
   }
 

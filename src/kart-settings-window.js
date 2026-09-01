@@ -98,8 +98,6 @@ function _markup() {
     +     '<div><h2 class="settings-group-title">ESP32 / Sender</h2><p class="settings-group-sub">Sender-Konfig dieses Karts</p></div>'
     +   '</header>'
     +   '<p class="settings-block-note">Werte unten gehen erst per „An ESP32 senden" an den Kart und wirken dann sofort.</p>'
-    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Max RPM (Sender)</span><span class="settings-row-desc">Drehzahl-Obergrenze im Sender</span></div><input type="number" id="espMaxRpm" value="6000"></div>'
-    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Warn RPM (Sender)</span><span class="settings-row-desc">Warnschwelle im Sender</span></div><input type="number" id="espWarnRpm" value="5500"></div>'
     +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Sende-Intervall</span><span class="settings-row-desc">Telemetrie-Rate des Senders (ms)</span></div><input type="number" id="espSendMs" value="80" min="20" max="500"></div>'
     +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Pulses per Revolution</span><span class="settings-row-desc">Sensor-Pulse pro Wellenumdrehung</span></div><input type="number" id="espPulses" value="1" min="1" max="32"></div>'
     +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Radumfang</span><span class="settings-row-desc">Meter pro Radumdrehung (0 = nur GPS)</span></div><input type="number" id="espWheelCirc" value="0" min="0" step="0.001"></div>'
@@ -110,7 +108,6 @@ function _markup() {
     +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">Akku Feinkalibrierung</span><span class="settings-row-desc">Multiplikator auf die gemessene Spannung (Abgleich mit Multimeter)</span></div><input type="number" id="espBattCal" value="1.0" min="0.5" max="2.0" step="0.01"></div>'
     +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">RPM Glitch-Schwelle</span><span class="settings-row-desc">Flanken oberhalb dieser Drehzahl gelten als Störimpuls (Zünd-EMI); 0 = Filter aus</span></div><input type="number" id="espRpmCeiling" value="16000" min="0" max="30000" step="500"></div>'
     +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">RPM-Glättung</span><span class="settings-row-desc">EMA-Gewicht des neuen Werts: 1 = ungefiltert, klein = träge</span></div><input type="number" id="espRpmAlpha" value="0.25" min="0.05" max="1" step="0.05"></div>'
-    +   '<div class="settings-row"><div class="settings-row-label"><span class="settings-row-name">OLED Seitenwechsel</span><span class="settings-row-desc">Auto-Seitenwechsel des Kart-Displays (ms)</span></div><input type="number" id="espPageMs" value="4000" min="1000" max="20000" step="500"></div>'
     +   '<div class="row" style="margin:6px 0 4px"><button class="btn primary" id="espSendBtn" style="flex:1">An ESP32 senden</button></div>'
     +   '<p id="espSendStatus" style="font-family:var(--mono);font-size:11px;color:var(--mut);margin-top:6px;text-align:center;min-height:14px"></p>'
     + '</section>'
@@ -323,8 +320,6 @@ function _bindHandlers(r) {
     const num = (id) => Number(doc.getElementById(id).value);
     const cfg = {
       type: 'config',
-      max_rpm: num('espMaxRpm') || 6000,
-      warn_rpm: num('espWarnRpm') || 5500,
       send_ms: num('espSendMs') || 80,
       pulses_per_rev: num('espPulses') || 1,
       wheel_circ_m: num('espWheelCirc') || 0,
@@ -335,7 +330,6 @@ function _bindHandlers(r) {
       batt_cal: num('espBattCal') || 1.0,
       rpm_ceiling: Math.max(0, num('espRpmCeiling') || 0),
       rpm_alpha: num('espRpmAlpha') || 0.25,
-      page_ms: num('espPageMs') || 4000,
     };
     const stEl = _el(r, 'espSendStatus');
     if (!state.serial.connected || !k) {
