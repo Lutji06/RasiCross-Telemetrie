@@ -22,7 +22,7 @@
       display: { speedLerp: null, rpmLerp: null, gxLerp: 0, gyLerp: 0 },
       gps: { fix: false, lastAt: null },
       spdSrc: 'gps',
-      batt: { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 },
+      batt: { present: false, vbat: 0, soc: 0, warn: 0, _lastWarn: 0 },
       max: { speed: 0, rpm: 0, g: 0 },
       charts: { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] },
       imu: { yaw: 0, mtemp: null },

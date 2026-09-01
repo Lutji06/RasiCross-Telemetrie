@@ -334,7 +334,6 @@ function _bindHandlers(r) {
       if (stEl) stEl.textContent = !state.serial.connected ? 'Nicht verbunden' : 'Kart nicht verbunden';
       return;
     }
-    k.batt.cells = cfg.batt_cells;
     try {
       _lastCfgMac = r.mac;
       _sendTo(r.mac, cfg);

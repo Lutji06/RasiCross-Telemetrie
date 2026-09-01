@@ -4,8 +4,6 @@
 // ============================================================
 
 import { logTime } from './rasicross.js';
-import { activeKart, kartFor } from './store.js';
-import KartRegistry from './kart-registry.js';
 
 // ESP-Config-Formular <- config_ack: [Input-ID, kompakter Funk-Key].
 // Der Kart bestaetigt jede Config (und antwortet auf config_get) mit den
@@ -26,9 +24,8 @@ function applyEspConfigAck(d, doc) {
     const el = doc.getElementById(id);
     if (el && d[key] != null) el.value = d[key];
   }
-  // Akkuzellen-Zahl gehoert zum bestaetigenden Kart (per from_mac), sonst aktiver Kart.
-  const _k = kartFor(d.from_mac || KartRegistry.DEFAULT_MAC) || activeKart();
-  if (d.bc != null) _k.batt.cells = Number(d.bc) || _k.batt.cells;
+  // Phase 61: die Zellenzahl wurde hier nur in k.batt.cells gespiegelt, das
+  // niemand las -- die Per-Zellen-Spannung rechnet der ESP. Feld entfernt.
   const st = doc.getElementById('espSendStatus');
   if (st) st.textContent = '✓ Vom Kart bestätigt ' + logTime();
 }

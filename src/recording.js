@@ -174,7 +174,7 @@ function resetReplayDerived() {
   k.display = { speedLerp: null, rpmLerp: null, gxLerp: 0, gyLerp: 0 };
   k.gps = { fix: false, lastAt: null };
   k.spdSrc = 'gps';
-  k.batt = { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 };
+  k.batt = { present: false, vbat: 0, soc: 0, warn: 0, _lastWarn: 0 };
   k.max = { speed: 0, rpm: 0, g: 0 };
   k.charts = { speed: [], rpm: [], gx: [], gy: [], gz: [], yaw: [], driftIndex: [] };
   k.imu = { yaw: 0, mtemp: null };
