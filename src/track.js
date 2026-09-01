@@ -176,15 +176,6 @@ async function saveCurrentTrack() {
     }
   } catch (e) { /* silent — manual button is the fallback */ }
 }
-// Sektor-Bests gehoeren zur Strecke: nach jedem neuen Best in die aktive
-// gespeicherte Strecke spiegeln, damit sie Streckenwechsel ueberleben.
-function syncSectorBestToTrack() {
-  // Phase 30: Strecken-Rekord = bestes Ergebnis ueber alle Karts (min je Sektor).
-  const t = state.savedTracks.find(x => x.id === state.activeTrackId);
-  if (!t) return;
-  const bests = state.karts.macs().map(mac => state.karts.get(mac).sectorsBest || [null, null, null]);
-  t.sectorBest = RasiLapEngine.trackRecordFromKarts(bests);
-}
 function loadSavedTrack(id) {
   const t = state.savedTracks.find(x => x.id === id);
   if (!t) return;
@@ -722,7 +713,6 @@ function checkSectorCrossings(k, lat, lon) {
         // Update per-kart best
         if (RasiLapEngine.sectorBestUpdate(k.sectorsBest, i, sectorMs)) {
           if (isAct) rcAudio.sectorBest();
-          syncSectorBestToTrack();
           saveDataDebounced();
         }
         if (isAct) updateSectorPanel();
@@ -765,7 +755,7 @@ function updateSectorPanel() {
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
       recomputeTrackBounds,
-      saveCurrentTrack, syncSectorBestToTrack, loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
+      saveCurrentTrack, loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
       startTrackTileCache, renderSavedTracks, openTrackEditor, closeTrackEditor,
       editorClickTarget, handleEditorClick, saveEditor, calcAutoSectors,
       clearManualSectors, activateSectorClick, handleTrackCanvasClick,
@@ -774,7 +764,7 @@ void [startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
 // ESM-Export (Phase 42): bisherige Interface-Globals von track.js
 export {
   startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
-  recomputeTrackBounds, saveCurrentTrack, syncSectorBestToTrack,
+  recomputeTrackBounds, saveCurrentTrack,
   loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
   startTrackTileCache, renderSavedTracks, openTrackEditor, closeTrackEditor,
   editorClickTarget, handleEditorClick, saveEditor, calcAutoSectors,

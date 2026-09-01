@@ -121,18 +121,6 @@
     return false;
   }
 
-  function trackRecordFromKarts(bestsList) {
-    var rec = [null, null, null];
-    for (var i = 0; i < bestsList.length; i++) {
-      var b = bestsList[i] || [];
-      for (var s = 0; s < 3; s++) {
-        if (b[s] == null) continue;
-        if (rec[s] == null || b[s] < rec[s]) rec[s] = b[s];
-      }
-    }
-    return rec;
-  }
-
   // Phase 36: Live-Positions-Ranking ueber den momentanen Streckenfortschritt.
   // progressByMac[mac] = runden-lokaler Streckenfortschritt in Metern ab
   // Start/Ziel (groesser = weiter vorn; null/undefined = kein Fortschritt).
@@ -234,7 +222,6 @@
     bestFromLaps: bestFromLaps,
     commitLap: commitLap,
     sectorBestUpdate: sectorBestUpdate,
-    trackRecordFromKarts: trackRecordFromKarts,
     rankParticipants: rankParticipants,
     leaderReachedTarget: leaderReachedTarget,
     fastestLapHolder: fastestLapHolder,

@@ -10,7 +10,7 @@ import { state, $, uid, esc, setText, rcAlert, rcConfirm, rcToast, rcAudio,
 import { activeRace, endRace } from './races.js';
 import KartRegistry from './kart-registry.js';
 import RasiLapEngine from './lap-engine.js';
-import { syncSectorBestToTrack, updateSectorPanel } from './track.js';
+import { updateSectorPanel } from './track.js';
 
 // ============================================================
 // 14. LAP DETECTION
@@ -53,7 +53,6 @@ function triggerLap(k, mac) {
         sl.lapSectors[2] = s3Ms;
         if (RasiLapEngine.sectorBestUpdate(k.sectorsBest, 2, s3Ms)) {
           if (isAct) rcAudio.sectorBest();
-          syncSectorBestToTrack();
         }
       }
       const res = RasiLapEngine.commitLap(part, {
