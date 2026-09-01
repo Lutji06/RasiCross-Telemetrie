@@ -13,8 +13,23 @@
 .conn-port-line.warn{color:var(--orange)}
 .conn-port-line.err{color:var(--red)}
 
+/* Verbinden-Cockpit (56b): Aktions-Zeile unter der Portstatus-Zeile links */
+#tab-connection .pw-hero-content{align-items:flex-start}
 .conn-hero-actions{
-  display:flex;align-items:center;gap:var(--sp-8);
+  display:flex;align-items:center;gap:var(--sp-10);
+  margin-top:12px;
+}
+.conn-details-link{
+  background:transparent;border:0;cursor:pointer;
+  color:var(--mut);font-size:var(--fs-12);font-weight:600;
+  text-decoration:underline dotted;padding:var(--sp-4) var(--sp-2);
+  transition:var(--t);
+}
+.conn-details-link:hover{color:var(--tx)}
+#connActionBtn:disabled{
+  background:var(--soft);color:var(--mut);
+  border:1px solid var(--bor);box-shadow:none;
+  cursor:default;transform:none;
 }
 .conn-chip{
   padding:var(--sp-6) var(--sp-12);border-radius:var(--r-pill);
@@ -75,15 +90,18 @@
   grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
   gap:var(--sp-14);
 }
-.conn-card{
+/* cc-card, NICHT conn-card: .conn-card ist die Sidebar-Verbindungskarte
+   (base.css:90, display:flex) -- die Namenskollision legte die Grid-Karten
+   flach (56b-Debug-Fund). */
+.cc-card{
   padding:var(--sp-14);
   background:var(--surf);
   border:1px solid var(--bor);
   border-radius:var(--r-xl);
 }
-.conn-card.warn{border-color:var(--orange);box-shadow:var(--glow-sm) var(--orange-glow)}
-.conn-card.off{border-color:var(--red);box-shadow:var(--glow-sm) var(--red-glow)}
-.conn-card.conn-wait{
+.cc-card.warn{border-left:3px solid var(--orange)}
+.cc-card.off{border-left:3px solid var(--red)}
+.cc-card.cc-wait{
   border-style:dashed;color:var(--mut);
   display:grid;place-items:center;
   font-size:var(--fs-12);min-height:96px;
@@ -95,12 +113,15 @@
   font-weight:700;color:var(--tx);flex:1;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.cc-badge{font-family:var(--mono);font-size:var(--fs-10);font-weight:700;white-space:nowrap}
+.cc-badge{
+  font-family:var(--mono);font-size:var(--fs-10);font-weight:700;white-space:nowrap;
+  text-transform:uppercase;letter-spacing:.06em;
+}
 .cc-badge.ok{color:var(--green)}
 .cc-badge.warn{color:var(--orange)}
 .cc-badge.off{color:var(--red)}
 .cc-vals{
-  display:flex;flex-wrap:wrap;gap:var(--sp-8) var(--sp-14);
+  display:grid;grid-template-columns:repeat(5,1fr);gap:var(--sp-8);
 }
 .cc-vals i{
   display:block;font-style:normal;
@@ -117,13 +138,30 @@
 .cc-hints{
   margin-top:10px;padding:var(--sp-8) var(--sp-10);
   background:var(--soft);border-radius:var(--r-sm);
+  border-left:3px solid var(--orange);
   font-size:var(--fs-12);color:var(--orange);line-height:1.5;
 }
-.conn-card.off .cc-hints{color:var(--red)}
+.cc-card.off .cc-hints{color:var(--red);border-left-color:var(--red)}
 .cc-diag-btn{
-  margin-top:10px;padding:var(--sp-4) var(--sp-8);
-  background:transparent;border:0;color:var(--mut);
+  display:block;width:100%;text-align:left;
+  border:0;border-top:1px solid var(--div);
+  margin-top:12px;padding:var(--sp-8) 0 0;
+  background:transparent;color:var(--mut);
   font-family:var(--mono);font-size:var(--fs-11);cursor:pointer;
 }
 .cc-diag-btn:hover{color:var(--tx)}
 .cc-diag{margin-top:var(--sp-8)}
+
+/* Empty-State (56b): volle Grid-Breite, erklaert Verbinden + Demo */
+.conn-empty{
+  grid-column:1 / -1;
+  border:2px dashed var(--bor);border-radius:var(--r-xl);
+  padding:var(--sp-24) var(--sp-18);text-align:center;color:var(--tx);
+}
+.ce-icon{font-size:26px;margin-bottom:10px}
+.ce-title{font-size:var(--fs-15);font-weight:700}
+.ce-sub{
+  color:var(--mut);font-size:var(--fs-12);line-height:1.6;
+  margin-top:8px;margin-bottom:14px;
+}
+.ce-sub b{color:var(--pr)}

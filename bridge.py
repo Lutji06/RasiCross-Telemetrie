@@ -3,20 +3,16 @@
 # ============================================================
 #  Rolle:    Boxen-seitiger ESP. Empfängt Telemetrie vom Kart
 #            per ESP-NOW und gibt sie als JSON-Lines per USB-Serial
-#            an das Dashboard aus. Leitet Steuerpakete (Display,
-#            Config, Pit-Call) vom Dashboard zurück an den Kart.
+#            an das Dashboard aus. Leitet Steuerpakete (Config,
+#            IMU-Kalibrierung) vom Dashboard zurück an den Kart.
 #
 #  Pins (Standard, im Config-Block änderbar):
-#    OLED      → I2C  SDA=21  SCL=22  (Adresse 0x3C)
 #    Status-LED→ GPIO 2 (onboard)
 #
 #  Was ist neu vs. v8:
-#    • Saubere Trennung: Stats / Display / Bridge / I/O
-#    • Pit-Call Hinweis hat eigenen Timeout (überschreibt
-#      normales Display nicht endlos)
+#    • Saubere Trennung: Stats / Bridge / I/O
 #    • Bridge sendet "bridge_hello" beim Start → Sender lernt MAC
 #      automatisch (kein Hardcoding mehr nötig im Notfall)
-#    • OLED zeigt Channel + Verbindungsstatus klar getrennt
 #    • Statistik-Klasse für Pakete/s, Verlustrate, RSSI-Filter
 #    • Onboard-LED Heartbeat
 #    • Bessere Fehler-Meldungen ans Dashboard
@@ -37,20 +33,14 @@ except Exception:
     _HAS_SELECT = False
 
 try:
-    from machine import Pin, I2C, WDT
+    from machine import Pin, WDT
     _HAS_WDT = True
 except Exception:
     _HAS_WDT = False
     try:
-        from machine import Pin, I2C
+        from machine import Pin
     except Exception:
         pass
-
-try:
-    import ssd1306
-    _HAS_OLED = True
-except Exception:
-    _HAS_OLED = False
 
 # NVS fuer persistente Peer-Liste (Kart-MAC ueberlebt Reboot)
 try:
@@ -71,13 +61,6 @@ class Config:
 
     # Sicherheit
     WATCHDOG_MS       = 8000    # Hardware-Watchdog (0 = aus); Bridge-Hang wird automatisch behoben
-
-    # OLED
-    OLED_ENABLED      = True
-    OLED_SDA          = 21
-    OLED_SCL          = 22
-    OLED_REFRESH_MS   = 250
-    PIT_MSG_DURATION_MS = 3000   # Wie lange "PIT-CALL TX" auf Bridge sichtbar
 
     # Funk: ESP-NOW laeuft im reinen Long-Range-Modus.
     # WICHTIG: Sender muss auch im LR-Mode laufen!
@@ -162,10 +145,7 @@ class Stats:
         self._last_rate_ms = utime.ticks_ms()
         self.packets_per_sec = 0
         # Live-Werte des letzten Pakets
-        self.last_speed = 0.0
-        self.last_rpm   = 0
         self.last_rssi  = None
-        self.gps_fix    = False
         self.last_packet_at = 0
 
     def on_packet(self, data):
@@ -188,18 +168,10 @@ class Stats:
             except (TypeError, ValueError):
                 pass
 
-        # Live-Werte für Display
-        if "speed" in data:
-            try: self.last_speed = float(data["speed"])
-            except (TypeError, ValueError): pass
-        if "rpm" in data:
-            try: self.last_rpm = int(data["rpm"])
-            except (TypeError, ValueError): pass
+        # RSSI des letzten Pakets (speist bridge_status)
         if "rssi" in data:
             try: self.last_rssi = int(data["rssi"])
             except (TypeError, ValueError): pass
-        if "gps_fix" in data:
-            self.gps_fix = bool(data["gps_fix"])
 
     def tick(self):
         """Einmal pro Sekunde aufrufen, aktualisiert Pakete/s."""
@@ -215,115 +187,6 @@ class Stats:
         if not self.last_packet_at:
             return 99999
         return utime.ticks_diff(utime.ticks_ms(), self.last_packet_at)
-
-
-# ── OLED-Display ──────────────────────────────────────────────────────────
-
-class BridgeDisplay:
-    """SSD1306 128x64 für die Bridge.
-
-    Layout (4 Zeilen à 12px):
-      Zeile 0 (Header):   "BRIDGE  CH:1   #####"  + Aktivitätspunkt
-      Zeile 1 (Tele):     "999km/h  9999 rpm"
-      Zeile 2 (Funk):     "999Hz  L:9999"
-      Zeile 3 (RF/GPS):   "-99dBm   GPS:OK"
-      Zeile 4 (USB):      "USB ON|OFF"
-    """
-
-    def __init__(self):
-        self._ok = False
-        self._oled = None
-        self._last_draw = 0
-        self._msg_until = 0
-        self._msg_line1 = ""
-        self._msg_line2 = ""
-
-        if not (Config.OLED_ENABLED and _HAS_OLED):
-            return
-        try:
-            i2c = I2C(0, sda=Pin(Config.OLED_SDA),
-                      scl=Pin(Config.OLED_SCL), freq=400_000)
-            self._oled = ssd1306.SSD1306_I2C(128, 64, i2c)
-            self._ok = True
-            self._show_boot()
-        except Exception as e:
-            print("OLED init fehler:", e)
-
-    def _show_boot(self):
-        o = self._oled
-        o.fill(0)
-        o.text("RasiCross", 28, 8, 1)
-        o.text("Bridge ESP32", 16, 24, 1)
-        o.text("CH:{}  Init...".format(Config.ESPNOW_CHANNEL), 0, 44, 1)
-        o.show()
-
-    def show_message(self, line1, line2="", duration_ms=None):
-        """Blendet eine Nachricht für duration_ms ein (überschreibt normales Display)."""
-        if not self._ok:
-            return
-        self._msg_line1 = str(line1)[:16]
-        self._msg_line2 = str(line2)[:16]
-        if duration_ms is None:
-            duration_ms = Config.PIT_MSG_DURATION_MS
-        self._msg_until = utime.ticks_add(utime.ticks_ms(), duration_ms)
-
-    def update(self, stats, kart_mac, kart_count, usb_connected):
-        if not self._ok:
-            return
-        if not stats:
-            return
-        now = utime.ticks_ms()
-        if utime.ticks_diff(now, self._last_draw) < Config.OLED_REFRESH_MS:
-            return
-        self._last_draw = now
-
-        o = self._oled
-        o.fill(0)
-
-        # ── Message-Override (z.B. Pit-Call) ────────────────────────────
-        if utime.ticks_diff(now, self._msg_until) < 0:
-            o.rect(0, 0, 128, 64, 1)
-            o.fill_rect(0, 0, 128, 12, 1)
-            o.text("BRIDGE", 4, 2, 0)
-            o.text(self._msg_line1, 4, 24, 1)
-            if self._msg_line2:
-                o.text(self._msg_line2, 4, 38, 1)
-            o.show()
-            return
-
-        # ── Header ───────────────────────────────────────────────────────
-        o.text("BRIDGE", 0, 0, 1)
-        o.text("CH{}".format(Config.ESPNOW_CHANNEL), 56, 0, 1)
-        o.text("x{}".format(kart_count), 96, 0, 1)   # Anzahl Karts (Multi-Kart)
-        # Aktivitätspunkt rechts
-        age = stats.packet_age_ms
-        if age < 500:
-            o.fill_rect(122, 1, 4, 4, 1)   # gerade aktiv
-        elif age < 2000:
-            o.rect(121, 0, 6, 6, 1)        # noch warm
-        o.hline(0, 9, 128, 1)
-
-        # ── Telemetrie ───────────────────────────────────────────────────
-        o.text("{:>3}km/h".format(int(stats.last_speed)), 0, 14, 1)
-        o.text("{:>5}rpm".format(int(stats.last_rpm)), 64, 14, 1)
-
-        # ── Funk: Hz + Lost ──────────────────────────────────────────────
-        o.text("{:>3}Hz".format(stats.packets_per_sec), 0, 26, 1)
-        o.text("L:{}".format(stats.lost), 64, 26, 1)
-
-        # ── RSSI + GPS ───────────────────────────────────────────────────
-        rssi_text = "{}dBm".format(stats.last_rssi) if stats.last_rssi is not None else "----dBm"
-        o.text(rssi_text, 0, 38, 1)
-        o.text("GPS:" + ("OK" if stats.gps_fix else "--"), 80, 38, 1)
-
-        # ── USB-Status & Kart-MAC (letzte 4 Zeichen) ─────────────────────
-        usb_txt = "USB ON" if usb_connected else "USB OFF"
-        o.text(usb_txt, 0, 50, 1)
-        if kart_mac:
-            # letzte 4 Hex-Zeichen ("ab:cd")
-            short = kart_mac.split(":")[-2:] if ":" in kart_mac else [kart_mac[-4:]]
-            o.text("KT " + ":".join(short), 64, 50, 1)
-        o.show()
 
 
 # ── Status-LED ────────────────────────────────────────────────────────────
@@ -420,7 +283,7 @@ class Bridge:
 
         # State
         self.karts        = {}    # {mac_bytes: Stats} — Multi-Kart
-        self.kart_host    = None  # zuletzt gehoerte MAC (Legacy-Felder/Display)
+        self.kart_host    = None  # zuletzt gehoerte MAC (Legacy-Felder)
         self.known_peers  = set()
         self.last_hb_ms   = utime.ticks_ms()
         self.last_hello_ms = 0
@@ -453,9 +316,8 @@ class Bridge:
             except Exception as e:
                 print("[init] WDT init fehler:", e)
 
-        # Display + LED
-        self.display = BridgeDisplay()
-        self.led     = StatusLED()
+        # Status-LED
+        self.led = StatusLED()
 
         # Optional: USB-Stdin lesen für Rückkanal
         self.poll = None
@@ -474,7 +336,6 @@ class Bridge:
             "mac":            mac,
             "channel":        Config.ESPNOW_CHANNEL,
             "return_channel": self.poll is not None,
-            "oled":           self.display._ok,
         })
 
     def _stats_for(self, mac):
@@ -509,21 +370,17 @@ class Bridge:
             self._update_status()
             utime.sleep_ms(Config.LOOP_SLEEP_MS)
 
-    # ── Status-Aktualisierungen (Display + LED + Stats-Tick) ──────────────
+    # ── Status-Aktualisierungen (LED + Stats-Tick) ────────────────────────
 
     def _update_status(self):
         for st in self.karts.values():
             st.tick()
         usb_alive = self._usb_alive()
-        host_st = self.karts.get(self.kart_host)
         recent = any(st.packet_age_ms < 2000 for st in self.karts.values())
         self.led.update(
             packets_recent = recent,
             usb_connected  = usb_alive,
         )
-        kart_mac_str = (ubinascii.hexlify(self.kart_host, ":").decode()
-                        if self.kart_host else None)
-        self.display.update(host_st, kart_mac_str, len(self.karts), usb_alive)
 
     def _usb_alive(self):
         if not self.last_usb_at:
@@ -588,7 +445,7 @@ class Bridge:
             if host not in self.karts and len(self.karts) < Config.MAX_KARTS:
                 self.karts[host] = Stats()
                 self.peer_store.save_list(list(self.karts.keys()))
-            self.kart_host = host          # zuletzt gehoert (Legacy/Display)
+            self.kart_host = host          # zuletzt gehoert (Legacy-Felder)
         st = self._stats_for(host) if host else None
         if st is None:
             jprint({"type": "bridge_info", "info": "kart_limit",
@@ -703,7 +560,7 @@ class Bridge:
         # USB-Zeile durchreichen, nicht neu serialisieren -- ujson.dumps
         # fuegt Leerzeichen ein und schiebt das 13-Felder-config ueber
         # das 250-Byte-ESP-NOW-Limit (228 B kompakt -> 255 B ujson).
-        if t in ("display", "config", "pit_call", "imu_calibrate", "config_get"):
+        if t in ("config", "imu_calibrate", "config_get"):
             self._forward_to_kart(t, data, line)
             return
 
@@ -739,15 +596,6 @@ class Bridge:
             return
         try:
             self.esp.send(target, payload, False)
-            # Hinweis ans Dashboard dass weitergeleitet wurde (nur fuer 'display' optional)
-            # Bridge-Display informieren bei Pit-Call
-            if kind == "pit_call":
-                action = data.get("action", "trigger")
-                if action == "cancel":
-                    self.display.show_message("PIT-CALL", "abgebrochen", 1500)
-                else:
-                    msg = data.get("message", "PIT STOP")[:14]
-                    self.display.show_message("PIT-CALL TX", msg, 3000)
         except Exception as e:
             jprint({"type": "bridge_error", "error": "send_failed",
                     "detail": str(e)})

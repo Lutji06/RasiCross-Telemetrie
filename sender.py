@@ -4,19 +4,16 @@
 #  Rolle:    Mäher-seitiger ESP. Sammelt Sensordaten und sendet
 #            sie via ESP-NOW an die Bridge (Boxengasse).
 #
-#  Sensoren: Hall (RPM), MPU-6050 (Gx,Gy), GPS (NMEA),
-#            SSD1306 OLED (5 Seiten + Pit-Call Override).
+#  Sensoren: Hall (RPM), MPU-6050 (Gx,Gy), GPS (NMEA).
 #
 #  Pins (Standard, im Config-Block änderbar):
 #    Hall      → GPIO 4    (INPUT, PULL-UP, falling-edge IRQ)
 #    MPU-6050  → I2C  SDA=21  SCL=22
 #    GPS       → UART2  RX=16  TX=17  (9600 Baud)
-#    OLED      → I2C  SDA=21  SCL=22  (Adresse 0x3C)
 #    Status-LED→ GPIO 2 (onboard)
 #
 #  Was ist neu vs. v8:
-#    • Saubere Trennung: Sensors / Display / Link / App
-#    • Display-Pages als Funktionen registriert (statt if/elif)
+#    • Saubere Trennung: Sensors / Link / App
 #    • Robuster ESP-NOW Send (Retry + Backoff)
 #    • Auto-Pairing: Bridge-MAC kann durch Bridge-Hello gelernt
 #      werden, Hardcoding optional
@@ -40,8 +37,6 @@ except ImportError:
 from config_store import Config, log, ConfigStore, apply_config, config_ack
 from imu_task import IMU
 from gps_task import GPS
-from display_pages import (Display, page_speed, page_race, page_rpm,
-                           page_delta, page_diag)
 from radio import ESPNowLink
 
 
@@ -284,7 +279,7 @@ def main():
         except Exception as e:
             log("init", "WDT init fehler:", e)
 
-    # I2C-Bus für IMU + OLED gemeinsam
+    # I2C-Bus für die IMU
     try:
         i2c = I2C(0, sda=Pin(Config.I2C_SDA), scl=Pin(Config.I2C_SCL),
                   freq=400_000)
@@ -297,7 +292,6 @@ def main():
     rpm_counter = RPMCounter(Config.HALL_PIN, Config.PULSES_PER_REV)
     imu         = IMU(i2c)
     gps         = GPS(Config.GPS_RX_PIN, Config.GPS_TX_PIN)
-    display     = Display(i2c)
     led         = StatusLED(Config.LED_PIN)
     link        = ESPNowLink(Config.BRIDGE_MAC)
     battery     = Battery()
@@ -309,14 +303,6 @@ def main():
 
     log("init", "Eigene MAC:", link.mac)
 
-    # Display-Pages registrieren (Reihenfolge bestimmt Wechsel)
-    # Reihenfolge: Speed -> Race -> RPM -> Delta -> Diag
-    display.register_page("speed", page_speed)
-    display.register_page("race",  page_race)
-    display.register_page("rpm",   page_rpm)
-    display.register_page("delta", page_delta)
-    display.register_page("diag",  page_diag)
-
     # Phase 45: freier Heap nach Boot als Gate-Messwert (Spec: Baseline vor
     # der Modularisierung; faellt der Wert nach dem Split >10 % darunter,
     # werden Module wieder zusammengelegt statt weiter gesplittet).
@@ -325,7 +311,6 @@ def main():
 
     # Lokaler Zustand
     last_send = utime.ticks_ms()
-    race_data = None
     imu_was_calibrating = False
 
     while True:
@@ -350,29 +335,12 @@ def main():
         pkt = link.recv()
         if pkt:
             kind, data = pkt
-            if kind == "display":
-                race_data = data
-                display.set_race_data(data)
-                log("recv", "display:", data.get("driver", "?"),
-                    "lap=", data.get("lap", "?"))
-                # Page-Auswahl vom Dashboard uebernehmen
-                page_choice = data.get("page", "auto")
-                display.set_forced_page(page_choice)
-            elif kind == "config":
+            if kind == "config":
                 apply_config(data, rpm_counter, cfg_store, imu)
                 link.send_json(config_ack(rpm_counter))
             elif kind == "config_get":
                 # Dashboard will den Ist-Stand lesen (z.B. direkt nach Connect)
                 link.send_json(config_ack(rpm_counter))
-            elif kind == "pit_call":
-                action = data.get("action", "trigger")
-                if action == "cancel":
-                    display.cancel_pit_call()
-                else:
-                    display.trigger_pit_call(
-                        data.get("message", "PIT STOP"),
-                        int(data.get("duration_ms", 15000))
-                    )
             elif kind == "imu_calibrate":
                 action = data.get("action", "auto")
                 if action == "reset":
@@ -439,20 +407,6 @@ def main():
             if mt is not None:
                 packet["mtemp"] = mt                          # MPU-Temp degC
             tx_ok = link.send(packet)
-
-            # Display-Update
-            display.update({
-                "speed":     speed,
-                "rpm":       rpm,
-                "gx":        gx,
-                "gy":        gy,
-                "gps_fix":   gps.fix,
-                "tx_ok":     tx_ok,
-                "race_data": race_data,
-                "display":   display,
-                "vbat":      battery.vbat if battery.active else None,
-                "rpm_glitch": rpm_counter.glitches,
-            })
 
             # LED
             led.update(tx_ok, gps.fix)

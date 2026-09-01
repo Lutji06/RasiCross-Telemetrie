@@ -49,7 +49,6 @@ import './kart-settings-window.js';
 import { state, saveData, activeKart, armRecording,
          updateKartMeta, kartRosterMacs, rcAlert, rcConfirm } from './rasicross.js';
 import { activeRace, toggleRaceRun, endRace } from './races.js';
-import { buildRaceDataForKart } from './pit-wall.js';
 import { enterReplay, exitReplay } from './recording.js';
 import RasiReplay from './replay.js';
 
@@ -61,7 +60,7 @@ window.RasiTest = {
   state, activeKart, armRecording,
   updateKartMeta, kartRosterMacs,
   activeRace, toggleRaceRun, endRace,
-  buildRaceDataForKart, RasiReplay, enterReplay, exitReplay,
+  RasiReplay, enterReplay, exitReplay,
   // Dialog-Trigger fuer die Screenshot-Suite (Phase 50): oeffnen das
   // echte Overlay deterministisch, ohne UI-Klickpfade zu koppeln.
   rcAlert, rcConfirm,

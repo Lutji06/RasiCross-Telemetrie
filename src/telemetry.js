@@ -16,6 +16,7 @@ import RasiLapEngine from './lap-engine.js';
 import RasiReplay from './replay.js';
 import { rcToast, rcAudio } from './rasicross.js';
 import { routeConfigAck } from './kart-settings-window.js';
+import { maybeShowEquipDialog } from './kart-equip.js';
 import { state, activeKart, kartFor, saveDataDebounced, kartMetaFor } from './store.js';
 
 // Crash-Sicherung (Phase 24): recordPacket sammelt NDJSON-Zeilen und schiebt
@@ -137,6 +138,8 @@ function processTelemetry(d) {
     k.connection.packets++;
     k.connection.lastPacketAt = Date.now();
     kartMetaFor(_mac, Math.max(0, state.karts.macs().indexOf(_mac))).lastSeenAt = Date.now();
+    // Phase 57: unbekannte echte Karts einmalig nach Ausstattung fragen.
+    if (k.connection.source === 'serial' && !k.replay.active) maybeShowEquipDialog(_mac);
     k.connection.kartMac = _mac;
     if (typeof d.rssi === 'number') k.connection.rssi = d.rssi;
     // Verlustzaehlung: eine Quelle. Die Bridge zaehlt ueber die ESP-NOW-

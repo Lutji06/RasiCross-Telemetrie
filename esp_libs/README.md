@@ -1,12 +1,11 @@
 # ESP32 MicroPython-Treiber
 
 Diese Dateien gehören auf die ESP32-Module (nicht auf den PC).
-Sie liefern die Schnittstellen für Sensoren und Display.
+Sie liefern die Schnittstellen für die Sensoren.
 
 ## Was du brauchst
 
 ### Auf BEIDEN ESPs (Sender + Bridge)
-- **`ssd1306.py`** — OLED-Treiber für SSD1306 128x64
 - **`frame.py`** — Binär-Protokoll-Codec (Pflicht! Ohne sie startet die Bridge nicht und der Sender sendet keine Telemetrie)
 
 ### Nur auf dem Sender (Kart-ESP)
@@ -17,7 +16,6 @@ Sie liefern die Schnittstellen für Sensoren und Display.
 - **`radio.py`** — ESP-NOW-Link (Phase 45)
 - **`imu_task.py`** — IMU-Task (MPU-6050, Phase 45)
 - **`gps_task.py`** — GPS-Task (NMEA/UART, Phase 45)
-- **`display_pages.py`** — OLED-Display + Seiten (Phase 45)
 
 ## Installation
 
@@ -66,7 +64,6 @@ import app
 ```bash
 # ── Sender (Kart-ESP) ──
 python -m mpy_cross -o app.mpy ../sender.py
-mpremote connect COM3 cp ssd1306.py :ssd1306.py
 mpremote connect COM3 cp mpu6050.py :mpu6050.py
 mpremote connect COM3 cp micropyGPS.py :micropyGPS.py
 mpremote connect COM3 cp frame.py :frame.py
@@ -75,13 +72,11 @@ mpremote connect COM3 cp config_store.py :config_store.py
 mpremote connect COM3 cp radio.py :radio.py
 mpremote connect COM3 cp imu_task.py :imu_task.py
 mpremote connect COM3 cp gps_task.py :gps_task.py
-mpremote connect COM3 cp display_pages.py :display_pages.py
 mpremote connect COM3 cp app.mpy :app.mpy
 mpremote connect COM3 cp main_stub.py :main.py
 
 # ── Bridge (Boxen-ESP) ──
 python -m mpy_cross -o app.mpy ../bridge.py
-mpremote connect COM4 cp ssd1306.py :ssd1306.py
 mpremote connect COM4 cp frame.py :frame.py
 mpremote connect COM4 cp app.mpy :app.mpy
 mpremote connect COM4 cp main_stub.py :main.py
@@ -113,6 +108,5 @@ Im Dashboard → Verbindung → COM-Port wählen und verbinden.
 
 ## Lizenzen
 
-- `ssd1306.py` — MIT, basierend auf MicroPython-offiziellem Code
 - `mpu6050.py` — MIT, eigene minimale Implementierung der InvenSense-Spec
 - `micropyGPS.py` — MIT, kompakter NMEA-Parser kompatibel zur inmcm/micropyGPS-API

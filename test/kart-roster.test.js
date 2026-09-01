@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import RasiKartRoster from '../src/kart-roster.js';
 
 const { isDemoMac, metaDefaults, ensureMeta, migrateLegacyMeta,
-        rosterMacs, clampServiceH, calDefaults, ackTargetMac, PALETTE } = RasiKartRoster;
+        rosterMacs, clampServiceH, calDefaults, ackTargetMac, PALETTE,
+        equipDefaults, equipFor, needsEquipDialog } = RasiKartRoster;
 
 test('isDemoMac: DE:MO:-Prefix erkannt, echte MACs nicht', () => {
   assert.equal(isDemoMac('DE:MO:RA:SI:00:01'), true);
@@ -12,9 +13,38 @@ test('isDemoMac: DE:MO:-Prefix erkannt, echte MACs nicht', () => {
 });
 
 test('metaDefaults: Name nach Index, Farbe aus Palette (Modulo)', () => {
-  assert.deepEqual(metaDefaults(0), { name: 'Kart 1', color: PALETTE[0], lastSeenAt: null });
+  assert.deepEqual(metaDefaults(0), { name: 'Kart 1', color: PALETTE[0], lastSeenAt: null,
+                                      equip: { rpm: true }, equipSet: false });
   assert.equal(metaDefaults(5).color, PALETTE[0]);   // 5 % 5 = 0
   assert.equal(metaDefaults(6).name, 'Kart 7');
+});
+
+test('equipDefaults: volle Ausstattung, frisches Objekt', () => {
+  const a = equipDefaults(); const b = equipDefaults();
+  assert.notEqual(a, b);
+  assert.deepEqual(a, { rpm: true });
+});
+
+test('equipFor: Alt-Meta ohne equip-Feld gilt als voll ausgestattet', () => {
+  assert.deepEqual(equipFor(undefined), { rpm: true });
+  assert.deepEqual(equipFor({ name: 'Alt', color: '#fff', lastSeenAt: 1 }),
+                   { rpm: true });
+});
+
+test('equipFor: fehlende oder unbrauchbare Flags fallen auf true zurueck', () => {
+  assert.deepEqual(equipFor({ equip: { rpm: false } }), { rpm: false });
+  assert.deepEqual(equipFor({ equip: {} }), { rpm: true });
+  assert.deepEqual(equipFor({ equip: { rpm: 'ja' } }), { rpm: true });
+  // Alt-Save mit entferntem display-Flag bleibt ladbar (Feld wird ignoriert)
+  assert.deepEqual(equipFor({ equip: { rpm: false, display: true } }), { rpm: false });
+});
+
+test('needsEquipDialog: nur echte, unbestaetigte Karts', () => {
+  assert.equal(needsEquipDialog({ equipSet: false }, 'AA:BB'), true);
+  assert.equal(needsEquipDialog({ equipSet: true }, 'AA:BB'), false);
+  assert.equal(needsEquipDialog({ equipSet: false }, 'DE:MO:RA:SI:00:01'), false);
+  assert.equal(needsEquipDialog({ equipSet: false }, 'default'), false);
+  assert.equal(needsEquipDialog(null, 'AA:BB'), false);
 });
 
 test('ensureMeta: legt Default an, laesst Bestehendes unangetastet', () => {

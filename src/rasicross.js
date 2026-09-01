@@ -203,7 +203,6 @@ const rcAudio = (() => {
     sectorBest: () => beep(880, 120, 0.15),
     lapBest:    () => { beep(1320, 120, 0.18); setTimeout(() => beep(1760, 180, 0.18), 140); },
     warning:    () => beep(220, 400, 0.22),
-    pitCall:    () => { beep(660, 200, 0.2); setTimeout(() => beep(880, 200, 0.2), 220); },
     battWarn:   () => beep(300, 350, 0.2),
     battCrit:   () => { beep(200, 300, 0.25); setTimeout(() => beep(200, 300, 0.25), 320); },
     rollover:   () => { beep(160, 300, 0.3); setTimeout(() => beep(120, 450, 0.3), 300); },

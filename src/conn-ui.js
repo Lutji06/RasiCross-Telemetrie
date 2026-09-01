@@ -77,7 +77,7 @@ function _kartCard(r, meta, now) {
   const vals = '<div class="cc-vals">'
     + '<span><i>Signal</i><b>' + (c.rssi != null ? c.rssi + ' dBm' : '—') + '</b></span>'
     + '<span><i>Rate</i><b>' + r.hz + ' Hz</b></span>'
-    + '<span><i>Verloren</i><b>' + c.lost + '</b></span>'
+    + '<span><i>Verl.</i><b>' + c.lost + '</b></span>'
     + '<span><i>GPS</i><b>' + (r.k.gps.fix ? 'Fix' : 'kein Fix') + '</b></span>'
     + '<span><i>Alter</i><b>' + _fmtAge(c.lastPacketAt, now) + '</b></span>'
     + '</div>';
@@ -89,19 +89,19 @@ function _kartCard(r, meta, now) {
       + 'MAC: <b>' + esc(c.kartMac !== '--' ? c.kartMac : r.mac) + '</b><br>'
       + 'Seq: <b>' + (c.seq != null ? c.seq : '--') + '</b><br>'
       + 'RPM Pulse/s: <b>' + (r.k.raw.pulseHz != null ? r.k.raw.pulseHz.toFixed(1) : '--') + '</b><br>'
-      + 'Pulse Count: <b>' + (r.k.raw.pulseCount || '--') + '</b><br>'
+      + 'Pulse Count: <b>' + (r.k.raw.pulseCount != null ? r.k.raw.pulseCount : '--') + '</b><br>'
       + 'Raw-G: <b>' + r.k.raw.gx.toFixed(2) + ' / ' + r.k.raw.gy.toFixed(2) + '</b><br>'
       + 'Errors: <b>' + c.errors + '</b>'
       + '</div>'
     : '';
-  return '<div class="conn-card ' + r.res.level + '" data-mac="' + r.mac + '">'
+  return '<div class="cc-card ' + r.res.level + '" data-mac="' + esc(r.mac) + '">'
     + '<div class="cc-head">'
-    +   '<span class="cc-dot" style="background:' + meta.color + '"></span>'
+    +   '<span class="cc-dot" style="background:' + esc(meta.color) + '"></span>'
     +   '<span class="cc-name">' + esc(meta.name) + '</span>'
     +   '<span class="cc-badge ' + r.res.level + '">' + _BADGE[r.res.level] + '</span>'
     + '</div>'
     + vals + hints
-    + '<button class="cc-diag-btn" data-mac="' + r.mac + '">Diagnose ' + (open ? '▾' : '▸') + '</button>'
+    + '<button class="cc-diag-btn" data-mac="' + esc(r.mac) + '">Diagnose ' + (open ? '▾' : '▸') + '</button>'
     + diag
     + '</div>';
 }
@@ -164,12 +164,23 @@ function render() {
       log.innerHTML = _packetLog.slice(0, 8).map(p =>
         '<div><b>' + p.t + '</b><span>' + esc(p.line.slice(0, 200)) + '</span></div>').join('');
     }
-    // 5) Kart-Grid in Registry-Reihenfolge + gestrichelter Platzhalter
+    // 5) Kart-Grid in Registry-Reihenfolge + gestrichelter Platzhalter.
+    //    Ohne sichtbare Karts: Empty-State-Panel mit Demo-Einstieg (56b);
+    //    #emptyDemoBtn ist per Delegation auf #connGrid verdrahtet (app-init).
     const grid = $('connGrid');
     if (grid) {
+      if (results.length === 0) {
+        grid.innerHTML = '<div class="conn-empty">'
+          + '<div class="ce-icon">📡</div>'
+          + '<div class="ce-title">Warte auf Karts…</div>'
+          + '<div class="ce-sub">Bridge per USB anschließen und <b>Verbinden</b> drücken —<br>oder ohne Hardware ausprobieren:</div>'
+          + '<button class="conn-chip" id="emptyDemoBtn">▶ Demo starten</button>'
+          + '</div>';
+        return;
+      }
       const cards = results.map(r => _kartCard(r, RasiKartBar.metaFor(state, r.mac, macs.indexOf(r.mac)), now));
       if (macs.length < KartRegistry.MAX_KARTS) {
-        cards.push('<div class="conn-card conn-wait">wartet auf weitere Karts…</div>');
+        cards.push('<div class="cc-card cc-wait">wartet auf weitere Karts…</div>');
       }
       grid.innerHTML = cards.join('');
       grid.querySelectorAll('.cc-diag-btn').forEach((b) => {

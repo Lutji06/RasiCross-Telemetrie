@@ -1,6 +1,6 @@
 'use strict';
-// Smoke: Demo-Modus mit 3 Karts, Rennen-Steuerung und
-// buildRaceDataForKart-Payloads (Phase 41, Spec-Punkte 3-5).
+// Smoke: Demo-Modus mit 3 Karts und Rennen-Steuerung
+// (Phase 41, Spec-Punkte 3-5).
 const { test, expect } = require('@playwright/test');
 const { launchApp, closeApp } = require('./helpers');
 
@@ -67,29 +67,5 @@ test('Rennen pausieren, fortsetzen und beenden', async () => {
     return r ? r.status : 'gone';
   }, raceId);
   expect(status).toBe('finished');
-  expect(errors).toEqual([]);
-});
-
-test('buildRaceDataForKart liefert pro Kart plausible Payloads', async () => {
-  await page.waitForFunction(() => {
-    const r = RasiTest.activeRace();
-    return !!r && r.status === 'running';
-  });
-  const payloads = await page.evaluate(
-    (macs) => macs.map((m) => RasiTest.buildRaceDataForKart(m)),
-    DEMO_MACS
-  );
-  expect(payloads.length).toBe(3);
-  for (const p of payloads) {
-    expect(p.type).toBe('display');
-    // Voll-Payload: Race laeuft + alle Demo-Karts sind Teilnehmer
-    expect(typeof p.lap).toBe('string');
-    expect(p.lapn).toBeGreaterThanOrEqual(1);
-    expect(p.driver).toBeTruthy();
-    expect(Array.isArray(p.sectors)).toBe(true);
-    expect(p.sectors.length).toBe(3);
-    expect(p.page).toBeTruthy();
-    expect(typeof p.running).toBe('boolean');
-  }
   expect(errors).toEqual([]);
 });

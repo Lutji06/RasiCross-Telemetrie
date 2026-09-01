@@ -5,7 +5,6 @@
 
 import { drawTrack } from './map-draw.js';
 import { renderSavedTracks } from './track.js';
-import { restartDisplayUpdateInterval } from './pit-wall.js';
 import RasiSettings from './settings.js';
 import RasiLiveView from './live-view.js';
 import RasiTileRenderer from './tile-renderer.js';
@@ -102,7 +101,6 @@ function loadSettingsToUi() {
   if ($('setDriftTol')) $('setDriftTol').value = state.settings.drift.tol;
   if ($('setDriftMinSpeed')) $('setDriftMinSpeed').value = state.settings.drift.minSpeedKmh;
   if ($('setRolloverAngle')) $('setRolloverAngle').value = (state.settings.rollover && state.settings.rollover.angleDeg) || 75;
-  if ($('setDisplayUpdateMs')) $('setDisplayUpdateMs').value = state.settings.displayUpdateMs || 500;
   $('settingsHint').textContent = `${state.settings.maxSpeed} km/h · ${state.settings.maxRpm} rpm`;
   if ($('recAutoArmToggle')) $('recAutoArmToggle').checked = state.settings.recordAutoArm !== false;
   if ($('setTilesEnabled')) {
@@ -141,11 +139,6 @@ function saveSettingsFromUi() {
   state.settings.drift.minSpeedKmh = Math.max(1, Math.min(60, Number($('setDriftMinSpeed')?.value) || 5));
   if (!state.settings.rollover) state.settings.rollover = { angleDeg: 75 };
   state.settings.rollover.angleDeg = Math.max(30, Math.min(90, Number($('setRolloverAngle')?.value) || 75));
-  const newInterval = Math.max(100, Math.min(2000, Number($('setDisplayUpdateMs')?.value) || 500));
-  if (newInterval !== state.settings.displayUpdateMs) {
-    state.settings.displayUpdateMs = newInterval;
-    restartDisplayUpdateInterval();
-  }
   if (!state.settings.tiles) state.settings.tiles = { enabled: true, urlTemplate: '', liveQuickToggle: true };
   if ($('setTilesEnabled')) state.settings.tiles.enabled = !!$('setTilesEnabled').checked;
   if ($('setTilesUrl')) state.settings.tiles.urlTemplate = ($('setTilesUrl').value || '').trim();

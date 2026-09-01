@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import RasiSettings from '../src/settings.js';
 const { GROUPS, settingsNavReducer, SETTINGS_INDEX, settingsFilter } = RasiSettings;
 
-test('GROUPS: frozen, sechs bekannte Gruppen, dashboard zuerst', () => {
+test('GROUPS: frozen, fuenf bekannte Gruppen, dashboard zuerst', () => {
   assert.equal(Object.isFrozen(GROUPS), true);
-  assert.deepEqual(GROUPS, ['dashboard', 'fahrdynamik', 'bridge', 'model3d', 'map', 'data']);
+  assert.deepEqual(GROUPS, ['dashboard', 'fahrdynamik', 'model3d', 'map', 'data']);
 });
 
 test('settingsNavReducer: set wechselt auf gueltige Gruppe', () => {
-  assert.equal(settingsNavReducer('dashboard', { type: 'set', id: 'bridge' }), 'bridge');
+  assert.equal(settingsNavReducer('dashboard', { type: 'set', id: 'map' }), 'map');
 });
 
 test('settingsNavReducer: set auf unbekannte id -> bleibt bei current', () => {

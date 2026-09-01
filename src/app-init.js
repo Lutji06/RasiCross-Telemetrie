@@ -20,8 +20,7 @@ import { activateSectorClick, clearManualSectors,
 import { addDriver, deleteDriver, renderDriverOptions,
          renderDrivers, renderLapTable } from './laps-drivers.js';
 import { animLoop, initLiveCharts, initLiveUiLoops } from './live-ui.js';
-import { closePitWall, openPitWall, restartDisplayUpdateInterval,
-         sendDisplayUpdate, togglePitCall } from './pit-wall.js';
+import { closePitWall, openPitWall } from './pit-wall.js';
 import { enterReplay, exitReplay, exportAll, exportRecordingCsv, importAll,
          initRecStore, loadRecordingFile, replayRace, replaySeek, resetAll,
          saveRecording, setReplaySpeed, toggleReplayPlay,
@@ -63,24 +62,12 @@ function init() {
   initLiveUiLoops();
   initGViewToggle();
   initKartModelUploader();
-  // Display-Update an den Kart-ESP (Intervall in Settings konfigurierbar)
-  restartDisplayUpdateInterval();
   // Persistierte Rennen-Aufnahmen laden (Replay-Buttons nach Neustart)
   initRecStore();
   window.addEventListener('resize', resizeCanvases);
   // Header buttons
   $('themeBtn').onclick = toggleTheme;
   $('pitwallBtn').onclick = openPitWall;
-  // OLED-Seitenauswahl
-  if ($('oledPageSelect')) {
-    $('oledPageSelect').value = state.settings.oledPage || 'auto';
-    $('oledPageSelect').onchange = (e) => {
-      state.settings.oledPage = e.target.value;
-      saveData();
-      // Sofort an den Sender schicken (statt auf naechstes Intervall warten)
-      sendDisplayUpdate();
-    };
-  }
   $('connectBtn').onclick = () => {
     if (state.serial.connected) disconnectSerial();
     else if (state.demo.running) stopDemo();
@@ -97,7 +84,6 @@ function init() {
   $('startRaceBtn').onclick = toggleRaceRun;
   $('endRaceBtn').onclick = () => endRace(false);
   $('changeDriverBtn').onclick = openDriverChange;
-  $('pitCallBtn').onclick = togglePitCall;
   $('heatmapBtn').onclick = () => {
     const k = activeKart();
     k.heatmap.on = !k.heatmap.on;
@@ -135,6 +121,10 @@ function init() {
     }
   };
   $('connDetailsBtn').onclick = () => $('connDetails').classList.toggle('hidden');
+  // Empty-State-Demo-Chip (56b): lebt im 1-Hz-gerenderten Grid -> Delegation
+  $('connGrid').addEventListener('click', (e) => {
+    if (e.target.closest('#emptyDemoBtn') && !state.demo.running) startDemo();
+  });
   $('serialRefreshBtn').onclick = listSerialPorts;
   $('serialConnectBtn').onclick = () => state.serial.connected ? disconnectSerial() : connectSerial();
   $('autoConnectToggle').checked = state.settings.serialAutoConnect !== false;

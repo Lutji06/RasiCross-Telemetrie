@@ -157,18 +157,6 @@
       <svg viewBox="0 0 24 24"><path d="M16 3l4 4-4 4M20 7H8M8 21l-4-4 4-4M4 17h12"/></svg>
       Wechsel
     </button>
-    <button class="btn pitcall" id="pitCallBtn" title="Boxenruf">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-3 18-7-7z"/></svg>
-      BOX
-    </button>
-    <select id="oledPageSelect" title="OLED-Seite">
-      <option value="auto">⟳ Auto</option>
-      <option value="speed">1 · Speed</option>
-      <option value="race">2 · Rennen</option>
-      <option value="rpm">3 · RPM</option>
-      <option value="delta">4 · Delta</option>
-      <option value="diag">5 · Diagnose</option>
-    </select>
     <button class="btn danger" id="endRaceBtn" disabled>Ende</button>
   </div>
   </div><!-- /pw-liverow -->
@@ -795,6 +783,11 @@
           <span>VERBINDUNG &amp; DIAGNOSE</span>
         </div>
         <div class="conn-port-line idle" id="connPortLine">Nicht verbunden</div>
+        <div class="conn-hero-actions">
+          <button class="btn primary" id="connActionBtn">Verbinden</button>
+          <button class="conn-chip" id="demoChip">▶ Demo</button>
+          <button class="conn-details-link" id="connDetailsBtn">Details</button>
+        </div>
       </div>
       <div class="pw-hero-telemetry">
         <div class="pw-tel">
@@ -808,11 +801,6 @@
         <div class="pw-tel">
           <div class="pw-tel-label">GPS</div>
           <div class="pw-tel-value mono" id="heroGps">--</div>
-        </div>
-        <div class="conn-hero-actions">
-          <button class="conn-chip" id="demoChip">▶ Demo</button>
-          <button class="btn primary" id="connActionBtn">Verbinden</button>
-          <button class="btn ghost" id="connDetailsBtn">Details</button>
         </div>
       </div>
     </div>
@@ -860,7 +848,7 @@
     <div class="row">
       <button class="btn ghost" id="recSaveBtn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Aufnahme speichern</button>
       <button class="btn ghost" id="recCsvBtn" title="Aufnahme als CSV exportieren (Excel-kompatibel); bei laufendem Replay wird die geladene Aufnahme exportiert"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-6M13 17V8M18 17v-3"/></svg>CSV exportieren</button>
-      <button class="btn primary" id="recLoadBtn"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Aufnahme laden &amp; abspielen</button>
+      <button class="btn ghost" id="recLoadBtn"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Aufnahme laden &amp; abspielen</button>
       <input type="file" id="recLoadFile" accept=".ndjson,.jsonl,application/x-ndjson" style="display:none">
     </div>
   </div>
@@ -892,7 +880,6 @@
       </div>
       <button type="button" class="settings-nav-item active" data-sgroup="dashboard">Dashboard</button>
       <button type="button" class="settings-nav-item" data-sgroup="fahrdynamik">Fahrdynamik</button>
-      <button type="button" class="settings-nav-item" data-sgroup="bridge">Bridge</button>
       <button type="button" class="settings-nav-item" data-sgroup="model3d">3D-Modell</button>
       <button type="button" class="settings-nav-item" data-sgroup="map">Karten-Hintergrund</button>
       <button type="button" class="settings-nav-item" data-sgroup="data">Daten &amp; Backup</button>
@@ -950,18 +937,6 @@
         <div class="settings-row">
           <div class="settings-row-label"><span class="settings-row-name">Umkipp-Schwelle</span><span class="settings-row-desc">Rollwinkel, ab dem die Umkipp-Warnung auslöst (Grad)</span></div>
           <input type="number" id="setRolloverAngle" value="75" min="30" max="90" step="1" data-autosave>
-        </div>
-      </section>
-
-      <!-- ── Bridge ────────────────────────────────────────── -->
-      <section class="settings-group" data-sgroup="bridge">
-        <header class="settings-group-head">
-          <div><h2 class="settings-group-title">Bridge</h2><p class="settings-group-sub">Bridge-Display</p></div>
-          <span class="settings-saved" data-savemark>Automatisch gespeichert ✓</span>
-        </header>
-        <div class="settings-row">
-          <div class="settings-row-label"><span class="settings-row-name">OLED-Update Intervall</span><span class="settings-row-desc">Aktualisierungsrate des Bridge-Displays (ms)</span></div>
-          <input type="number" id="setDisplayUpdateMs" value="500" min="100" max="2000" step="50" data-autosave>
         </div>
       </section>
 

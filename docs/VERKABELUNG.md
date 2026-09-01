@@ -11,8 +11,8 @@ Detaillierte Aufbau-Anleitung fuer Sender (Kart-Seite) und Bridge (Boxen-Seite).
 | Hall-Sensor Signal| GPIO 4    | OUT (Signal) | Internal Pull-Up aktiv, Falling-IRQ    |
 | Hall-Sensor VCC   | 3V3       | VCC          | A3144 vertraegt 3,3 V (auch 5 V)       |
 | Hall-Sensor GND   | GND       | GND          |                                        |
-| I²C SDA           | GPIO 21   | SDA          | gemeinsam IMU + OLED                   |
-| I²C SCL           | GPIO 22   | SCL          | gemeinsam IMU + OLED                   |
+| I²C SDA           | GPIO 21   | SDA          | IMU                                    |
+| I²C SCL           | GPIO 22   | SCL          | IMU                                    |
 | I²C-Geraete VCC   | 3V3       | VCC          |                                        |
 | I²C-Geraete GND   | GND       | GND          |                                        |
 | GPS UART2 RX      | GPIO 16   | TX am GPS    | gekreuzt anschliessen!                 |
@@ -42,15 +42,7 @@ Detaillierte Aufbau-Anleitung fuer Sender (Kart-Seite) und Bridge (Boxen-Seite).
                      │                                │
    ┌─────────────┐   │                                │
    │ MPU-6050    │   │                                │
-   │  SDA  ──────┼───┤ GPIO 21  (I²C-Bus, geteilt)    │
-   │  SCL  ──────┼───┤ GPIO 22                        │
-   │  VCC  ──────┼───┤ 3V3                            │
-   │  GND  ──────┼───┤ GND                            │
-   └─────────────┘   │                                │
-                     │                                │
-   ┌─────────────┐   │                                │
-   │ OLED 0x3C   │   │                                │
-   │  SDA  ──────┼───┤ GPIO 21  (gleicher I²C-Bus)    │
+   │  SDA  ──────┼───┤ GPIO 21  (I²C-Bus)             │
    │  SCL  ──────┼───┤ GPIO 22                        │
    │  VCC  ──────┼───┤ 3V3                            │
    │  GND  ──────┼───┤ GND                            │
@@ -73,10 +65,6 @@ Detaillierte Aufbau-Anleitung fuer Sender (Kart-Seite) und Bridge (Boxen-Seite).
 
 | Funktion       | ESP32-Pin | Sensor-Pin | Bemerkung      |
 | -------------- | --------- | ---------- | -------------- |
-| I²C SDA        | GPIO 21   | SDA        | nur OLED       |
-| I²C SCL        | GPIO 22   | SCL        |                |
-| OLED VCC       | 3V3       | VCC        |                |
-| OLED GND       | GND       | GND        |                |
 | Status-LED     | GPIO 2    | (onboard)  |                |
 
 ### Schaubild
@@ -87,19 +75,12 @@ Detaillierte Aufbau-Anleitung fuer Sender (Kart-Seite) und Bridge (Boxen-Seite).
                      │                                │
                      │ USB ──────────►  PC (Dashboard)│
                      │                                │
-   ┌─────────────┐   │                                │
-   │ OLED 0x3C   │   │                                │
-   │  SDA  ──────┼───┤ GPIO 21                        │
-   │  SCL  ──────┼───┤ GPIO 22                        │
-   │  VCC  ──────┼───┤ 3V3                            │
-   │  GND  ──────┼───┤ GND                            │
-   └─────────────┘   │                                │
                      │  GPIO 2  ── Onboard-LED        │
                      └───────────────────────────────┘
 ```
 
-Die Bridge hat keine eigenen Sensoren — sie braucht nur das OLED zur Anzeige
-und die USB-Verbindung zum PC.
+Die Bridge hat keine eigenen Sensoren und keine Peripherie — sie braucht nur
+die USB-Verbindung zum PC; den Status zeigt das Dashboard.
 
 ## Stromversorgung
 
@@ -143,9 +124,7 @@ weil der Pin beim Boot in den richtigen Zustand gebracht wird.
 
 1. **Vor dem ersten Strom-Anlegen:** Mit Multimeter alle GND/VCC-Verbindungen
    durchklingeln. Niemals 5 V auf einen 3,3 V-only-Pin (z.B. RX/TX) legen.
-2. **OLED-Diagnose** laufen lassen: `esp_libs/oled_diagnose.py` in Thonny ausfuehren —
-   sagt sofort, ob I²C, OLED und IMU antworten.
-3. **Hall-Sensor pruefen:** Magnet vor den Sensor halten; auf der Sender-OLED
-   sollte die RPM-Page reagieren (klein > 0).
-4. **GPS-Fix:** Beim ersten Start kann der Cold-Fix bis 90 s dauern, ideal
+2. **Hall-Sensor pruefen:** Magnet vor den Sensor halten; im Dashboard
+   (Live-Tab) sollte die Drehzahl reagieren (klein > 0).
+3. **GPS-Fix:** Beim ersten Start kann der Cold-Fix bis 90 s dauern, ideal
    draussen mit freiem Himmel. Status-LED blinkt waehrend GPS sucht.

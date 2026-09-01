@@ -12,11 +12,10 @@ import KartRegistry from './kart-registry.js';
 // TATSAECHLICH uebernommenen Werten — Gegenstueck: _ACK_KEYS in sender.py.
 // Kompakte Keys, weil die langen Namen das 250-B-ESP-NOW-Limit sprengen.
 const ESP_CFG_FIELDS = [
-  ['espMaxRpm', 'mr'], ['espWarnRpm', 'wr'], ['espSendMs', 'sm'],
+  ['espSendMs', 'sm'],
   ['espPulses', 'ppr'], ['espWheelCirc', 'wc'], ['espGearRatio', 'gear'],
   ['espBattCells', 'bc'], ['espBattWarnV', 'bwv'], ['espBattCritV', 'bcv'],
   ['espBattCal', 'bcal'], ['espRpmCeiling', 'rcl'], ['espRpmAlpha', 'ra'],
-  ['espPageMs', 'pm'],
 ];
 function applyEspConfigAck(d, doc) {
   // Phase 48: Zieldokument = Einstellungs-Fenster des bestaetigenden Karts

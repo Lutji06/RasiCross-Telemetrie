@@ -38,7 +38,7 @@ class ESPNowLink:
         # Modem-Powersave AUS: Seit IDF 5.x (MicroPython >= 1.28) legt das
         # STA-Interface das Funkmodul ohne AP-Verbindung schlafen und
         # verpasst dann eingehende ESP-NOW-Pakete -- Senden geht weiter,
-        # aber der Rueckkanal (config/display/pit_call) stirbt nach kurzer
+        # aber der Rueckkanal (config/imu_calibrate) stirbt nach kurzer
         # Zeit. PM_NONE haelt den Empfaenger dauerhaft wach.
         try:
             self._sta.config(pm=self._sta.PM_NONE)
