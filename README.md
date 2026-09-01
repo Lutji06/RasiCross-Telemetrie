@@ -17,7 +17,6 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 - **Live-Anzeige** von Speed, RPM, Beschleunigung (Gx/Gy/**Gz**), **Gier-Rate**, GPS-Track und Funkqualität
 - **Auto-Lap-Detection** über GPS-Geofence — keine externen Lichtschranken nötig
 - **Sektor-Splits** mit Best-Time-Vergleich und Audio-Cues bei neuen Bestzeiten
-- **Pit-Call** vom Dashboard direkt aufs OLED-Display im Cockpit
 - **Live-Konfiguration** (Drehzahllimit, Sendezyklus, etc.) ohne Code-Änderung
 - **Demo-Modus** zum Ausprobieren ohne Hardware
 - **Plattformübergreifend** — Dashboard läuft im Browser oder als Desktop-App für Windows und macOS
@@ -43,8 +42,6 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 - [Erweiterte Dashboard-Features](#erweiterte-dashboard-features)
 - [Erstes Rennen fahren](#erstes-rennen-fahren)
 - [Konfiguration anpassen](#konfiguration-anpassen)
-- [Display-Seiten am Kart](#display-seiten-am-kart)
-- [Bridge-Display](#bridge-display)
 - [Status-LEDs](#status-leds)
 - [Datenprotokoll](#datenprotokoll)
 - [Fehlersuche](#fehlersuche)
@@ -92,7 +89,6 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 
 **Pro Knoten (Kart und Bridge):**
 - ESP32-Devkit mit MicroPython 1.21+ (z.B. ESP32-WROOM-32)
-- SSD1306 OLED 128 × 64, I²C
 - USB-Kabel zum Flashen / Stromversorgen
 
 **Nur am Kart:**
@@ -114,7 +110,7 @@ Detaillierte Verkabelung mit Schaubild: **[docs/VERKABELUNG.md](docs/VERKABELUNG
    ┌──────────────────┐                       ┌──────────────────┐
    │   KART  (Sender) │   ESP-NOW (LR-Mode)   │  BRIDGE (Empf.)  │       ┌──────────────┐
    │                  │ ◄────────────────────►│                  │  USB  │  Dashboard   │
-   │  ESP32 + OLED    │     2.4 GHz, CH 1     │  ESP32 + OLED    │ ◄───► │  (HTML/JS    │
+   │  ESP32           │     2.4 GHz, CH 1     │  ESP32           │ ◄───► │  (HTML/JS    │
    │  Hall · IMU · GPS│                       │                  │ JSON  │ oder Desktop)│
    └──────────────────┘                       └──────────────────┘ Lines └──────────────┘
 ```
@@ -142,7 +138,7 @@ Kurz-Übersicht der Pins (Standard, im `Config`-Block beider Skripte änderbar):
 | --------------- | ---------- | ----------------------------------------- |
 | Hall-Sensor     | 4          | Input mit internem Pull-Up, Falling-IRQ   |
 | GPS UART2 RX/TX | 16 / 17    | 9600 Baud, gekreuzt anschließen           |
-| I²C SDA / SCL   | 21 / 22    | gemeinsam für IMU + OLED                  |
+| I²C SDA / SCL   | 21 / 22    | IMU                                       |
 | Status-LED      | 2          | onboard                                   |
 
 > ⚠️ **Nicht** GPIO 34/35/36/39 für den Hall-Sensor verwenden — diese
@@ -153,7 +149,6 @@ Kurz-Übersicht der Pins (Standard, im `Config`-Block beider Skripte änderbar):
 
 | Funktion       | Pin (GPIO) |
 | -------------- | ---------- |
-| I²C SDA / SCL  | 21 / 22    |
 | Status-LED     | 2          |
 
 ---
@@ -181,7 +176,6 @@ Liegen im Ordner [`esp_libs/`](esp_libs/) — siehe auch [`esp_libs/README.md`](
 **Auf den Kart-ESP:**
 
 ```bash
-mpremote connect /dev/ttyUSB0 cp esp_libs/ssd1306.py :
 mpremote connect /dev/ttyUSB0 cp esp_libs/mpu6050.py :
 mpremote connect /dev/ttyUSB0 cp esp_libs/micropyGPS.py :
 mpremote connect /dev/ttyUSB0 cp esp_libs/frame.py :
@@ -192,7 +186,6 @@ mpremote connect /dev/ttyUSB0 cp sender.py :main.py
 **Auf den Bridge-ESP:**
 
 ```bash
-mpremote connect /dev/ttyUSB1 cp esp_libs/ssd1306.py :
 mpremote connect /dev/ttyUSB1 cp esp_libs/frame.py :
 mpremote connect /dev/ttyUSB1 cp bridge.py :main.py
 ```
@@ -200,8 +193,6 @@ mpremote connect /dev/ttyUSB1 cp bridge.py :main.py
 > ⚠️ `frame.py` (Binär-Protokoll) ist auf **beiden** ESPs Pflicht — ohne sie
 > startet die Bridge nicht und der Sender kann keine Telemetrie senden.
 > `calc.py` braucht nur der Sender (Batterie-Monitoring + Wheel-Speed-Fallback).
-
-Bei OLED-Problemen hilft das Diagnose-Skript [`esp_libs/oled_diagnose.py`](esp_libs/oled_diagnose.py): in Thonny laden und in der REPL ausführen — es prüft I²C, OLED-Adresse und schreibt am Ende ein Test-Bild.
 
 ---
 
@@ -299,12 +290,10 @@ Wenn der Sender mit `BATT_CELLS > 0` konfiguriert ist (3S/4S/etc.), erscheint im
 
 1. Beide ESP32 mit Strom versorgen.
 2. Bridge per USB an den PC stecken, Dashboard öffnen, COM-Port wählen, "USB verbinden".
-3. Auf dem Kart-OLED erscheint kurz das Boot-Bild, danach beginnt die Page-Rotation.
-4. Im Dashboard taucht nach wenigen Sekunden die Bridge-MAC auf, dann die Kart-Daten.
-5. GPS-Fix dauert beim Kaltstart oft 30–90 Sekunden (Status-LED am Kart blinkt solange).
-6. **Strecke einmessen:** Im Dashboard zur Streckenverwaltung, "Track scannen" — eine Runde ruhig fahren, das Dashboard erkennt Start/Ziel automatisch und legt Sektor-Grenzen an. Strecke benennen und speichern.
-7. **Rennen starten** im Dashboard. Sektor-Splits, Rundenzeiten und Live-Delta erscheinen automatisch.
-8. **Pit-Call senden:** Knopf im Dashboard, Nachricht eintippen — sie erscheint blinkend auf dem OLED des Fahrers.
+3. Im Dashboard taucht nach wenigen Sekunden die Bridge-MAC auf, dann die Kart-Daten.
+4. GPS-Fix dauert beim Kaltstart oft 30–90 Sekunden (Status-LED am Kart blinkt solange).
+5. **Strecke einmessen:** Im Dashboard zur Streckenverwaltung, "Track scannen" — eine Runde ruhig fahren, das Dashboard erkennt Start/Ziel automatisch und legt Sektor-Grenzen an. Strecke benennen und speichern.
+6. **Rennen starten** im Dashboard. Sektor-Splits, Rundenzeiten und Live-Delta erscheinen automatisch.
 
 ---
 
@@ -321,8 +310,6 @@ Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohn
 | `PULSES_PER_REV`    | Hall-Pulse pro Umdrehung                 | `1`                |
 | `SEND_MS`           | Telemetrie-Intervall (ms)                | `80` (12,5 Hz)     |
 | `SEND_MS_DEGRADED`  | Bei schlechter Funkverbindung            | `200` (5 Hz)       |
-| `MAX_RPM`           | Schwelle für Shift-Light                 | `6000`             |
-| `RPM_WARN`          | Vorwarn-Schwelle                         | `5500`             |
 | `WATCHDOG_MS`       | Hardware-Watchdog (0 = aus)              | `8000`             |
 | `GPS_TIMEOUT_MS`    | Nach so vielen ms ohne Fix → "lost"      | `10000`            |
 | `WIFI_TX_POWER_DBM` | Sendeleistung in dBm                     | `20` (EU-Max)      |
@@ -331,7 +318,7 @@ Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohn
 | `BATT_ADC_PIN`      | ADC1-Pin fürs Batterie-Monitoring (`None` = aus) | `34`       |
 | `BATT_CELLS`        | LiPo-Zellen in Serie (Per-Cell + SOC)    | `1`                |
 
-Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`, `batt_warn_v`, `batt_crit_v`, `batt_cal`, `rpm_ceiling`, `rpm_alpha`, `page_ms`.
+Live aus dem Dashboard änderbar: `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`, `batt_warn_v`, `batt_crit_v`, `batt_cal`, `rpm_ceiling`, `rpm_alpha`.
 
 ### Bridge (`bridge.py`)
 
@@ -342,41 +329,6 @@ Live aus dem Dashboard änderbar: `max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_
 | `HELLO_MS`           | Hello an Kart alle … (max)           | `5000`  |
 | `HELLO_QUIET_MS`     | Hello nur, wenn Kart so lange schweigt | `5000` |
 | `WATCHDOG_MS`        | Hardware-Watchdog                    | `8000`  |
-
----
-
-## Display-Seiten am Kart
-
-Das OLED rotiert standardmäßig alle 4 s zwischen den fünf Seiten. Vom Dashboard kann eine Seite fest gewählt werden.
-
-| Name    | Inhalt                                            |
-| ------- | ------------------------------------------------- |
-| `speed` | Geschwindigkeit groß zentriert, RPM-Bar unten     |
-| `race`  | Sektor-Segmente und aktuelle Rundenzeit           |
-| `rpm`   | Drehzahl groß + 8-Segment-Bar + Warnstufe         |
-| `delta` | Live-Delta zur Referenzrunde                      |
-| `diag`  | Diagnose: GPS-, TX-, Speed-, RPM-Status           |
-
-**Overrides** (höchste Priorität zuerst):
-1. **Pit-Call** — blinkende "PIT STOP"-Vollbildanzeige, vom Dashboard ausgelöst
-2. **Shift-Alarm** — invertiertes "RELEASE THROTTLE", sobald `rpm ≥ MAX_RPM`
-
----
-
-## Bridge-Display
-
-Layout 128 × 64 px, zeigt Funk- und Verbindungszustand:
-
-```
-BRIDGE  CH1     1234   ●
-─────────────────────────
- 42 km/h   4280 rpm
- 12 Hz     L:4
- -68 dBm   GPS:OK
-USB ON     KT ee:ff
-```
-
-Aktivitätspunkt rechts oben: gefüllt = Paket gerade gekommen, leerer Rahmen = vor < 2 s, aus = keine Daten.
 
 ---
 
@@ -444,9 +396,7 @@ Die Bridge ergänzt vor dem USB-Versand `rssi`, `rx_count`, `lost`, `bridge_ms`,
 
 | `type`            | Wirkung                                                          |
 | ----------------- | ---------------------------------------------------------------- |
-| `display`         | setzt Anzeigeseite (`speed`/`race`/`rpm`/`delta`/`diag`/`auto`)  |
-| `config`          | Live-Parameter (`max_rpm`, `warn_rpm`, `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`, `batt_warn_v`, `batt_crit_v`, `batt_cal`, `rpm_ceiling`, `rpm_alpha`, `page_ms`) |
-| `pit_call`        | löst Pit-Call-Override aus; `action: "cancel"` bricht ab         |
+| `config`          | Live-Parameter (`send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`, `batt_warn_v`, `batt_crit_v`, `batt_cal`, `rpm_ceiling`, `rpm_alpha`) |
 | `imu_calibrate`   | misst Gx/Gy-Nullpunkt (`action: "auto"`, `duration_ms`) und speichert die Offsets reboot-fest im Sender (NVS) |
 
 ---
@@ -455,14 +405,12 @@ Die Bridge ergänzt vor dem USB-Versand `rssi`, `rx_count`, `lost`, `bridge_ms`,
 
 | Symptom                                              | Mögliche Ursache / Maßnahme                                  |
 | ---------------------------------------------------- | ------------------------------------------------------------- |
-| Bridge-OLED zeigt `USB OFF`                          | Dashboard noch nicht verbunden oder USB getrennt              |
 | `RX-Count` bleibt 0                                  | `ESPNOW_CHANNEL` unterschiedlich? Bridge-MAC falsch? Antennen prüfen |
 | `lost` zählt schnell hoch                            | Funkstörung, Reichweite überschritten, Antennenausrichtung    |
 | Status-LED am Kart blinkt nie                        | LED-Pin korrekt? `LED_PIN` in Config prüfen                   |
 | GPS-LED-Blinken hört nie auf                         | Freie Sicht zum Himmel? GPS-Pins korrekt?                     |
 | `gps_health: "lost"` im Dashboard                    | NMEA-Daten kommen, aber kein Fix — Antennenstandort prüfen   |
 | RPM bleibt 0 obwohl Welle dreht                      | Hall-Sensor verdrahtet? Magnet-Abstand? `PULSES_PER_REV`?     |
-| OLED bleibt schwarz                                  | Diagnose-Skript `esp_libs/oled_diagnose.py` laufen lassen     |
 | `bridge_error: invalid_json` im Dashboard            | korrumpierte Pakete — meist Funk-/Spannungsproblem            |
 | Sender startet alle 8 s neu                          | Watchdog feuert — Endlosschleife/Hänger; `WATCHDOG_MS=0` zum Debug |
 | SmartScreen-Warnung beim App-Start                   | Normal — auf "Weitere Informationen" → "Trotzdem ausführen"   |
@@ -544,6 +492,5 @@ Anleitung für kostenloses Windows-Code-Signing via SignPath: **[docs/CODE_SIGNI
 Treiber und Bibliotheken Dritter haben eigene Lizenzen:
 
 - `drivers/CP210xVCPInstaller_x64.exe` — Silicon Labs (proprietär, frei verteilbar)
-- `esp_libs/ssd1306.py` — MicroPython, MIT
 - `esp_libs/mpu6050.py` — MIT
 - `esp_libs/micropyGPS.py` — MIT (kompakter NMEA-Parser, kompatibel zur inmcm/micropyGPS-API)
