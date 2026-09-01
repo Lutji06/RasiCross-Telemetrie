@@ -6,7 +6,7 @@
  * Reines UMD-Modul — kein DOM, keine Seiteneffekte, wirft nie.
  */
 
-  const GROUPS = Object.freeze(['dashboard', 'fahrdynamik', 'bridge', 'model3d', 'map', 'data']);
+  const GROUPS = Object.freeze(['dashboard', 'fahrdynamik', 'model3d', 'map', 'data']);
 
   function settingsNavReducer(current, action) {
     const cur = GROUPS.includes(current) ? current : GROUPS[0];
@@ -27,7 +27,6 @@
     { group: 'fahrdynamik', rowId: 'setDriftTol',       label: 'Drift-Empfindlichkeit', keywords: ['drift', 'toleranz', 'empfindlichkeit'] },
     { group: 'fahrdynamik', rowId: 'setDriftMinSpeed',  label: 'Drift Min-Tempo',      keywords: ['drift', 'tempo', 'speed', 'minimum'] },
     { group: 'fahrdynamik', rowId: 'setRolloverAngle',  label: 'Umkipp-Schwelle',      keywords: ['umkippen', 'rollover', 'rollwinkel', 'grad', 'sicherheit'] },
-    { group: 'bridge',   rowId: 'setDisplayUpdateMs', label: 'OLED-Update Intervall', keywords: ['oled', 'display', 'bridge', 'intervall', 'ms'] },
     { group: 'model3d',   rowId: 'kartModelFile',     label: '3D-Modell laden',      keywords: ['kart', 'modell', '3d', 'glb', 'gltf', 'upload'] },
     { group: 'map',       rowId: 'setTilesEnabled',   label: 'OSM-Hintergrund',      keywords: ['karte', 'osm', 'tiles', 'hintergrund'] },
     { group: 'map',       rowId: 'setTilesPreset',    label: 'Karten-Stil',          keywords: ['karte', 'stil', 'preset', 'tiles'] },

@@ -59,21 +59,6 @@
 }
 .btn.lg{padding:var(--sp-12) var(--sp-24);font-size:var(--fs-14);border-radius:var(--r-md)}
 
-.btn.pitcall{
-  background:linear-gradient(135deg,var(--orange) 0%,var(--orange-2) 100%);
-  color:var(--on-orange);border-color:var(--orange);
-  font-weight:800;
-  box-shadow:var(--glow-lg) var(--orange-glow);
-}
-.btn.pitcall.active{
-  background:var(--red);border-color:var(--red);color:var(--white);
-  animation:pitPulse 1s ease-in-out infinite;
-}
-@keyframes pitPulse{
-  0%,100%{box-shadow:0 0 0 0 rgba(255,84,112,.7)}
-  50%{box-shadow:0 0 0 14px rgba(255,84,112,0)}
-}
-
 /* ============================================================
    PILLS / BADGES
    ============================================================ */
