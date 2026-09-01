@@ -58,17 +58,10 @@ class Config:
     SEND_MS         = 80         # Telemetrie-Intervall (12.5 Hz)
     SEND_MS_DEGRADED = 200       # Bei schlechter Funkverbindung -> langsamere Rate (5 Hz)
     SEND_FAIL_THRESHOLD = 10     # Ab so vielen TX-Fehlern in Folge: degraded mode
-    OLED_MS         = 120        # Display-Refresh
-    PAGE_MS         = 4000       # Auto-Seitenwechsel
-    BLINK_MS        = 150        # Shift-Light Blink
     LED_BLINK_MS    = 500        # Status-LED Blink (GPS sucht)
 
     # GPS-Health
     GPS_TIMEOUT_MS  = 10000      # Nach so vielen ms ohne validen Fix -> als verloren melden
-
-    # Drehzahl-Grenzen
-    MAX_RPM         = 6000       # Shift-Light Schwelle
-    RPM_WARN        = 5500       # Vorwarnung
 
     # Filter (EMA-Gewicht des neuen Werts: 1=ungefiltert, klein=traege)
     RPM_ALPHA       = 0.25
@@ -91,7 +84,7 @@ class Config:
 
     # Debug
     DEBUG           = False
-    DEBUG_TOPICS    = ("init", "config", "pit_call", "display", "recv")  # Filter wenn DEBUG=False
+    DEBUG_TOPICS    = ("init", "config", "recv")  # Filter wenn DEBUG=False
 
 
 def log(topic, *args):
@@ -106,8 +99,6 @@ def config_snapshot(rpm_counter):
     damit das Ack unter dem 250-B-ESP-NOW-Limit bleibt; ConfigStore.save
     ergaenzt die Offsets selbst."""
     return {
-        "max_rpm":        Config.MAX_RPM,
-        "warn_rpm":       Config.RPM_WARN,
         "send_ms":        Config.SEND_MS,
         "pulses_per_rev": rpm_counter.ppr,
         "wheel_circ_m":   round(Config.WHEEL_CIRC_M, 4),
@@ -118,7 +109,6 @@ def config_snapshot(rpm_counter):
         "batt_warn_v":    round(Config.BATT_CELL_WARN, 2),
         "batt_crit_v":    round(Config.BATT_CELL_CRIT, 2),
         "batt_cal":       round(Config.BATT_CAL, 3),
-        "page_ms":        Config.PAGE_MS,
     }
 
 
@@ -126,11 +116,10 @@ def config_snapshot(rpm_counter):
 # sprengen das 250-B-ESP-NOW-Limit. Gegenstueck: ESP_CFG_FIELDS in
 # rasicross.js (Dashboard mappt sie zurueck auf die Formular-Inputs).
 _ACK_KEYS = {
-    "max_rpm": "mr", "warn_rpm": "wr", "send_ms": "sm",
+    "send_ms": "sm",
     "pulses_per_rev": "ppr", "wheel_circ_m": "wc", "gear_ratio": "gear",
     "batt_cells": "bc", "rpm_ceiling": "rcl", "rpm_alpha": "ra",
     "batt_warn_v": "bwv", "batt_crit_v": "bcv", "batt_cal": "bcal",
-    "page_ms": "pm",
 }
 
 
@@ -202,16 +191,6 @@ def apply_config(cfg, rpm_counter, store=None, imu=None):
     dabei die aktuellen Kalibrier-Offsets, damit sie im Blob erhalten bleiben."""
     # Obergrenzen: physikalisch sinnvoll UND halten das config_ack-JSON
     # unter dem 250-B-ESP-NOW-Limit (keine 10-stelligen Werte).
-    if "max_rpm" in cfg:
-        try:
-            Config.MAX_RPM = max(500, min(30000, int(cfg["max_rpm"])))
-        except (TypeError, ValueError):
-            pass
-    if "warn_rpm" in cfg:
-        try:
-            Config.RPM_WARN = max(500, min(30000, int(cfg["warn_rpm"])))
-        except (TypeError, ValueError):
-            pass
     if "send_ms" in cfg:
         try:
             Config.SEND_MS = max(20, min(5000, int(cfg["send_ms"])))
@@ -269,11 +248,6 @@ def apply_config(cfg, rpm_counter, store=None, imu=None):
             v = float(cfg["batt_cal"])
             if 0.5 <= v <= 2.0:
                 Config.BATT_CAL = v
-        except (TypeError, ValueError):
-            pass
-    if "page_ms" in cfg:
-        try:
-            Config.PAGE_MS = max(1000, min(60000, int(cfg["page_ms"])))
         except (TypeError, ValueError):
             pass
     log("config", "übernommen:", cfg)
