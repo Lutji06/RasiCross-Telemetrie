@@ -84,6 +84,17 @@
              invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0 };
   }
 
+  // Phase 59: Karts aus bridge_status.karts[] nur uebernehmen, wenn die MAC
+  // schon bekannt ist (Registry/Roster) oder laut age kuerzlich gefunkt hat.
+  // Die Bridge meldet 99999 fuer "nie seit Boot" — reine NVS-Altlasten
+  // erzeugen sonst bei jedem Connect Geister-Eintraege in der App.
+  var ADOPT_MAX_AGE_MS = 60000;
+  function shouldAdoptBridgeKart(info) {
+    if (!info) return false;
+    if (info.known) return true;
+    return typeof info.age === 'number' && info.age < ADOPT_MAX_AGE_MS;
+  }
+
   // config_ack-Zustellung (Phase 48): from_mac bestimmt das Fenster; Acks
   // alter Firmware ohne from_mac gehen an das zuletzt anfragende Fenster.
   // Kein passendes offenes Fenster -> null (Ack verwerfen).
@@ -96,4 +107,4 @@
   // ESM-Export: Default-Objekt (Konvention der Objekt-Module, Phase 42)
   export default { PALETTE, isDemoMac, metaDefaults, ensureMeta,
                    migrateLegacyMeta, rosterMacs, clampServiceH, calDefaults, ackTargetMac,
-                   equipDefaults, equipFor, needsEquipDialog };
+                   equipDefaults, equipFor, needsEquipDialog, shouldAdoptBridgeKart };

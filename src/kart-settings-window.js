@@ -141,7 +141,9 @@ function openKartSettings(mac) {
     try { existing.win.focus(); } catch (e) {}
     return;
   }
-  const win = window.open('', '_blank', 'width=460,height=720');
+  // Breite inkl. Rahmen + Scrollbar: Viewport muss ueber dem 440-px-
+  // Stapel-Breakpoint (pitwall.css, Phase 57) bleiben — 460 reichte nicht.
+  const win = window.open('', '_blank', 'width=520,height=720');
   if (!win) {
     rcToast('Popup blockiert — bitte Popups für die App erlauben', 4000);
     return;
@@ -272,8 +274,7 @@ function _bindHandlers(r) {
     renderKartsTab();
   };
   if (_el(r, 'kartServiceBtn')) _el(r, 'kartServiceBtn').onclick = async () => {
-    window.focus();   // rcConfirm rendert im Hauptfenster
-    if (!await rcConfirm('Wartungszähler zurücksetzen? Seit-letzter-Wartung beginnt wieder bei 0.', 'Wartung', 'Zurücksetzen')) return;
+    if (!await rcConfirm('Wartungszähler zurücksetzen? Seit-letzter-Wartung beginnt wieder bei 0.', 'Wartung', 'Zurücksetzen', false, r.doc)) return;
     const e = kartEngineFor(r.mac);
     if (!e) return;
     e.lastServiceMs = e.totalMs;
@@ -284,8 +285,7 @@ function _bindHandlers(r) {
     _refreshWin(r);
   };
   if (_el(r, 'kartCalResetBtn')) _el(r, 'kartCalResetBtn').onclick = async () => {
-    window.focus();
-    if (!await rcConfirm('Kalibrierung dieses Karts auf Werkswerte zurücksetzen?', 'Kalibrierung', 'Zurücksetzen', true)) return;
+    if (!await rcConfirm('Kalibrierung dieses Karts auf Werkswerte zurücksetzen?', 'Kalibrierung', 'Zurücksetzen', true, r.doc)) return;
     const c = kartCalFor(r.mac);
     if (!c) return;
     Object.assign(c, RasiKartRoster.calDefaults());
@@ -295,8 +295,7 @@ function _bindHandlers(r) {
     _refreshWin(r);
   };
   if (_el(r, 'kartStatsResetBtn')) _el(r, 'kartStatsResetBtn').onclick = async () => {
-    window.focus();
-    if (!await rcConfirm('Statistik (Kilometer, Ø, Top-Speed, Fahrzeit) dieses Karts auf 0 setzen?', 'Statistik', 'Zurücksetzen', true)) return;
+    if (!await rcConfirm('Statistik (Kilometer, Ø, Top-Speed, Fahrzeit) dieses Karts auf 0 setzen?', 'Statistik', 'Zurücksetzen', true, r.doc)) return;
     const s = kartStatsFor(r.mac);
     if (!s) return;
     s.odoM = 0;
@@ -308,8 +307,7 @@ function _bindHandlers(r) {
     renderKartsTab();
   };
   if (_el(r, 'kartForgetBtn')) _el(r, 'kartForgetBtn').onclick = async () => {
-    window.focus();
-    if (!await rcConfirm('Dieses Kart endgültig vergessen? Name, Farbe, Kalibrierung, Statistik und Motorstunden werden gelöscht.', 'Kart vergessen', 'Vergessen', true)) return;
+    if (!await rcConfirm('Dieses Kart endgültig vergessen? Name, Farbe, Kalibrierung, Statistik und Motorstunden werden gelöscht.', 'Kart vergessen', 'Vergessen', true, r.doc)) return;
     forgetKart(r.mac);
     try { r.win.close(); } catch (e) {}
     _wins.delete(r.mac);

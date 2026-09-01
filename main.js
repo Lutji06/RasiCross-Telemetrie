@@ -455,10 +455,13 @@ function createWindow() {
   mainWindow.setMenuBarVisibility(false);
   // Phase 48: Kart-Einstellungs-Fenster (window.open aus dem Renderer) --
   // echte BrowserWindows mit App-Optik, ohne Menueleiste.
+  // Phase 59: width gilt hier VOR dem Features-String des Renderers und
+  // muss den Viewport (abzueglich Rahmen + Scrollbar) ueber dem
+  // 440-px-Stapel-Breakpoint halten -- 460 ergab ~427 und stapelte immer.
   mainWindow.webContents.setWindowOpenHandler(() => ({
     action: "allow",
     overrideBrowserWindowOptions: {
-      width: 460,
+      width: 520,
       height: 720,
       minWidth: 380,
       minHeight: 500,

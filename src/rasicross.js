@@ -87,7 +87,36 @@ export { SAVE_KEY, state, activeKart, kartFor, rasiPersistForget, kartMetaFor, u
 // ============================================================
 // 4. CUSTOM DIALOGS
 // ============================================================
-function rcAlert(msg, title = 'Hinweis') {
+// Phase 59: Dialoge im aufrufenden Fenster rendern — das statische
+// #rcAlertOverlay existiert nur im Hauptfenster, und window.focus()
+// darf ein Kindfenster (Kart-Einstellungen) unter Electron nicht
+// zuverlaessig ueberdecken. Die App-Styles sind ins Kind-DOM geklont.
+function _dialogIn(doc, title, msg, buttons) {
+  return new Promise(resolve => {
+    const ov = doc.createElement('div');
+    ov.className = 'overlay show';
+    const dlg = doc.createElement('div');
+    dlg.className = 'dialog';
+    const h = doc.createElement('h3'); h.textContent = title;
+    const p = doc.createElement('p'); p.textContent = msg;
+    const row = doc.createElement('div'); row.className = 'dialog-btns';
+    for (const b of buttons) {
+      const btn = doc.createElement('button');
+      btn.className = b.cls; btn.textContent = b.label;
+      btn.onclick = () => { ov.remove(); resolve(b.value); };
+      row.appendChild(btn);
+    }
+    dlg.appendChild(h); dlg.appendChild(p); dlg.appendChild(row);
+    ov.appendChild(dlg);
+    doc.body.appendChild(ov);
+    const last = row.lastChild;
+    setTimeout(() => { try { last.focus(); } catch (e) {} }, 50);
+  });
+}
+function rcAlert(msg, title = 'Hinweis', doc = null) {
+  if (doc && doc !== document) {
+    return _dialogIn(doc, title, msg, [{ cls: 'btn primary', label: 'OK', value: undefined }]);
+  }
   return new Promise(resolve => {
     setText('rcAlertTitle', title);
     setText('rcAlertMsg', msg);
@@ -101,7 +130,13 @@ function rcAlert(msg, title = 'Hinweis') {
     setTimeout(() => ok.focus(), 50);
   });
 }
-function rcConfirm(msg, title = 'Bestätigung', confirmLabel = 'OK', danger = false) {
+function rcConfirm(msg, title = 'Bestätigung', confirmLabel = 'OK', danger = false, doc = null) {
+  if (doc && doc !== document) {
+    return _dialogIn(doc, title, msg, [
+      { cls: 'btn ghost', label: 'Abbrechen', value: false },
+      { cls: 'btn ' + (danger ? 'danger' : 'primary'), label: confirmLabel, value: true },
+    ]);
+  }
   return new Promise(resolve => {
     setText('rcAlertTitle', title);
     setText('rcAlertMsg', msg);

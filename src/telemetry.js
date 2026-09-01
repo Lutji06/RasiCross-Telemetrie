@@ -17,7 +17,10 @@ import RasiReplay from './replay.js';
 import { rcToast, rcAudio } from './rasicross.js';
 import { routeConfigAck } from './kart-settings-window.js';
 import { maybeShowEquipDialog } from './kart-equip.js';
-import { state, activeKart, kartFor, saveDataDebounced, kartMetaFor } from './store.js';
+import { flushPendingBridge } from './karts-page.js';
+import { state, activeKart, kartFor, saveDataDebounced, kartMetaFor,
+         kartRosterMacs } from './store.js';
+import RasiKartRoster from './kart-roster.js';
 
 // Crash-Sicherung (Phase 24): recordPacket sammelt NDJSON-Zeilen und schiebt
 // sie gebuendelt an den Main-Prozess (alle ~25 Pakete oder 2s) — nach einem
@@ -101,6 +104,11 @@ function processTelemetry(d) {
       if (Array.isArray(d.karts)) {
         for (const ks of d.karts) {
           if (!ks || !ks.mac) continue;
+          // Phase 59: reine NVS-Altlasten der Bridge (nie seit Boot gefunkt,
+          // in der App unbekannt) erzeugen keine Geister-Eintraege mehr.
+          const _known = state.karts.has(ks.mac)
+            || kartRosterMacs().indexOf(ks.mac) >= 0;
+          if (!RasiKartRoster.shouldAdoptBridgeKart({ known: _known, age: ks.age })) continue;
           const kk = kartFor(ks.mac);
           if (!kk) continue;
           if (ks.rssi != null) kk.connection.rssi = ks.rssi;
@@ -108,10 +116,16 @@ function processTelemetry(d) {
           state._kartHz[ks.mac] = ks.rate_hz;
         }
       }
+      // Phase 59: Bridge erreichbar — gequeue-te forget/reset-Kommandos zustellen.
+      flushPendingBridge();
       RasiKartBar.render(state);
       return;
     }
     if (d.type === 'config_ack') { routeConfigAck(d); return; }
+    // Phase 59: Bridge-Meta-Zeilen ohne from_mac duerfen keinem Kart
+    // (insb. nicht dem default-Bucket) zugebucht werden — sonst erscheint
+    // eine Geisterkarte auf der Verbindungsseite.
+    if (d.type === 'bridge_error' || d.type === 'bridge_info' || d.type === 'bridge_hello') return;
     // Ziel-Kart aufloesen (MAC = Identitaet). Schreibpfade laufen explizit
     // ueber k statt ueber die aktive-Kart-Proxy-Fassade, damit Hintergrund-
     // Karts ihren eigenen Zustand fuellen.

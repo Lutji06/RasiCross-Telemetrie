@@ -4,7 +4,8 @@ import RasiKartRoster from '../src/kart-roster.js';
 
 const { isDemoMac, metaDefaults, ensureMeta, migrateLegacyMeta,
         rosterMacs, clampServiceH, calDefaults, ackTargetMac, PALETTE,
-        equipDefaults, equipFor, needsEquipDialog } = RasiKartRoster;
+        equipDefaults, equipFor, needsEquipDialog,
+        shouldAdoptBridgeKart } = RasiKartRoster;
 
 test('isDemoMac: DE:MO:-Prefix erkannt, echte MACs nicht', () => {
   assert.equal(isDemoMac('DE:MO:RA:SI:00:01'), true);
@@ -45,6 +46,15 @@ test('needsEquipDialog: nur echte, unbestaetigte Karts', () => {
   assert.equal(needsEquipDialog({ equipSet: false }, 'DE:MO:RA:SI:00:01'), false);
   assert.equal(needsEquipDialog({ equipSet: false }, 'default'), false);
   assert.equal(needsEquipDialog(null, 'AA:BB'), false);
+});
+
+test('shouldAdoptBridgeKart: bekannt ODER frisch aktiv, sonst NVS-Altlast', () => {
+  assert.equal(shouldAdoptBridgeKart({ known: true, age: 99999 }), true);
+  assert.equal(shouldAdoptBridgeKart({ known: false, age: 1200 }), true);
+  assert.equal(shouldAdoptBridgeKart({ known: false, age: 99999 }), false);
+  assert.equal(shouldAdoptBridgeKart({ known: false, age: null }), false);
+  assert.equal(shouldAdoptBridgeKart({ known: false, age: 60000 }), false);
+  assert.equal(shouldAdoptBridgeKart(null), false);
 });
 
 test('ensureMeta: legt Default an, laesst Bestehendes unangetastet', () => {
