@@ -74,3 +74,45 @@ test('rubberband daempft und waechst monoton', () => {
   assert.equal(S.rubberband(0, 400), 0);
   assert.equal(S.rubberband(-50, 400), -S.rubberband(50, 400));
 });
+
+test('kein Ueberschwingen fuer die real benutzten response-Werte bei MAX_DT', () => {
+  // 0.12 = Druck-Feedback, 0.18 = G-Meter, 0.22 = Dialog, 0.3 = Tab, 0.35 = Default.
+  // Ohne Teilschritte schoss 0.12 hier auf 304 % und 0.18 auf 135 % des Ziels.
+  for (const r of [0.12, 0.18, 0.22, 0.3, 0.35]) {
+    let v = 0, vel = 0;
+    for (let i = 0; i < 200; i++) {
+      const res = S.springStep(v, vel, 100, S.MAX_DT, 1, r);
+      v = res.value; vel = res.velocity;
+      assert.ok(v <= 100 + 1e-9, 'response ' + r + ' schoss auf ' + v);
+      if (res.done) break;
+    }
+  }
+});
+
+test('absurdes response liefert endliche Werte', () => {
+  const r = S.springStep(0, 0, 100, 1 / 30, 1, 1e-200);
+  assert.ok(Number.isFinite(r.value), 'value war ' + r.value);
+  assert.ok(Number.isFinite(r.velocity));
+  assert.ok(r.value <= 100 + 1e-9);
+});
+
+test('absurdes damping liefert endliche Werte', () => {
+  const r = S.springStep(0, 0, 100, 1 / 30, 1e9, 0.35);
+  assert.ok(Number.isFinite(r.value));
+  assert.ok(Number.isFinite(r.velocity));
+});
+
+test('unterdaempft schwingt ueber und kommt zur Ruhe', () => {
+  // Daempfung 0.8 ist im Modulkopf ausdruecklich vorgesehen -- nach einer
+  // Geste, die selbst Schwung erzeugt hat. Dieser Pfad muss ueberschwingen
+  // duerfen UND einrasten.
+  let v = 0, vel = 0, max = 0, done = false;
+  for (let i = 0; i < 600 && !done; i++) {
+    const r = S.springStep(v, vel, 100, 1 / 60, 0.8, 0.35);
+    v = r.value; vel = r.velocity; done = r.done;
+    if (v > max) max = v;
+  }
+  assert.ok(max > 100, 'unterdaempft muss ueberschwingen, Maximum war ' + max);
+  assert.ok(done, 'muss trotzdem zur Ruhe kommen');
+  assert.equal(v, 100);
+});

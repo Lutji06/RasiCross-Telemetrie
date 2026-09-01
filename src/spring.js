@@ -31,6 +31,16 @@
   const MAX_DT = 1 / 30;
   // Unterhalb davon gilt die Feder als angekommen und rastet exakt ein.
   const EPS = 0.01;
+  // Ab h = dt*omega = 1 beginnt der erste Schritt aus der Ruhe ueber das
+  // Ziel zu schiessen (numerisch bestimmt). Jeder Schritt wird deshalb so
+  // oft geteilt, bis jeder Teilschritt darunter liegt -- damit ist jede
+  // Kombination aus dt und response sicher, ohne die gewollte
+  // Reaktionsschnelle zu beschneiden.
+  const H_SAFE = 0.9;
+  // Untergrenze fuer response: darunter waechst omega so stark, dass
+  // omega*omega in Doubles ueberlaeuft (response 1e-200 -> Infinity).
+  const MIN_RESPONSE = 0.02;
+  const MAX_DAMPING = 10;
 
   function springStep(value, velocity, target, dt, damping, response) {
     let v = Number(value), vel = Number(velocity), t = Number(target);
@@ -42,15 +52,26 @@
     if (step > MAX_DT) step = MAX_DT;
     let z = Number(damping);
     if (!isFinite(z) || z <= 0) z = DAMPING;
+    if (z > MAX_DAMPING) z = MAX_DAMPING;
     let r = Number(response);
     if (!isFinite(r) || r <= 0) r = RESPONSE;
+    if (r < MIN_RESPONSE) r = MIN_RESPONSE;
     // Halbimplizites Euler-Verfahren: erst die Geschwindigkeit aus der
     // aktuellen Auslenkung, dann die Position aus der neuen Geschwindigkeit.
     // Stabiler als explizites Euler bei den hier ueblichen Schrittweiten.
+    // In n Teilschritte zerlegt, damit jeder Teilschritt h = dt/n * omega
+    // unter H_SAFE bleibt -- sonst schiesst der erste Schritt aus der Ruhe
+    // ueber das Ziel (siehe H_SAFE oben).
     const omega = (2 * Math.PI) / r;
-    const accel = -(omega * omega) * (v - t) - (2 * z * omega) * vel;
-    vel += accel * step;
-    v += vel * step;
+    let n = Math.ceil((step * omega) / H_SAFE);
+    if (!isFinite(n) || n < 1) n = 1;
+    if (n > 32) n = 32;
+    const h = step / n;
+    for (let i = 0; i < n; i++) {
+      const accel = -(omega * omega) * (v - t) - (2 * z * omega) * vel;
+      vel += accel * h;
+      v += vel * h;
+    }
     if (Math.abs(t - v) < EPS && Math.abs(vel) < EPS) {
       return { value: t, velocity: 0, done: true };
     }
