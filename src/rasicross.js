@@ -6,6 +6,7 @@ import { renderDrivers } from './laps-drivers.js';
 import DomTargets from './dom-targets.js';
 import KartRegistry from './kart-registry.js';
 import { renderKartsTab } from './karts-page.js';
+import RasiMotion from './motion.js';
 import { state, saveDataDebounced } from './store.js';
 import { armRecording, driftInputs, processTelemetry, resetAttitudeClock } from './telemetry.js';
 
@@ -161,6 +162,40 @@ function rcToast(msg, ms = 2000) {
 }
 
 // ============================================================
+// DRUCK-FEEDBACK (Phase 62)
+// ============================================================
+// Apple: Feedback gehoert auf den Druck, nicht auf das Loslassen --
+// sobald es am Loslassen haengt, faellt das Gefuehl von Direktheit ab.
+// Ein delegierter Handler statt Bindungen pro Element: die Oberflaeche
+// baut Karten, Chips und Zeilen zur Laufzeit nach.
+const PRESS_SEL = '.btn,.nav-item,.kart-chip,.card.clickable,tr.clickable';
+let _lastPressEl = null;
+function lastPressEl() { return _lastPressEl; }
+function setupPressFeedback() {
+  document.addEventListener('pointerdown', (e) => {
+    const el = e.target && e.target.closest && e.target.closest(PRESS_SEL);
+    if (!el || el.disabled) return;
+    _lastPressEl = el;
+    el.classList.add('is-pressed');
+    RasiMotion.animate(el, 'scale', 0.97, { response: 0.12 });
+  }, { passive: true });
+  // pointerup faengt den Normalfall, pointercancel das Wegziehen --
+  // ohne beides bliebe ein Element gedrueckt stehen.
+  const release = (e) => {
+    const el = e.target && e.target.closest && e.target.closest(PRESS_SEL);
+    if (!el) return;
+    el.classList.remove('is-pressed');
+    // reset() im onDone: sonst bleibt ein Inline-transform stehen und der
+    // Hover-Lift aus dem CSS waere ab dem ersten Klick ueberschrieben.
+    RasiMotion.animate(el, 'scale', 1, {
+      response: 0.25, onDone: (n) => RasiMotion.reset(n),
+    });
+  };
+  document.addEventListener('pointerup', release, { passive: true });
+  document.addEventListener('pointercancel', release, { passive: true });
+}
+
+// ============================================================
 // 5. TAB NAVIGATION + THEME
 // ============================================================
 function setupTabs() {
@@ -288,5 +323,6 @@ export {
   processTelemetry, armRecording, driftInputs,
   resetAttitudeClock,
   bridgeSend, applyTheme, setupTabs, toggleTheme,
+  lastPressEl, setupPressFeedback,
 };
 export { kart3dIsReady, kart3dTickDt } from './kart3d-ui.js';
