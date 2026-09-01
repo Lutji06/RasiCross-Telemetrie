@@ -70,7 +70,6 @@ function clearTrack() {
   state.startGate = { enabled: false, lat: 0, lon: 0, heading: 0, width: 14 };
   state.sectors.boundaries = [null, null];
   state.sectors.manual = false;
-  state.sectors.best = [null, null, null];   // Bests gelten pro Strecke
   $('sectorPanel').style.display = 'none';
   setText('scanModePill', 'Manuell');
   setText('scanStateValue', 'Warte auf GPS');
@@ -159,7 +158,6 @@ async function saveCurrentTrack() {
     points: [...state.track.points], bounds: { ...state.track.bounds },
     startGate: { ...state.startGate },
     sectorBoundaries: [...state.sectors.boundaries],
-    sectorBest: [...state.sectors.best],
     totalDistance: state.track.totalDistance,
     maxDistFromStart: state.track.maxDistFromStart,
     closed: state.track.closed
@@ -189,8 +187,11 @@ function loadSavedTrack(id) {
     state.sectors.boundaries = [...t.sectorBoundaries];
     state.sectors.manual = !!t.sectorBoundaries.some(b => b);
   }
-  // Phase 30: Strecken-Rekord in den aktiven Kart laden (Per-Kart-Sektor-Bests).
-  activeKart().sectorsBest = Array.isArray(t.sectorBest) ? [...t.sectorBest] : [null, null, null];
+  // Phase 60: neue Sektorgrenzen -> alte Bestzeiten sind bedeutungslos.
+  for (const _m of state.karts.macs()) {
+    const _k = state.karts.get(_m);
+    if (_k) _k.sectorsBest = [null, null, null];
+  }
   state.activeTrackId = id;
   setText('gateSizeText', (state.startGate.width || 14) + 'm');
   setText('scanStateValue', 'Geladen: ' + t.name);

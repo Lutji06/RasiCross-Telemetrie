@@ -106,12 +106,12 @@ function updatePitWall() {
   const _tb = theoreticalBestMs();
   setText('pwTheoLap', _tb ? fmtMs(_tb) : '--:--.---');
   // Sectors
-  const s = state.sectors;          // Konfiguration (global)
   const sl = k.sectorsLive;         // Live-Sektorzeiten (pro Kart)
+  const sb = k.sectorsBest || [];   // Sektor-Bests dieses Karts (Phase 60)
   for (let i = 0; i < 3; i++) {
     let t2 = sl.lapSectors[i];
     if (!t2 && sl.lastLapSectors) t2 = sl.lastLapSectors[i];
-    const best = s.best[i];
+    const best = sb[i];
     const el = $('pwS' + (i + 1));
     if (el) {
       el.textContent = t2 ? fmtMs(t2) : '--';
