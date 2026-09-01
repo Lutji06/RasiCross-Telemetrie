@@ -75,31 +75,57 @@ test('rubberband daempft und waechst monoton', () => {
   assert.equal(S.rubberband(-50, 400), -S.rubberband(50, 400));
 });
 
-test('kein Ueberschwingen fuer die real benutzten response-Werte bei MAX_DT', () => {
-  // 0.12 = Druck-Feedback, 0.18 = G-Meter, 0.22 = Dialog, 0.3 = Tab, 0.35 = Default.
-  // Ohne Teilschritte schoss 0.12 hier auf 304 % und 0.18 auf 135 % des Ziels.
+test('alle real benutzten response-Werte rasten ein, ohne zu ueberschwingen', () => {
+  // 0.12 = Druck-Feedback, 0.18 = G-Meter, 0.22 = Dialog, 0.3 = Tab,
+  // 0.35 = Default. Geprueft bei 60 fps UND beim groessten erlaubten
+  // Zeitschritt. Die Einrast-Pruefung ist der eigentliche Punkt: eine
+  // vorige Fassung blieb gruen, waehrend die Feder nach -593 davonlief,
+  // weil nur die Obergrenze geprueft wurde.
   for (const r of [0.12, 0.18, 0.22, 0.3, 0.35]) {
-    let v = 0, vel = 0;
-    for (let i = 0; i < 200; i++) {
-      const res = S.springStep(v, vel, 100, S.MAX_DT, 1, r);
-      v = res.value; vel = res.velocity;
-      assert.ok(v <= 100 + 1e-9, 'response ' + r + ' schoss auf ' + v);
-      if (res.done) break;
+    for (const dt of [1 / 60, S.MAX_DT]) {
+      let v = 0, vel = 0, done = false;
+      for (let i = 0; i < 400 && !done; i++) {
+        const res = S.springStep(v, vel, 100, dt, 1, r);
+        v = res.value; vel = res.velocity; done = res.done;
+        assert.ok(v <= 100 + 1e-9, 'response ' + r + ' schoss auf ' + v);
+        assert.ok(v >= -1e-9, 'response ' + r + ' lief nach unten weg: ' + v);
+      }
+      assert.ok(done, 'response ' + r + ' bei dt ' + dt + ' ist nicht eingerastet');
+      assert.equal(v, 100);
     }
   }
 });
 
-test('absurdes response liefert endliche Werte', () => {
-  const r = S.springStep(0, 0, 100, 1 / 30, 1, 1e-200);
-  assert.ok(Number.isFinite(r.value), 'value war ' + r.value);
-  assert.ok(Number.isFinite(r.velocity));
-  assert.ok(r.value <= 100 + 1e-9);
+test('absurdes response rastet ein, statt davonzulaufen', () => {
+  // Einzelschritt allein reicht nicht als Absicherung (siehe Testkommentar
+  // oben) -- ueber viele Schritte pruefen, dass die Feder tatsaechlich
+  // ankommt statt nur "irgendeinen endlichen Wert" zu liefern.
+  let v = 0, vel = 0, done = false;
+  for (let i = 0; i < 400 && !done; i++) {
+    const r = S.springStep(v, vel, 100, 1 / 30, 1, 1e-200);
+    v = r.value; vel = r.velocity; done = r.done;
+    assert.ok(Number.isFinite(v), 'value war ' + v);
+    assert.ok(Number.isFinite(vel), 'velocity war ' + vel);
+    assert.ok(v <= 100 + 1e-9, 'schoss auf ' + v);
+    assert.ok(v >= -1e-9, 'lief nach unten weg: ' + v);
+  }
+  assert.ok(done, 'absurdes response ist nicht eingerastet');
+  assert.equal(v, 100);
 });
 
-test('absurdes damping liefert endliche Werte', () => {
-  const r = S.springStep(0, 0, 100, 1 / 30, 1e9, 0.35);
-  assert.ok(Number.isFinite(r.value));
-  assert.ok(Number.isFinite(r.velocity));
+test('absurdes damping bleibt endlich und beruhigt sich', () => {
+  // velocity != 0 ist der Punkt: der Daempfungsterm ist 2*z*omega*vel --
+  // mit vel = 0 haette z ueberhaupt keine Wirkung und der Test wuerde die
+  // Klammer gar nicht pruefen (so war eine fruehere Fassung zahnlos).
+  let v = 0, vel = 500;
+  for (let i = 0; i < 100; i++) {
+    const r = S.springStep(v, vel, 100, S.MAX_DT, 1e9, 0.12);
+    v = r.value; vel = r.velocity;
+    assert.ok(Number.isFinite(v), 'value wurde ' + v + ' in Schritt ' + i);
+    assert.ok(Number.isFinite(vel), 'velocity wurde ' + vel + ' in Schritt ' + i);
+    assert.ok(Math.abs(v) < 1e6, 'value lief weg: ' + v);
+    if (r.done) break;
+  }
 });
 
 test('unterdaempft schwingt ueber und kommt zur Ruhe', () => {

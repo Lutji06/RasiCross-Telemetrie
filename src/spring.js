@@ -31,12 +31,11 @@
   const MAX_DT = 1 / 30;
   // Unterhalb davon gilt die Feder als angekommen und rastet exakt ein.
   const EPS = 0.01;
-  // Ab h = dt*omega = 1 beginnt der erste Schritt aus der Ruhe ueber das
-  // Ziel zu schiessen (numerisch bestimmt). Jeder Schritt wird deshalb so
-  // oft geteilt, bis jeder Teilschritt darunter liegt -- damit ist jede
-  // Kombination aus dt und response sicher, ohne die gewollte
-  // Reaktionsschnelle zu beschneiden.
-  const H_SAFE = 0.9;
+  // Stabilitaetsgrenze des Verfahrens: der groesste Eigenwert der
+  // Zustandsmatrix ueberschreitet 1 bei h = dt*omega = 0.83 -- darueber
+  // laeuft die Feder davon statt anzukommen. 0.5 haelt sicheren Abstand
+  // und kostet hoechstens vier Teilschritte pro Frame.
+  const H_SAFE = 0.5;
   // Untergrenze fuer response: darunter waechst omega so stark, dass
   // omega*omega in Doubles ueberlaeuft (response 1e-200 -> Infinity).
   const MIN_RESPONSE = 0.02;
@@ -60,12 +59,15 @@
     // aktuellen Auslenkung, dann die Position aus der neuen Geschwindigkeit.
     // Stabiler als explizites Euler bei den hier ueblichen Schrittweiten.
     // In n Teilschritte zerlegt, damit jeder Teilschritt h = dt/n * omega
-    // unter H_SAFE bleibt -- sonst schiesst der erste Schritt aus der Ruhe
-    // ueber das Ziel (siehe H_SAFE oben).
+    // unter H_SAFE bleibt -- sonst laeuft die Feder davon statt anzukommen
+    // (siehe H_SAFE oben). Bei hoher Daempfung z wird die Grenze frueher
+    // bindend als bei z=1 (Determinante der Zustandsmatrix verlangt
+    // h*omega*z < 1) -- deshalb wird der Teilschritt zusaetzlich durch z
+    // geteilt, sonst divergiert z.B. der geklammerte MAX_DAMPING-Fall.
     const omega = (2 * Math.PI) / r;
-    let n = Math.ceil((step * omega) / H_SAFE);
+    let n = Math.ceil((step * omega * Math.max(1, z)) / H_SAFE);
     if (!isFinite(n) || n < 1) n = 1;
-    if (n > 32) n = 32;
+    if (n > 256) n = 256;
     const h = step / n;
     for (let i = 0; i < n; i++) {
       const accel = -(omega * omega) * (v - t) - (2 * z * omega) * vel;
