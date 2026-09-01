@@ -1,7 +1,8 @@
 // ============================================================
 //  RasiCross — smoothing.js  (EMA-Glaettung, Phase 61)
 // ============================================================
-//  Dependency-free UMD: laeuft unter node:test (CI) und im Browser.
+//  Dependency-freies ESM-Objektmodul (Konvention Phase 42, wie
+//  kart-stats.js): laeuft unter node:test (CI) und im Browser.
 //  Kein DOM, kein State, wirft nie.
 //
 //  Zweck: die ANGEZEIGTEN Maximalwerte von Geschwindigkeit und Drehzahl
@@ -16,16 +17,16 @@
 
   // 0.3 bei ~12,5 Hz Paketrate: ein einzelner Ausreisser schlaegt nur zu
   // 30 % durch, ein echter Anstieg ist nach ~0,4 s praktisch erreicht.
-  var MAX_ALPHA = 0.3;
+  const MAX_ALPHA = 0.3;
 
   // prev == null (noch kein Messwert) -> der erste Wert seedet direkt,
   // damit der MAX-Wert nicht erst aus einer Rampe ab 0 hochlaeuft.
   function emaStep(prev, value, alpha) {
-    var v = Number(value);
+    const v = Number(value);
     if (!isFinite(v)) return prev == null ? null : prev;
-    var a = Number(alpha);
+    let a = Number(alpha);
     if (!isFinite(a) || a <= 0 || a > 1) a = MAX_ALPHA;
-    var p = Number(prev);
+    const p = Number(prev);
     if (prev == null || !isFinite(p)) return v;
     return p + (v - p) * a;
   }
