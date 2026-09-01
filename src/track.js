@@ -70,7 +70,11 @@ function clearTrack() {
   state.startGate = { enabled: false, lat: 0, lon: 0, heading: 0, width: 14 };
   state.sectors.boundaries = [null, null];
   state.sectors.manual = false;
-  state.sectors.best = [null, null, null];   // Bests gelten pro Strecke
+  // Phase 60: ohne Sektorgrenzen sind die Bestzeiten gegenstandslos.
+  for (const _m of state.karts.macs()) {
+    const _k = state.karts.get(_m);
+    if (_k) _k.sectorsBest = [null, null, null];
+  }
   $('sectorPanel').style.display = 'none';
   setText('scanModePill', 'Manuell');
   setText('scanStateValue', 'Warte auf GPS');
@@ -159,7 +163,6 @@ async function saveCurrentTrack() {
     points: [...state.track.points], bounds: { ...state.track.bounds },
     startGate: { ...state.startGate },
     sectorBoundaries: [...state.sectors.boundaries],
-    sectorBest: [...state.sectors.best],
     totalDistance: state.track.totalDistance,
     maxDistFromStart: state.track.maxDistFromStart,
     closed: state.track.closed
@@ -176,15 +179,6 @@ async function saveCurrentTrack() {
     }
   } catch (e) { /* silent — manual button is the fallback */ }
 }
-// Sektor-Bests gehoeren zur Strecke: nach jedem neuen Best in die aktive
-// gespeicherte Strecke spiegeln, damit sie Streckenwechsel ueberleben.
-function syncSectorBestToTrack() {
-  // Phase 30: Strecken-Rekord = bestes Ergebnis ueber alle Karts (min je Sektor).
-  const t = state.savedTracks.find(x => x.id === state.activeTrackId);
-  if (!t) return;
-  const bests = state.karts.macs().map(mac => state.karts.get(mac).sectorsBest || [null, null, null]);
-  t.sectorBest = RasiLapEngine.trackRecordFromKarts(bests);
-}
 function loadSavedTrack(id) {
   const t = state.savedTracks.find(x => x.id === id);
   if (!t) return;
@@ -198,8 +192,11 @@ function loadSavedTrack(id) {
     state.sectors.boundaries = [...t.sectorBoundaries];
     state.sectors.manual = !!t.sectorBoundaries.some(b => b);
   }
-  // Phase 30: Strecken-Rekord in den aktiven Kart laden (Per-Kart-Sektor-Bests).
-  activeKart().sectorsBest = Array.isArray(t.sectorBest) ? [...t.sectorBest] : [null, null, null];
+  // Phase 60: neue Sektorgrenzen -> alte Bestzeiten sind bedeutungslos.
+  for (const _m of state.karts.macs()) {
+    const _k = state.karts.get(_m);
+    if (_k) _k.sectorsBest = [null, null, null];
+  }
   state.activeTrackId = id;
   setText('gateSizeText', (state.startGate.width || 14) + 'm');
   setText('scanStateValue', 'Geladen: ' + t.name);
@@ -722,7 +719,6 @@ function checkSectorCrossings(k, lat, lon) {
         // Update per-kart best
         if (RasiLapEngine.sectorBestUpdate(k.sectorsBest, i, sectorMs)) {
           if (isAct) rcAudio.sectorBest();
-          syncSectorBestToTrack();
           saveDataDebounced();
         }
         if (isAct) updateSectorPanel();
@@ -765,7 +761,7 @@ function updateSectorPanel() {
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
       recomputeTrackBounds,
-      saveCurrentTrack, syncSectorBestToTrack, loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
+      saveCurrentTrack, loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
       startTrackTileCache, renderSavedTracks, openTrackEditor, closeTrackEditor,
       editorClickTarget, handleEditorClick, saveEditor, calcAutoSectors,
       clearManualSectors, activateSectorClick, handleTrackCanvasClick,
@@ -774,7 +770,7 @@ void [startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
 // ESM-Export (Phase 42): bisherige Interface-Globals von track.js
 export {
   startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
-  recomputeTrackBounds, saveCurrentTrack, syncSectorBestToTrack,
+  recomputeTrackBounds, saveCurrentTrack,
   loadSavedTrack, deleteSavedTrack, refreshTrackTileStatus,
   startTrackTileCache, renderSavedTracks, openTrackEditor, closeTrackEditor,
   editorClickTarget, handleEditorClick, saveEditor, calcAutoSectors,

@@ -5,7 +5,7 @@ import E from '../src/lap-engine.js';
 test('module exports all helpers', () => {
   for (const name of ['migrateRace','participantsOf','getOrCreatePart','partOf','flatLaps',
                       'flatValidLaps','flatStints','partValidLaps','bestFromLaps',
-                      'commitLap','sectorBestUpdate','trackRecordFromKarts',
+                      'commitLap','sectorBestUpdate',
                       'rankParticipants','leaderReachedTarget','fastestLapHolder',
                       'positionGains','applyDriverChange']) {
     assert.equal(typeof E[name], 'function', `missing ${name}`);
@@ -105,11 +105,6 @@ test('sectorBestUpdate returns true and stores on improvement only', () => {
   assert.equal(sb[0], 12000);
   assert.equal(E.sectorBestUpdate(sb, 0, 11000), true);
   assert.equal(sb[0], 11000);
-});
-
-test('trackRecordFromKarts takes min per sector, ignoring null', () => {
-  const rec = E.trackRecordFromKarts([[12000, null, 9000], [11000, 8000, null]]);
-  assert.deepEqual(rec, [11000, 8000, 9000]);
 });
 
 test('flatStints merges all participant stints', () => {

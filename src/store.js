@@ -36,7 +36,7 @@ const state = {
   activeTrackId: null,
   // Sectors — nur Konfiguration ist global; die Live-Sektorzeiten
   // (cur/sectorStart/lapSectors/lastLapSectors) liegen per Kart in sectorsLive.
-  sectors: { boundaries: [null, null], best: [null, null, null], manual: false, clickTarget: null },
+  sectors: { boundaries: [null, null], manual: false, clickTarget: null },
   drivers: [],
   races: [],
   activeRaceId: null,
@@ -203,7 +203,7 @@ function saveData() {
       drivers: state.drivers, races: state.races.map(_persistRace), savedTracks: state.savedTracks,
       activeRaceId: state.activeRaceId, selectedRaceId: state.selectedRaceId,
       activeTrackId: state.activeTrackId,
-      track: state.track, startGate: state.startGate, sectors: { boundaries: state.sectors.boundaries, manual: state.sectors.manual, best: state.sectors.best },
+      track: state.track, startGate: state.startGate, sectors: { boundaries: state.sectors.boundaries, manual: state.sectors.manual },
       engine: { totalMs: k.engine.totalMs, lastServiceMs: k.engine.lastServiceMs, serviceIntervalH: k.engine.serviceIntervalH }
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
@@ -246,7 +246,6 @@ function loadData() {
     if (d.sectors) {
       if (Array.isArray(d.sectors.boundaries)) state.sectors.boundaries = d.sectors.boundaries;
       if (typeof d.sectors.manual === 'boolean') state.sectors.manual = d.sectors.manual;
-      if (Array.isArray(d.sectors.best)) state.sectors.best = d.sectors.best;
     }
     // Multi-Kart Migration (9.6 additiv): kartsCal/kartsEngine bevorzugen,
     // sonst altes Single-Objekt in den "default"-Bucket legen (vom ersten
