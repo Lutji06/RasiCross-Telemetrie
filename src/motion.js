@@ -54,6 +54,7 @@ function _tick(now) {
   const dt = _last ? (now - _last) / 1000 : 1 / 60;
   _last = now;
   const still = [];
+  const fired = [];
   for (const el of _active) {
     const t = _tracks.get(el);
     if (!t || !el.isConnected) continue;
@@ -65,14 +66,22 @@ function _tick(now) {
         p.damping, p.response);
       p.value = r.value; p.velocity = r.velocity; p.done = r.done;
       if (!r.done) running = true;
-      else if (p.onDone) { const f = p.onDone; p.onDone = null; f(el); }
+      else if (p.onDone) { fired.push([p.onDone, el]); p.onDone = null; }
     }
+    // Erst malen, dann die Rueckrufe. Umgekehrt wuerde ein onDone, das
+    // reset() aufruft, sofort wieder uebermalt -- der Inline-transform
+    // bliebe stehen und der CSS-Hover waere tot.
     _paint(el, t.props);
     if (running) still.push(el);
   }
   _active = still;
+  // _raf VOR den Rueckrufen nullen: ruft ein onDone seinerseits animate(),
+  // muss _start() eine neue Schleife anwerfen duerfen.
+  _raf = 0;
+  for (const [fn, el] of fired) fn(el);
+  if (_raf) return;
   if (_active.length) _raf = requestAnimationFrame(_tick);
-  else { _raf = 0; _last = 0; }
+  else _last = 0;
 }
 
 function _start() {
@@ -99,8 +108,11 @@ function animate(el, prop, target, opts) {
   // Der Kern der Unterbrechbarkeit: value und velocity bleiben stehen,
   // nur das Ziel wechselt.
   p.target = Number(target);
-  p.damping = o.damping;
-  p.response = o.response;
+  // Federparameter ueberdauern ein Re-Target wie Wert und Geschwindigkeit --
+  // nur bei ausdruecklicher Angabe wechseln, sonst wuerde ein Re-Target ohne
+  // opts sie still auf undefined zuruecksetzen.
+  if (o.damping != null) p.damping = o.damping;
+  if (o.response != null) p.response = o.response;
   if (o.velocity != null) p.velocity = Number(o.velocity) || 0;
   p.onDone = o.onDone || null;
   p.done = false;
