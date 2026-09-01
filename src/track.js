@@ -70,6 +70,11 @@ function clearTrack() {
   state.startGate = { enabled: false, lat: 0, lon: 0, heading: 0, width: 14 };
   state.sectors.boundaries = [null, null];
   state.sectors.manual = false;
+  // Phase 60: ohne Sektorgrenzen sind die Bestzeiten gegenstandslos.
+  for (const _m of state.karts.macs()) {
+    const _k = state.karts.get(_m);
+    if (_k) _k.sectorsBest = [null, null, null];
+  }
   $('sectorPanel').style.display = 'none';
   setText('scanModePill', 'Manuell');
   setText('scanStateValue', 'Warte auf GPS');
