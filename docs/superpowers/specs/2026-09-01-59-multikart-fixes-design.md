@@ -12,10 +12,16 @@
    (`window.open`, Phase 48); der Workaround `window.focus()` vor jedem
    Confirm (`kart-settings-window.js`) darf unter Electron/Chromium das
    Hauptfenster nicht zuverlässig über das Kind heben → Dialog liegt hinten.
-2. **Beschriftungen stapeln in Standardgröße:** ⚙-Fenster öffnet mit
-   Außenbreite 460 px; die Phase-57-Stapelregel greift unter 440 px
-   *Viewport*-Breite. Rahmen (~16 px) + permanenter Scrollbalken (~17 px)
-   drücken den Viewport auf ~427 px → Stapel-Layout ist Dauerzustand.
+2. **Beschriftungen brechen buchstabenweise um / Feld überlappt den Text.**
+   *Erste Hypothese (Stapelregel greift dauerhaft) war falsch* — die
+   440-px-Media-Query feuerte nie, wie der Vergleich mit der committeten
+   Baseline `demo-kart-fenster-linux.png` zeigt (Zeilen dort **nicht**
+   gestapelt, sondern überlappend). Tatsächliche Ursache: `.settings-row
+   input[type=text]` erbt `flex:0 0 auto` (**schrumpft nie**) und
+   beansprucht harte `max-width:340px`, während `.settings-row-label`
+   `min-width:0` hat und damit auf ~40 px kollabiert. Bei 460 px Viewport
+   bleibt für die Beschreibung fast nichts übrig → Umbruch nach einzelnen
+   Wörtern, Eingabefeld schiebt sich optisch darüber.
 3. **Geisterkarte auf der Verbindungsseite** (2 Karts dort, 1 im Karts-Tab):
    `processTelemetry` behandelt nur `bridge_status`/`config_ack` gesondert —
    `bridge_error`/`bridge_info`/`bridge_hello` (ohne `from_mac`) laufen in
@@ -37,8 +43,15 @@
   (`div.overlay.show > div.dialog > h3 + p + .dialog-btns`) dynamisch im
   Kind-DOM erzeugt und nach Klick entfernt — die App-Styles sind dorthin
   geklont. Die `window.focus()`-Workarounds entfallen.
-- **Fensterbreite 460 → 520.** Der 440-px-Breakpoint bleibt — schmal
-  gezogene Fenster stapeln weiterhin bewusst.
+- **Layout-Fix an der Wurzel:** `.settings-row-label` bekommt
+  `min-width:150px` (statt 0) und `input[type=text]` wird mit
+  `flex:0 1 auto; min-width:0` schrumpffähig — das Feld gibt Platz ab,
+  bevor die Label-Spalte gequetscht wird. Im Hauptfenster (breite Zeilen)
+  bindet weder die Mindestbreite noch das Schrumpfen → dort keine
+  Darstellungsänderung.
+- **Fensterbreite 460 → 520** als Komfort-Zugabe (mehr Luft für das
+  Formular). Der 440-px-Breakpoint bleibt für bewusst schmal gezogene
+  Fenster (Electron `minWidth: 380`).
   **Bei der Umsetzung gefunden:** die maßgebliche Breite steht in
   `main.js` (`setWindowOpenHandler` → `overrideBrowserWindowOptions.width`);
   sie gilt in Electron VOR dem Features-String von `window.open`. Beide
