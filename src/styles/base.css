@@ -162,10 +162,8 @@
   margin:0 auto;
 }
 
-.tab{display:none;animation:fadeUp .35s ease forwards}
+/* Phase 62: die feste Keyframe-Animation ist weg -- sie liess sich
+   beim schnellen Umschalten nicht greifen. Bewegung kommt aus motion.js. */
+.tab{display:none}
 .tab.active{display:block}
-@keyframes fadeUp{
-  from{opacity:0;transform:translateY(10px)}
-  to{opacity:1;transform:translateY(0)}
-}
 

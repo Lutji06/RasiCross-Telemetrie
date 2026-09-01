@@ -223,7 +223,16 @@ function setupTabs() {
       btn.setAttribute('aria-current', 'page');
       const tab = btn.dataset.tab;
       const panel = $('tab-' + tab);
-      if (panel) panel.classList.add('active');
+      if (panel) {
+        panel.classList.add('active');
+        // Aus 8px Versatz und leichter Transparenz hereinfedern. Wichtig:
+        // set() vor animate(), damit der Startwert definiert ist -- sonst
+        // federt der zweite Wechsel aus dem Endzustand des ersten.
+        RasiMotion.set(panel, 'y', 8);
+        RasiMotion.set(panel, 'opacity', 0);
+        RasiMotion.animate(panel, 'y', 0, { response: 0.3 });
+        RasiMotion.animate(panel, 'opacity', 1, { response: 0.25 });
+      }
       document.body.dataset.tab = tab;
       // Resize canvases when tab becomes visible
       setTimeout(resizeCanvases, 50);
