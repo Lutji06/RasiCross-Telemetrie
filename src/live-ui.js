@@ -174,8 +174,8 @@ let _lastDeltaUpdate = 0;
 function updateLiveDelta() {
   if (Date.now() - _lastDeltaUpdate < 500) return;
   _lastDeltaUpdate = Date.now();
-  // Phase 40: Delta fuer ALLE Karts (per-Kart-OLED). Kernrechnung ist
-  // nearestTraceDelta (geo.js, getestet); DOM-Banner speist weiterhin
+  // Phase 40: Delta fuer ALLE Karts (Leaderboard/Pit-Wall). Kernrechnung
+  // ist nearestTraceDelta (geo.js, getestet); DOM-Banner speist weiterhin
   // nur der aktive Kart (activeKart().liveDelta).
   for (const mac of state.karts.macs()) {
     const kart = state.karts.get(mac);

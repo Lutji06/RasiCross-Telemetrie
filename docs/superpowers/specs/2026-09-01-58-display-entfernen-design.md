@@ -22,6 +22,13 @@ Kart-Display funktionslos ist.
   Erst-Kontakt-Dialog und die Ausstattungs-Sektion behalten nur den RPM-Toggle.
 - Telemetrie-**Uplink bleibt unberührt**; Downlink behält `config`,
   `imu_calibrate`, `config_get`.
+- **Addendum (bei Planung entdeckt):** `MAX_RPM`/`RPM_WARN`/`BLINK_MS`
+  (Sender-Shift-Light) werden mit entfernt — einzige Verbraucher lagen in
+  `display_pages.py`. Damit entfallen auch `max_rpm`/`warn_rpm` im
+  Config-Protokoll (Ack-Keys `mr`/`wr`) und die Formularfelder
+  `espMaxRpm`/`espWarnRpm` im Kart-Einstellungsfenster. Die App-eigenen
+  Anzeige-Settings `maxRpm`/`rpmWarning` (Gauges) bleiben. Acks alter
+  Firmware mit `mr`/`wr` sind harmlos (unbekannte Keys werden ignoriert).
 
 ## Umfang ESP-Firmware
 
