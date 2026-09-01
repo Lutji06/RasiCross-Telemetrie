@@ -166,4 +166,12 @@
    beim schnellen Umschalten nicht greifen. Bewegung kommt aus motion.js. */
 .tab{display:none}
 .tab.active{display:block}
+/* Phase 62: Der Tab-Wechsel federt jetzt (motion.js) und braucht fadeUp
+   nicht mehr -- .race-details in pages/races.css:74 aber schon. Der Block
+   bleibt deshalb stehen; wer ihn entfernt, killt dort still die
+   Einblendung, ohne dass ein Test es meldet. */
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}
+}
 
