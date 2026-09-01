@@ -11,6 +11,7 @@ import RasiAttitude from './attitude.js';
 import RasiDrift from './drift.js';
 import RasiEngine from './engine.js';
 import RasiKartStats from './kart-stats.js';
+import RasiSmoothing from './smoothing.js';
 import RasiKartBar from './kart-bar.js';
 import RasiLapEngine from './lap-engine.js';
 import RasiReplay from './replay.js';
@@ -171,6 +172,14 @@ function processTelemetry(d) {
     // Calibrated values
     const speed = Math.max(0, Number(d.speed) || 0);
     const rpm = Math.max(0, Number(d.rpm) || 0);
+    // Phase 61: geglaetteter Verlauf fuer alle ANGEZEIGTEN Maximalwerte.
+    // Rohwerte bleiben in k.raw/k.telemetry (Charts, Drift, Gauges) --
+    // nur die Maxima duerfen nicht von einem einzelnen Stoerimpuls
+    // dauerhaft gesetzt werden.
+    k.display.speedLerp = RasiSmoothing.emaStep(k.display.speedLerp, speed);
+    k.display.rpmLerp = RasiSmoothing.emaStep(k.display.rpmLerp, rpm);
+    const speedSm = k.display.speedLerp == null ? speed : k.display.speedLerp;
+    const rpmSm = k.display.rpmLerp == null ? rpm : k.display.rpmLerp;
     // Motorlaufzeit (Phase 27): nur echte Hardware-Pakete zaehlen --
     // Demo/Replay wuerden den Wartungszaehler verfaelschen.
     if (k.connection.source === 'serial' && !k.replay.active) {
@@ -194,7 +203,10 @@ function processTelemetry(d) {
     // Live-Quelle (Serial + Demo-Session-Bucket), nie Replay — der wuerde
     // gefahrene Kilometer doppelt zaehlen.
     if (!k.replay.active) {
-      const _st = RasiKartStats.statsStep(k.stats, speed, Date.now());
+      // Top-Speed der Lebens-Statistik ist ebenfalls ein angezeigtes Maximum
+      // -> geglaettete Quelle (Phase 61). Der Odometer aendert sich dadurch
+      // praktisch nicht, weil die EMA den Mittelwert erhaelt.
+      const _st = RasiKartStats.statsStep(k.stats, speedSm, Date.now());
       k.stats.odoM = _st.odoM;
       k.stats.moveMs = _st.moveMs;
       k.stats.topKmh = _st.topKmh;
@@ -270,14 +282,14 @@ function processTelemetry(d) {
     }
     k.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0, glitch: d.glitch != null ? (Number(d.glitch) || 0) : null, pulseHz: Number(d.pulse_hz) || 0 };
     k.telemetry = { speed, rpm, gx, gy, gz, lat: lat || 0, lon: lon || 0 };
-    // Update max
-    k.max.speed = Math.max(k.max.speed, speed);
-    k.max.rpm = Math.max(k.max.rpm, rpm);
+    // Update max (Phase 61: aus dem geglaetteten Verlauf, s.o.)
+    k.max.speed = Math.max(k.max.speed, speedSm);
+    k.max.rpm = Math.max(k.max.rpm, rpmSm);
     k.max.g = Math.max(k.max.g, Math.sqrt(gx*gx + gy*gy));
     // Per-lap max
-    k.currentLapMax.speed = Math.max(k.currentLapMax.speed, speed);
-    k.currentLapMax.rpm = Math.max(k.currentLapMax.rpm, rpm);
-    k.heatmap.lapMaxSpeed = Math.max(k.heatmap.lapMaxSpeed, speed);
+    k.currentLapMax.speed = Math.max(k.currentLapMax.speed, speedSm);
+    k.currentLapMax.rpm = Math.max(k.currentLapMax.rpm, rpmSm);
+    k.heatmap.lapMaxSpeed = Math.max(k.heatmap.lapMaxSpeed, speedSm);
     // Charts (downsampled)
     if (k.charts.speed.length === 0 || (k.connection.packets % 2 === 0)) {
       k.charts.speed.push(speed);

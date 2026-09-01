@@ -17,7 +17,9 @@
                     lastPacketAt: null, seq: null, errors: 0, degraded: false },
       telemetry: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
       raw: { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 },
-      display: { speedLerp: 0, rpmLerp: 0, gxLerp: 0, gyLerp: 0 },
+      // speedLerp/rpmLerp: null = noch kein Messwert (erster Wert seedet die
+      // EMA, Phase 61). gx/gyLerp starten bei 0 -- gauges.js lerpt sie direkt.
+      display: { speedLerp: null, rpmLerp: null, gxLerp: 0, gyLerp: 0 },
       gps: { fix: false, lastAt: null },
       spdSrc: 'gps',
       batt: { present: false, vbat: 0, soc: 0, warn: 0, cells: 3, _lastWarn: 0 },
