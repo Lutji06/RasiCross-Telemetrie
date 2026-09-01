@@ -105,15 +105,33 @@ function renderKartsTab() {
   bindCardEvents(list);
 }
 
+// Phase 59: Bridge-Kommandos (forget/reset) duerfen nicht verloren gehen,
+// wenn die Bridge gerade nicht steckt — Session-Queue, Flush beim naechsten
+// bridge_status (Bridge nachweislich erreichbar, telemetry.js). Die
+// Adoptions-Regel (kart-roster) schuetzt die App-Sicht auch ohne
+// zugestellten Forget.
+const _pendingBridge = [];
+function _sendBridgeOrQueue(obj) {
+  if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {
+    try { window.rasiSerial.writeLine(JSON.stringify(obj)); return; } catch (e) {}
+  }
+  _pendingBridge.push(obj);
+}
+function flushPendingBridge() {
+  if (!(state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine)) return;
+  while (_pendingBridge.length) {
+    const obj = _pendingBridge.shift();
+    try { window.rasiSerial.writeLine(JSON.stringify(obj)); } catch (e) { _pendingBridge.unshift(obj); break; }
+  }
+}
+
 function forgetKart(mac) {
   state.karts.forget(mac);
   // Bewusstes Vergessen loescht auch Kalibrierung/Motorstunden/Meta der MAC
   // (Semantik von Phase 39, jetzt eine Stelle: rasiPersistForget).
   rasiPersistForget(mac);
   if (state._kartHz) delete state._kartHz[mac];
-  if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {
-    try { window.rasiSerial.writeLine(JSON.stringify({ type: 'forget_kart_mac', mac })); } catch (e) {}
-  }
+  _sendBridgeOrQueue({ type: 'forget_kart_mac', mac });
   state.activeKartMac = state.karts.activeMac();
   saveData();
   rcToast('Kart vergessen');
@@ -127,9 +145,7 @@ async function resetAllKarts() {
   state.karts.reset();
   state._kartHz = {};
   state.activeKartMac = null;
-  if (state.serial && state.serial.connected && window.rasiSerial && window.rasiSerial.writeLine) {
-    try { window.rasiSerial.writeLine(JSON.stringify({ type: 'reset_karts' })); } catch (e) {}
-  }
+  _sendBridgeOrQueue({ type: 'reset_karts' });
   rcToast('Alle Karts zurückgesetzt');
   RasiKartBar.render(state);
   renderKartsTab();
@@ -153,4 +169,4 @@ function bindCardEvents(list) {
 }
 
 // ESM-Export (Phase 46)
-export { renderKartsTab, forgetKart };
+export { renderKartsTab, forgetKart, flushPendingBridge };

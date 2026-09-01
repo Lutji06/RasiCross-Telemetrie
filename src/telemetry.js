@@ -17,6 +17,7 @@ import RasiReplay from './replay.js';
 import { rcToast, rcAudio } from './rasicross.js';
 import { routeConfigAck } from './kart-settings-window.js';
 import { maybeShowEquipDialog } from './kart-equip.js';
+import { flushPendingBridge } from './karts-page.js';
 import { state, activeKart, kartFor, saveDataDebounced, kartMetaFor,
          kartRosterMacs } from './store.js';
 import RasiKartRoster from './kart-roster.js';
@@ -115,6 +116,8 @@ function processTelemetry(d) {
           state._kartHz[ks.mac] = ks.rate_hz;
         }
       }
+      // Phase 59: Bridge erreichbar — gequeue-te forget/reset-Kommandos zustellen.
+      flushPendingBridge();
       RasiKartBar.render(state);
       return;
     }
