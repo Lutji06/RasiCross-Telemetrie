@@ -47,6 +47,14 @@ async function prep(page, app) {
     w.setSize(size.width, size.height);
     w.center();
   }, WIN);
+  // Der Toast haengt an der Demo-Laufzeit, nicht am Layout: das Auto-Rennen
+  // kippt den Maeher irgendwann und rcToast('⚠ Maeher umgekippt!') steht dann
+  // 4 s ueber dem Bild. Seit die Oberflaeche federt (Phase 62), braucht die
+  // Suite laenger und der Toast erwischt Bilder, die ihn vorher nie sahen.
+  // Ausgeblendet statt maskiert: er liegt position:fixed mit opacity 0 im
+  // Ruhezustand -- eine Maske wuerde in JEDEM Bild einen Kasten malen und
+  // alle Baselines brechen, display:none aendert kein einziges Pixel.
+  await page.addStyleTag({ content: '#rcToast{display:none!important}' });
   await page.evaluate(() => document.fonts.ready);
   // Erster 1-Hz-Tick muss durch sein, sonst racet der Screenshot gegen die
   // Boot-Zustaende (Phase 49). conn-ui.render() schreibt #heroGps vom

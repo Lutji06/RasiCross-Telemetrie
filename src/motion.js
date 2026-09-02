@@ -176,8 +176,16 @@ function watchOverlays(getTrigger) {
       }
       set(dlg, 'scale', 0.92);
       set(dlg, 'opacity', 0);
-      animate(dlg, 'scale', 1, { response: 0.3 });
+      // Die Deckkraft zuerst, das Aufraeumen an der laengeren scale-Feder:
+      // ein reset() dazwischen naehme die noch laufende zweite Feder aus
+      // der Spur. Ohne das Aufraeumen bliebe der Inline-transform stehen
+      // und mit ihm eine Compositor-Ebene, die die Schrift im Dialog
+      // anders kantenglaettet als im Ruhezustand (Phase 62).
       animate(dlg, 'opacity', 1, { response: 0.22 });
+      animate(dlg, 'scale', 1, {
+        response: 0.3,
+        onDone: (n) => { reset(n); n.style.transformOrigin = ''; },
+      });
     }
   });
   obs.observe(document.body, {
