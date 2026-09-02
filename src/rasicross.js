@@ -233,8 +233,17 @@ function setupTabs() {
         // federt der zweite Wechsel aus dem Endzustand des ersten.
         RasiMotion.set(panel, 'y', 8);
         RasiMotion.set(panel, 'opacity', 0);
-        RasiMotion.animate(panel, 'y', 0, { response: 0.3 });
+        // Das y federt laenger als die Deckkraft -- deshalb haengt das
+        // Aufraeumen daran und steht als letztes: ein reset() dazwischen
+        // wuerde die noch laufende zweite Feder aus der Spur nehmen.
         RasiMotion.animate(panel, 'opacity', 1, { response: 0.25 });
+        // Ohne das Aufraeumen bliebe translate3d dauerhaft auf dem Panel
+        // stehen. Das ist keine Kosmetik: die Compositor-Ebene aendert die
+        // Kantenglaettung der Schrift und liess die Screenshot-Suite
+        // reihenweise um wenige Pixel scheitern (Phase 62).
+        RasiMotion.animate(panel, 'y', 0, {
+          response: 0.3, onDone: (n) => RasiMotion.reset(n),
+        });
       }
       document.body.dataset.tab = tab;
       // Resize canvases when tab becomes visible
