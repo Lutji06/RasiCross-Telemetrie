@@ -2,53 +2,56 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import LV from '../src/live-view.js';
 
-const R = (o) => LV.liveViewAutoReducer(o);
+const M3 = ['a', 'b', 'c'];
+const P = (o) => LV.resolvePage(o);
 
 test('exports the pure api', () => {
-  assert.equal(typeof LV.liveViewAutoReducer, 'function');
-  assert.ok(Object.isFrozen(LV.START_MODES));
-  assert.deepEqual([...LV.START_MODES], ['auto', 'single', 'overview']);
+  assert.equal(typeof LV.resolvePage, 'function');
 });
 
-test('Zwangs-Rueckfall: count<=1 in overview -> single, in single -> null (auch bei manual)', () => {
-  assert.equal(R({ view: 'overview', prevCount: 2, count: 1, setting: 'auto', manual: false }), 'single');
-  assert.equal(R({ view: 'overview', prevCount: 2, count: 0, setting: 'overview', manual: true }), 'single');
-  assert.equal(R({ view: 'single', prevCount: 0, count: 1, setting: 'auto', manual: false }), null);
+test('Seite 0 ist die Uebersicht, 1..n je ein Kart', () => {
+  assert.deepEqual(P({ macs: M3, page: 0 }), { page: 0, view: 'overview', mac: null });
+  assert.deepEqual(P({ macs: M3, page: 1 }), { page: 1, view: 'single', mac: 'a' });
+  assert.deepEqual(P({ macs: M3, page: 3 }), { page: 3, view: 'single', mac: 'c' });
 });
 
-test('auto: Flanke <2 -> >=2 schaltet auf overview', () => {
-  assert.equal(R({ view: 'single', prevCount: 1, count: 2, setting: 'auto', manual: false }), 'overview');
-  assert.equal(R({ view: 'single', prevCount: 0, count: 3, setting: 'auto', manual: false }), 'overview');
+test('ein einziges Kart hat keine Uebersicht', () => {
+  assert.deepEqual(P({ macs: ['a'], page: 0 }), { page: 1, view: 'single', mac: 'a' });
+  assert.deepEqual(P({ macs: ['a'], page: 1 }), { page: 1, view: 'single', mac: 'a' });
 });
 
-test('auto: ohne Flanke keine Aenderung (2->3, 3->3, bereits overview)', () => {
-  assert.equal(R({ view: 'single', prevCount: 2, count: 3, setting: 'auto', manual: false }), null);
-  assert.equal(R({ view: 'single', prevCount: 3, count: 3, setting: 'auto', manual: false }), null);
-  assert.equal(R({ view: 'overview', prevCount: 1, count: 2, setting: 'auto', manual: false }), null);
+test('gar kein Kart: keine Seite, kein mac', () => {
+  assert.deepEqual(P({ macs: [], page: 0 }), { page: 1, view: 'single', mac: null });
 });
 
-test('manual gewinnt: keine Automatik trotz Flanke/Pegel', () => {
-  assert.equal(R({ view: 'single', prevCount: 1, count: 2, setting: 'auto', manual: true }), null);
-  assert.equal(R({ view: 'single', prevCount: 2, count: 3, setting: 'overview', manual: true }), null);
+test('Seiten ausserhalb des Bereichs werden geklemmt', () => {
+  assert.equal(P({ macs: M3, page: 9 }).page, 3);
+  assert.equal(P({ macs: M3, page: -4 }).page, 0);
 });
 
-test('single: nie automatisch', () => {
-  assert.equal(R({ view: 'single', prevCount: 1, count: 2, setting: 'single', manual: false }), null);
-  assert.equal(R({ view: 'single', prevCount: 0, count: 5, setting: 'single', manual: false }), null);
+test('wantMac gewinnt und waehlt dessen Seite', () => {
+  assert.deepEqual(P({ macs: M3, page: 0, wantMac: 'b' }), { page: 2, view: 'single', mac: 'b' });
 });
 
-test('overview: pegel-getriggert — schaltet auch ohne Flanke aus single', () => {
-  assert.equal(R({ view: 'single', prevCount: 2, count: 3, setting: 'overview', manual: false }), 'overview');
-  assert.equal(R({ view: 'single', prevCount: 3, count: 3, setting: 'overview', manual: false }), 'overview');
+test('verschwundenes wantMac faellt auf die Uebersicht zurueck', () => {
+  assert.deepEqual(P({ macs: M3, page: 2, wantMac: 'weg' }), { page: 0, view: 'overview', mac: null });
 });
 
-test('overview: bereits overview -> null', () => {
-  assert.equal(R({ view: 'overview', prevCount: 2, count: 3, setting: 'overview', manual: false }), null);
+test('verschwundenes wantMac bei einem Kart landet auf dessen Seite', () => {
+  assert.deepEqual(P({ macs: ['a'], page: 1, wantMac: 'weg' }), { page: 1, view: 'single', mac: 'a' });
 });
 
-test('Junk-Eingaben werfen nie: ungueltiges setting -> auto-Semantik, ungueltige view/counts -> Defaults', () => {
-  assert.equal(R({ view: 'single', prevCount: 1, count: 2, setting: 'kaputt', manual: false }), 'overview');
-  assert.equal(R({ view: null, prevCount: NaN, count: 2, setting: 'auto', manual: false }), 'overview');
-  assert.equal(R({ view: 'single', prevCount: 'x', count: 'y', setting: 'auto', manual: false }), null);
-  assert.equal(R({}), null);
+test('ein neues Kart aendert die aktuelle Seite nicht', () => {
+  const vorher = P({ macs: ['a', 'b'], page: 2 });
+  const nachher = P({ macs: ['a', 'b', 'c'], page: vorher.page });
+  assert.equal(nachher.page, 2);
+  assert.equal(nachher.mac, 'b');
+});
+
+test('Junk-Eingaben werfen nie', () => {
+  assert.doesNotThrow(() => P({}));
+  assert.doesNotThrow(() => P(null));
+  assert.doesNotThrow(() => P({ macs: 'keinArray', page: NaN, wantMac: 7 }));
+  assert.deepEqual(P(null), { page: 1, view: 'single', mac: null });
+  assert.equal(P({ macs: M3, page: NaN }).page, 0);
 });

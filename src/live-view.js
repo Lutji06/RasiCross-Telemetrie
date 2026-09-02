@@ -1,31 +1,39 @@
 'use strict';
 /*!
- * live-view.js — pure Logik fuer die Live-Tab-Start-Ansicht (Phase 55):
- *   - liveViewAutoReducer: entscheidet, ob die Automatik zwischen
- *     'single' und 'overview' umschaltet (Muster wie gViewReducer).
+ * live-view.js — pure Logik fuer die Seiten des Live-Tabs (Phase 65):
+ *   Seite 0 = Uebersicht, Seite 1..n = je ein Kart.
+ * Loest liveViewAutoReducer aus Phase 55 ab: Die Uebersicht ist jetzt
+ * Seite 1 eines Blaetterwerks und braucht keine Start-Automatik mehr.
  * Reines Modul — kein DOM, keine Seiteneffekte, wirft nie.
  */
 
-const VIEWS = Object.freeze(['single', 'overview']);
-const START_MODES = Object.freeze(['auto', 'single', 'overview']);
+function _clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
-// Regeln (Spec 2026-07-16, Prioritaet absteigend):
-//  1. count<=1: overview -> 'single' (Zwangs-Rueckfall), sonst null
-//  2. manual: null (Hand-Wahl gewinnt fuer die Sitzung)
-//  3. setting 'single': null (nie automatisch)
-//  4. setting 'auto': nur auf der Flanke prevCount<2<=count -> 'overview'
-//  5. setting 'overview': pegel-getriggert — count>=2 und single -> 'overview'
-function liveViewAutoReducer(a) {
+// Leitet aus Kart-Liste und gewuenschter Seite die gueltige Seite ab.
+//   macs    : MAC-Liste in Reihenfolge der Chip-Leiste
+//   page    : gewuenschte Seite (0 = Uebersicht)
+//   wantMac : optional — dieses Kart anzeigen; gewinnt ueber page
+// -> { page, view, mac }
+function resolvePage(a) {
   const o = a || {};
-  const view = VIEWS.includes(o.view) ? o.view : 'single';
-  const setting = START_MODES.includes(o.setting) ? o.setting : 'auto';
-  const count = (typeof o.count === 'number' && isFinite(o.count)) ? o.count : 0;
-  const prev = (typeof o.prevCount === 'number' && isFinite(o.prevCount)) ? o.prevCount : 0;
-  if (count <= 1) return view === 'overview' ? 'single' : null;
-  if (o.manual === true) return null;
-  if (setting === 'single') return null;
-  if (setting === 'auto') return (prev < 2 && view === 'single') ? 'overview' : null;
-  return view === 'single' ? 'overview' : null;
+  const macs = Array.isArray(o.macs) ? o.macs.filter(m => typeof m === 'string') : [];
+  const n = macs.length;
+  // Ohne zweites Kart gibt es nichts zu vergleichen -- die Uebersicht
+  // entfaellt, damit Einzelfahrer nicht durch eine Ein-Kachel-Seite muessen.
+  if (n <= 1) return { page: 1, view: 'single', mac: n ? macs[0] : null };
+  let page;
+  if (typeof o.wantMac === 'string' && o.wantMac) {
+    const i = macs.indexOf(o.wantMac);
+    // Unbekanntes Kart (gerade verschwunden): zurueck auf die Uebersicht,
+    // statt stumm ein fremdes Kart anzuzeigen.
+    page = i < 0 ? 0 : i + 1;
+  } else {
+    const raw = Number(o.page);
+    page = _clamp(isFinite(raw) ? Math.trunc(raw) : 0, 0, n);
+  }
+  return page === 0
+    ? { page: 0, view: 'overview', mac: null }
+    : { page: page, view: 'single', mac: macs[page - 1] };
 }
 
-export default { liveViewAutoReducer, START_MODES };
+export default { resolvePage };
