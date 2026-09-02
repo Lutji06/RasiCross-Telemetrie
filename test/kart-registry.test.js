@@ -76,3 +76,23 @@ test('makeKartState: stats-Defaults (Phase 48)', () => {
   const k = KartRegistry.makeKartState();
   assert.deepStrictEqual(k.stats, { odoM: 0, moveMs: 0, topKmh: 0, lastAt: null, _unsavedMs: 0 });
 });
+
+test('peek liest ohne zu registrieren', () => {
+  const r = KartRegistry.create();
+  assert.strictEqual(r.peek('aa:bb'), null);
+  assert.deepStrictEqual(r.macs(), []);
+  assert.strictEqual(r.has('aa:bb'), false);
+});
+
+test('peek liefert den Bucket, sobald er per get angelegt wurde', () => {
+  const r = KartRegistry.create();
+  const k = r.get('aa:bb');
+  assert.strictEqual(r.peek('aa:bb'), k);
+  assert.deepStrictEqual(r.macs(), ['aa:bb']);
+});
+
+test('peek macht kein Kart aktiv', () => {
+  const r = KartRegistry.create();
+  r.peek('aa:bb');
+  assert.strictEqual(r.activeMac(), null);
+});

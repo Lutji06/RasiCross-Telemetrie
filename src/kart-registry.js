@@ -61,6 +61,12 @@
 
     function has(mac) { return Object.prototype.hasOwnProperty.call(karts, mac); }
 
+    // Phase 65: Lesezugriff, der nichts anlegt. get() registriert jede
+    // unbekannte MAC -- ein einziger Lesezugriff von activeKart() erzeugte
+    // so den default-Bucket, der danach als tote Kachel in der Liste stand
+    // und einen der vier Plaetze belegte.
+    function peek(mac) { return has(mac) ? karts[mac] : null; }
+
     function get(mac) {
       if (has(mac)) return karts[mac];
       if (orderList.length >= MAX_KARTS) return null;
@@ -91,6 +97,7 @@
 
     return {
       get: get,
+      peek: peek,
       has: has,
       setActive: setActive,
       activeMac: function () { return activeMac; },
