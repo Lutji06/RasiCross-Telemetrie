@@ -478,27 +478,39 @@ function animLoop() {
   updatePitWall();    // Pit Wall ebenfalls 60fps (laufende Rundenzeit/Delta); no-op wenn zu
   requestAnimationFrame(animLoop);
 }
-// ============================================================
-// LIVE-VIEW-MODUS (Einzel-Kart vs. Übersicht aller Karts)
-// ============================================================
-// Schaltet den Live-Tab zwischen 'single' (aktiver Kart, klassische
-// Ansicht) und 'overview' (Grid aller Karts) um. Bei <=1 Kart immer
-// 'single' (Single-Kart-Regression). Steuert die Sichtbarkeit per
-// body[data-live-view]; CSS blendet .pw-liverow/.pw-live-body bzw.
-// #liveOverview entsprechend ein/aus.
-function setLiveView(mode, manual) {
-  if (mode === 'overview' && state.karts.macs().length <= 1) mode = 'single';
-  // Phase 55: Hand-Wahl pausiert die Start-Automatik fuer die Sitzung.
-  if (manual === true) _liveViewManual = true;
-  state.liveView = mode;
-  document.body.dataset.liveView = mode;
+// Phase 65: Der Live-Tab blaettert. Seite 0 ist die Uebersicht, Seite
+// 1..n je ein Kart. Welche Seite gueltig ist, entscheidet das pure
+// Modell in live-view.js; hier wird nur gespiegelt und gezeichnet.
+// state.liveView und body[data-live-view] bleiben als abgeleitete
+// Schnittstelle bestehen -- CSS und kart-overview.js haengen daran.
+// _livePage ist die ABSICHT des Nutzers, nicht die geklemmte Seite.
+// Der Unterschied zaehlt beim Start: Da gibt es noch kein Kart, die
+// Aufloesung ergaebe Seite 1 -- wuerde man die zurueckschreiben, landete
+// man nie auf der Uebersicht, sobald Karts erscheinen.
+let _livePage = 0;
+function _applyPage(r) {
+  if (r.mac && state.karts.setActive(r.mac)) state.activeKartMac = r.mac;
+  state.liveView = r.view;
+  document.body.dataset.liveView = r.view;
   RasiKartBar.render(state);
-  if (mode === 'overview') {
-    RasiKartOverview.render(state);
-  } else {
-    // Zurück zur Einzelansicht: Canvas-Größen neu messen (waren ggf. hidden).
-    setTimeout(() => { try { resizeCanvases(); } catch (e) {} }, 50);
-  }
+  renderLeaderStrip();
+  if (r.view === 'overview') RasiKartOverview.render(state);
+  // Canvas-Groessen neu messen: die Karte wechselt zwischen Uebersichts-
+  // und Kart-Raster die Breite, und in der Uebersicht war sie frueher
+  // ganz versteckt.
+  setTimeout(() => { try { resizeCanvases(); } catch (e) {} }, 50);
+}
+function setLivePage(page, wantMac) {
+  const byMac = typeof wantMac === 'string' && !!wantMac;
+  const r = RasiLiveView.resolvePage({
+    macs: state.karts.macs(), page: page, wantMac: wantMac,
+  });
+  // Bei Kart-Wahl ist die aufgeloeste Seite die Absicht; bei Seitenwahl
+  // die gewuenschte Zahl, damit "Uebersicht" Absicht bleibt, solange es
+  // noch kein zweites Kart gibt.
+  const want = Number(page);
+  _livePage = byMac ? r.page : (isFinite(want) ? Math.trunc(want) : 0);
+  _applyPage(r);
 }
 
 // Phase 39: Leaderboard-Strip (Einzelansicht). Zeigt P1..Pn mit Interval zum
@@ -510,8 +522,11 @@ function renderLeaderStrip() {
     const el = $('liveLeaderStrip');
     if (!el) return;
     const r = activeRace();
-    const rr = (state.liveView !== 'overview')
-      ? RasiKartRank.ranking(state, r) : null;
+    // Phase 65: Das Leaderboard gehoert auf beide Seitenarten. Auf der
+    // Uebersicht steht es als hohe Liste rechts neben der Karte, auf den
+    // Kart-Seiten als flacher Streifen -- derselbe Renderer, zwei
+    // Darstellungen, unterschieden per CSS-Klasse.
+    const rr = RasiKartRank.ranking(state, r);
     if (!rr) {
       if (el.style.display !== 'none') { el.style.display = 'none'; _lastLeaderStripHtml = ''; }
       return;
@@ -535,6 +550,7 @@ function renderLeaderStrip() {
         + '</button>';
     }).join('');
     el.style.display = 'flex';
+    el.classList.toggle('ls-column', state.liveView === 'overview');
     if (html === _lastLeaderStripHtml) return;
     _lastLeaderStripHtml = html;
     el.innerHTML = html;
@@ -542,36 +558,27 @@ function renderLeaderStrip() {
       b.onclick = () => {
         const mac = b.getAttribute('data-mac');
         if (state.karts.setActive(mac)) {
-          state.activeKartMac = mac;
-          setLiveView('single', true);
+          setLivePage(null, mac);
         }
       };
     });
   } catch (e) { console.warn('renderLeaderStrip:', e); }
 }
 
-// Phase 55: Start-Automatik der Live-Ansicht. Session-Zustand: Hand-Wahl-Flag
-// (Reset, sobald die Kartzahl unter 2 faellt) + letzte Kartzahl fuer die
-// auto-Flanke. Entscheidung ist pur in live-view.js (unit-getestet).
-let _liveViewManual = false;
-let _prevKartCount = 0;
-function autoLiveView() {
-  const count = state.karts.macs().length;
-  if (count < 2) _liveViewManual = false;
-  const next = RasiLiveView.liveViewAutoReducer({
-    view: state.liveView, prevCount: _prevKartCount, count,
-    setting: state.settings.liveStartView, manual: _liveViewManual,
-  });
-  _prevKartCount = count;
-  if (next && next !== state.liveView) setLiveView(next);
-}
-
-// Im 1-Hz-/200-ms-Loop aufgerufen: hält das Übersicht-Grid aktuell und
-// erzwingt bei auf <=1 gesunkener Kartzahl die Einzelansicht.
+// Im 1-Hz-/200-ms-Loop aufgerufen. Haelt das Kachel-Raster aktuell und
+// zieht die Seite nach, wenn Karts dazukommen oder verschwinden -- das
+// Klemmen entscheidet das pure Modell, nicht diese Funktion.
 function refreshOverview() {
-  if (state.liveView !== 'overview') return;
-  if (state.karts.macs().length <= 1) { setLiveView('single'); return; }
-  RasiKartOverview.render(state);
+  const r = RasiLiveView.resolvePage({
+    macs: state.karts.macs(), page: _livePage,
+    wantMac: _livePage === 0 ? null : state.activeKartMac,
+  });
+  // Nur die Darstellung nachziehen -- _livePage bleibt die Absicht.
+  if (r.view !== state.liveView || (r.mac && r.mac !== state.activeKartMac)) {
+    _applyPage(r);
+    return;
+  }
+  if (state.liveView === 'overview') RasiKartOverview.render(state);
 }
 
 // Beide UI-Loops (200ms-Backup-Tick + 1Hz-Loop) -- werden von init() in
@@ -579,7 +586,7 @@ function refreshOverview() {
 function initLiveUiLoops() {
 // Backup tick (läuft auch wenn rAF im Hintergrund-Iframe pausiert)
 setInterval(() => {
-  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); autoLiveView(); refreshOverview(); renderLeaderStrip(); } catch(e){}
+  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); refreshOverview(); renderLeaderStrip(); } catch(e){}
 }, 200);
 
 // 1Hz UI loop
@@ -595,7 +602,6 @@ setInterval(() => {
   // Stale-Markierung mit der Zeit greift).
   RasiKartBar.render(state);
   // Übersicht-Grid (falls aktiv) auffrischen; erzwingt single bei <=1 Kart.
-  autoLiveView();
   refreshOverview();
   // Leaderboard-Strip (Einzelansicht) aktuell halten.
   renderLeaderStrip();
@@ -636,12 +642,12 @@ setInterval(() => {
 void [initLiveCharts, resizeChartCanvas, drawChart, axisFmt, drawLiveCharts,
       drawYawSparkline, updateLiveDelta, updateLiveKPIs, updateDiagnostics,
       updateLiveUi, renderStints, animLoop, initLiveUiLoops,
-      setLiveView, refreshOverview, renderLeaderStrip];
+      setLivePage, refreshOverview, renderLeaderStrip];
 
 // ESM-Export (Phase 42): bisherige Interface-Globals von live-ui.js
 export {
   initLiveCharts, resizeChartCanvas, drawChart, axisFmt, drawLiveCharts,
   drawYawSparkline, updateLiveDelta, updateLiveKPIs, updateDiagnostics,
   updateLiveUi, renderStints, animLoop, initLiveUiLoops,
-  setLiveView, refreshOverview, renderLeaderStrip,
+  setLivePage, refreshOverview, renderLeaderStrip,
 };

@@ -7,7 +7,7 @@
 // ============================================================
 // ESM (Phase 42): explizite Imports; window.rasiSerial bleibt Preload-API.
 import { kartMetaFor } from './rasicross.js';
-import { setLiveView } from './live-ui.js';
+import { setLivePage } from './live-ui.js';
 
   // Signatur-Wrapper (state wird seit Phase 46 ignoriert): pit-wall.js,
   // live-ui.js und kart-overview.js rufen metaFor(state, mac, idx).
@@ -30,7 +30,7 @@ import { setLiveView } from './live-ui.js';
     ovBtn.type = 'button';
     ovBtn.className = 'kart-overview-btn' + (state.liveView === 'overview' ? ' active' : '');
     ovBtn.innerHTML = '⊞ Übersicht';
-    ovBtn.onclick = () => { setLiveView('overview', true); };
+    ovBtn.onclick = () => { setLivePage(0); };
     el.appendChild(ovBtn);
     macs.forEach((mac, i) => {
       const k = state.karts.get(mac);
@@ -54,11 +54,9 @@ import { setLiveView } from './live-ui.js';
         + (k.batt && k.batt.present ? ' <span>' + (k.batt.soc | 0) + '%</span>' : '')
         + rec + '</button>';
       chip.querySelector('.kart-chip-main').onclick = () => {
-        if (state.karts.setActive(mac)) {
-          state.activeKartMac = mac;
-          // Chip-Klick wählt immer die Einzelansicht dieses Karts.
-          setLiveView('single', true);
-        }
+        // Phase 65: Der Chip ist die Seitenwahl -- setLivePage setzt das
+        // aktive Kart selbst, sobald die Seite aufgeloest ist.
+        setLivePage(null, mac);
       };
       el.appendChild(chip);
     });

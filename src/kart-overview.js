@@ -11,7 +11,7 @@
 // ESM (Phase 42): explizite Imports statt window-Guards.
 import { fmtMs } from './geo.js';
 import { activeRace } from './races.js';
-import { setLiveView } from './live-ui.js';
+import { setLivePage } from './live-ui.js';
 import RasiKartBar from './kart-bar.js';
 import RasiKartRank from './kart-rank.js';
 import RasiKartRoster from './kart-roster.js';
@@ -134,11 +134,7 @@ import RasiLapEngine from './lap-engine.js';
     }).join('');
     el.querySelectorAll('.ko-card').forEach(card => {
       card.onclick = () => {
-        const mac = card.getAttribute('data-mac');
-        if (state.karts.setActive(mac)) {
-          state.activeKartMac = mac;
-          setLiveView('single', true);
-        }
+        setLivePage(null, card.getAttribute('data-mac'));
       };
     });
   }
