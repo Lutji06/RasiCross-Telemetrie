@@ -32,3 +32,17 @@ release/
 # Screenshot-Baselines (Phase 49): nur die Linux-(CI-)Baselines sind
 # versioniert; lokale Windows-Baselines bleiben privat.
 e2e/**/*-win32.png
+
+# Wissensgraph: generiert. `graphify update .` erzeugt ihn jederzeit neu,
+# und mit den Tagesarchiven liegen hier rund 43 MB in 400 Dateien -- das
+# gehoert so wenig ins Repo wie dist/.
+graphify-out/
+
+# Installierte Agent-Skills: die Fassung steht in skills-lock.json (mit
+# Quelle und Hash), der entpackte Inhalt ist daraus reproduzierbar.
+# Verhaeltnis wie package-lock.json zu node_modules/.
+.claude/skills/
+.agents/
+
+# Wegwerf-Material aus Agent-Sitzungen (Screenshots, Einmal-Skripte).
+.claude/tmp/
