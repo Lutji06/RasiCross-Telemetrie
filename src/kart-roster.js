@@ -81,7 +81,8 @@
   // kart-registry bleibt dependency-frei; bei Feldaenderungen BEIDE pflegen.
   function calDefaults() {
     return { gxZero: 0, gyZero: 0, swapG: false, invertGx: false,
-             invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0 };
+             invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0,
+             mountUpsideDown: false };
   }
 
   // Phase 59: Karts aus bridge_status.karts[] nur uebernehmen, wenn die MAC

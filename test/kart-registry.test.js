@@ -10,6 +10,7 @@ test('makeKartState returns independent fresh state', () => {
   assert.deepStrictEqual(a.telemetry, { speed: 0, rpm: 0, gx: 0, gy: 0, lat: 0, lon: 0 });
   assert.deepStrictEqual(a.charts.speed, []);
   assert.strictEqual(a.calibration.swapG, false);
+  assert.strictEqual(a.calibration.mountUpsideDown, false);
   assert.strictEqual(a.engine.serviceIntervalH, 10);
 });
 

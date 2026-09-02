@@ -45,5 +45,20 @@ function rolloverStep(st, rollDeg, thr) {
   return { active: active, onset: active && !wasActive };
 }
 
+// Einbaulage: eine kopfueber montierte IMU steht 180 Grad um die
+// Laengsachse gedreht. Dabei kippen Quer- und Hochachse das Vorzeichen.
+// Die Laengsachse (gx) ist die Drehachse und bleibt unveraendert -- sie
+// steht deshalb gar nicht erst in der Signatur. Die Roll-Rate dreht sich
+// mit: liefe sie ungedreht weiter, zoege der Gyro-Anteil in rollStep
+// gegen die Schwerkraft-Referenz und der Winkel haenge dauerhaft schief.
+//   gy, gz : accel axes (g) ; rollRateDps : roll rate (deg/s, Gyro-X)
+//   -> { gy, gz, rollRate }
+function mountFix(gy, gz, rollRateDps, upsideDown) {
+  var s = upsideDown ? -1 : 1;
+  return { gy: s * _num(gy), gz: s * _num(gz), rollRate: s * _num(rollRateDps) };
+}
+
 // ── ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiAttitude ──
-export default { rollStep: rollStep, rolloverStep: rolloverStep };
+export default {
+  rollStep: rollStep, rolloverStep: rolloverStep, mountFix: mountFix,
+};
