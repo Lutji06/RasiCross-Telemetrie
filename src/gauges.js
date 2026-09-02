@@ -6,6 +6,7 @@
 // ============================================================
 import { state, $, css, dpr, activeKart, kart3dIsReady, kart3dTickDt } from './rasicross.js';
 import RasiKart3D from './karts3d.js';
+import RasiSpring from './spring.js';
 
 // ============================================================
 // 8. TACHO / RPM / G-METER
@@ -43,13 +44,32 @@ function renderRollBar() {
   const over = !!(k.attitude && k.attitude.over);
   const o = $('rollOver'); if (o) o.classList.toggle('hidden', !over);
 }
-const LERP = 0.18;
-function lerp(a, b) { return a + (b - a) * LERP; }
+// Phase 62: LERP 0.18 war bildratenabhaengig -- bei 30 fps glaettete es
+// anders als bei 60. Dieselbe Feder wie im Rest der Oberflaeche, nur
+// ueber dt statt pro Frame. Daempfung 1: G-Werte duerfen nicht
+// ueberschwingen, sonst zeigt der Zeiger mehr an, als anlag.
+const G_RESPONSE = 0.18;
+let _gaugeLastTick = 0;
+// Die Geschwindigkeit gehoert zum Kart, nicht zum Modul -- sonst schwappt
+// beim Kart-Wechsel der Schwung des vorigen in die neue Anzeige. Schluessel
+// ist k.display, damit nichts in den persistierten Zustand waechst und
+// recording.js mit seinem frischen display-Objekt sauber bei null anfaengt.
+const _gVel = new WeakMap();
+function gaugeDt(now) {
+  const dt = _gaugeLastTick ? (now - _gaugeLastTick) / 1000 : 1 / 60;
+  _gaugeLastTick = now;
+  return dt;
+}
 function renderGauges() {
   const k = activeKart();
   const t = k.telemetry;
-  k.display.gxLerp = lerp(k.display.gxLerp, t.gx);
-  k.display.gyLerp = lerp(k.display.gyLerp, t.gy);
+  let v = _gVel.get(k.display);
+  if (!v) { v = { gx: 0, gy: 0 }; _gVel.set(k.display, v); }
+  const _dt = gaugeDt(performance.now());
+  const _rx = RasiSpring.springStep(k.display.gxLerp, v.gx, t.gx, _dt, 1, G_RESPONSE);
+  k.display.gxLerp = _rx.value; v.gx = _rx.velocity;
+  const _ry = RasiSpring.springStep(k.display.gyLerp, v.gy, t.gy, _dt, 1, G_RESPONSE);
+  k.display.gyLerp = _ry.value; v.gy = _ry.velocity;
   // G-Meter
   if (state.settings.gView === '3d' && kart3dIsReady()) {
     const now = performance.now();
@@ -185,7 +205,7 @@ function drawGMeter() {
 
 // Interface-Marker: von rasicross.js/live-ui.js genutzte Funktionen --
 // verhindert no-unused-vars, dokumentiert das API.
-void [renderDriftBadge, renderRollBar, lerp, renderGauges, drawGMeter];
+void [renderDriftBadge, renderRollBar, renderGauges, drawGMeter];
 
 // ESM-Export (Phase 42): bisherige Interface-Globals von gauges.js
-export { renderDriftBadge, renderRollBar, lerp, renderGauges, drawGMeter };
+export { renderDriftBadge, renderRollBar, renderGauges, drawGMeter };

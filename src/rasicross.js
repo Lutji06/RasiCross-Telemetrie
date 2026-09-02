@@ -6,6 +6,7 @@ import { renderDrivers } from './laps-drivers.js';
 import DomTargets from './dom-targets.js';
 import KartRegistry from './kart-registry.js';
 import { renderKartsTab } from './karts-page.js';
+import RasiMotion from './motion.js';
 import { state, saveDataDebounced } from './store.js';
 import { armRecording, driftInputs, processTelemetry, resetAttitudeClock } from './telemetry.js';
 
@@ -96,7 +97,10 @@ function _dialogIn(doc, title, msg, buttons) {
     const ov = doc.createElement('div');
     ov.className = 'overlay show';
     const dlg = doc.createElement('div');
-    dlg.className = 'dialog';
+    // grow-in statt der Feder aus motion.js: dieses Overlay entsteht in
+    // einem fremden document, dessen Bilder nicht aus unserer rAF-Schleife
+    // kommen (Phase 62).
+    dlg.className = 'dialog grow-in';
     const h = doc.createElement('h3'); h.textContent = title;
     const p = doc.createElement('p'); p.textContent = msg;
     const row = doc.createElement('div'); row.className = 'dialog-btns';
@@ -161,6 +165,52 @@ function rcToast(msg, ms = 2000) {
 }
 
 // ============================================================
+// DRUCK-FEEDBACK (Phase 62)
+// ============================================================
+// Apple: Feedback gehoert auf den Druck, nicht auf das Loslassen --
+// sobald es am Loslassen haengt, faellt das Gefuehl von Direktheit ab.
+// Ein delegierter Handler statt Bindungen pro Element: die Oberflaeche
+// baut Karten, Chips und Zeilen zur Laufzeit nach.
+const PRESS_SEL = '.btn,.nav-item,.kart-chip,.kart-card,.race-card,.ko-card';
+let _lastPressEl = null;
+// Das aktuell gedrueckte Element wird festgehalten: beim Loslassen zaehlt
+// DIESE Referenz, nicht das Ereignisziel. Sonst bliebe ein Element
+// gedrueckt stehen, sobald man wegzieht und woanders loslaesst.
+let _pressedEl = null;
+function lastPressEl() { return _lastPressEl; }
+function pressDisabled(el) {
+  // label.btn (index.html:953) hat keine disabled-Eigenschaft -- deshalb
+  // zusaetzlich die ARIA- und Klassen-Variante pruefen.
+  return !!(el.disabled || el.getAttribute('aria-disabled') === 'true'
+    || el.classList.contains('disabled'));
+}
+function setupPressFeedback() {
+  document.addEventListener('pointerdown', (e) => {
+    const el = e.target && e.target.closest && e.target.closest(PRESS_SEL);
+    if (!el || pressDisabled(el)) return;
+    _lastPressEl = el;
+    _pressedEl = el;
+    el.classList.add('is-pressed');
+    RasiMotion.animate(el, 'scale', 0.97, { response: 0.12 });
+  }, { passive: true });
+  const release = () => {
+    const el = _pressedEl;
+    if (!el) return;
+    _pressedEl = null;
+    el.classList.remove('is-pressed');
+    // reset() im onDone: sonst bleibt ein Inline-transform stehen und der
+    // Hover-Lift aus dem CSS waere ab dem ersten Klick ueberschrieben.
+    RasiMotion.animate(el, 'scale', 1, {
+      response: 0.25, onDone: (n) => RasiMotion.reset(n),
+    });
+  };
+  document.addEventListener('pointerup', release, { passive: true });
+  document.addEventListener('pointercancel', release, { passive: true });
+  // Loslassen ausserhalb des Fensters erzeugt im Dokument gar kein Ereignis.
+  window.addEventListener('blur', release);
+}
+
+// ============================================================
 // 5. TAB NAVIGATION + THEME
 // ============================================================
 function setupTabs() {
@@ -176,7 +226,25 @@ function setupTabs() {
       btn.setAttribute('aria-current', 'page');
       const tab = btn.dataset.tab;
       const panel = $('tab-' + tab);
-      if (panel) panel.classList.add('active');
+      if (panel) {
+        panel.classList.add('active');
+        // Aus 8px Versatz und leichter Transparenz hereinfedern. Wichtig:
+        // set() vor animate(), damit der Startwert definiert ist -- sonst
+        // federt der zweite Wechsel aus dem Endzustand des ersten.
+        RasiMotion.set(panel, 'y', 8);
+        RasiMotion.set(panel, 'opacity', 0);
+        // Das y federt laenger als die Deckkraft -- deshalb haengt das
+        // Aufraeumen daran und steht als letztes: ein reset() dazwischen
+        // wuerde die noch laufende zweite Feder aus der Spur nehmen.
+        RasiMotion.animate(panel, 'opacity', 1, { response: 0.25 });
+        // Ohne das Aufraeumen bliebe translate3d dauerhaft auf dem Panel
+        // stehen. Das ist keine Kosmetik: die Compositor-Ebene aendert die
+        // Kantenglaettung der Schrift und liess die Screenshot-Suite
+        // reihenweise um wenige Pixel scheitern (Phase 62).
+        RasiMotion.animate(panel, 'y', 0, {
+          response: 0.3, onDone: (n) => RasiMotion.reset(n),
+        });
+      }
       document.body.dataset.tab = tab;
       // Resize canvases when tab becomes visible
       setTimeout(resizeCanvases, 50);
@@ -288,5 +356,6 @@ export {
   processTelemetry, armRecording, driftInputs,
   resetAttitudeClock,
   bridgeSend, applyTheme, setupTabs, toggleTheme,
+  lastPressEl, setupPressFeedback,
 };
 export { kart3dIsReady, kart3dTickDt } from './kart3d-ui.js';

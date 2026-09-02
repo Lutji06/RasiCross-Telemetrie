@@ -17,7 +17,9 @@
   transform:translateY(-1px);
   box-shadow:var(--sh-sm);
 }
-.btn:active:not(:disabled){transform:translateY(0)}
+/* Phase 62: Druck quittiert auf pointerdown, nicht erst beim Loslassen.
+   Die Skalierung faehrt motion.js; hier bleibt nur, was CSS besser kann. */
+.btn.is-pressed:not(:disabled){box-shadow:none;transform:none}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
@@ -282,4 +284,10 @@ select{
   letter-spacing:-.02em;
 }
 .stat-flex{display:flex;flex-wrap:wrap;gap:var(--sp-10)}
+
+/* Phase 62: Reduzierte Bewegung -- die Federn in motion.js setzen ihr
+   Ziel dann sofort; hier fallen zusaetzlich die CSS-Uebergaenge weg. */
+@media (prefers-reduced-motion: reduce){
+  .btn,.nav-item{transition:none}
+}
 
