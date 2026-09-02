@@ -73,8 +73,9 @@ function recordPacket(d) {
   }
 }
 // Drift-Eingaenge aus einem (Roh-)Paket — identisch fuer Live und Replay-Aggregat.
-// Wendet die IMU-Kalibrierung an (gy: Null-Offset, swap, invertGy; yaw: invertYaw),
-// damit der Vorzeichen-/Counter-Check konsistente Achsen vergleicht.
+// Wendet die IMU-Kalibrierung an (gy: Null-Offset, swap, Einbaulage, invertGy;
+// yaw: invertYaw; gz + Roll-Rate: Einbaulage, invertRollRate), damit der
+// Vorzeichen-/Counter-Check konsistente Achsen vergleicht.
 function driftInputs(d, cal) {
   d = d || {};
   cal = cal || {};
@@ -83,10 +84,20 @@ function driftInputs(d, cal) {
   // Nur gy (Querbeschleunigung) fliesst ins Ergebnis; bei vertauschten Achsen
   // liegt sie auf gx -> gy <- gx (kein voller Swap noetig, gx wird hier nicht mehr gelesen).
   if (cal.swapG) gy = gx;
+  // Einbaulage NACH dem Achsentausch: die Drehung soll die Achse treffen, die
+  // tatsaechlich quer liegt, nicht die, die im Sensor so heisst. Der Nullpunkt
+  // steht davor, weil er im eingebauten Zustand gemessen wurde -- er gilt also
+  // noch in Sensorkoordinaten.
+  const m = RasiAttitude.mountFix(gy, Number(d.gz) || 0, Number(d.roll) || 0,
+    cal.mountUpsideDown);
+  gy = m.gy;
+  let rollRate = m.rollRate;
   if (cal.invertGy) gy = -gy;
+  if (cal.invertRollRate) rollRate = -rollRate;
   let yaw = Number(d.yaw) || 0;
   if (cal.invertYaw) yaw = -yaw;
-  return { yawRate: yaw, latAccel: gy, speed: Math.max(0, Number(d.speed) || 0) };
+  return { yawRate: yaw, latAccel: gy, speed: Math.max(0, Number(d.speed) || 0),
+           gz: m.gz, rollRate: rollRate };
 }
 
 // Phase 39: "Max Karts"-Hinweis nur einmal pro unbekannter MAC und Session —
@@ -219,13 +230,16 @@ function processTelemetry(d) {
     }
     let gx = (Number(d.gx) || 0) - k.calibration.gxZero;
     let gy = (Number(d.gy) || 0) - k.calibration.gyZero;
-    const gz = Number(d.gz) || 0;                  // Accel-Z (g), jedes Paket
     const di = driftInputs(d, k.calibration);      // geteilte Drift-Normalisierung (inkl. invertYaw)
+    const gz = di.gz;                              // Accel-Z (g), Einbaulage schon gedreht
     const yawv = di.yawRate;                        // vorzeichen-korrigierte Gierrate (deg/s)
     k.imu.yaw = yawv;
     if (d.mtemp != null) k.imu.mtemp = Number(d.mtemp) || 0;  // langsam: letzten Wert halten
     // Apply axis transformations
     if (k.calibration.swapG) { const tmp = gx; gx = gy; gy = tmp; }
+    // Einbaulage wie in driftInputs nach dem Tausch. gx bleibt: es ist die
+    // Laengsachse, um die kopfueber gedreht wird, und dreht sich nicht mit.
+    gy = RasiAttitude.mountFix(gy, 0, 0, k.calibration.mountUpsideDown).gy;
     if (k.calibration.invertGx) gx = -gx;
     if (k.calibration.invertGy) gy = -gy;
     // Drift (Phase 20): gehaerteter + geglaetteter Gierraten-Index. di teilt die
@@ -248,10 +262,9 @@ function processTelemetry(d) {
     const _attNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     const _attDt = _attLastMs ? (_attNow - _attLastMs) / 1000 : 0.08;
     _attLastMs = _attNow;
-    const _rollRate = (Number(d.roll) || 0) * (k.calibration.invertRollRate ? -1 : 1);
     const _rollRaw = RasiAttitude.rollStep(
       k.attitude.rollDeg + k.calibration.rollZero,
-      _rollRate, di.latAccel, Number(d.gz) || 0, _attDt, 0.98);
+      di.rollRate, di.latAccel, di.gz, _attDt, 0.98);
     k.attitude.rollDeg = _rollRaw - k.calibration.rollZero;
     k.attitude.overState = RasiAttitude.rolloverStep(
       k.attitude.overState, k.attitude.rollDeg, state.settings.rollover);
@@ -280,7 +293,10 @@ function processTelemetry(d) {
       k.batt._lastWarn = w;
       k.batt.warn = w;
     }
-    k.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz, yaw: yawv, lat: lat || 0, lon: lon || 0, glitch: d.glitch != null ? (Number(d.glitch) || 0) : null, pulseHz: Number(d.pulse_hz) || 0 };
+    // gz hier bewusst ungedreht: k.raw zeigt den Sensor, wie er misst.
+    // Die Diagnose ("Raw-G") und der Kalibrier-Sampler im Kart-Fenster lesen
+    // hier mit -- korrigierte Werte wuerden dort die Einbaulage verschleiern.
+    k.raw = { speed, rpm, gx: Number(d.gx) || 0, gy: Number(d.gy) || 0, gz: Number(d.gz) || 0, yaw: yawv, lat: lat || 0, lon: lon || 0, glitch: d.glitch != null ? (Number(d.glitch) || 0) : null, pulseHz: Number(d.pulse_hz) || 0 };
     k.telemetry = { speed, rpm, gx, gy, gz, lat: lat || 0, lon: lon || 0 };
     // Update max (Phase 61: aus dem geglaetteten Verlauf, s.o.)
     k.max.speed = Math.max(k.max.speed, speedSm);

@@ -40,6 +40,9 @@ function _liveKart(mac) {
 }
 
 const CAL_TOGGLES = [
+  // Einbaulage zuerst: sie beschreibt, wie der Sensor sitzt. Die Flags
+  // darunter sind Feinkorrekturen und wirken zusaetzlich.
+  ['setMountUpsideDown', 'mountUpsideDown'],
   ['setInvertGx', 'invertGx'], ['setInvertGy', 'invertGy'], ['setSwapG', 'swapG'],
   ['setInvertYaw', 'invertYaw'], ['setInvertRollRate', 'invertRollRate'],
 ];
@@ -80,6 +83,7 @@ function _markup() {
     +     '<div class="stat"><div class="t">Gx Offset</div><div class="n" id="gxOffsetText">0.00</div></div>'
     +     '<div class="stat"><div class="t">Gy Offset</div><div class="n" id="gyOffsetText">0.00</div></div>'
     +   '</div>'
+    +   '<div class="toggle-row"><span class="label-text">IMU kopfüber montiert</span><label class="toggle"><input type="checkbox" id="setMountUpsideDown"><span class="toggle-knob"></span></label></div>'
     +   '<div class="toggle-row"><span class="label-text">Gx invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGx"><span class="toggle-knob"></span></label></div>'
     +   '<div class="toggle-row"><span class="label-text">Gy invertieren</span><label class="toggle"><input type="checkbox" id="setInvertGy"><span class="toggle-knob"></span></label></div>'
     +   '<div class="toggle-row"><span class="label-text">Gx ↔ Gy tauschen</span><label class="toggle"><input type="checkbox" id="setSwapG"><span class="toggle-knob"></span></label></div>'
@@ -194,6 +198,17 @@ function _bindHandlers(r) {
       if (!c) return;
       c[key] = !!el.checked;
       drawGMeter._trail = [];
+      // Der Rollwinkel ist ein Komplementaerfilter mit alpha 0.98 — nach
+      // einem Achsenwechsel zoege er bei 12 Hz rund zehn Sekunden lang von
+      // seinem alten Wert herunter. Beim Umschalten auf "kopfueber" stuende
+      // die Umkipp-Warnung solange weiter im Bild, obwohl der Haken schon
+      // sitzt. Deshalb faengt die Fusion hier neu an, wie bei "Roll nullen".
+      const kl = _liveKart(r.mac);
+      if (kl && kl.attitude) {
+        kl.attitude.rollDeg = 0;
+        kl.attitude.overState = { active: false };
+        kl.attitude.over = false;
+      }
       saveData();
       renderKartsTab();
       _refreshWin(r);

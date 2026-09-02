@@ -271,9 +271,10 @@ function fusedRolls(packets, cal) {
     const t = Number(p.t_rel) || 0;
     const dt = lastT == null ? 0.08 : Math.max(0, (t - lastT) / 1000);
     lastT = t;
+    // Roll-Rate und gz kommen aus driftInputs: dort sitzt seit der
+    // Kopfueber-Einbaulage die einzige Stelle, die alle Vorzeichen kennt.
     const inp = driftInputs(p, cal);
-    roll = RasiAttitude.rollStep(roll, (Number(p.roll) || 0) * (cal.invertRollRate ? -1 : 1),
-      inp.latAccel, Number(p.gz) || 0, dt, 0.98);
+    roll = RasiAttitude.rollStep(roll, inp.rollRate, inp.latAccel, inp.gz, dt, 0.98);
     rolls.push(roll - (cal.rollZero || 0));
   }
   return rolls;
