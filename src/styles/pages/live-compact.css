@@ -57,10 +57,13 @@
 /* Multi-Kart: Live-Übersicht-Grid (alle Karts auf einmal). Sichtbarkeit per
    body[data-live-view]; im Single-Modus versteckt. */
 #liveOverview{display:none}
-/* Phase 65: Seite 0 blendet nicht mehr aus, sie ordnet um. Karte links,
-   Leaderboard rechts, Kacheln unten. #liveLeaderStrip, .pw-liverow,
-   .pw-live-body und #liveOverview sind alle Kinder von #tab-live --
-   deshalb genuegt ein Raster auf dem Tab, ohne DOM zu verschieben.
+/* Phase 65: Seite 0 blendet nicht mehr aus, sie ordnet um. Chip-Leiste und
+   Rennsteuerung oben, Karte links, Leaderboard rechts, Kacheln unten.
+   #kartBar, #liveLeaderStrip, .pw-liverow, .pw-live-body und #liveOverview
+   sind alle Kinder von #tab-live -- deshalb genuegt ein Raster auf dem Tab,
+   ohne DOM zu verschieben. Jedes Kind braucht seine eigene grid-area: was
+   keine hat, wird automatisch platziert und landet in der frei gebliebenen
+   Leaderboard-Zelle statt oben (so verrutschte anfangs #kartBar).
    Zweite Spalte 'auto': laeuft kein Rennen, ist der Leaderboard
    display:none, die Spalte kollabiert auf 0 und die Karte wird breit.
    Das .active ist Pflicht: base.css:179 blendet Tabs mit .tab{display:none}
@@ -69,17 +72,20 @@
 body[data-live-view="overview"] #tab-live.active{
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;
-  grid-template-areas:"bar bar" "map leader" "cards cards";
+  grid-template-areas:"chips chips" "race race" "map leader" "cards cards";
   gap:var(--sp-12);
-  align-items:start;
 }
-body[data-live-view="overview"] #tab-live .pw-liverow{grid-area:bar}
-body[data-live-view="overview"] #tab-live .pw-live-body{grid-area:map;display:block}
+body[data-live-view="overview"] #tab-live #kartBar{grid-area:chips}
+body[data-live-view="overview"] #tab-live .pw-liverow{grid-area:race;margin-bottom:0}
+body[data-live-view="overview"] #tab-live .pw-live-body{grid-area:map;display:block;min-height:0}
 body[data-live-view="overview"] #tab-live #liveLeaderStrip{grid-area:leader;margin:0}
 body[data-live-view="overview"] #tab-live #liveOverview{grid-area:cards}
 /* Auf Seite 0 gehoeren Rundentabelle, KPI-Spalte und Sektoren nicht dazu --
-   die stehen auf den Kart-Seiten. */
+   die stehen auf den Kart-Seiten. Die Lat/Lon/Punkte/Pakete-Zeile unter der
+   Karte genauso: sie zeigt das aktive Kart, nicht das Feld -- und ihre 82px
+   fehlten der Karte, die sonst ueber die Kacheln hinauslief. */
 body[data-live-view="overview"] #tab-live .pw-live-laps,
+body[data-live-view="overview"] #tab-live .pw-map-mod .row,
 body[data-live-view="overview"] #tab-live .pw-live-side{display:none}
 
 /* Leaderboard als hohe Liste (nur Seite 0). Der flache Streifen der
@@ -229,9 +235,21 @@ body[data-live-view="overview"] #liveOverview{
   body[data-tab="live"] #tab-live .pw-live-map .map{flex:1 1 auto;min-height:180px}
   body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps{flex:1 1 0}
   body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps .pw-laplist{flex:1 1 auto;min-height:0;max-height:none}
-  /* Übersicht-Grid füllt im No-Scroll-Layout den Live-Raum (eigenes Scrolling). */
+  /* Seite 0 blaettert nicht in diese Flex-Spalte: das display:flex weiter
+     oben gilt nur fuer die Kart-Seiten, hier gewinnt das Raster (ein
+     Attribut mehr im Selektor). Feste Zeilen, damit die Karte den Rest
+     bekommt: Chips und Rennsteuerung nach Inhalt, Karte 1fr, Kacheln
+     hoechstens 40% der Hoehe und scrollen darin. */
+  body[data-tab="live"][data-live-view="overview"] #tab-live.active{
+    display:grid;
+    grid-template-rows:auto auto minmax(140px,1fr) fit-content(40%);
+  }
+  /* Die Karte fuellt ihre Zeile nur, wenn die Hoehe durchgereicht wird:
+     .pw-live-body ist auf Seite 0 ein Block, .pw-live-map die Flex-Spalte
+     darin -- ohne height:100% blieben beide auf Inhaltshoehe. */
+  body[data-tab="live"][data-live-view="overview"] #tab-live .pw-live-map{height:100%}
   body[data-tab="live"][data-live-view="overview"] #tab-live #liveOverview{
-    flex:1 1 auto;min-height:0}
+    min-height:0;overflow:auto}
 }
 
 /* Detail Diagnose block — 2-col label/value grid */

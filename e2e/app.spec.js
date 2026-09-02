@@ -60,3 +60,28 @@ test('Live-Tab bleibt beim Menuewechsel verborgen', async () => {
   }
   expect(errors).toEqual([]);
 });
+
+test('Uebersichtsseite ordnet um statt zu stapeln', async () => {
+  // Regression Phase 65: Das Uebersichts-Raster verlor gegen
+  // body[data-tab="live"] #tab-live.active{display:flex} aus dem
+  // No-Scroll-Block -- Seite 0 stapelte alles in eine Spalte und die
+  // Kart-Kacheln lagen ueber der Karte.
+  await page.click('.nav-item[data-tab="connection"]');
+  await page.click('#demoChip');
+  await page.waitForFunction(() => RasiTest.state.demo.running === true);
+  await page.click('.nav-item[data-tab="live"]');
+  await page.click('.kart-overview-btn');
+  await page.waitForFunction(() => document.body.dataset.liveView === 'overview');
+  const display = await page.evaluate(
+    () => getComputedStyle(document.getElementById('tab-live')).display);
+  expect(display).toBe('grid');
+  // Karte und Kachelreihe duerfen sich nicht ueberlappen: die Kacheln
+  // beginnen unterhalb des Kartenmoduls.
+  const gap = await page.evaluate(() => {
+    const map = document.querySelector('#tab-live .pw-map-mod').getBoundingClientRect();
+    const cards = document.getElementById('liveOverview').getBoundingClientRect();
+    return Math.round(cards.top - map.bottom);
+  });
+  expect(gap).toBeGreaterThanOrEqual(0);
+  expect(errors).toEqual([]);
+});
