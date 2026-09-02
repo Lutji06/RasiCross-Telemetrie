@@ -96,3 +96,43 @@ test('peek macht kein Kart aktiv', () => {
   r.peek('aa:bb');
   assert.strictEqual(r.activeMac(), null);
 });
+
+test('adopt registriert ein uebergebenes Objekt identisch', () => {
+  const r = KartRegistry.create();
+  const k = KartRegistry.makeKartState();
+  k.recording.armed = true;
+  const out = r.adopt('aa:bb', k);
+  assert.strictEqual(out, k);
+  assert.strictEqual(r.peek('aa:bb'), k);
+  assert.deepStrictEqual(r.macs(), ['aa:bb']);
+  assert.strictEqual(r.peek('aa:bb').recording.armed, true);
+});
+
+test('adopt setzt activeMac, wenn vorher null', () => {
+  const r = KartRegistry.create();
+  const k = KartRegistry.makeKartState();
+  assert.strictEqual(r.activeMac(), null);
+  r.adopt('aa:bb', k);
+  assert.strictEqual(r.activeMac(), 'aa:bb');
+});
+
+test('adopt liefert bei voller Registry null, ohne etwas zu aendern', () => {
+  const r = KartRegistry.create();
+  ['a', 'b', 'c', 'd'].forEach(m => r.get(m));
+  const k = KartRegistry.makeKartState();
+  const out = r.adopt('e', k);
+  assert.strictEqual(out, null);
+  assert.deepStrictEqual(r.macs(), ['a', 'b', 'c', 'd']);
+  assert.strictEqual(r.has('e'), false);
+});
+
+test('adopt ueberschreibt ein bestehendes mac nicht', () => {
+  const r = KartRegistry.create();
+  const existing = r.get('aa:bb');
+  const k = KartRegistry.makeKartState();
+  k.recording.armed = true;
+  const out = r.adopt('aa:bb', k);
+  assert.strictEqual(out, existing);
+  assert.notStrictEqual(out, k);
+  assert.deepStrictEqual(r.macs(), ['aa:bb']);
+});

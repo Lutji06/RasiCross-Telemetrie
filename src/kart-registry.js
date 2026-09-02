@@ -77,6 +77,21 @@
       return k;
     }
 
+    // Phase 65 Fix-Runde 1: uebernimmt ein bereits existierendes Kart-Objekt
+    // (den store.js-Leerzustand) unter einer MAC, statt wie get() ein neues
+    // anzulegen -- sonst gingen vor dem ersten Paket geschriebene Felder
+    // (z. B. recording.armed) verloren, weil das erste echte Paket per get()
+    // einen frischen Bucket erzeugte. Gleiche Platzpruefung wie get(); ein
+    // bereits registriertes mac wird NICHT ueberschrieben.
+    function adopt(mac, kart) {
+      if (has(mac)) return karts[mac];
+      if (orderList.length >= MAX_KARTS) return null;
+      karts[mac] = kart;
+      orderList.push(mac);
+      if (activeMac === null) activeMac = mac;
+      return kart;
+    }
+
     function setActive(mac) {
       if (!has(mac)) return false;
       activeMac = mac;
@@ -98,6 +113,7 @@
     return {
       get: get,
       peek: peek,
+      adopt: adopt,
       has: has,
       setActive: setActive,
       activeMac: function () { return activeMac; },
