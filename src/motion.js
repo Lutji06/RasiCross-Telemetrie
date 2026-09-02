@@ -143,4 +143,49 @@ function reset(el) {
   el.style.opacity = '';
 }
 
-export default { animate, set, stop, reset, isReduced, prefersReduced };
+// Overlays werden an zwoelf verstreuten Stellen per classList.add('show')
+// geoeffnet -- es gibt keinen zentralen Oeffner. Ein Beobachter auf der
+// Klasse deckt alle ab, statt zwoelf Aufrufstellen umzubauen.
+function watchOverlays(getTrigger) {
+  if (typeof MutationObserver !== 'function') return;
+  const obs = new MutationObserver((records) => {
+    for (const rec of records) {
+      const ov = rec.target;
+      if (!ov.classList || !ov.classList.contains('overlay')) continue;
+      if (!ov.classList.contains('show')) continue;
+      // Nur der Uebergang nach sichtbar zaehlt. Ohne das wuerde jede
+      // andere Klassenaenderung am offenen Overlay den Dialog erneut
+      // aus dem Nichts wachsen lassen.
+      if (/(^|\s)show(\s|$)/.test(rec.oldValue || '')) continue;
+      const dlg = ov.querySelector('.dialog');
+      if (!dlg) continue;
+      // Apple: die Flaeche soll dort entstehen, wo sie ausgeloest wurde.
+      // Ohne Ursprung skaliert sie aus der Bildmitte und der raeumliche
+      // Zusammenhang zum Knopf geht verloren.
+      const trig = typeof getTrigger === 'function' ? getTrigger() : null;
+      if (trig && trig.getBoundingClientRect && dlg.getBoundingClientRect) {
+        const t = trig.getBoundingClientRect();
+        const d = dlg.getBoundingClientRect();
+        if (d.width > 0 && d.height > 0) {
+          const ox = ((t.left + t.width / 2) - d.left) / d.width * 100;
+          const oy = ((t.top + t.height / 2) - d.top) / d.height * 100;
+          dlg.style.transformOrigin = ox + '% ' + oy + '%';
+        }
+      } else {
+        dlg.style.transformOrigin = '50% 50%';
+      }
+      set(dlg, 'scale', 0.92);
+      set(dlg, 'opacity', 0);
+      animate(dlg, 'scale', 1, { response: 0.3 });
+      animate(dlg, 'opacity', 1, { response: 0.22 });
+    }
+  });
+  obs.observe(document.body, {
+    subtree: true, attributes: true, attributeOldValue: true,
+    attributeFilter: ['class'],
+  });
+}
+
+export default {
+  animate, set, stop, reset, isReduced, prefersReduced, watchOverlays,
+};

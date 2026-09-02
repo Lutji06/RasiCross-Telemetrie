@@ -33,7 +33,9 @@ import { applyTilesPresetFromUrl, onTilesPresetChanged, updateTilesUrlHint,
          onTilesClearClicked, showSettingsGroup, loadSettingsToUi,
          initUpdateUi, scheduleSettingsSave } from './settings-ui.js';
 import { $, setText, rcAlert, rcConfirm, rcToast, formatBytes,
-         applyTheme, setupPressFeedback, setupTabs, toggleTheme } from './rasicross.js';
+         applyTheme, lastPressEl, setupPressFeedback, setupTabs,
+         toggleTheme } from './rasicross.js';
+import RasiMotion from './motion.js';
 import { initGViewToggle, initKartModelUploader } from './kart3d-ui.js';
 import { initKartSettingsWindows } from './kart-settings-window.js';
 
@@ -56,6 +58,7 @@ function init() {
   loadSettingsToUi();
   setupTabs();
   setupPressFeedback();
+  RasiMotion.watchOverlays(lastPressEl);
   // Canvases
   initTrackCanvases();
   resizeCanvases();

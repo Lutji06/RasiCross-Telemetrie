@@ -21,11 +21,21 @@
   max-width:560px;width:100%;
   max-height:90vh;overflow:auto;
   box-shadow:var(--sh-lg);
+}
+/* Nur fuer Dialoge in einem Kindfenster (Kart-Einstellungen, Phase 59):
+   die haengen an einem fremden document, das die rAF-Schleife dieses
+   Fensters nicht bedient -- im Hintergrund drosselt Chromium sie und die
+   Feder bliebe stehen. Die Overlays des Hauptfensters federn ueber
+   motion.js und tragen diese Klasse nicht. */
+.dialog.grow-in{
   animation:dialogIn .3s cubic-bezier(.34,1.56,.64,1);
 }
 @keyframes dialogIn{
   from{opacity:0;transform:scale(.92) translateY(20px)}
   to{opacity:1;transform:scale(1) translateY(0)}
+}
+@media (prefers-reduced-motion: reduce){
+  .dialog.grow-in{animation:none}
 }
 .dialog h3{
   font-family:var(--sans);font-size:var(--fs-18);

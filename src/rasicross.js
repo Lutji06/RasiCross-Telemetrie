@@ -97,7 +97,10 @@ function _dialogIn(doc, title, msg, buttons) {
     const ov = doc.createElement('div');
     ov.className = 'overlay show';
     const dlg = doc.createElement('div');
-    dlg.className = 'dialog';
+    // grow-in statt der Feder aus motion.js: dieses Overlay entsteht in
+    // einem fremden document, dessen Bilder nicht aus unserer rAF-Schleife
+    // kommen (Phase 62).
+    dlg.className = 'dialog grow-in';
     const h = doc.createElement('h3'); h.textContent = title;
     const p = doc.createElement('p'); p.textContent = msg;
     const row = doc.createElement('div'); row.className = 'dialog-btns';
