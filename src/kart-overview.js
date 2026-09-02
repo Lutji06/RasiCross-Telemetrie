@@ -1,12 +1,12 @@
 // ============================================================
 //  RasiCross — kart-overview.js  (all-karts live overview grid)
 // ============================================================
-//  Renders one card per known kart on the Live tab when
-//  state.liveView === 'overview'. Racing/timing focus: Speed,
+//  Renders one card per known kart on the Live tab's page 0
+//  (state.liveView === 'overview'). Racing/timing focus: Speed,
 //  current lap, best lap (+best-lap number), REC, plus a stale
 //  marker. Reads each kart via state.karts.get(mac) — NOT the
 //  active-only facade. Clicking a card selects that kart and
-//  switches back to the single-kart Live view. Browser-only.
+//  switches to that kart's own Live page. Browser-only.
 // ============================================================
 // ESM (Phase 42): explizite Imports statt window-Guards.
 import { fmtMs } from './geo.js';

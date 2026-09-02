@@ -513,9 +513,11 @@ function setLivePage(page, wantMac) {
   _applyPage(r);
 }
 
-// Phase 39: Leaderboard-Strip (Einzelansicht). Zeigt P1..Pn mit Interval zum
-// Vordermann; Klick waehlt den Kart. Versteckt ohne laufendes Rennen/<2
-// Teilnehmern oder in der Uebersicht. HTML-Diff vermeidet Rebuild-Flackern.
+// Phase 39: Leaderboard-Strip. Zeigt P1..Pn mit Interval zum Vordermann;
+// Klick waehlt den Kart. Erscheint auf beiden Seitenarten -- auf der
+// Uebersicht als hohe Liste rechts (Klasse ls-column), auf den Kart-Seiten
+// als flacher Streifen. Versteckt nur ohne laufendes Rennen/<2 Teilnehmern.
+// HTML-Diff vermeidet Rebuild-Flackern.
 let _lastLeaderStripHtml = '';
 function renderLeaderStrip() {
   try {
@@ -601,9 +603,10 @@ setInterval(() => {
   // Multi-Kart Chip-Leiste auffrischen (auch ohne bridge_status, damit
   // Stale-Markierung mit der Zeit greift).
   RasiKartBar.render(state);
-  // Übersicht-Grid (falls aktiv) auffrischen; erzwingt single bei <=1 Kart.
+  // Übersicht-Grid (falls aktiv) auffrischen; das Klemmen entscheidet
+  // das pure Modell in live-view.js, nicht diese Stelle.
   refreshOverview();
-  // Leaderboard-Strip (Einzelansicht) aktuell halten.
+  // Leaderboard-Strip aktuell halten (beide Seitenarten).
   renderLeaderStrip();
 
   // Status-Badge oben rechts

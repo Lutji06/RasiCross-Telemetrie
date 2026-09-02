@@ -3,7 +3,7 @@
  * live-view.js — pure Logik fuer die Seiten des Live-Tabs (Phase 65):
  *   Seite 0 = Uebersicht, Seite 1..n = je ein Kart.
  * Loest liveViewAutoReducer aus Phase 55 ab: Die Uebersicht ist jetzt
- * Seite 1 eines Blaetterwerks und braucht keine Start-Automatik mehr.
+ * Seite 0 eines Blaetterwerks und braucht keine Start-Automatik mehr.
  * Reines Modul — kein DOM, keine Seiteneffekte, wirft nie.
  */
 
