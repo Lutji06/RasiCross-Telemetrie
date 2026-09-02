@@ -42,7 +42,9 @@ function _engineHtml(mac) {
 function _calHtml(mac) {
   const c = kartCalFor(mac);
   if (!c) return '';
-  const flags = [c.swapG && 'GxGy-Swap', c.invertGx && 'Gx-Inv', c.invertGy && 'Gy-Inv',
+  // Einbaulage zuerst: sie erklaert die Flags dahinter mit.
+  const flags = [c.mountUpsideDown && 'Kopfüber', c.swapG && 'GxGy-Swap',
+                 c.invertGx && 'Gx-Inv', c.invertGy && 'Gy-Inv',
                  c.invertYaw && 'Yaw-Inv', c.invertRollRate && 'Roll-Inv'].filter(Boolean).join(' · ') || 'keine Flags';
   return '<div class="kc-grid">'
     + '<div class="dstat"><span>Gx/Gy-Offset</span><b>' + (Number(c.gxZero) || 0).toFixed(2) + ' / ' + (Number(c.gyZero) || 0).toFixed(2) + '</b></div>'

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import RasiKartRoster from '../src/kart-roster.js';
+import KartRegistry from '../src/kart-registry.js';
 
 const { isDemoMac, metaDefaults, ensureMeta, migrateLegacyMeta,
         rosterMacs, clampServiceH, calDefaults, ackTargetMac, PALETTE,
@@ -123,7 +124,15 @@ test('calDefaults: frisches Objekt mit Registry-Defaults', () => {
   const a = calDefaults(); const b = calDefaults();
   assert.notEqual(a, b);
   assert.deepEqual(a, { gxZero: 0, gyZero: 0, swapG: false, invertGx: false,
-                        invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0 });
+                        invertGy: false, invertYaw: false, invertRollRate: false,
+                        rollZero: 0, mountUpsideDown: false });
+});
+
+// kart-roster.calDefaults ist bewusst zu kart-registry.makeKartState()
+// dupliziert (die Registry bleibt dependency-frei). Der Kommentar dort
+// verlangt, beide zu pflegen -- hier steht der Test, der es einfordert.
+test('calDefaults: deckt sich Feld fuer Feld mit der Registry', () => {
+  assert.deepEqual(calDefaults(), KartRegistry.makeKartState().calibration);
 });
 
 test('ackTargetMac: from_mac gewinnt, wenn ein Fenster offen ist', () => {
