@@ -1,6 +1,6 @@
 # RasiCross-Telemetrie
 
-Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Module funken Sensordaten kabellos vom Fahrzeug in die Boxengasse, ein Web-Dashboard visualisiert Geschwindigkeit, Drehzahl, GPS-Position, Beschleunigung, Rundenzeiten und Sektor-Splits in Echtzeit.
+Live-Telemetrie für Kart- und Rasenmäher-Rennen („RasiCross"). Ein ESP32 am Fahrzeug funkt Sensordaten kabellos in die Boxengasse, ein zweiter am USB-Port nimmt sie entgegen, und eine Desktop-App zeigt Geschwindigkeit, Drehzahl, GPS-Position, Beschleunigung, Rundenzeiten und Sektor-Splits in Echtzeit — für bis zu vier Fahrzeuge gleichzeitig.
 
 ![Dashboard](docs/screenshot.png)
 
@@ -11,486 +11,366 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen ("RasiCross"). Zwei ESP32-Modu
 
 ---
 
-## Was kann das?
+## Wo willst du hin?
 
-- **Kabellose Telemetrie** über ESP-NOW im Long-Range-Modus, ~250 kbit/s, mehrere hundert Meter Reichweite
-- **Live-Anzeige** von Speed, RPM, Beschleunigung (Gx/Gy/**Gz**), **Gier-Rate**, GPS-Track und Funkqualität
-- **Auto-Lap-Detection** über GPS-Geofence — keine externen Lichtschranken nötig
-- **Sektor-Splits** mit Best-Time-Vergleich und Audio-Cues bei neuen Bestzeiten
-- **Live-Konfiguration** (Drehzahllimit, Sendezyklus, etc.) ohne Code-Änderung
-- **Demo-Modus** zum Ausprobieren ohne Hardware
-- **Plattformübergreifend** — Dashboard läuft im Browser oder als Desktop-App für Windows und macOS
-- **In-App-Replay** — Telemetrie als NDJSON aufzeichnen und im Dashboard mit virtueller Uhr abspielen (Scrubber, 0,25×–4× Speed, Pause/Resume)
-- **CSV-Export** — Aufnahmen als Excel-kompatible CSV exportieren (Semikolon-getrennt, ein Paket pro Zeile)
-- **Ghost-Runde** — die beste Runde läuft als blasse Linie + Geister-Punkt live auf der Track-Karte mit
-- **3D-Kart-Viewer** — Toggle zwischen 2D-G-Kreis und WebGL-3D-Kart, der sich live aus der IMU neigt (mit G-Vektor-Pfeil und Gz-Glow)
-- **Eigenes 3D-Modell** — `.glb`/`.gltf` für den 3D-Viewer hochladen (Settings-Tab), ersetzt das Standard-Kart, persistent gespeichert
-- **Batterie-Monitoring** — Live-Spannung/SOC/Zellenspannung, akustische Warnung bei niedrigem Stand
-- **GPS-Ausfall-Fallback** — bei GPS-Verlust automatisch auf Radumfang-basierte Geschwindigkeit umschalten
-- **Test-Suite** — 145 Unit-Tests (107 JS, 38 Python) laufen automatisch in CI bei jedem Push
+| Dein Ziel | Lies das |
+| --- | --- |
+| **Nur fahren** — du hast fertige Module bekommen | [Schnellstart](#schnellstart) |
+| **Selbst bauen** — Hardware löten und flashen | [Hardware](#hardware) · [ESP32 flashen](#esp32-flashen) |
+| **Verstehen** — was die App alles kann | [Die App](#die-app) |
+| **Mitentwickeln** | [Entwicklung](#entwicklung) · [CONTRIBUTING.md](CONTRIBUTING.md) |
+| **Etwas geht nicht** | [Fehlersuche](#fehlersuche) |
 
 ---
 
-## Inhaltsverzeichnis
+## Schnellstart
 
-- [Schnellstart für Endnutzer](#schnellstart-für-endnutzer)
-- [Was du brauchst](#was-du-brauchst)
-- [Komponenten im Überblick](#komponenten-im-überblick)
-- [Hardware aufbauen](#hardware-aufbauen)
-- [ESP32-Module flashen](#esp32-module-flashen)
-- [Dashboard nutzen](#dashboard-nutzen)
-- [Erweiterte Dashboard-Features](#erweiterte-dashboard-features)
-- [Erstes Rennen fahren](#erstes-rennen-fahren)
-- [Konfiguration anpassen](#konfiguration-anpassen)
-- [Status-LEDs](#status-leds)
-- [Datenprotokoll](#datenprotokoll)
-- [Fehlersuche](#fehlersuche)
-- [Selbst bauen / Mitmachen](#selbst-bauen--mitmachen)
-- [Lizenz](#lizenz)
+**Kein Hardware-Zugriff nötig:** Lade die App, starte sie und klicke auf den **Demo**-Knopf im Verbindungs-Tab. Drei simulierte Karts fahren ein Rennen — damit lässt sich alles außer der IMU-Einbaulage ausprobieren.
 
----
+**Mit Hardware:**
 
-## Schnellstart für Endnutzer
+1. Passende Datei von der [Releases-Seite](https://github.com/Lutji06/RasiCross-Telemetrie/releases/latest) laden:
+   - **Windows:** `RasiCross-Telemetry-Setup.exe` (Installer) oder `…-Portable.exe`
+   - **macOS Apple Silicon:** `RasiCross-Telemetry-arm64.zip` · **Intel:** `…-x64.zip`
+2. Bridge-ESP per USB anstecken.
+3. App starten → Tab **Verbindung** → COM-Port wählen → **USB verbinden**.
+4. Kart-ESP einschalten. Sobald Pakete ankommen, erscheint das Kart in der Leiste.
 
-**Du willst nur das Dashboard nutzen, hast bereits Sender + Bridge bekommen?**
-
-1. Auf der Releases-Seite die passende Datei herunterladen:
-   - **Windows:** `RasiCross-Telemetry-Setup.exe` (Installer) oder `RasiCross-Telemetry-Portable.exe`
-   - **macOS Apple Silicon (M1/M2/M3):** `RasiCross-Telemetry-arm64.zip`
-   - **macOS Intel:** `RasiCross-Telemetry-x64.zip`
-
-   Auf macOS: ZIP entpacken → `RasiCross Telemetry.app` in den Ordner
-   "Programme" ziehen → starten. Beim ersten Start meldet macOS evtl.
-   "Programm aus dem Internet" — über Rechtsklick → "Öffnen" lässt es sich
-   trotzdem starten (oder in den Sicherheits-Einstellungen freigeben).
-
-   👉 https://github.com/Lutji06/RasiCross-Telemetrie/releases/latest
-
-2. Bridge-ESP per USB an den Computer stecken.
-
-3. Beim Setup-Installer erscheint einmalig eine Admin-Abfrage (für die USB-Treiber). Bei der portablen Variante musst du den USB-Treiber ggf. selbst installieren — er liegt im Unterordner `drivers/`.
-
-4. Anwendung starten, im Drop-down den COM-Port wählen, **"USB verbinden"** klicken. Sobald der Kart-ESP eingeschaltet ist, sind Live-Daten da.
-
-> **Erste Windows-Warnung:** Windows zeigt beim ersten Start einen blauen SmartScreen-Bildschirm. Auf "Weitere Informationen" → "Trotzdem ausführen" klicken. Beim zweiten Mal kommt die Warnung nicht mehr.
-
-> **Demo-Modus:** Wenn keine Hardware zur Hand ist, einfach im Dashboard auf den Demo-Button klicken — es erscheinen simulierte Telemetrie-Werte.
+> **Windows-SmartScreen** meldet beim ersten Start eine unbekannte App: „Weitere Informationen" → „Trotzdem ausführen". Danach nicht mehr.
+>
+> **macOS** meldet „Programm aus dem Internet": Rechtsklick auf die App → „Öffnen".
+>
+> **USB-Treiber:** Der Installer bringt ihn mit (einmalige Admin-Abfrage). Bei der portablen Variante liegt er in `drivers/`.
 
 ---
 
-## Was du brauchst
-
-### Software
-
-- Releases-Datei für dein Betriebssystem (siehe oben), **oder**
-- Browser mit Web-Serial-Unterstützung (Chrome, Edge, Brave) — dann das HTML direkt öffnen
-
-### Hardware (zum Selber-Bauen)
-
-**Pro Knoten (Kart und Bridge):**
-- ESP32-Devkit mit MicroPython 1.21+ (z.B. ESP32-WROOM-32)
-- USB-Kabel zum Flashen / Stromversorgen
-
-**Nur am Kart:**
-- Hall-Sensor (z.B. A3144) am Schwungrad
-- MPU-6050 (Beschleunigung)
-- GPS-Modul mit NMEA (z.B. NEO-6M)
-
-**Empfohlen:**
-- Pufferakku am Kart gegen Spannungsspitzen
-- Externe 2,4-GHz-Antennen für mehr Reichweite
-
-Detaillierte Verkabelung mit Schaubild: **[docs/VERKABELUNG.md](docs/VERKABELUNG.md)**
-
----
-
-## Komponenten im Überblick
+## Wie es zusammenhängt
 
 ```
-   ┌──────────────────┐                       ┌──────────────────┐
-   │   KART  (Sender) │   ESP-NOW (LR-Mode)   │  BRIDGE (Empf.)  │       ┌──────────────┐
-   │                  │ ◄────────────────────►│                  │  USB  │  Dashboard   │
-   │  ESP32           │     2.4 GHz, CH 1     │  ESP32           │ ◄───► │  (HTML/JS    │
-   │  Hall · IMU · GPS│                       │                  │ JSON  │ oder Desktop)│
-   └──────────────────┘                       └──────────────────┘ Lines └──────────────┘
+   ┌───────────────────────┐                         ┌──────────────────┐
+   │  KART  (Sender)       │    ESP-NOW (LR-Mode)    │  BRIDGE          │      ┌──────────────┐
+   │  ESP32                │ ◄──────────────────────►│  ESP32           │ USB  │  Desktop-App │
+   │  Hall · MPU-6050 · GPS│   2,4 GHz, Kanal 1      │                  │ ◄───►│  (Electron)  │
+   └───────────────────────┘   Binärframe, 12,5 Hz   └──────────────────┘ JSON └──────────────┘
+        bis zu 4 Karts                                                    Lines
 ```
 
-| Komponente | Datei | Rolle |
-| ---------- | ----- | ----- |
-| Kart-Sender | `sender.py` | Sammelt Sensordaten (12,5 Hz) und sendet via ESP-NOW |
-| Bridge | `bridge.py` | Empfängt vom Kart, gibt JSON-Lines auf USB |
-| Dashboard | `RasiCross_Telemetry.html` | Visualisiert die Telemetrie im Browser |
-| Desktop-App | `main.js`, `preload.js`, `package.json` | Verpackt das Dashboard als native Anwendung |
+| Teil | Datei | Rolle |
+| --- | --- | --- |
+| Kart-Sender | `sender.py` + `esp_libs/` | Sammelt Sensordaten mit 12,5 Hz, sendet per ESP-NOW |
+| Bridge | `bridge.py` + `esp_libs/frame.py` | Empfängt von bis zu 4 Karts, gibt JSON-Zeilen auf USB |
+| Oberfläche | `index.html`, `src/*.js` (44 ESM-Module) | Auswertung und Darstellung |
+| Desktop-Hülle | `main.js`, `preload.js` | Electron-Fenster, serieller Port, Datei-Ablage |
+
+Die Oberfläche wird mit **Vite** gebaut. Eine einzelne, direkt im Browser aufrufbare HTML-Datei gibt es nicht mehr — für den Browser-Betrieb siehe [Entwicklung](#entwicklung).
 
 ---
 
-## Hardware aufbauen
+## Hardware
 
-Komplette Anleitung mit Pinbelegung, ASCII-Schaubild, Stromversorgung und Antennen-Tipps:
+**Pro Knoten (Kart und Bridge):** ESP32-Devkit (z. B. ESP32-WROOM-32) mit MicroPython 1.21+, USB-Kabel.
 
-**👉 [docs/VERKABELUNG.md](docs/VERKABELUNG.md)**
+**Zusätzlich am Kart:** Hall-Sensor (z. B. A3144) am Schwungrad, MPU-6050 (Beschleunigung + Gyro), GPS-Modul mit NMEA (z. B. NEO-6M).
 
-Kurz-Übersicht der Pins (Standard, im `Config`-Block beider Skripte änderbar):
+**Empfohlen:** Pufferakku am Kart gegen Spannungsspitzen, externe 2,4-GHz-Antennen für Reichweite.
 
-### Kart-Sender
+Pinbelegung (Standard, im `Config`-Block änderbar):
 
-| Funktion        | Pin (GPIO) | Bemerkung                                 |
-| --------------- | ---------- | ----------------------------------------- |
-| Hall-Sensor     | 4          | Input mit internem Pull-Up, Falling-IRQ   |
-| GPS UART2 RX/TX | 16 / 17    | 9600 Baud, gekreuzt anschließen           |
-| I²C SDA / SCL   | 21 / 22    | IMU                                       |
-| Status-LED      | 2          | onboard                                   |
+| Funktion | GPIO | Bemerkung |
+| --- | --- | --- |
+| Hall-Sensor | 4 | Input mit internem Pull-Up, Falling-IRQ |
+| GPS UART2 RX/TX | 16 / 17 | 9600 Baud, gekreuzt anschließen |
+| I²C SDA / SCL | 21 / 22 | MPU-6050 |
+| Status-LED | 2 | onboard (Kart und Bridge) |
 
-> ⚠️ **Nicht** GPIO 34/35/36/39 für den Hall-Sensor verwenden — diese
-> Pins sind Input-only und haben **keine** internen Pull-Up-Widerstände.
-> Der A3144 ist open-collector und braucht zwingend einen Pull-Up.
+> ⚠️ **Nicht** GPIO 34/35/36/39 für den Hall-Sensor: Diese Pins sind Input-only und haben **keine** internen Pull-Ups. Der A3144 ist open-collector und braucht zwingend einen.
+
+Vollständige Verkabelung mit Schaubild und Stromversorgung: **[docs/VERKABELUNG.md](docs/VERKABELUNG.md)**
+
+---
+
+## ESP32 flashen
+
+> Nur nötig, wenn du die Module selbst aufbaust.
+
+### 1. MicroPython
+
+```bash
+esptool.py --chip esp32 --port COM3 erase_flash
+esptool.py --chip esp32 --port COM3 --baud 460800 write_flash -z 0x1000 esp32-XXXX.bin
+```
+
+Firmware: [micropython.org/download/ESP32_GENERIC](https://micropython.org/download/ESP32_GENERIC/) — **Version 1.21 oder neuer**, `espnow` und die RSSI-Auswertung gibt es erst ab dann.
+
+### 2. Programm vorkompilieren — Pflicht
+
+> ⛔ **`sender.py` und `bridge.py` dürfen NICHT als `.py` nach `main.py` kopiert werden.**
+>
+> MicroPython übersetzt `main.py` beim Booten auf dem Chip. Bei Dateien dieser Größe wächst der Python-Heap dabei genau in die DRAM-Region, aus der der WiFi-Treiber seine Puffer nimmt — der ESP stirbt mit `OSError: WiFi Out of Memory` und hängt in einer Watchdog-Bootschleife. Vorkompilierter Bytecode braucht beim Laden einen Bruchteil des RAMs und umgeht das Problem.
+
+```bash
+pip install mpy-cross
+python -m mpy_cross -o app.mpy sender.py     # für den Kart-ESP
+python -m mpy_cross -o app.mpy bridge.py     # für die Bridge — separat!
+```
+
+Auf dem Gerät liegt dann `app.mpy` plus das Mini-`main.py` aus [`esp_libs/main_stub.py`](esp_libs/main_stub.py), das nur `import app` enthält.
+
+### 3. Übertragen
+
+```bash
+# ── Kart-ESP ── (alles aus dem Projekt-Wurzelverzeichnis)
+python -m mpy_cross -o app.mpy sender.py
+mpremote connect COM3 cp esp_libs/mpu6050.py :mpu6050.py
+mpremote connect COM3 cp esp_libs/micropyGPS.py :micropyGPS.py
+mpremote connect COM3 cp esp_libs/frame.py :frame.py
+mpremote connect COM3 cp esp_libs/calc.py :calc.py
+mpremote connect COM3 cp esp_libs/config_store.py :config_store.py
+mpremote connect COM3 cp esp_libs/radio.py :radio.py
+mpremote connect COM3 cp esp_libs/imu_task.py :imu_task.py
+mpremote connect COM3 cp esp_libs/gps_task.py :gps_task.py
+mpremote connect COM3 cp app.mpy :app.mpy
+mpremote connect COM3 cp esp_libs/main_stub.py :main.py
+
+# ── Bridge-ESP ──
+python -m mpy_cross -o app.mpy bridge.py
+mpremote connect COM4 cp esp_libs/frame.py :frame.py
+mpremote connect COM4 cp app.mpy :app.mpy
+mpremote connect COM4 cp esp_libs/main_stub.py :main.py
+```
+
+`frame.py` (Binärprotokoll) ist auf **beiden** ESPs Pflicht — ohne sie startet die Bridge nicht und der Sender schickt nichts.
+
+Details, Thonny-Weg und die Rettung aus einer Crash-Schleife: **[esp_libs/README.md](esp_libs/README.md)**
+
+---
+
+## Die App
+
+Acht Tabs, links in der Seitenleiste:
+
+| Tab | Inhalt |
+| --- | --- |
+| **Live** | Tacho, Drehzahl, G-Meter, Streckenkarte, Rundenzeiten. Bei mehreren Karts eine Übersicht, per Klick auf eine Karte die Einzelansicht. |
+| **Detail** | Verlauf, Stints und Rundentabelle des laufenden Rennens. |
+| **Rennen** | Rennen anlegen, starten, auswerten. |
+| **Fahrer** | Fahrerverwaltung, Statistiken, Gesamtstrecke. |
+| **Karts** | Flotte und Wartung: Status je Kart, Motorstunden, Kalibrierung. |
+| **Strecke** | Strecke einmessen, Sektoren setzen, Strecken speichern. |
+| **Verbindung** | COM-Port, Demo-Modus, Aufzeichnung, Diagnose. |
+| **Einstellungen** | Skalen, Kalibrierung, ESP32-Konfiguration, Datenverwaltung. |
+
+### Mehrere Karts
+
+Bis zu **vier Karts** gleichzeitig. Jedes meldet sich mit eigener MAC an, bekommt Name und Farbe und wird in der Kart-Leiste geführt. Rundenzeiten, Sektoren, Motorstunden und Kalibrierung laufen pro Kart getrennt. Über das ⚙ auf einer Kart-Karte öffnet sich ein **eigenes Fenster** für dieses Kart — praktisch auf einem zweiten Bildschirm in der Box.
+
+### Runden und Sektoren
+
+Die Rundenerkennung läuft über einen GPS-Geofence — **keine Lichtschranke nötig**. Eine Runde ruhig fahren, das Dashboard erkennt Start/Ziel und legt Sektorgrenzen an. Sektor-Bestzeiten gelten je Rennen; neue Bestzeiten quittiert ein Ton.
+
+### Fahrzeuglage
+
+Aus Beschleunigung und Gierrate berechnet die App den Rollwinkel (Komplementärfilter). Bei einem **echten Überschlag** (Standard ab 75°) warnt sie akustisch und im Bild — normales Radheben in der Kurve löst bewusst nicht aus.
+
+Die IMU muss nicht in Fahrtrichtung eingebaut sein: Im Kart-Fenster unter *Kalibrierung* lassen sich Nullpunkt, Achsentausch, einzelne Vorzeichen und die Einbaulage **kopfüber** einstellen. Weil die Korrektur erst beim Auswerten greift, wirkt sie auch rückwirkend auf schon aufgezeichnete Fahrten.
+
+### Aufzeichnen und Abspielen
+
+Jede Session lässt sich als NDJSON aufzeichnen und später abspielen — mit Transportleiste, Scrubber und 0,25×–4×. Zusätzlich **CSV-Export** (Semikolon, Dezimalkomma — öffnet direkt in deutschem Excel). Die Aufnahme startet automatisch, sobald die Bridge verbunden ist (abschaltbar).
+
+### Karte, Charts, 3D
+
+- **Streckenkarte** mit OpenStreetMap-Hintergrund. Beim Speichern einer Strecke lädt die App die Kacheln in den lokalen Cache — danach funktioniert die Karte **offline**, ideal für eine Boxengasse ohne Empfang. Eigene Tile-URL möglich.
+- **Ghost-Runde:** Die beste Runde läuft als blasse Linie mit Geisterpunkt live mit.
+- **Live-Charts:** Speed + Drehzahl auf gemeinsamer Zeitachse, G-Kräfte in drei Spuren, Gierrate als Sparkline.
+- **3D-Kart:** Umschalter am G-Meter zwischen 2D-Kreis und einem WebGL-Kart, das sich live neigt. Eigenes `.glb`/`.gltf`-Modell hochladbar. Ohne WebGL fällt die Ansicht still auf 2D zurück.
+- **Batterie:** Bei konfiguriertem Monitoring Spannung, Ladestand und Warnton bei Unterspannung.
+
+### Bedienung
+
+Kopfzeile rechts: **◐** schaltet zwischen dunkel, hell und *outdoor* (hoher Kontrast bei Sonne), **🔊** schaltet die Töne. Beides wird gespeichert. Die Oberfläche respektiert die Systemeinstellung „Bewegung reduzieren" — dann springen Übergänge sofort, statt zu federn.
+
+---
+
+## Erstes Rennen
+
+1. Beide ESP32 mit Strom versorgen, Bridge per USB anstecken, verbinden.
+2. Auf GPS-Fix warten — beim Kaltstart 30–90 s (die Kart-LED blinkt solange).
+3. **Strecke einmessen:** Tab *Strecke* → „Track scannen" → eine ruhige Runde fahren → benennen und speichern.
+4. **Rennen anlegen und starten** im Tab *Rennen*. Sektor-Splits, Rundenzeiten und Delta erscheinen automatisch.
+
+---
+
+## Konfiguration
+
+Viele Werte lassen sich **live aus der App** ändern, ohne neu zu flashen; der Sender legt sie im NVS-Flash ab, sie überstehen also auch einen Watchdog-Reset. Die fest eingebauten Vorgaben stehen in der `Config`-Klasse — beim Sender in [`esp_libs/config_store.py`](esp_libs/config_store.py), bei der Bridge oben in `bridge.py`.
+
+### Sender
+
+| Parameter | Bedeutung | Default |
+| --- | --- | --- |
+| `BRIDGE_MAC` | MAC der Bridge | wird automatisch gelernt |
+| `ESPNOW_CHANNEL` | Funkkanal — bei Sender und Bridge gleich! | `1` |
+| `PULSES_PER_REV` | Hall-Pulse je Umdrehung | `1` |
+| `SEND_MS` | Sendeintervall | `80` (12,5 Hz) |
+| `SEND_MS_DEGRADED` | bei schlechter Funkverbindung | `200` (5 Hz) |
+| `WATCHDOG_MS` | Hardware-Watchdog (0 = aus) | `8000` |
+| `GPS_TIMEOUT_MS` | ohne Fix so lange → „lost" | `10000` |
+| `WIFI_TX_POWER_DBM` | Sendeleistung | `20` (EU-Maximum) |
+| `WHEEL_CIRC_M` | Radumfang in m (0 = nur GPS-Speed) | `0` |
+| `GEAR_RATIO` | Wellenumdrehungen je Radumdrehung | `1.0` |
+| `BATT_ADC_PIN` | ADC1-Pin fürs Batterie-Monitoring (`None` = aus) | `34` |
+| `BATT_CELLS` | LiPo-Zellen in Serie | `1` |
+
+Live änderbar: `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`, `batt_warn_v`, `batt_crit_v`, `batt_cal`, `rpm_ceiling`, `rpm_alpha`.
 
 ### Bridge
 
-| Funktion       | Pin (GPIO) |
-| -------------- | ---------- |
-| Status-LED     | 2          |
+| Parameter | Bedeutung | Default |
+| --- | --- | --- |
+| `ESPNOW_CHANNEL` | siehe oben | `1` |
+| `HEARTBEAT_MS` | Status an die App alle … | `2000` |
+| `HELLO_MS` | Hello ans Kart alle … (max) | `5000` |
+| `HELLO_QUIET_MS` | Hello nur, wenn das Kart so lange schweigt | `5000` |
+| `WATCHDOG_MS` | Hardware-Watchdog | `8000` |
 
----
+### Status-LEDs
 
-## ESP32-Module flashen
-
-> Diesen Schritt nur, wenn du Sender und Bridge selbst aufbauen willst. Wenn dir jemand zwei fertige ESP32-Module übergeben hat, kannst du diesen Abschnitt überspringen.
-
-### 1. MicroPython auf den ESP32
-
-Firmware von [micropython.org/download/ESP32_GENERIC](https://micropython.org/download/ESP32_GENERIC/) laden, dann:
-
-```bash
-esptool.py --chip esp32 --port /dev/ttyUSB0 erase_flash
-esptool.py --chip esp32 --port /dev/ttyUSB0 --baud 460800 \
-  write_flash -z 0x1000 esp32-XXXX.bin
-```
-
-**Wichtig:** MicroPython 1.21 oder neuer — `espnow` ist erst ab dieser Version dabei.
-
-### 2. Sensor-Bibliotheken übertragen
-
-Liegen im Ordner [`esp_libs/`](esp_libs/) — siehe auch [`esp_libs/README.md`](esp_libs/README.md).
-
-**Auf den Kart-ESP:**
-
-```bash
-mpremote connect /dev/ttyUSB0 cp esp_libs/mpu6050.py :
-mpremote connect /dev/ttyUSB0 cp esp_libs/micropyGPS.py :
-mpremote connect /dev/ttyUSB0 cp esp_libs/frame.py :
-mpremote connect /dev/ttyUSB0 cp esp_libs/calc.py :
-mpremote connect /dev/ttyUSB0 cp sender.py :main.py
-```
-
-**Auf den Bridge-ESP:**
-
-```bash
-mpremote connect /dev/ttyUSB1 cp esp_libs/frame.py :
-mpremote connect /dev/ttyUSB1 cp bridge.py :main.py
-```
-
-> ⚠️ `frame.py` (Binär-Protokoll) ist auf **beiden** ESPs Pflicht — ohne sie
-> startet die Bridge nicht und der Sender kann keine Telemetrie senden.
-> `calc.py` braucht nur der Sender (Batterie-Monitoring + Wheel-Speed-Fallback).
-
----
-
-## Dashboard nutzen
-
-### Variante A: Desktop-App (empfohlen)
-
-Releases-Seite öffnen, fertige Datei herunterladen, starten — siehe [Schnellstart für Endnutzer](#schnellstart-für-endnutzer).
-
-### Variante B: Im Browser
-
-`RasiCross_Telemetry.html` direkt öffnen (Chrome, Edge oder Brave). Beim Klick auf "USB verbinden" fragt der Browser nach dem COM-Port.
-
-> Web Serial funktioniert nur in Chromium-basierten Browsern. Firefox und Safari werden nicht unterstützt.
-
-### Audio-Cues und Outdoor-Modus
-
-Im Header oben rechts gibt es zwei Knöpfe:
-- **◐** wechselt zwischen *dunkel*, *hell* und *outdoor* (hoher Kontrast bei direkter Sonneneinstrahlung in der Boxengasse)
-- **🔊 / 🔇** schaltet Töne bei neuen Sektor- und Rundenbestzeiten an/aus
-
----
-
-## Erweiterte Dashboard-Features
-
-### Aufnahme und Replay
-
-Jede Session lässt sich verlustfrei als NDJSON-Datei aufzeichnen und später im Dashboard erneut abspielen.
-
-- **Auto-Arm:** Sobald die Bridge verbunden ist, beginnt die Aufnahme automatisch (in den Einstellungen abschaltbar).
-- **Speichern:** Im Connection-Tab → *"Aufnahme speichern"* lädt eine `.ndjson`-Datei herunter (eine Telemetrie-Zeile pro Paket, Header in Zeile 1).
-- **Laden:** Im selben Tab eine `.ndjson` auswählen → das Dashboard schaltet in den Replay-Modus.
-- **CSV-Export:** *"CSV exportieren"* lädt die Aufnahme als `.csv` herunter — Semikolon-getrennt mit Dezimal-Komma (öffnet direkt in deutschem Excel), eine Telemetrie-Zeile pro Paket. Läuft gerade ein Replay, wird die geladene Aufnahme exportiert.
-- **Transport-Leiste:** Unten am Bildschirm erscheint eine fixierte Leiste mit ⏵/⏸, Scrubber, Geschwindigkeitswahl (0,25× / 0,5× / 1× / 2× / 4×) und Beenden-Knopf. Live-Daten werden während Replay nicht aufgezeichnet (Session-State wird auf Replay-Enter sauber gesnapshotet und auf Exit restauriert).
-
-### 3D-Kart-Viewer
-
-In der G-Kraft-Karte gibt es einen kleinen **2D / 3D**-Toggle.
-
-- **2D (Default):** der bekannte G-Kreis mit Trail.
-- **3D:** ein WebGL-Kart-Modell, das sich live aus den IMU-Daten neigt. Pitch/Roll werden aus den Accel-Werten berechnet, Yaw aus der Gier-Rate integriert. Ein farbiger G-Vektor-Pfeil zeigt auf der Bodenplatte die Resultierende, ein vertikaler Balken neben dem Kart signalisiert Gz (vertikale Beschleunigung). Farbzonen: grün < 1 G, orange < 2 G, rot ≥ 2 G — wie beim 2D-Kreis.
-
-Der Toggle-Zustand wird persistiert. Falls WebGL nicht verfügbar ist, fällt der Viewer transparent auf 2D zurück.
-
-### Eigenes 3D-Modell hochladen
-
-Im Settings-Tab → Karte *"Kart-Modell"* kann eine eigene `.glb` oder `.gltf` (max 10 MB) als Kart-Mesh hochgeladen werden.
-
-- Modell wird automatisch in den passenden Maßstab skaliert und auf der Bodenplatte angeordnet.
-- **Ausrichtung** lässt sich in 90°-Schritten (0° / 90° / 180° / 270°) nachjustieren, falls die Vorderachse nicht in +X zeigt.
-- Persistent gespeichert (Electron `userData/karts/active.glb`) — wird beim nächsten Start automatisch geladen.
-- *Zurücksetzen* stellt das Standard-Primitive-Kart wieder her.
-
-### Karten-Hintergrund (OSM, offline-fähig)
-
-Über der Track-Karte wird ein OpenStreetMap-Raster-Hintergrund eingeblendet,
-sobald für eine Strecke Tiles vorliegen.
-
-- **Auto-Cache:** Beim Klick auf *"Strecke speichern"* lädt das Dashboard im
-  Hintergrund alle Tiles für die Streckengrenzen (Zoom 16–18, typisch
-  40–80 Tiles, ~1–2 MB). Voraussetzung: Internet zum Zeitpunkt des
-  Speicherns.
-- **Offline:** Sobald die Tiles im Cache sind, wird die Karte komplett ohne
-  Netzwerk gerendert — ideal für die Boxengasse ohne Empfang.
-- **Manueller Refresh:** Im Strecken-Tab steht neben jeder Strecke ein
-  *Tiles aktualisieren*-Knopf mit Status („Karte: 42/42 Tiles · 1,3 MB").
-- **Live-Schalter:** Kleiner *M*-Knopf links oben auf der Live-Karte schaltet
-  den Hintergrund während des Rennens an/aus.
-- **Eigene Tile-URL:** In den Einstellungen → *"Karten-Hintergrund"* lässt sich
-  eine eigene `{z}/{x}/{y}`-URL (z. B. MapTiler, Stadia, Carto) hinterlegen.
-  Leer = OpenStreetMap Standard.
-- **Cache leeren:** Settings → *"Cache leeren"* entfernt alle gecachten Tiles
-  von der Festplatte (`userData/tiles/`).
-
-> Karten © [OpenStreetMap-Mitwirkende](https://www.openstreetmap.org/copyright).
-> Bei eigener Tile-URL gelten die Lizenzbedingungen des jeweiligen Anbieters.
-> Die Browser-Variante (`RasiCross_Telemetry.html` direkt im Browser) hat
-> dieses Feature nicht — es ist Desktop-App only.
-
-### Live-Charts
-
-Drei Verläufe synchronisiert über das Renn-Fenster:
-
-- **Speed + RPM** (gemeinsame X-Achse, RPM rechte Y-Achse).
-- **G-Kraft** mit drei Spuren: Gx (blau, längs), Gy (grün, lateral), Gz (orange, vertikal).
-- **Yaw-Sparkline** als separater schmaler Verlauf direkt unter dem KPI für die Gier-Rate.
-
-### Batterie
-
-Wenn der Sender mit `BATT_CELLS > 0` konfiguriert ist (3S/4S/etc.), erscheint im Header eine **Batterie**-Kachel mit Volt, Prozent (SOC) und einem Farb-Indikator (grün → orange → rot). Akustische Warnung bei niedrigem Stand, einmaliger kritischer Cue bei Unterspannung.
-
----
-
-## Erstes Rennen fahren
-
-1. Beide ESP32 mit Strom versorgen.
-2. Bridge per USB an den PC stecken, Dashboard öffnen, COM-Port wählen, "USB verbinden".
-3. Im Dashboard taucht nach wenigen Sekunden die Bridge-MAC auf, dann die Kart-Daten.
-4. GPS-Fix dauert beim Kaltstart oft 30–90 Sekunden (Status-LED am Kart blinkt solange).
-5. **Strecke einmessen:** Im Dashboard zur Streckenverwaltung, "Track scannen" — eine Runde ruhig fahren, das Dashboard erkennt Start/Ziel automatisch und legt Sektor-Grenzen an. Strecke benennen und speichern.
-6. **Rennen starten** im Dashboard. Sektor-Splits, Rundenzeiten und Live-Delta erscheinen automatisch.
-
----
-
-## Konfiguration anpassen
-
-Viele Werte lassen sich **live aus dem Dashboard** ändern (Sektion Config), ohne neu zu flashen. Der Sender speichert sie im NVS-Flash — sie überleben also auch einen Neustart (z.B. Watchdog-Reset). Permanente Werte stehen in der `Config`-Klasse oben in jedem Skript.
-
-### Sender (`sender.py`)
-
-| Parameter           | Bedeutung                                | Default            |
-| ------------------- | ---------------------------------------- | ------------------ |
-| `BRIDGE_MAC`        | MAC-Adresse der Bridge                   | wird auto-gelernt  |
-| `ESPNOW_CHANNEL`    | Funkkanal — Bridge und Sender gleich!    | `1`                |
-| `PULSES_PER_REV`    | Hall-Pulse pro Umdrehung                 | `1`                |
-| `SEND_MS`           | Telemetrie-Intervall (ms)                | `80` (12,5 Hz)     |
-| `SEND_MS_DEGRADED`  | Bei schlechter Funkverbindung            | `200` (5 Hz)       |
-| `WATCHDOG_MS`       | Hardware-Watchdog (0 = aus)              | `8000`             |
-| `GPS_TIMEOUT_MS`    | Nach so vielen ms ohne Fix → "lost"      | `10000`            |
-| `WIFI_TX_POWER_DBM` | Sendeleistung in dBm                     | `20` (EU-Max)      |
-| `WHEEL_CIRC_M`      | Radumfang in m (0 = nur GPS-Speed)       | `0`                |
-| `GEAR_RATIO`        | Wellenumdrehungen je Radumdrehung        | `1.0`              |
-| `BATT_ADC_PIN`      | ADC1-Pin fürs Batterie-Monitoring (`None` = aus) | `34`       |
-| `BATT_CELLS`        | LiPo-Zellen in Serie (Per-Cell + SOC)    | `1`                |
-
-Live aus dem Dashboard änderbar: `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`, `batt_warn_v`, `batt_crit_v`, `batt_cal`, `rpm_ceiling`, `rpm_alpha`.
-
-### Bridge (`bridge.py`)
-
-| Parameter            | Bedeutung                            | Default |
-| -------------------- | ------------------------------------ | ------- |
-| `ESPNOW_CHANNEL`     | siehe oben                           | `1`     |
-| `HEARTBEAT_MS`       | Status an Dashboard alle …           | `2000`  |
-| `HELLO_MS`           | Hello an Kart alle … (max)           | `5000`  |
-| `HELLO_QUIET_MS`     | Hello nur, wenn Kart so lange schweigt | `5000` |
-| `WATCHDOG_MS`        | Hardware-Watchdog                    | `8000`  |
-
----
-
-## Status-LEDs
-
-### Kart
-
-| Zustand               | LED            |
-| --------------------- | -------------- |
-| ESP-NOW sendet nicht  | aus            |
-| TX ok, GPS sucht      | blinkt 500 ms  |
-| TX ok, GPS-Fix        | dauerhaft an   |
-
-### Bridge
-
-| Zustand                          | LED            |
-| -------------------------------- | -------------- |
-| keine Pakete vom Kart            | aus            |
-| Pakete kommen, USB nicht aktiv   | blinkt         |
-| Pakete + USB verbunden           | dauerhaft an   |
+| | aus | blinkt | dauerhaft an |
+| --- | --- | --- | --- |
+| **Kart** | ESP-NOW sendet nicht | TX ok, GPS sucht | TX ok, GPS-Fix |
+| **Bridge** | keine Pakete vom Kart | Pakete da, USB inaktiv | Pakete + USB verbunden |
 
 ---
 
 ## Datenprotokoll
 
-Sämtliche Pakete sind UTF-8 JSON. Auf der ESP-NOW-Strecke werden sie binär verschickt; auf der USB-Seite zwischen Bridge und Dashboard erscheinen sie als JSON-Lines (eine Zeile pro Paket).
+Auf der Funkstrecke fahren die Pakete binär; zwischen Bridge und App sind es UTF-8-JSON-Zeilen (eine pro Paket).
 
-### Telemetrie-Paket (Kart → Bridge → Dashboard)
+**Telemetrie (Kart → Bridge → App)**
 
 ```json
 {
-  "speed": 42.3,
-  "spd_src": "gps",
-  "rpm": 4280,
-  "gx": 0.12,
-  "gy": -0.05,
-  "gz": 0.98,
-  "yaw": -12.4,
+  "speed": 42.3, "spd_src": "gps", "rpm": 4280,
+  "gx": 0.12, "gy": -0.05, "gz": 0.98, "yaw": -12.4, "roll": 1.8,
   "mtemp": 29,
-  "lat": 48.1234567,
-  "lon": 11.7654321,
-  "gps_fix": 1,
-  "gps_health": "ok",
-  "pulse_hz": 71.3,
-  "send_ms": 80,
-  "seq": 1234,
-  "vbat": 12.42,
-  "soc": 78,
-  "batt_warn": 0
+  "lat": 48.1234567, "lon": 11.7654321, "gps_fix": 1, "gps_health": "ok",
+  "pulse_hz": 71.3, "send_ms": 80, "seq": 1234,
+  "vbat": 12.42, "soc": 78, "batt_warn": 0
 }
 ```
 
-`spd_src` ist `"gps"` oder `"wheel"` (Fallback bei GPS-Verlust, wenn `wheel_circ_m > 0`).
-`gz`/`yaw`/`mtemp` sind die zusätzlichen IMU-Werte (Beschleunigung Z-Achse in G, Gier-Rate °/s, MPU-Temperatur °C). `vbat`/`soc`/`batt_warn` kommen nur bei aktivem Batterie-Monitoring (`batt_cells > 0`); `batt_warn` ist `0` (ok), `1` (low) oder `2` (kritisch).
+- `spd_src` ist `"gps"` oder `"wheel"` (Fallback bei GPS-Verlust, wenn `wheel_circ_m > 0`).
+- `gx`/`gy`/`gz` sind Beschleunigungen in g, `yaw` die Gierrate und `roll` die Rollrate in °/s, `mtemp` die Chiptemperatur der IMU.
+- `vbat`/`soc`/`batt_warn` nur bei aktivem Batterie-Monitoring; `batt_warn` ist `0` (ok), `1` (niedrig) oder `2` (kritisch).
+- Die Bridge ergänzt `rssi`, `rx_count`, `lost`, `bridge_ms` und `from_mac` — über `from_mac` ordnet die App das Paket dem richtigen Kart zu.
 
-Die Bridge ergänzt vor dem USB-Versand `rssi`, `rx_count`, `lost`, `bridge_ms`, `from_mac`.
+**Bridge-Status** (alle 2 s) meldet `bridge` (`ready`/`alive`), `mac`, `channel`, `rx_count`, `lost`, `last_seq`, `kart_mac`, `rate_hz`, `usb_errors` und unter `karts` eine Liste aller bekannten Karts.
 
-### Bridge-Status (alle 2 s)
+**Steuerpakete (App → Bridge → Kart)**
 
-```json
-{ "type": "bridge_status", "rate_hz": 12, "rx_count": 9821, "lost": 4, "kart_mac": "aa:bb:cc:dd:ee:ff" }
-```
-
-### Steuerpakete (Dashboard → Bridge → Kart)
-
-| `type`            | Wirkung                                                          |
-| ----------------- | ---------------------------------------------------------------- |
-| `config`          | Live-Parameter (`send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`, `batt_warn_v`, `batt_crit_v`, `batt_cal`, `rpm_ceiling`, `rpm_alpha`) |
-| `imu_calibrate`   | misst Gx/Gy-Nullpunkt (`action: "auto"`, `duration_ms`) und speichert die Offsets reboot-fest im Sender (NVS) |
+| `type` | Wirkung |
+| --- | --- |
+| `config` | Live-Parameter setzen (siehe oben) |
+| `config_get` | aktuelle Sender-Konfiguration abfragen |
+| `imu_calibrate` | Gx/Gy-Nullpunkt messen und reboot-fest im NVS ablegen |
+| `request_status` | Bridge-Status sofort anfordern |
+| `set_kart_mac` / `forget_kart_mac` | Kart fest zuordnen bzw. vergessen |
+| `reset_karts` | Kart-Liste der Bridge leeren |
 
 ---
 
 ## Fehlersuche
 
-| Symptom                                              | Mögliche Ursache / Maßnahme                                  |
-| ---------------------------------------------------- | ------------------------------------------------------------- |
-| `RX-Count` bleibt 0                                  | `ESPNOW_CHANNEL` unterschiedlich? Bridge-MAC falsch? Antennen prüfen |
-| `lost` zählt schnell hoch                            | Funkstörung, Reichweite überschritten, Antennenausrichtung    |
-| Status-LED am Kart blinkt nie                        | LED-Pin korrekt? `LED_PIN` in Config prüfen                   |
-| GPS-LED-Blinken hört nie auf                         | Freie Sicht zum Himmel? GPS-Pins korrekt?                     |
-| `gps_health: "lost"` im Dashboard                    | NMEA-Daten kommen, aber kein Fix — Antennenstandort prüfen   |
-| RPM bleibt 0 obwohl Welle dreht                      | Hall-Sensor verdrahtet? Magnet-Abstand? `PULSES_PER_REV`?     |
-| `bridge_error: invalid_json` im Dashboard            | korrumpierte Pakete — meist Funk-/Spannungsproblem            |
-| Sender startet alle 8 s neu                          | Watchdog feuert — Endlosschleife/Hänger; `WATCHDOG_MS=0` zum Debug |
-| SmartScreen-Warnung beim App-Start                   | Normal — auf "Weitere Informationen" → "Trotzdem ausführen"   |
+| Symptom | Ursache / Maßnahme |
+| --- | --- |
+| **ESP startet alle paar Sekunden neu, `WiFi Out of Memory`** | `sender.py`/`bridge.py` wurde direkt als `main.py` kopiert. Mit `mpy-cross` vorkompilieren — siehe [ESP32 flashen](#esp32-flashen). Zum Retten: Reset drücken und in den ersten ~2 s mehrfach Strg-C im seriellen Terminal senden. |
+| `RX-Count` bleibt 0 | Unterschiedlicher `ESPNOW_CHANNEL`? Antennen prüfen. |
+| `lost` steigt schnell | Funkstörung, Reichweite überschritten, Antennenausrichtung. |
+| Kart-LED blinkt nie | `LED_PIN` in der Config prüfen. |
+| GPS-Blinken hört nie auf | Freie Sicht zum Himmel? GPS-Pins richtig (RX/TX gekreuzt)? |
+| `gps_health: "lost"` | NMEA kommt an, aber kein Fix — Antennenstandort prüfen. |
+| Drehzahl bleibt 0 | Hall-Sensor verdrahtet? Magnetabstand? `PULSES_PER_REV`? Pull-Up am Pin? |
+| Dauerhaft „umgekippt" trotz ebenem Stand | IMU kopfüber oder verdreht eingebaut — im Kart-Fenster unter *Kalibrierung* die Einbaulage setzen. |
+| `bridge_error: invalid_json` | Korrupte Pakete, meist Funk- oder Spannungsproblem. |
+| Sender startet alle 8 s neu | Watchdog — zum Debuggen `WATCHDOG_MS = 0`. |
 
-**Strukturierte Logs** sind über die `Config.DEBUG`-Schalter beider Skripte aktivierbar.
+Ausführlichere Logs schalten die `Config.DEBUG`-Schalter beider Skripte frei.
 
 ---
 
-## Selbst bauen / Mitmachen
+## Entwicklung
 
-> Dieser Abschnitt ist für Entwickler, die das Projekt erweitern oder die Desktop-App selbst bauen wollen.
-
-### Desktop-App selbst bauen
-
-**Voraussetzungen:** [Node.js](https://nodejs.org/) ≥ 18 LTS.
+**Voraussetzung:** [Node.js](https://nodejs.org/) ≥ 18 LTS.
 
 ```bash
 git clone https://github.com/Lutji06/RasiCross-Telemetrie.git
 cd RasiCross-Telemetrie
 npm install
-npm start                # zum Testen
-npm run build:win        # Windows-Installer + portable
-npm run build:mac        # macOS .dmg fuer arm64 + x64
+
+npm start          # Vite bauen + Electron starten
+npm run dev        # Vite-Dev-Server im Browser (Chromium — Web Serial)
+npm run build:win  # Windows-Installer + portable
+npm run build:mac  # macOS für arm64 und x64
 ```
 
-Unter Windows steht alternativ das Komfort-Skript [`BUILD_EXE.ps1`](BUILD_EXE.ps1) zur Verfügung — checkt Node.js, lädt fehlende USB-Treiber und ruft die Build-Pipeline auf.
+Im Browser läuft die Verbindung über **Web Serial**, das gibt es nur in Chromium-basierten Browsern (Chrome, Edge, Brave). Karten-Cache und Datei-Ablage sind der Desktop-App vorbehalten.
 
-### Release publizieren (Auto-Update)
+Unter Windows nimmt dir [`BUILD_EXE.ps1`](BUILD_EXE.ps1) die Arbeit ab: prüft Node.js, lädt fehlende USB-Treiber, ruft den Build auf.
 
-Die installierte App (NSIS-Setup) prüft beim Start die GitHub-Releases und aktualisiert sich selbst (electron-updater). Damit das funktioniert, muss ein Release **mit `latest.yml`** publiziert werden — das übernimmt electron-builder:
+### Aufbau
+
+Die Oberfläche besteht aus 44 ESM-Modulen unter `src/`. Die reine Logik ist konsequent von der DOM-Verdrahtung getrennt und liegt in abhängigkeitsfreien Modulen — `geo.js` (Runden- und Sektormathematik), `attitude.js` (Rollwinkel, Überschlag), `spring.js` (Federn der Oberfläche), `smoothing.js`, `kart-stats.js`, `replay.js`. Genau diese Module sind unit-getestet.
+
+### Prüfen vor dem Commit
+
+```bash
+npm test                                             # Unit-Tests (node:test, 17 Dateien)
+npm run lint                                         # ESLint
+npm run lint:css                                     # CSS-Token-Gate
+python -m unittest discover -s test -p "test_*.py"   # calc + frame + Modulstruktur
+ruff check                                           # Python-Lint
+npm run test:e2e                                     # Playwright gegen die echte Electron-App
+```
+
+Über 300 Unit-Tests (JavaScript und Python) laufen zusammen mit ESLint, Ruff und einem Playwright-Durchlauf bei jedem Push und Pull-Request — siehe [`check.yml`](.github/workflows/check.yml).
+
+Zum Test gehört ein **visuelles Netz**: Playwright vergleicht Screenshots der echten App gegen eingefrorene Linux-Baselines. Es läuft nur in der CI, weil Schriftrendering je Plattform verschieden ist; lokal gibt `RASI_SCREENS=1` den Lauf frei und erzeugt eigene Windows-Baselines.
+
+### Release
+
+Die installierte App prüft beim Start die GitHub-Releases und aktualisiert sich selbst. Dafür muss ein Release **mit `latest.yml`** veröffentlicht werden — das erledigt electron-builder:
 
 ```powershell
-# 1. Version in package.json erhöhen (z.B. 9.7.0) und committen
-# 2. GitHub-Token mit repo-Scope setzen und publizieren:
-$env:GH_TOKEN = "ghp_..."
+# 1. Version in package.json erhöhen (sie folgt den Release-Tags, z. B. 1.0.8) und committen
+# 2. GitHub-Token mit repo-Scope setzen und veröffentlichen:
+$env:GH_TOKEN = "<dein Token>"
 npx electron-builder --win --x64 --publish always
 ```
 
-Das erstellt einen Release-Draft `v<version>` mit Setup-EXE, Portable-EXE und `latest.yml` — Draft auf GitHub veröffentlichen, fertig. Bestehende Installationen melden das Update beim nächsten Start („Update bereit") und installieren es beim Beenden. Die Portable-EXE und der Dev-Modus (`npm start`) aktualisieren sich nicht selbst.
-
-### Automatisierte Builds
-
-Bei jedem Tag-Push (`v*`) baut [`.github/workflows/build.yml`](.github/workflows/build.yml) Windows und macOS parallel und legt die Artefakte als GitHub-Release ab.
+Alternativ baut [`build.yml`](.github/workflows/build.yml) bei jedem Tag-Push Windows und macOS parallel und legt die Artefakte als Release ab:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.8 && git push origin v1.0.8
 ```
 
-### Tests + CI
+Portable EXE und Dev-Modus aktualisieren sich nicht selbst.
 
-Der pure Kern der App (Lap-/Sektor-Math in `geo.js`, Recording/Replay in `replay.js`, 3D-Helper in `karts3d.js`, Akku-Math in `esp_libs/calc.py`, Binär-Protokoll-Codec in `esp_libs/frame.py`) ist mit `node:test` und `unittest` abgedeckt; ESLint und Ruff prüfen zusätzlich auf toten Code und Fehler. Pre-Commit:
+Kostenloses Windows-Code-Signing über SignPath: [docs/CODE_SIGNING.md](docs/CODE_SIGNING.md).
 
-```bash
-npm test                                                      # Unit-Tests (geo + replay + karts3d)
-npm run lint                                                  # ESLint (JS-Quellen)
-python -m unittest discover -s test -p "test_*.py"            # Unit-Tests (calc + frame)
-ruff check                                                     # Ruff (sender/bridge/esp_libs/test)
-node --check geo.js replay.js karts3d.js rasicross.js main.js preload.js map-draw.js races.js serial-demo.js gauges.js track.js laps-drivers.js live-ui.js pit-wall.js recording.js
-python -m py_compile sender.py bridge.py esp_libs/*.py
-```
+### Mitmachen
 
-[`.github/workflows/check.yml`](.github/workflows/check.yml) fährt dieselbe Pipeline bei jedem Push und PR.
-
-### Beitrag leisten
-
-Pull-Requests sind willkommen. Vorgehen, Code-Stil und Tipps in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
-
-### Code-Signing (optional)
-
-Anleitung für kostenloses Windows-Code-Signing via SignPath: **[docs/CODE_SIGNING.md](docs/CODE_SIGNING.md)**.
+Pull-Requests sind willkommen — Vorgehen und Code-Stil stehen in **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 
 ---
 
 ## Lizenz
 
-[MIT-Lizenz](LICENSE) — kostenlose Nutzung, Modifikation und Verbreitung erlaubt, ohne Gewährleistung.
+[MIT](LICENSE) — Nutzung, Änderung und Weitergabe frei, ohne Gewährleistung.
 
-Treiber und Bibliotheken Dritter haben eigene Lizenzen:
+Fremdbestandteile mit eigener Lizenz:
 
 - `drivers/CP210xVCPInstaller_x64.exe` — Silicon Labs (proprietär, frei verteilbar)
 - `esp_libs/mpu6050.py` — MIT
-- `esp_libs/micropyGPS.py` — MIT (kompakter NMEA-Parser, kompatibel zur inmcm/micropyGPS-API)
+- `esp_libs/micropyGPS.py` — MIT (kompakter NMEA-Parser, API-kompatibel zu inmcm/micropyGPS)
+- Kartendaten © [OpenStreetMap-Mitwirkende](https://www.openstreetmap.org/copyright); bei eigener Tile-URL gelten die Bedingungen des jeweiligen Anbieters.
