@@ -1,25 +1,34 @@
-# RasiCross-Telemetrie
+<div align="center">
 
-Live-Telemetrie für Kart- und Rasenmäher-Rennen („RasiCross"). Ein ESP32 am Fahrzeug funkt Sensordaten kabellos in die Boxengasse, ein zweiter am USB-Port nimmt sie entgegen, und eine Desktop-App zeigt Geschwindigkeit, Drehzahl, GPS-Position, Beschleunigung, Rundenzeiten und Sektor-Splits in Echtzeit — für bis zu vier Fahrzeuge gleichzeitig.
+# 🏁 RasiCross-Telemetrie
 
-![Dashboard](docs/screenshot.png)
+### Live-Telemetrie für Kart- und Rasenmäher-Rennen
+
+Ein ESP32 am Fahrzeug funkt Sensordaten kabellos in die Boxengasse, ein zweiter am USB-Port<br>
+nimmt sie entgegen, und eine Desktop-App zeigt alles in Echtzeit — für **bis zu vier Fahrzeuge** gleichzeitig.
+
+Geschwindigkeit · Drehzahl · GPS-Track · Beschleunigung · Rundenzeiten · Sektor-Splits
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Build](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/build.yml/badge.svg)](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/build.yml)
 [![Tests](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/check.yml/badge.svg)](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/check.yml)
 [![Release](https://img.shields.io/github/v/release/Lutji06/RasiCross-Telemetrie)](https://github.com/Lutji06/RasiCross-Telemetrie/releases)
 
+<img src="docs/screenshot.png" alt="Das Dashboard während eines Rennens" width="900">
+
+</div>
+
 ---
 
 ## Wo willst du hin?
 
-| Dein Ziel | Lies das |
-| --- | --- |
-| **Nur fahren** — du hast fertige Module bekommen | [Schnellstart](#schnellstart) |
-| **Selbst bauen** — Hardware löten und flashen | [Hardware](#hardware) · [ESP32 flashen](#esp32-flashen) |
-| **Verstehen** — was die App alles kann | [Die App](#die-app) |
-| **Mitentwickeln** | [Entwicklung](#entwicklung) · [CONTRIBUTING.md](CONTRIBUTING.md) |
-| **Etwas geht nicht** | [Fehlersuche](#fehlersuche) |
+|  | Dein Ziel | Lies das |
+| :---: | --- | --- |
+| 🏎 | **Nur fahren** — du hast fertige Module bekommen | [Schnellstart](#schnellstart) |
+| 🔧 | **Selbst bauen** — Hardware löten und flashen | [Hardware](#hardware) · [ESP32 flashen](#esp32-flashen) |
+| 📊 | **Verstehen** — was die App alles kann | [Die App](#die-app) |
+| 💻 | **Mitentwickeln** | [Entwicklung](#entwicklung) · [CONTRIBUTING.md](CONTRIBUTING.md) |
+| 🚑 | **Etwas geht nicht** | [Fehlersuche](#fehlersuche) |
 
 ---
 
@@ -36,6 +45,7 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen („RasiCross"). Ein ESP32 am 
 3. App starten → Tab **Verbindung** → COM-Port wählen → **USB verbinden**.
 4. Kart-ESP einschalten. Sobald Pakete ankommen, erscheint das Kart in der Leiste.
 
+> [!TIP]
 > **Windows-SmartScreen** meldet beim ersten Start eine unbekannte App: „Weitere Informationen" → „Trotzdem ausführen". Danach nicht mehr.
 >
 > **macOS** meldet „Programm aus dem Internet": Rechtsklick auf die App → „Öffnen".
@@ -46,14 +56,19 @@ Live-Telemetrie für Kart- und Rasenmäher-Rennen („RasiCross"). Ein ESP32 am 
 
 ## Wie es zusammenhängt
 
+```mermaid
+flowchart LR
+    S["Kart-Sender<br>ESP32<br>Hall · MPU-6050 · GPS"]
+    B["Bridge<br>ESP32"]
+    A["Desktop-App<br>Electron"]
+
+    S -- "ESP-NOW · 2,4 GHz · Kanal 1<br>Binärframe · 12,5 Hz" --> B
+    B -- "USB · JSON-Zeilen" --> A
+    A -- "Steuerpakete" --> B
+    B -. "Hello · Konfiguration" .-> S
 ```
-   ┌───────────────────────┐                         ┌──────────────────┐
-   │  KART  (Sender)       │    ESP-NOW (LR-Mode)    │  BRIDGE          │      ┌──────────────┐
-   │  ESP32                │ ◄──────────────────────►│  ESP32           │ USB  │  Desktop-App │
-   │  Hall · MPU-6050 · GPS│   2,4 GHz, Kanal 1      │                  │ ◄───►│  (Electron)  │
-   └───────────────────────┘   Binärframe, 12,5 Hz   └──────────────────┘ JSON └──────────────┘
-        bis zu 4 Karts                                                    Lines
-```
+
+Bis zu **vier Karts** funken gleichzeitig auf denselben Kanal; die Bridge unterscheidet sie an der MAC-Adresse und reicht sie mit `from_mac` an die App weiter.
 
 | Teil | Datei | Rolle |
 | --- | --- | --- |
@@ -83,7 +98,9 @@ Pinbelegung (Standard, im `Config`-Block änderbar):
 | I²C SDA / SCL | 21 / 22 | MPU-6050 |
 | Status-LED | 2 | onboard (Kart und Bridge) |
 
-> ⚠️ **Nicht** GPIO 34/35/36/39 für den Hall-Sensor: Diese Pins sind Input-only und haben **keine** internen Pull-Ups. Der A3144 ist open-collector und braucht zwingend einen.
+> [!WARNING]
+> **Nicht** GPIO 34/35/36/39 für den Hall-Sensor verwenden. Diese Pins sind Input-only
+> und haben **keine** internen Pull-Ups — der A3144 ist open-collector und braucht zwingend einen.
 
 Vollständige Verkabelung mit Schaubild und Stromversorgung: **[docs/VERKABELUNG.md](docs/VERKABELUNG.md)**
 
@@ -91,7 +108,8 @@ Vollständige Verkabelung mit Schaubild und Stromversorgung: **[docs/VERKABELUNG
 
 ## ESP32 flashen
 
-> Nur nötig, wenn du die Module selbst aufbaust.
+> [!NOTE]
+> Diesen Abschnitt brauchst du nur, wenn du die Module selbst aufbaust.
 
 ### 1. MicroPython
 
@@ -104,7 +122,8 @@ Firmware: [micropython.org/download/ESP32_GENERIC](https://micropython.org/downl
 
 ### 2. Programm vorkompilieren — Pflicht
 
-> ⛔ **`sender.py` und `bridge.py` dürfen NICHT als `.py` nach `main.py` kopiert werden.**
+> [!CAUTION]
+> **`sender.py` und `bridge.py` dürfen NICHT als `.py` nach `main.py` kopiert werden.**
 >
 > MicroPython übersetzt `main.py` beim Booten auf dem Chip. Bei Dateien dieser Größe wächst der Python-Heap dabei genau in die DRAM-Region, aus der der WiFi-Treiber seine Puffer nimmt — der ESP stirbt mit `OSError: WiFi Out of Memory` und hängt in einer Watchdog-Bootschleife. Vorkompilierter Bytecode braucht beim Laden einen Bruchteil des RAMs und umgeht das Problem.
 
@@ -205,7 +224,8 @@ Kopfzeile rechts: **◐** schaltet zwischen dunkel, hell und *outdoor* (hoher Ko
 
 Viele Werte lassen sich **live aus der App** ändern, ohne neu zu flashen; der Sender legt sie im NVS-Flash ab, sie überstehen also auch einen Watchdog-Reset. Die fest eingebauten Vorgaben stehen in der `Config`-Klasse — beim Sender in [`esp_libs/config_store.py`](esp_libs/config_store.py), bei der Bridge oben in `bridge.py`.
 
-### Sender
+<details>
+<summary><b>Sender-Parameter</b> — aufklappen</summary>
 
 | Parameter | Bedeutung | Default |
 | --- | --- | --- |
@@ -222,9 +242,12 @@ Viele Werte lassen sich **live aus der App** ändern, ohne neu zu flashen; der S
 | `BATT_ADC_PIN` | ADC1-Pin fürs Batterie-Monitoring (`None` = aus) | `34` |
 | `BATT_CELLS` | LiPo-Zellen in Serie | `1` |
 
+</details>
+
 Live änderbar: `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt_cells`, `batt_warn_v`, `batt_crit_v`, `batt_cal`, `rpm_ceiling`, `rpm_alpha`.
 
-### Bridge
+<details>
+<summary><b>Bridge-Parameter</b> — aufklappen</summary>
 
 | Parameter | Bedeutung | Default |
 | --- | --- | --- |
@@ -233,6 +256,8 @@ Live änderbar: `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt
 | `HELLO_MS` | Hello ans Kart alle … (max) | `5000` |
 | `HELLO_QUIET_MS` | Hello nur, wenn das Kart so lange schweigt | `5000` |
 | `WATCHDOG_MS` | Hardware-Watchdog | `8000` |
+
+</details>
 
 ### Status-LEDs
 
@@ -374,3 +399,13 @@ Fremdbestandteile mit eigener Lizenz:
 - `esp_libs/mpu6050.py` — MIT
 - `esp_libs/micropyGPS.py` — MIT (kompakter NMEA-Parser, API-kompatibel zu inmcm/micropyGPS)
 - Kartendaten © [OpenStreetMap-Mitwirkende](https://www.openstreetmap.org/copyright); bei eigener Tile-URL gelten die Bedingungen des jeweiligen Anbieters.
+
+---
+
+<div align="center">
+
+**[Releases](https://github.com/Lutji06/RasiCross-Telemetrie/releases)** · **[Verkabelung](docs/VERKABELUNG.md)** · **[Mitmachen](CONTRIBUTING.md)** · **[Issues](https://github.com/Lutji06/RasiCross-Telemetrie/issues)**
+
+<sub>Gebaut für echte Rennen auf echtem Rasen. 🏁</sub>
+
+</div>
