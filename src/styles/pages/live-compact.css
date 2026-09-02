@@ -53,16 +53,43 @@
 .ls-item.active{border-color:var(--lc-blue);box-shadow:0 0 0 1px rgba(58,160,232,.35)}
 .ls-item .ls-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
 .ls-item .ls-gap{opacity:.7}
-body[data-live-view="overview"] #liveLeaderStrip{display:none !important}
 
 /* Multi-Kart: Live-Übersicht-Grid (alle Karts auf einmal). Sichtbarkeit per
    body[data-live-view]; im Single-Modus versteckt. */
 #liveOverview{display:none}
+/* Phase 65: Seite 0 blendet nicht mehr aus, sie ordnet um. Karte links,
+   Leaderboard rechts, Kacheln unten. #liveLeaderStrip, .pw-liverow,
+   .pw-live-body und #liveOverview sind alle Kinder von #tab-live --
+   deshalb genuegt ein Raster auf dem Tab, ohne DOM zu verschieben.
+   Zweite Spalte 'auto': laeuft kein Rennen, ist der Leaderboard
+   display:none, die Spalte kollabiert auf 0 und die Karte wird breit. */
+body[data-live-view="overview"] #tab-live{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:"bar bar" "map leader" "cards cards";
+  gap:var(--sp-12);
+  align-items:start;
+}
+body[data-live-view="overview"] #tab-live .pw-liverow{grid-area:bar}
+body[data-live-view="overview"] #tab-live .pw-live-body{grid-area:map;display:block}
+body[data-live-view="overview"] #tab-live #liveLeaderStrip{grid-area:leader;margin:0}
+body[data-live-view="overview"] #tab-live #liveOverview{grid-area:cards}
+/* Auf Seite 0 gehoeren Rundentabelle, KPI-Spalte und Sektoren nicht dazu --
+   die stehen auf den Kart-Seiten. */
+body[data-live-view="overview"] #tab-live .pw-live-laps,
+body[data-live-view="overview"] #tab-live .pw-live-side{display:none}
+
+/* Leaderboard als hohe Liste (nur Seite 0). Der flache Streifen der
+   Kart-Seiten bleibt unveraendert die Standard-Darstellung. */
+.leader-strip.ls-column{
+  flex-direction:column;flex-wrap:nowrap;align-items:stretch;
+  min-width:210px;max-height:100%;overflow:auto;
+}
+.leader-strip.ls-column .ls-item{justify-content:flex-start;white-space:nowrap}
+.leader-strip.ls-column .ls-name{flex:1;overflow:hidden;text-overflow:ellipsis}
 body[data-live-view="overview"] #liveOverview{
-  display:grid;gap:var(--sp-12);align-content:start;overflow:auto;min-height:0;
-  grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
-body[data-live-view="overview"] #tab-live .pw-liverow,
-body[data-live-view="overview"] #tab-live .pw-live-body{display:none}
+  display:grid;gap:var(--sp-12);align-content:start;min-height:0;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .ko-card{cursor:pointer;border:2px solid var(--lc-blue);border-radius:var(--r-md);padding:var(--sp-12) var(--sp-14);
   background:var(--panel,var(--lc-bg));display:flex;flex-direction:column;gap:var(--sp-6);
   transition:transform .08s,box-shadow .12s}
