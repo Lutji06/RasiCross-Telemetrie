@@ -62,8 +62,11 @@
    .pw-live-body und #liveOverview sind alle Kinder von #tab-live --
    deshalb genuegt ein Raster auf dem Tab, ohne DOM zu verschieben.
    Zweite Spalte 'auto': laeuft kein Rennen, ist der Leaderboard
-   display:none, die Spalte kollabiert auf 0 und die Karte wird breit. */
-body[data-live-view="overview"] #tab-live{
+   display:none, die Spalte kollabiert auf 0 und die Karte wird breit.
+   Das .active ist Pflicht: base.css:179 blendet Tabs mit .tab{display:none}
+   aus -- schwaecher als diese ID-Regel. Ohne .active stuende der Live-Tab
+   in jedem Menue offen (Verbindung, Fahrer, Rennen ...). */
+body[data-live-view="overview"] #tab-live.active{
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;
   grid-template-areas:"bar bar" "map leader" "cards cards";

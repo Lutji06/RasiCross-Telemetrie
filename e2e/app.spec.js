@@ -41,3 +41,22 @@ test('alle Tabs rendern', async () => {
   }
   expect(errors).toEqual([]);
 });
+
+test('Live-Tab bleibt beim Menuewechsel verborgen', async () => {
+  // Regression Phase 65: Das Uebersichts-Raster stand als
+  // body[data-live-view="overview"] #tab-live -- staerker als das
+  // .tab{display:none} aus base.css und damit in jedem Menue offen.
+  // Seite 0 gibt es erst ab zwei Karts, Demo liefert drei.
+  await page.click('.nav-item[data-tab="connection"]');
+  await page.click('#demoChip');
+  await page.waitForFunction(() => RasiTest.state.demo.running === true);
+  await page.click('.nav-item[data-tab="live"]');
+  await page.click('.kart-overview-btn');
+  await page.waitForFunction(() => document.body.dataset.liveView === 'overview');
+  await expect(page.locator('#tab-live')).toBeVisible();
+  for (const tab of ['connection', 'drivers', 'races']) {
+    await page.click(`.nav-item[data-tab="${tab}"]`);
+    await expect(page.locator('#tab-live')).toBeHidden();
+  }
+  expect(errors).toEqual([]);
+});
