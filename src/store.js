@@ -21,7 +21,8 @@ const state = {
   karts: KartRegistry.create(),
   activeKartMac: null,
   // Live-Tab-Ansicht: 'single' (aktiver Kart) oder 'overview' (alle Karts).
-  // Nicht persistiert; per setLiveView() in live-ui.js umgeschaltet.
+  // Nicht persistiert; seit dem Seitenkonzept (Phase 65) aus der von
+  // setLivePage() in live-ui.js gewaehlten Seite abgeleitet.
   liveView: 'single',
   kartMeta: {},   // {mac: {name, color}} — gespiegelt aus localStorage
   // Settings (global/shared)
@@ -47,10 +48,18 @@ const state = {
   gateFlashUntil: 0,
 };
 
+// Phase 65: Leerzustand ausserhalb der Registry. Vorher legte der
+// Fallback per get() den default-Bucket an -- er erschien danach als
+// tote Kachel, als zweiter Chip bei nur einem Kart und belegte einen
+// der vier Plaetze. Lesen darf nichts anlegen; der Schreibpfad
+// (kartFor) registriert weiterhin, damit Pakete ohne from_mac wie
+// bisher auf DEFAULT_MAC landen koennen.
+let _emptyKart = null;
 function activeKart() {
-  let k = state.karts.active();
-  if (!k) k = state.karts.get(KartRegistry.DEFAULT_MAC);   // single-source fallback
-  return k;
+  const k = state.karts.active() || state.karts.peek(KartRegistry.DEFAULT_MAC);
+  if (k) return k;
+  if (!_emptyKart) _emptyKart = KartRegistry.makeKartState();
+  return _emptyKart;
 }
 
 function kartFor(mac) {
