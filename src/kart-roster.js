@@ -38,9 +38,57 @@
     return true;
   }
 
+  // Der Index ist nur ein Wunsch. Die Aufrufer reichen die Position in der
+  // Registry durch, und die ist nicht eindeutig: ein Kart, das gerade nicht
+  // funkt, hat indexOf() === -1 und landet auf 0 -- so hiessen zwei Karts
+  // "Kart 1" und waren in der Chip-Leiste nicht mehr zu unterscheiden.
+  // Deshalb rueckt der Default auf die naechste freie Nummer (Farbe folgt
+  // mit). Selbst vergebene Namen bleiben unangetastet.
+  function freeIdx(map, idx) {
+    const taken = Object.keys(map).map(m => map[m] && map[m].name);
+    let i = Math.max(0, Number(idx) || 0);
+    while (taken.indexOf('Kart ' + (i + 1)) >= 0) i++;
+    return i;
+  }
+
   function ensureMeta(map, mac, idx) {
-    if (!map[mac]) return { entry: (map[mac] = metaDefaults(idx)), created: true };
+    if (!map[mac]) return { entry: (map[mac] = metaDefaults(freeIdx(map, idx))), created: true };
     return { entry: map[mac], created: false };
+  }
+
+  // Phase 65: Der 'default'-Bucket ist ein Alt-Datum aus der Zeit vor
+  // Multi-Kart, kein Kart. Stehen im Save daneben echte MACs, ist die
+  // Adoption durch das erste echte Kart (store.js kartFor) nie mehr faellig
+  // -- beide sind beim Laden schon da. Der Platzhalter blieb dann fuer immer
+  // als zweiter Chip stehen, meist mit demselben Namen wie das echte Kart,
+  // und belegte einen der vier Plaetze.
+  // Hier erbt der erste echte MAC, was er nicht selbst hat, danach ist der
+  // Platzhalter aus allen Maps weg. Gibt es noch kein echtes Kart, bleibt
+  // alles stehen: dann ist die Adoption beim ersten Paket weiter zustaendig.
+  // maps wird an Ort und Stelle bereinigt; -> true, wenn sich etwas geaendert
+  // hat (der Aufrufer speichert dann).
+  function mergeDefaultBucket(maps, defaultMac) {
+    const dm = defaultMac || 'default';
+    const m = maps || {};
+    const all = [];
+    for (const key of Object.keys(m)) {
+      const map = m[key];
+      if (!map || typeof map !== 'object') continue;
+      for (const mac of Object.keys(map)) if (all.indexOf(mac) === -1) all.push(mac);
+    }
+    const heir = all.filter(mac => mac !== dm && !isDemoMac(mac))[0];
+    if (!heir) return false;
+    let changed = false;
+    for (const key of Object.keys(m)) {
+      const map = m[key];
+      if (!map || typeof map !== 'object' || !map[dm]) continue;
+      // Nur Luecken fuellen: eigene Kalibrierung, Motorstunden und
+      // Statistik des echten Karts sind juenger als der Platzhalter.
+      if (!map[heir]) map[heir] = map[dm];
+      delete map[dm];
+      changed = true;
+    }
+    return changed;
   }
 
   // Alt-Key rasi.kartMeta.v1 (kart-bar.js bis Phase 45): { mac: {name,color} }.
@@ -106,6 +154,6 @@
   }
 
   // ESM-Export: Default-Objekt (Konvention der Objekt-Module, Phase 42)
-  export default { PALETTE, isDemoMac, metaDefaults, ensureMeta,
+  export default { PALETTE, isDemoMac, metaDefaults, ensureMeta, mergeDefaultBucket,
                    migrateLegacyMeta, rosterMacs, clampServiceH, calDefaults, ackTargetMac,
                    equipDefaults, equipFor, needsEquipDialog, shouldAdoptBridgeKart };

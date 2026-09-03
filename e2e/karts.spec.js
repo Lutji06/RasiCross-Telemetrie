@@ -182,3 +182,32 @@ test('Stats-Zeile auf der Karte; Dropdown-Abschnitt existiert nicht mehr', async
   expect(probe.navFahrdynamik).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('Alt-Save: default-Platzhalter wird geerbt statt als zweites Kart gelistet', async () => {
+  // Regression Phase 65: Save mit "default"-Bucket UND echtem Kart. Beide
+  // wurden beim Laden registriert, die Adoption in kartFor() war damit nie
+  // mehr faellig -- der Platzhalter stand als zweiter Chip in der Leiste,
+  // meist unter demselben Namen wie das echte Kart.
+  // Der Save entsteht ueber den echten Persistenz-Pfad (saveData), nicht per
+  // localStorage.setItem: ein laufender Debounce wuerde den ueberschreiben.
+  await page.evaluate(() => {
+    const dk = RasiTest.state.karts.get('default');   // Alt-Bucket vor 9.6
+    dk.calibration.gxZero = 0.42;
+    dk.engine.totalMs = 1000;
+    // Das echte Kart ist offline bekannt (nur Roster-Meta, kein Bucket) --
+    // genau die Lage, in der der Platzhalter seine Werte noch weitergibt.
+    RasiTest.updateKartMeta('AA:BB:CC:DD:EE:07', { lastSeenAt: Date.now() });
+    window.saveData();
+  });
+  await page.reload();
+  await page.waitForFunction(() =>
+    !!(window.RasiTest && window.RasiTest.state && window.RasiTest.state.karts));
+  expect(await page.evaluate(() => RasiTest.state.karts.macs())).toEqual(['AA:BB:CC:DD:EE:07']);
+  // Der Erbe hat Kalibrierung und Motorstunden des Platzhalters uebernommen.
+  const erbe = await page.evaluate(() => {
+    const k = RasiTest.state.karts.get('AA:BB:CC:DD:EE:07');
+    return { gxZero: k.calibration.gxZero, totalMs: k.engine.totalMs };
+  });
+  expect(erbe).toEqual({ gxZero: 0.42, totalMs: 1000 });
+  expect(errors).toEqual([]);
+});

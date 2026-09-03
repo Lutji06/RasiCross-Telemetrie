@@ -268,6 +268,15 @@ function loadData() {
     const _cal = d.kartsCal || (d.calibration ? { [KartRegistry.DEFAULT_MAC]: d.calibration } : {});
     const _eng = d.kartsEngine || (d.engine ? { [KartRegistry.DEFAULT_MAC]: d.engine } : {});
     const _stats = (d.kartsStats && typeof d.kartsStats === 'object') ? d.kartsStats : {};
+    const _meta = (d.kartsMeta && typeof d.kartsMeta === 'object') ? d.kartsMeta : {};
+    // Steht neben dem "default"-Platzhalter schon ein echtes Kart im Save,
+    // erbt dieses den Bucket sofort -- sonst waere die Adoption in kartFor()
+    // nie mehr faellig (beide sind beim Laden bereits registriert) und der
+    // Platzhalter stuende dauerhaft als zweiter Chip in der Leiste.
+    if (RasiKartRoster.mergeDefaultBucket({ cal: _cal, eng: _eng, stats: _stats, meta: _meta },
+                                          KartRegistry.DEFAULT_MAC)) {
+      saveDataDebounced();
+    }
     for (const mac of new Set([...Object.keys(_cal), ...Object.keys(_eng), ...Object.keys(_stats)])) {
       const kk = state.karts.get(mac);   // legt Bucket an (Cap beachtet)
       if (!kk) continue;
@@ -286,7 +295,7 @@ function loadData() {
     Object.assign(_persistedKarts.cal, _cal);
     Object.assign(_persistedKarts.eng, _eng);
     Object.assign(_persistedKarts.stats, _stats);
-    if (d.kartsMeta && typeof d.kartsMeta === 'object') Object.assign(_persistedKarts.meta, d.kartsMeta);
+    Object.assign(_persistedKarts.meta, _meta);
     state.activeKartMac = state.karts.activeMac();
   } catch (e) { console.warn('loadData:', e); }
 }
