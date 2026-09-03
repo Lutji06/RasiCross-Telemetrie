@@ -188,3 +188,9 @@ test('mergeDefaultBucket: ohne Platzhalter passiert nichts', () => {
   assert.equal(mergeDefaultBucket({ cal }, 'default'), false);
   assert.deepEqual(cal, { 'AA:01': { gxZero: 1 } });
 });
+
+test('ensureMeta: der default-Platzhalter blockiert "Kart 1" nicht', () => {
+  const map = { default: { name: 'Kart 1', color: PALETTE[0], lastSeenAt: null } };
+  ensureMeta(map, 'AA:01', 0);
+  assert.equal(map['AA:01'].name, 'Kart 1');
+});

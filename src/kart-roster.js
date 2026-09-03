@@ -45,7 +45,10 @@
   // Deshalb rueckt der Default auf die naechste freie Nummer (Farbe folgt
   // mit). Selbst vergebene Namen bleiben unangetastet.
   function freeIdx(map, idx) {
-    const taken = Object.keys(map).map(m => map[m] && map[m].name);
+    // Der 'default'-Platzhalter zaehlt nicht mit: er ist kein Kart, haelt aber
+    // einen Meta-Eintrag "Kart 1" -- sonst finge die Nummerierung der echten
+    // Karts (und der Demo) bei 2 an.
+    const taken = Object.keys(map).filter(m => m !== 'default').map(m => map[m] && map[m].name);
     let i = Math.max(0, Number(idx) || 0);
     while (taken.indexOf('Kart ' + (i + 1)) >= 0) i++;
     return i;

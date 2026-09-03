@@ -15,9 +15,45 @@ import { setLivePage } from './live-ui.js';
     return kartMetaFor(mac, idx);
   }
 
-  function render(state) {
-    const el = document.getElementById('kartBar');
+  // Phase 66: Der Detail-Tab blaettert wie Live -- dieselbe Leiste, zweiter
+  // Anker im DOM. Ohne Ziel zeichnet render() beide; so bleiben die sieben
+  // Aufrufer unveraendert und die Leisten koennen nicht auseinanderlaufen.
+  const LIVE_BAR = 'kartBar';
+  const DETAIL_BAR = 'kartBarDetail';
+
+  function render(state, targetId) {
+    if (targetId) { renderInto(state, targetId); return; }
+    renderInto(state, LIVE_BAR);
+    renderInto(state, DETAIL_BAR);
+    renderDetailName(state);
+  }
+
+  // Der Detail-Tab hat keine Seiten: ein Chip waehlt nur das aktive Kart,
+  // an dem seine Werte ohnehin haengen (live-ui.js schreibt sie ueber die
+  // gemeinsamen Ziele aus dom-targets.js).
+  function selectKart(state, mac) {
+    if (!state.karts.setActive(mac)) return;
+    state.activeKartMac = mac;
+    render(state);
+  }
+
+  // Zeigt im Eyebrow des Detail-Tabs, welches Kart gerade zu sehen ist --
+  // ohne das steht dort eine Kurve ohne Absender.
+  function renderDetailName(state) {
+    const el = document.getElementById('detailKartName');
     if (!el) return;
+    const mac = state.activeKartMac || state.karts.activeMac();
+    const idx = state.karts.macs().indexOf(mac);
+    if (!mac || idx < 0) { el.textContent = ''; return; }
+    const m = kartMetaFor(mac, idx);
+    el.textContent = '· ' + m.name;
+    el.style.color = m.color;
+  }
+
+  function renderInto(state, id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isLive = id === LIVE_BAR;
     const macs = state.karts.macs();
     // Einzelner Kart ohne echte MAC (default-Bucket): keine Chip-Leiste noetig.
     el.style.display = macs.length <= 1 ? 'none' : 'flex';
@@ -26,12 +62,15 @@ import { setLivePage } from './live-ui.js';
     const _feMac = _fe && el.contains(_fe) ? _fe.getAttribute('data-mac') : null;
     el.innerHTML = '';
     // Übersicht-Button (alle Karts auf einmal) — erstes Element in der Leiste.
-    const ovBtn = document.createElement('button');
-    ovBtn.type = 'button';
-    ovBtn.className = 'kart-overview-btn' + (state.liveView === 'overview' ? ' active' : '');
-    ovBtn.innerHTML = '⊞ Übersicht';
-    ovBtn.onclick = () => { setLivePage(0); };
-    el.appendChild(ovBtn);
+    // Nur im Live-Tab: der Detail-Tab kennt keine Uebersichtsseite.
+    if (isLive) {
+      const ovBtn = document.createElement('button');
+      ovBtn.type = 'button';
+      ovBtn.className = 'kart-overview-btn' + (state.liveView === 'overview' ? ' active' : '');
+      ovBtn.innerHTML = '⊞ Übersicht';
+      ovBtn.onclick = () => { setLivePage(0); };
+      el.appendChild(ovBtn);
+    }
     macs.forEach((mac, i) => {
       const k = state.karts.get(mac);
       if (!k) return;
@@ -39,7 +78,10 @@ import { setLivePage } from './live-ui.js';
       // Phase 39: div-Container mit zwei Geschwister-Buttons — kein
       // Button-in-Button mehr (valides HTML, Tastatur-bedienbar).
       const chip = document.createElement('div');
-      let cls = 'kart-chip' + (mac === state.activeKartMac && state.liveView !== 'overview' ? ' active' : '');
+      // Im Detail-Tab markiert der Chip immer das aktive Kart -- die
+      // Uebersichtsseite gibt es dort nicht.
+      let cls = 'kart-chip' + (mac === state.activeKartMac
+        && (!isLive || state.liveView !== 'overview') ? ' active' : '');
       chip.style.borderColor = m.color;
       const age = k.connection.lastPacketAt ? (Date.now() - k.connection.lastPacketAt) : 99999;
       const rec = k.recording.armed ? ' ●REC' : '';
@@ -56,7 +98,8 @@ import { setLivePage } from './live-ui.js';
       chip.querySelector('.kart-chip-main').onclick = () => {
         // Phase 65: Der Chip ist die Seitenwahl -- setLivePage setzt das
         // aktive Kart selbst, sobald die Seite aufgeloest ist.
-        setLivePage(null, mac);
+        if (isLive) setLivePage(null, mac);
+        else selectKart(state, mac);
       };
       el.appendChild(chip);
     });

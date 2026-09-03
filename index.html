@@ -292,6 +292,8 @@
         <div class="pw-eyebrow">
           <span class="pw-eyebrow-dot"></span>
           <span>LIVE-DETAIL</span>
+          <!-- Phase 66: welches Kart der Tab gerade zeigt (kart-bar.js) -->
+          <span class="pw-eyebrow-kart" id="detailKartName"></span>
         </div>
         <h1 class="pw-hero-title">Detail<span class="pw-hero-accent">.</span></h1>
         <p class="pw-hero-sub">Verlauf, Stints und Rundentabelle des aktiven Rennens</p>
@@ -316,6 +318,12 @@
       </div>
     </div>
   </div>
+
+  <!-- Phase 66: Chip-Leiste wie im Live-Tab, zweiter Anker derselben
+       Leiste (kart-bar.js). Waehlt das aktive Kart; ohne zweites Kart
+       blendet sie sich selbst aus. Kein Uebersicht-Chip -- der Detail-Tab
+       zeigt immer genau ein Kart. -->
+  <div id="kartBarDetail" class="kart-bar"></div>
 
   <!-- KPI-Strip: alle Live-Werte detailliert (war frueher auf #tab-live) -->
   <div class="kpi-row" id="detailKpiStrip" style="margin-bottom:12px">
