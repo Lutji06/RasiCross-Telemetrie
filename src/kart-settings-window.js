@@ -49,9 +49,9 @@ const CAL_TOGGLES = [
 
 // target_mac explizit auf das FENSTER-Kart setzen (Muster pit-wall.js) —
 // der bridgeSend-Default waere das aktive Kart.
-function _sendTo(mac, payload) {
+function _sendTo(mac, payload, onFail) {
   if (mac && mac !== KartRegistry.DEFAULT_MAC) payload.target_mac = mac;
-  return bridgeSend(payload);
+  return bridgeSend(payload, onFail);
 }
 
 // Fenster-Markup: statisches HTML ohne Inline-Handler (CSP script-src 'self');
@@ -351,7 +351,18 @@ function _bindHandlers(r) {
     }
     try {
       _lastCfgMac = r.mac;
-      _sendTo(r.mac, cfg);
+      // Phase 67: Scheitert schon das Schreiben auf den USB-Port, darf nicht
+      // der Funk beschuldigt werden -- der Ack-Timer wird dann abgeraeumt und
+      // die Meldung nennt die echte Ebene.
+      const ok = _sendTo(r.mac, cfg, (grund) => {
+        clearTimeout(r.ackTimer);
+        const el = _el(r, 'espSendStatus');
+        if (el) el.textContent = '✗ Nicht an die Bridge geschickt (' + grund + ')';
+      });
+      if (!ok) {
+        if (stEl) stEl.textContent = '✗ Nicht an die Bridge geschickt — USB-Verbindung prüfen';
+        return;
+      }
       if (stEl) stEl.textContent = '✓ Gesendet — warte auf Bestätigung…';
       clearTimeout(r.ackTimer);
       r.ackTimer = setTimeout(() => {

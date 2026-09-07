@@ -48,14 +48,36 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 // Send a command line to the bridge, tagged with the active kart's MAC so the
 // bridge routes the downlink to the selected kart (target_mac is routing-only;
 // the kart firmware ignores the unknown key). Returns true if written.
-function bridgeSend(obj) {
+// Electron verpackt IPC-Fehler als "Error invoking remote method 'x': Error: y".
+// Fuer eine Statuszeile im Kart-Fenster zaehlt nur das y.
+function _ipcReason(e) {
+  const msg = (e && e.message) || String(e);
+  return msg.replace(/^Error invoking remote method '[^']*':\s*/, '')
+            .replace(/^Error:\s*/, '');
+}
+
+// onFail(grund) meldet, wenn das Schreiben ASYNCHRON scheitert -- optional,
+// bestehende Aufrufer bleiben unveraendert.
+function bridgeSend(obj, onFail) {
   if (!window.rasiSerial || !window.rasiSerial.writeLine) return false;
   if (!state.serial || !state.serial.connected) return false;
   const mac = state.activeKartMac;
   const payload = Object.assign({}, obj);
   if (mac && mac !== KartRegistry.DEFAULT_MAC && !payload.target_mac) payload.target_mac = mac;
-  try { window.rasiSerial.writeLine(JSON.stringify(payload)); return true; }
-  catch (e) { return false; }
+  try {
+    // writeLine ist ein IPC-Aufruf und liefert ein Promise. Ein Fehler beim
+    // Schreiben (Port inzwischen zu, USB abgezogen) landet deshalb NICHT im
+    // catch hier unten, sondern wurde zur unbehandelten Rejection. Folge:
+    // das Kart-Fenster meldete 3 s spaeter "keine Bestaetigung -- Funk-
+    // verbindung pruefen" und schickte auf Fehlersuche beim Funk, obwohl die
+    // Zeile den PC nie verlassen hatte (Phase 67).
+    const w = window.rasiSerial.writeLine(JSON.stringify(payload));
+    if (w && typeof w.then === 'function') {
+      w.then((ok) => { if (ok === false && onFail) onFail('Port nicht offen'); })
+       .catch((e) => { if (onFail) onFail(_ipcReason(e)); });
+    }
+    return true;
+  } catch (e) { return false; }
 }
 window.rasiBridgeSend = bridgeSend;
 
