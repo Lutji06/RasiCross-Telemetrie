@@ -105,7 +105,12 @@ import { setLivePage } from './live-ui.js';
     });
     if (_feMac) {
       const _re = el.querySelector('.kart-chip-main[data-mac="' + _feMac + '"]');
-      if (_re) _re.focus();
+      // preventScroll ist Pflicht, nicht Kosmetik: focus() rollt den Chip
+      // sonst in den Sichtbereich. Die Leiste steht ganz oben, der Rebuild
+      // laeuft im Sekundentakt -- wer nach einem Chip-Klick im Detail-Tab
+      // nach unten scrollte, wurde jede Sekunde an den Anfang zurueck-
+      // geworfen (Phase 67).
+      if (_re) _re.focus({ preventScroll: true });
     }
   }
 

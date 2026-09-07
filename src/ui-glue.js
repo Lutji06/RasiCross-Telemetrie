@@ -37,8 +37,13 @@ import { rcAudio } from './rasicross.js';
       try {
         {
           const r = activeRace();
-          if (r) {
-            const stints = activePart(r).stints || [];
+          // Phase 67: activePart() ist seit Phase 39 ein reiner Lookup und
+          // liefert null, sobald das aktive Kart (noch) kein Teilnehmer ist.
+          // Ohne die Pruefung warf dieser Spiegel 5x pro Sekunde in sein
+          // eigenes catch -- stumm, aber der Fahrername blieb dabei stehen.
+          const _p = r ? activePart(r) : null;
+          if (_p) {
+            const stints = _p.stints || [];
             const last = stints[stints.length-1];
             if (last && !last.endAt) {
               const driver = state.drivers.find(d=>d.id===last.driverId);

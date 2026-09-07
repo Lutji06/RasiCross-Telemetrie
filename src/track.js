@@ -647,7 +647,12 @@ function clearManualSectors() {
 }
 function activateSectorClick(idx) {
   state.sectors.clickTarget = idx;
-  setText('sectorClickHint', `Klicke jetzt auf die Karte für S${idx + 2}`);
+  // Phase 67: Der Hinweis ging ins Leere -- #sectorClickHint verschwand mit
+  // einem Redesign, die setText-Aufrufe blieben stehen. Ausser dem Crosshair
+  // sagte also nichts, dass jetzt ein Klick auf die Karte faellig ist.
+  // Der Toast braucht kein Markup und kann von keinem Spiegel-Loop
+  // ueberschrieben werden (#sectorStatus2/3 schreibt ui-glue.js im 200-ms-Takt).
+  rcToast(`Klicke jetzt auf die Karte für S${idx + 2}`);
   // Phase 42: direkte DOM-Lookups statt map-draw-Modulvariablen
   const _tc = $('trackCanvas'); if (_tc) _tc.style.cursor = 'crosshair';
   const _sc = $('scanCanvas'); if (_sc) _sc.style.cursor = 'crosshair';
@@ -683,7 +688,7 @@ function handleTrackCanvasClick(e) {
   state.sectors.boundaries[idx] = { lat: cp.lat, lon: cp.lon, heading, width: state.startGate.width || 14 };
   state.sectors.manual = true;
   state.sectors.clickTarget = null;
-  setText('sectorClickHint', '');
+  // Kein Gegenstueck zum Hinweis noetig: der Toast raeumt sich selbst ab.
   const _tc = $('trackCanvas'); if (_tc) _tc.style.cursor = '';
   const _sc = $('scanCanvas'); if (_sc) _sc.style.cursor = '';
   drawTrack();

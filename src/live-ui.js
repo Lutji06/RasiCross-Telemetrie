@@ -8,7 +8,7 @@ import { fmtClock, fmtMs, nearestTraceDelta } from './geo.js';
 import { state, $, css, dpr, esc, setText, setTextShared, setHtmlShared, activeKart } from './rasicross.js';
 import { activeRace, activePart, raceElapsedMs, endRace } from './races.js';
 import { drawTrack, resizeCanvases } from './map-draw.js';
-import { getTotalStats } from './laps-drivers.js';
+import { getTotalStats, renderLapTable } from './laps-drivers.js';
 import { renderDriftBadge, renderGauges, renderRollBar } from './gauges.js';
 import { updatePitWall } from './pit-wall.js';
 import ConnUi from './conn-ui.js';
@@ -270,7 +270,12 @@ function updateLiveKPIs() {
     const _bEl = $('battPill');
     const _battStale = !k.connection.lastPacketAt
                     || (Date.now() - k.connection.lastPacketAt) > 5000;
-    if (k.batt.present && !_battStale) {
+    // Phase 67: Auf der Uebersichtsseite gibt es kein Kart, auf das sich die
+    // Pille beziehen koennte -- sie zeigte dort stumm den Akku des zuletzt
+    // gewaehlten Karts. Jede Kachel im Raster nennt ihren eigenen SoC.
+    const _battHidden = document.body.dataset.tab === 'live'
+                     && state.liveView === 'overview';
+    if (k.batt.present && !_battStale && !_battHidden) {
       if (_bEl && _bEl.classList.contains('hidden')) _bEl.classList.remove('hidden');
       const _soc = Math.max(0, Math.min(100, k.batt.soc | 0));
       const _vb  = +k.batt.vbat.toFixed(2);
@@ -437,7 +442,11 @@ function updateLiveUi() {
     const _heroPart = r ? activePart(r) : null;
     setText('detailHeroStintCount', _heroPart ? _heroPart.stints.length : 0);
     // Status badge
-    setText('hzText', state.hz);
+    // Phase 67: _lastHz, nicht hz. Der 1-Hz-Loop setzt state.hz unmittelbar
+    // VOR diesem Aufruf auf 0 zurueck -- hier stand also jede Sekunde eine 0
+    // im Pill, bis der 200-ms-Spiegel in ui-glue.js sie mit _lastHz
+    // ueberschrieb. Gemessen: 8 % aller Frames zeigten 0 statt der Rate.
+    setText('hzText', state._lastHz || 0);
     setText('packetsText', k.connection.packets);
     setText('detailHeroPackets', k.connection.packets);
     // Live delta
@@ -608,6 +617,12 @@ setInterval(() => {
   refreshOverview();
   // Leaderboard-Strip aktuell halten (beide Seitenarten).
   renderLeaderStrip();
+  // Phase 67: Rundenlisten mitziehen. Vorher liefen sie nur beim App-Start
+  // und wenn das AKTIVE Kart die Linie kreuzte -- nach einem Kart-Wechsel
+  // stand also weiter die Rundenliste des vorherigen Karts da, bis das neue
+  // Kart selbst eine Runde schloss. Der HTML-Diff in laps-drivers.js haelt
+  // den Sekundentakt still, solange sich nichts aendert.
+  try { renderLapTable(); } catch (e) { console.warn('renderLapTable:', e); }
 
   // Status-Badge oben rechts
   if (activeKart().connection.source === 'serial' && state.serial.connected) {

@@ -397,11 +397,13 @@
   <!-- Letzte Runden -->
   <div id="detailLapsSlot">
     <div class="pw-module">
-      <div class="pw-mod-head"><div class="pw-mod-title">Letzte Runden</div><span class="card-sub">aktives Rennen</span></div>
+      <div class="pw-mod-head"><div class="pw-mod-title">Letzte Runden</div><span class="card-sub" id="lapCountText">0 Runden</span></div>
       <div class="tbl-wrap">
         <table id="lapTable">
-          <thead><tr><th>#</th><th>Zeit</th><th>Fahrer</th><th>Max km/h</th><th>Max RPM</th></tr></thead>
-          <tbody id="lapTableBody"><tr><td colspan="5" class="muted">Noch keine Runden</td></tr></tbody>
+          <!-- Phase 67: Delta-Spalte hatte nie einen Kopf -- renderLapTable()
+               liefert sechs Zellen, der Kopf kannte nur fuenf. -->
+          <thead><tr><th>#</th><th>Zeit</th><th>&Delta;</th><th>Fahrer</th><th>Max km/h</th><th>Max RPM</th></tr></thead>
+          <tbody id="lapTableBody"><tr><td colspan="6" class="muted">Noch keine Runden</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -733,6 +735,21 @@
         <div class="pw-tel">
           <div class="pw-tel-label">Beste Runde</div>
           <div class="pw-tel-value" id="totalBestLap">--</div>
+        </div>
+        <!-- Phase 67: renderTotalHero() (laps-drivers.js) rechnete diese drei
+             Werte schon immer aus und schrieb sie in Elemente, die es nicht
+             gab. Jetzt haben sie ihre Kacheln. -->
+        <div class="pw-tel">
+          <div class="pw-tel-label">Fahrzeit</div>
+          <div class="pw-tel-value mono" id="totalTime">--:--</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Top-Speed</div>
+          <div class="pw-tel-value" id="totalMaxSpeed">--</div>
+        </div>
+        <div class="pw-tel">
+          <div class="pw-tel-label">Strecken</div>
+          <div class="pw-tel-value mono" id="totalTracks">0</div>
         </div>
       </div>
     </div>

@@ -100,21 +100,32 @@ function triggerLap(k, mac) {
     if (isAct) { updateSectorPanel(); renderLapTable(); }
   } catch (e) { console.warn('triggerLap:', e); }
 }
+// HTML-Diff wie beim Leaderboard-Strip (live-ui.js): beide Rundenlisten
+// laufen seit Phase 67 im 1-Hz-Loop mit, damit ein Kart-Wechsel die Tabelle
+// nachzieht. Ohne den Diff wuerde der Rebuild jede Sekunde flackern und die
+// Scroll-Position der Liste zerreissen.
+let _lastLapTableHtml = '';
+let _lastLiveLapHtml = '';
 function renderLapTable() {
   renderLiveLapList();
   const r = activeRace();
-  const tbody = $('lapTable');
+  // Phase 67: Ziel ist der <tbody>, nicht die <table>. Vorher hing das
+  // innerHTML an der Tabelle selbst -- das loeschte bei jedem Render die
+  // Kopfzeile UND den tbody-Anker gleich mit.
+  const tbody = $('lapTableBody');
+  if (!tbody) return;
   // Phase 30: Runden des aktiven Karts (Teilnehmer-Slot).
   const _p = r ? RasiLapEngine.partOf(r, state.activeKartMac || KartRegistry.DEFAULT_MAC) : null;
   if (!r || !_p || !_p.laps.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="muted">Noch keine Runden — starte ein Rennen und fahre die erste Runde.</td></tr>';
+    const empty = '<tr><td colspan="6" class="muted">Noch keine Runden — starte ein Rennen und fahre die erste Runde.</td></tr>';
+    if (empty !== _lastLapTableHtml) { tbody.innerHTML = empty; _lastLapTableHtml = empty; }
     setText('lapCountText', '0 Runden');
     return;
   }
   const valid = _p.laps.filter(l => l.valid);
   const best = valid.length ? Math.min(...valid.map(l => l.timeMs)) : null;
   setText('lapCountText', `${valid.length} Runden`);
-  tbody.innerHTML = [..._p.laps].reverse().map(l => {
+  const html = [..._p.laps].reverse().map(l => {
     const idx = l.number - 1;
     const prev = idx > 0 ? _p.laps[idx - 1].timeMs : null;
     const delta = prev ? l.timeMs - prev : null;
@@ -128,6 +139,9 @@ function renderLapTable() {
       <td>${Math.round(l.maxRpm)}</td>
     </tr>`;
   }).join('');
+  if (html === _lastLapTableHtml) return;
+  _lastLapTableHtml = html;
+  tbody.innerHTML = html;
 }
 // Kompakte, scrollbare Rundentabelle im Live-Tab unter der Streckenkarte.
 // Alle Pro-Runden-Infos: Zeit, Delta vs. Vorrunde, Sektoren S1-S3, Max km/h,
@@ -138,7 +152,8 @@ function renderLiveLapList() {
   const r = activeRace();
   const _p = r ? RasiLapEngine.partOf(r, state.activeKartMac || KartRegistry.DEFAULT_MAC) : null;
   if (!r || !_p || !_p.laps.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="muted">Noch keine Runden.</td></tr>';
+    const empty = '<tr><td colspan="9" class="muted">Noch keine Runden.</td></tr>';
+    if (empty !== _lastLiveLapHtml) { tbody.innerHTML = empty; _lastLiveLapHtml = empty; }
     setText('liveLapCount', '0 Runden');
     return;
   }
@@ -146,7 +161,7 @@ function renderLiveLapList() {
   const valid = _p.laps.filter(l => l.valid);
   const best = valid.length ? Math.min(...valid.map(l => l.timeMs)) : null;
   setText('liveLapCount', `${valid.length} Runden`);
-  tbody.innerHTML = [..._p.laps].reverse().map(l => {
+  const html = [..._p.laps].reverse().map(l => {
     const idx = l.number - 1;
     const prev = idx > 0 ? _p.laps[idx - 1].timeMs : null;
     const delta = prev ? l.timeMs - prev : null;
@@ -166,6 +181,9 @@ function renderLiveLapList() {
       <td class="llt-drv">${esc(d?.name || '--')}</td>
     </tr>`;
   }).join('');
+  if (html === _lastLiveLapHtml) return;
+  _lastLiveLapHtml = html;
+  tbody.innerHTML = html;
 }
 
 // ============================================================
