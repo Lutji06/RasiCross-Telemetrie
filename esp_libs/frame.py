@@ -26,6 +26,11 @@ def _clamp(v, lo, hi):
     return v
 
 
+_INF = float("inf")
+# Groesser als jede Klemmgrenze in pack() -> _clamp saettigt auf lo/hi.
+_BIG = 1 << 62
+
+
 def _i(x):
     # robustes int(round()) ohne Exceptions (NaN/None -> 0)
     try:
@@ -34,6 +39,16 @@ def _i(x):
         return 0
     if not (x == x):                   # NaN
         return 0
+    # Unendlich saettigen statt werfen. int(round(inf)) ist ein
+    # OverflowError -- und der flog aus pack() heraus, an der try in
+    # radio.send() vorbei (frame.pack steht davor), aus main() heraus und
+    # damit in den Watchdog-Bootloop. Ein einziger inf-Messwert (z.B. eine
+    # NMEA-Zeile mit gueltiger Pruefsumme und absurder Zahl) haette den
+    # Kart mitten im Rennen zum Dauerneustart gebracht.
+    if x == _INF:
+        return _BIG
+    if x == -_INF:
+        return -_BIG
     return int(round(x))
 
 
@@ -48,7 +63,7 @@ def _f(x):
 
 
 def pack(d, seq):
-    """Telemetrie-dict + seq -> 35 Byte. Saettigt, wirft nie."""
+    """Telemetrie-dict + seq -> SIZE Byte (37 seit v3). Saettigt, wirft nie."""
     d = d or {}
     speed = _clamp(_i(_f(d.get("speed")) * 100.0), 0, 65535)
     rpm = _clamp(_i(d.get("rpm")), 0, 65535)
@@ -90,7 +105,7 @@ def pack(d, seq):
 
 
 def unpack(buf):
-    """35 Byte -> Telemetrie-dict (Dashboard-kompatible Keys).
+    """SIZE Byte (37 seit v3) -> Telemetrie-dict (Dashboard-kompatible Keys).
     Wirft nie; bei Fehler {'_err': 'bad_len'|'bad_ver', ...}."""
     try:
         n = len(buf)

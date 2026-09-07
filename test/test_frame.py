@@ -182,5 +182,42 @@ class GlitchField(unittest.TestCase):
         self.assertEqual(frame.unpack(b"\x02" * 35)["_err"], "bad_len")
 
 
+class NonFiniteValues(unittest.TestCase):
+    """pack() verspricht "saettigt, wirft nie". NaN war abgesichert,
+    Unendlich nicht: int(round(inf)) ist ein OverflowError. Der flog aus
+    pack() heraus -- an der try in radio.send() vorbei, weil frame.pack
+    davor steht -- aus main() heraus und damit in den Watchdog-Bootloop.
+    Ein einziger inf-Messwert haette den Kart zum Dauerneustart gebracht."""
+
+    INF = float("inf")
+    NAN = float("nan")
+
+    def test_inf_saturates_instead_of_raising(self):
+        for field in ("speed", "rpm", "gx", "gy", "gz", "yaw", "roll",
+                      "lat", "lon", "pulse_hz", "send_ms", "vbat", "soc",
+                      "mtemp", "glitch"):
+            for value in (self.INF, -self.INF):
+                d = _base(); d[field] = value
+                buf = frame.pack(d, 1)          # darf nicht werfen
+                self.assertEqual(len(buf), frame.SIZE)
+                out = frame.unpack(buf)
+                self.assertNotIn("_err", out)
+
+    def test_inf_lands_on_the_field_limits(self):
+        hi = frame.unpack(frame.pack({"speed": self.INF}, 0))
+        lo = frame.unpack(frame.pack({"speed": -self.INF}, 0))
+        self.assertEqual(hi["speed"], 65535 / 100.0)   # oberer Anschlag
+        self.assertEqual(lo["speed"], 0.0)             # speed ist unsigned
+        self.assertEqual(frame.unpack(frame.pack({"gx": self.INF}, 0))["gx"],
+                         32767 / 1000.0)
+        self.assertEqual(frame.unpack(frame.pack({"gx": -self.INF}, 0))["gx"],
+                         -32768 / 1000.0)
+
+    def test_nan_still_becomes_zero(self):
+        out = frame.unpack(frame.pack({"speed": self.NAN, "gx": self.NAN}, 0))
+        self.assertEqual(out["speed"], 0.0)
+        self.assertEqual(out["gx"], 0.0)
+
+
 if __name__ == '__main__':
     unittest.main()
