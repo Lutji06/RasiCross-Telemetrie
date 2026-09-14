@@ -93,6 +93,10 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 /* Phase 66: Kart-Name im Eyebrow des Detail-Tabs. Farbe setzt kart-bar.js
    je Kart; leer, solange kein Kart bekannt ist (dann auch kein Abstand). */
 .pw-eyebrow-kart:not(:empty){margin-left:var(--sp-4)}
+/* Leer bleibt der Span ein Flex-Item und kostet eine gap des Eyebrows
+   (8px) -- im Ruhezustand ohne Kart schob das die Telemetrie-Kacheln
+   daneben. display:none nimmt ihn ganz aus dem Fluss. */
+.pw-eyebrow-kart:empty{display:none}
 .pw-hero-title,.pw-hero-sub{display:none}
 .pw-hero-accent{color:var(--pr)}
 .pw-hero-telemetry{
