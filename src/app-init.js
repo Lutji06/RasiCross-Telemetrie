@@ -78,7 +78,20 @@ function init() {
     else document.querySelector('[data-tab=connection]').click();
   };
   $('pwCloseBtn').onclick = closePitWall;
-  $('openNewRaceBtn').onclick = () => $('newRaceModal').classList.add('show');
+  // Phase 67: Das Format entscheidet, welches Feld gilt -- umgeschaltet hat
+  // das nie jemand. #newRaceLapsField steht im Markup auf "hidden", also war
+  // bei Format "Runden" die Rundenzahl unerreichbar und blieb still auf 10.
+  const _syncRaceLengthFields = () => {
+    const t = $('newRaceLengthType').value;
+    const dur = $('newRaceDurationField'), laps = $('newRaceLapsField');
+    if (dur) dur.classList.toggle('hidden', t !== 'time');
+    if (laps) laps.classList.toggle('hidden', t !== 'laps');
+  };
+  $('newRaceLengthType').onchange = _syncRaceLengthFields;
+  $('openNewRaceBtn').onclick = () => {
+    _syncRaceLengthFields();          // Dialog oeffnet im passenden Zustand
+    $('newRaceModal').classList.add('show');
+  };
   $('cancelNewRaceBtn').onclick = () => $('newRaceModal').classList.remove('show');
   $('newRaceModal').onclick = (e) => { if (e.target.id === 'newRaceModal') $('newRaceModal').classList.remove('show'); };
   $('openNewDriverBtn').onclick = () => $('newDriverModal').classList.add('show');

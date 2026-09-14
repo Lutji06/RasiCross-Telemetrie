@@ -61,6 +61,12 @@
 
     function has(mac) { return Object.prototype.hasOwnProperty.call(karts, mac); }
 
+    // Phase 65: Lesezugriff, der nichts anlegt. get() registriert jede
+    // unbekannte MAC -- ein einziger Lesezugriff von activeKart() erzeugte
+    // so den default-Bucket, der danach als tote Kachel in der Liste stand
+    // und einen der vier Plaetze belegte.
+    function peek(mac) { return has(mac) ? karts[mac] : null; }
+
     function get(mac) {
       if (has(mac)) return karts[mac];
       if (orderList.length >= MAX_KARTS) return null;
@@ -69,6 +75,21 @@
       orderList.push(mac);
       if (activeMac === null) activeMac = mac;
       return k;
+    }
+
+    // Phase 65 Fix-Runde 1: uebernimmt ein bereits existierendes Kart-Objekt
+    // (den store.js-Leerzustand) unter einer MAC, statt wie get() ein neues
+    // anzulegen -- sonst gingen vor dem ersten Paket geschriebene Felder
+    // (z. B. recording.armed) verloren, weil das erste echte Paket per get()
+    // einen frischen Bucket erzeugte. Gleiche Platzpruefung wie get(); ein
+    // bereits registriertes mac wird NICHT ueberschrieben.
+    function adopt(mac, kart) {
+      if (has(mac)) return karts[mac];
+      if (orderList.length >= MAX_KARTS) return null;
+      karts[mac] = kart;
+      orderList.push(mac);
+      if (activeMac === null) activeMac = mac;
+      return kart;
     }
 
     function setActive(mac) {
@@ -91,6 +112,8 @@
 
     return {
       get: get,
+      peek: peek,
+      adopt: adopt,
       has: has,
       setActive: setActive,
       activeMac: function () { return activeMac; },

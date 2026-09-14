@@ -182,3 +182,49 @@ test('Stats-Zeile auf der Karte; Dropdown-Abschnitt existiert nicht mehr', async
   expect(probe.navFahrdynamik).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('Alt-Save: default-Platzhalter wird geerbt statt als zweites Kart gelistet', async () => {
+  // Regression Phase 65: Save mit "default"-Bucket UND echtem Kart. Beide
+  // wurden beim Laden registriert, die Adoption in kartFor() war damit nie
+  // mehr faellig -- der Platzhalter stand als zweiter Chip in der Leiste,
+  // meist unter demselben Namen wie das echte Kart.
+  // Der Save entsteht ueber den echten Persistenz-Pfad (saveData), nicht per
+  // localStorage.setItem: ein laufender Debounce wuerde den ueberschreiben.
+  await page.evaluate(() => {
+    const dk = RasiTest.state.karts.get('default');   // Alt-Bucket vor 9.6
+    dk.calibration.gxZero = 0.42;
+    dk.engine.totalMs = 1000;
+    // Das echte Kart ist offline bekannt (nur Roster-Meta, kein Bucket) --
+    // genau die Lage, in der der Platzhalter seine Werte noch weitergibt.
+    RasiTest.updateKartMeta('AA:BB:CC:DD:EE:07', { lastSeenAt: Date.now() });
+    window.saveData();
+  });
+  await page.reload();
+  await page.waitForFunction(() =>
+    !!(window.RasiTest && window.RasiTest.state && window.RasiTest.state.karts));
+  expect(await page.evaluate(() => RasiTest.state.karts.macs())).toEqual(['AA:BB:CC:DD:EE:07']);
+  // Der Erbe hat Kalibrierung und Motorstunden des Platzhalters uebernommen.
+  const erbe = await page.evaluate(() => {
+    const k = RasiTest.state.karts.get('AA:BB:CC:DD:EE:07');
+    return { gxZero: k.calibration.gxZero, totalMs: k.engine.totalMs };
+  });
+  expect(erbe).toEqual({ gxZero: 0.42, totalMs: 1000 });
+  expect(errors).toEqual([]);
+});
+
+test('Detail-Tab: Chip waehlt das Kart, Kopfzeile nennt es', async () => {
+  // Phase 66: Der Detail-Tab zeigte stumm das aktive Kart -- ohne Wahl und
+  // ohne Hinweis, welches. Jetzt traegt er dieselbe Chip-Leiste wie Live,
+  // aber ohne Uebersichts-Chip: er zeigt immer genau ein Kart.
+  await startDemo();
+  await page.click('.nav-item[data-tab="detail"]');
+  const zweiter = await page.evaluate(
+    () => RasiTest.state.karts.macs().filter((m) => m.indexOf('DE:MO:') === 0)[1]);
+  expect(await page.locator('#kartBarDetail .kart-overview-btn').count()).toBe(0);
+  expect(await page.locator('#kartBar .kart-overview-btn').count()).toBe(1);
+  await page.click('#kartBarDetail .kart-chip-main[data-mac="' + zweiter + '"]');
+  await page.waitForFunction((mac) => RasiTest.state.activeKartMac === mac, zweiter);
+  const name = await page.evaluate((mac) => RasiTest.updateKartMeta(mac, {}).name, zweiter);
+  expect(await page.locator('#detailKartName').textContent()).toContain(name);
+  expect(errors).toEqual([]);
+});

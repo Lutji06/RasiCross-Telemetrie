@@ -21,13 +21,14 @@ const state = {
   karts: KartRegistry.create(),
   activeKartMac: null,
   // Live-Tab-Ansicht: 'single' (aktiver Kart) oder 'overview' (alle Karts).
-  // Nicht persistiert; per setLiveView() in live-ui.js umgeschaltet.
+  // Nicht persistiert; seit dem Seitenkonzept (Phase 65) aus der von
+  // setLivePage() in live-ui.js gewaehlten Seite abgeleitet.
   liveView: 'single',
   kartMeta: {},   // {mac: {name, color}} — gespiegelt aus localStorage
   // Settings (global/shared)
   serial: { connected: false, port: null, baud: 115200, portName: '--', autoReconnect: true, reconnectTimer: null, reconnectAttempts: 0, lastPath: null, dropped: false, autoConnected: false },
   demo: { running: false, interval: null, raf: null, t: 0, angle: -Math.PI/2, lapsDone: 0 },
-  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, liveStartView: 'auto', recordAutoArm: true, serialAutoConnect: true, serialLastPath: null, serialLastBaud: 115200, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 }, rollover: { angleDeg: 75 } },
+  settings: { maxSpeed: 80, maxRpm: 10000, rpmWarning: 9000, gScale: 3, minLapSeconds: 10, recordAutoArm: true, serialAutoConnect: true, serialLastPath: null, serialLastBaud: 115200, gView: '2d', kartModelYaw: 0, tiles: { enabled: true, urlTemplate: '', liveQuickToggle: true }, drift: { tol: 0.25, minSpeedKmh: 5, minLatG: 0.15 }, rollover: { angleDeg: 75 } },
   theme: 'dark',
   // Track / sectors-config / races (global/shared)
   track: { points: [], bounds: null, scanning: false, totalDistance: 0, maxDistFromStart: 0, closed: false },
@@ -47,16 +48,30 @@ const state = {
   gateFlashUntil: 0,
 };
 
+// Phase 65: Leerzustand ausserhalb der Registry. Vorher legte der
+// Fallback per get() den default-Bucket an -- er erschien danach als
+// tote Kachel, als zweiter Chip bei nur einem Kart und belegte einen
+// der vier Plaetze. Lesen darf nichts anlegen; der Schreibpfad
+// (kartFor) registriert weiterhin, damit Pakete ohne from_mac wie
+// bisher auf DEFAULT_MAC landen koennen.
+let _emptyKart = null;
 function activeKart() {
-  let k = state.karts.active();
-  if (!k) k = state.karts.get(KartRegistry.DEFAULT_MAC);   // single-source fallback
-  return k;
+  const k = state.karts.active() || state.karts.peek(KartRegistry.DEFAULT_MAC);
+  if (k) return k;
+  if (!_emptyKart) _emptyKart = KartRegistry.makeKartState();
+  return _emptyKart;
 }
 
 function kartFor(mac) {
   const key = mac || KartRegistry.DEFAULT_MAC;
   const isNew = !state.karts.has(key);
-  const k = state.karts.get(key);
+  // Phase 65 Fix-Runde 1: existiert schon ein Leerzustand (Schreibzugriffe vor
+  // dem ersten Paket, z. B. armRecording()), wird er unter der MAC uebernommen
+  // statt verworfen -- sonst legte get() gleich danach einen frischen Bucket
+  // an und die vorher geschriebenen Felder (recording.armed etc.) gingen
+  // spurlos verloren.
+  const k = (isNew && _emptyKart) ? state.karts.adopt(key, _emptyKart) : state.karts.get(key);
+  if (isNew && _emptyKart && k === _emptyKart) _emptyKart = null;
   // Phase 39: bekannten MAC nach "Karts zuruecksetzen" aus der Persist-Map
   // rehydrieren (Kalibrierung + Motorstunden).
   if (k && isNew && _persistedKarts.cal[key]) Object.assign(k.calibration, _persistedKarts.cal[key]);
@@ -253,6 +268,15 @@ function loadData() {
     const _cal = d.kartsCal || (d.calibration ? { [KartRegistry.DEFAULT_MAC]: d.calibration } : {});
     const _eng = d.kartsEngine || (d.engine ? { [KartRegistry.DEFAULT_MAC]: d.engine } : {});
     const _stats = (d.kartsStats && typeof d.kartsStats === 'object') ? d.kartsStats : {};
+    const _meta = (d.kartsMeta && typeof d.kartsMeta === 'object') ? d.kartsMeta : {};
+    // Steht neben dem "default"-Platzhalter schon ein echtes Kart im Save,
+    // erbt dieses den Bucket sofort -- sonst waere die Adoption in kartFor()
+    // nie mehr faellig (beide sind beim Laden bereits registriert) und der
+    // Platzhalter stuende dauerhaft als zweiter Chip in der Leiste.
+    if (RasiKartRoster.mergeDefaultBucket({ cal: _cal, eng: _eng, stats: _stats, meta: _meta },
+                                          KartRegistry.DEFAULT_MAC)) {
+      saveDataDebounced();
+    }
     for (const mac of new Set([...Object.keys(_cal), ...Object.keys(_eng), ...Object.keys(_stats)])) {
       const kk = state.karts.get(mac);   // legt Bucket an (Cap beachtet)
       if (!kk) continue;
@@ -271,7 +295,7 @@ function loadData() {
     Object.assign(_persistedKarts.cal, _cal);
     Object.assign(_persistedKarts.eng, _eng);
     Object.assign(_persistedKarts.stats, _stats);
-    if (d.kartsMeta && typeof d.kartsMeta === 'object') Object.assign(_persistedKarts.meta, d.kartsMeta);
+    Object.assign(_persistedKarts.meta, _meta);
     state.activeKartMac = state.karts.activeMac();
   } catch (e) { console.warn('loadData:', e); }
 }

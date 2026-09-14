@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import RasiKartRoster from '../src/kart-roster.js';
 import KartRegistry from '../src/kart-registry.js';
 
-const { isDemoMac, metaDefaults, ensureMeta, migrateLegacyMeta,
+const { isDemoMac, metaDefaults, ensureMeta, mergeDefaultBucket, migrateLegacyMeta,
         rosterMacs, clampServiceH, calDefaults, ackTargetMac, PALETTE,
         equipDefaults, equipFor, needsEquipDialog,
         shouldAdoptBridgeKart } = RasiKartRoster;
@@ -147,4 +147,50 @@ test('ackTargetMac: kein passendes offenes Fenster -> null', () => {
   assert.equal(ackTargetMac('CC:03', 'AA:01', ['BB:02']), null);
   assert.equal(ackTargetMac(null, null, ['AA:01']), null);
   assert.equal(ackTargetMac('AA:01', null, null), null);
+});
+
+test('ensureMeta: vergebener Default-Name -> naechste freie Nummer', () => {
+  const map = {};
+  ensureMeta(map, 'AA:01', 0);
+  // Zweites Kart mit demselben Wunsch-Index (z. B. indexOf() === -1, weil
+  // es gerade nicht funkt) darf nicht wieder "Kart 1" heissen.
+  ensureMeta(map, 'BB:02', 0);
+  assert.equal(map['AA:01'].name, 'Kart 1');
+  assert.equal(map['BB:02'].name, 'Kart 2');
+  assert.notEqual(map['BB:02'].color, map['AA:01'].color);
+});
+
+test('ensureMeta: eigener Name blockiert die Nummer nicht', () => {
+  const map = { 'AA:01': { name: 'Blitz', color: PALETTE[0], lastSeenAt: null } };
+  ensureMeta(map, 'BB:02', 0);
+  assert.equal(map['BB:02'].name, 'Kart 1');
+});
+
+test('mergeDefaultBucket: erstes echtes Kart erbt, Platzhalter verschwindet', () => {
+  const cal = { default: { gxZero: 7 } };
+  const eng = { default: { totalMs: 5 }, 'AA:01': { totalMs: 99 } };
+  const meta = { default: { name: 'Kart 1' }, 'AA:01': { name: 'Kart 1' } };
+  assert.equal(mergeDefaultBucket({ cal, eng, meta }, 'default'), true);
+  assert.deepEqual(cal, { 'AA:01': { gxZero: 7 } });   // Luecke gefuellt
+  assert.deepEqual(eng, { 'AA:01': { totalMs: 99 } }); // Eigenes bleibt
+  assert.deepEqual(meta, { 'AA:01': { name: 'Kart 1' } });
+});
+
+test('mergeDefaultBucket: ohne echtes Kart bleibt alles stehen', () => {
+  const cal = { default: { gxZero: 7 } };
+  const meta = { default: { name: 'Kart 1' }, 'DE:MO:RA:SI:00:01': { name: 'Demo' } };
+  assert.equal(mergeDefaultBucket({ cal, meta }, 'default'), false);
+  assert.deepEqual(cal, { default: { gxZero: 7 } });
+});
+
+test('mergeDefaultBucket: ohne Platzhalter passiert nichts', () => {
+  const cal = { 'AA:01': { gxZero: 1 } };
+  assert.equal(mergeDefaultBucket({ cal }, 'default'), false);
+  assert.deepEqual(cal, { 'AA:01': { gxZero: 1 } });
+});
+
+test('ensureMeta: der default-Platzhalter blockiert "Kart 1" nicht', () => {
+  const map = { default: { name: 'Kart 1', color: PALETTE[0], lastSeenAt: null } };
+  ensureMeta(map, 'AA:01', 0);
+  assert.equal(map['AA:01'].name, 'Kart 1');
 });

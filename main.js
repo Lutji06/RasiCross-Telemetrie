@@ -78,8 +78,20 @@ ipcMain.handle("serial:close", async () => {
   });
 });
 
+// Meldet zurueck, ob die Zeile den Port wirklich erreicht hat. Vorher gab
+// der Handler immer undefined zurueck: ein geschlossener Port war vom
+// Erfolgsfall nicht zu unterscheiden, und das Kart-Fenster meldete
+// anschliessend "keine Bestaetigung -- Funkverbindung pruefen", obwohl die
+// Zeile den PC nie verlassen hatte (Phase 67).
 ipcMain.handle("serial:write", async (event, line) => {
-  if (currentPort && currentPort.isOpen) currentPort.write(line + "\n");
+  if (!currentPort || !currentPort.isOpen) return false;
+  return await new Promise((resolve) => {
+    try {
+      currentPort.write(line + "\n", (err) => resolve(!err));
+    } catch (e) {
+      resolve(false);
+    }
+  });
 });
 
 // ──────────────────────────────────────────────────────────────

@@ -76,3 +76,63 @@ test('makeKartState: stats-Defaults (Phase 48)', () => {
   const k = KartRegistry.makeKartState();
   assert.deepStrictEqual(k.stats, { odoM: 0, moveMs: 0, topKmh: 0, lastAt: null, _unsavedMs: 0 });
 });
+
+test('peek liest ohne zu registrieren', () => {
+  const r = KartRegistry.create();
+  assert.strictEqual(r.peek('aa:bb'), null);
+  assert.deepStrictEqual(r.macs(), []);
+  assert.strictEqual(r.has('aa:bb'), false);
+});
+
+test('peek liefert den Bucket, sobald er per get angelegt wurde', () => {
+  const r = KartRegistry.create();
+  const k = r.get('aa:bb');
+  assert.strictEqual(r.peek('aa:bb'), k);
+  assert.deepStrictEqual(r.macs(), ['aa:bb']);
+});
+
+test('peek macht kein Kart aktiv', () => {
+  const r = KartRegistry.create();
+  r.peek('aa:bb');
+  assert.strictEqual(r.activeMac(), null);
+});
+
+test('adopt registriert ein uebergebenes Objekt identisch', () => {
+  const r = KartRegistry.create();
+  const k = KartRegistry.makeKartState();
+  k.recording.armed = true;
+  const out = r.adopt('aa:bb', k);
+  assert.strictEqual(out, k);
+  assert.strictEqual(r.peek('aa:bb'), k);
+  assert.deepStrictEqual(r.macs(), ['aa:bb']);
+  assert.strictEqual(r.peek('aa:bb').recording.armed, true);
+});
+
+test('adopt setzt activeMac, wenn vorher null', () => {
+  const r = KartRegistry.create();
+  const k = KartRegistry.makeKartState();
+  assert.strictEqual(r.activeMac(), null);
+  r.adopt('aa:bb', k);
+  assert.strictEqual(r.activeMac(), 'aa:bb');
+});
+
+test('adopt liefert bei voller Registry null, ohne etwas zu aendern', () => {
+  const r = KartRegistry.create();
+  ['a', 'b', 'c', 'd'].forEach(m => r.get(m));
+  const k = KartRegistry.makeKartState();
+  const out = r.adopt('e', k);
+  assert.strictEqual(out, null);
+  assert.deepStrictEqual(r.macs(), ['a', 'b', 'c', 'd']);
+  assert.strictEqual(r.has('e'), false);
+});
+
+test('adopt ueberschreibt ein bestehendes mac nicht', () => {
+  const r = KartRegistry.create();
+  const existing = r.get('aa:bb');
+  const k = KartRegistry.makeKartState();
+  k.recording.armed = true;
+  const out = r.adopt('aa:bb', k);
+  assert.strictEqual(out, existing);
+  assert.notStrictEqual(out, k);
+  assert.deepStrictEqual(r.macs(), ['aa:bb']);
+});

@@ -445,12 +445,18 @@ class Bridge:
             if host not in self.karts and len(self.karts) < Config.MAX_KARTS:
                 self.karts[host] = Stats()
                 self.peer_store.save_list(list(self.karts.keys()))
-            self.kart_host = host          # zuletzt gehoert (Legacy-Felder)
         st = self._stats_for(host) if host else None
         if st is None:
             jprint({"type": "bridge_info", "info": "kart_limit",
                     "max": Config.MAX_KARTS})
             return
+        # Erst NACH der Limit-Pruefung: ein ueber MAX_KARTS hinaus
+        # abgewiesenes Kart darf nicht "zuletzt gehoert" werden. Sonst zeigte
+        # bridge_status.kart_mac auf ein Kart, das die Bridge gar nicht fuehrt
+        # (rate/lost/last_seq alle leer), und _forward_to_kart schickte
+        # Steuerpakete ohne target_mac genau dorthin.
+        if host:
+            self.kart_host = host          # zuletzt gehoert (Legacy-Felder)
         st.on_packet(data)
 
         # Metadaten an Dashboard anreichern
