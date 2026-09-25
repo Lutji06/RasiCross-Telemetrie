@@ -18,7 +18,9 @@
   /* Text */
   --tx:#e8ecf6;
   --tx-dim:#b6bcd0;
-  --mut:#6f7796;
+  /* Phase 69: #6f7796 lag auf surf3/soft2 bei 3,5:1 -- #8990ad haelt auf
+     jeder Dark-Flaeche >= 4,8:1 (WCAG AA fuer Kleinschrift). */
+  --mut:#8990ad;
   --dim:#444b66;
   /* Borders */
   --bor:rgba(255,255,255,.07);
@@ -75,7 +77,9 @@
   --stage-2:#03050b;
   --map-bg-1:#0c1320;
   --map-bg-2:#060a14;
-  /* Live-Kompakt-Widget (Chips/Karten): Farben theme-unabhaengig fest */
+  /* Live-Kompakt-Widget (Chips/Karten). Phase 69: nicht mehr theme-fest --
+     die Karten nahmen --tx/--mut aus dem Theme und standen in Light/Outdoor
+     schwarz auf Dunkelgrau (1,1:1). Light/Outdoor ziehen die Werte unten nach. */
   --lc-bg:#161a22;
   --lc-fg:#e8edf4;
   --lc-blue:#3aa0e8;
@@ -92,18 +96,29 @@
   --dark-soft2:#1d2440;
   --dark-tx:#e8ecf6;
   --dark-tx-dim:#b6bcd0;
-  --dark-mut:#6f7796;
+  --dark-mut:#8990ad;
   --dark-dim:#444b66;
   --dark-pr:#c8ff3d;
+  --dark-pr-2:#a3e500;
+  --dark-pr-hover:#d6ff5a;
   --dark-green:#3ee08a;
   --dark-orange:#ffa336;
   --dark-red:#ff5470;
+  --dark-blue:#5ab8ff;
+  --dark-purple:#b794ff;
+  --dark-warn:#e8a13a;
+  --dark-on-pr:#0a0d18;
+  --dark-on-green:#062818;
+  --dark-on-blue:#06162a;
+  --dark-on-orange:#1a0e00;
+  --dark-on-red:#1a0508;
   /* Phase 50: Skalen (User-Entscheid Volles Soll, 2026-07-14) */
   /* Spacing */
   --sp-2:2px; --sp-4:4px; --sp-6:6px; --sp-8:8px; --sp-10:10px;
   --sp-12:12px; --sp-14:14px; --sp-18:18px; --sp-24:24px;
-  /* Typo (>20px bleibt individuell) */
-  --fs-9:9px; --fs-10:10px; --fs-11:11px; --fs-12:12px; --fs-13:13px;
+  /* Typo (>20px bleibt individuell). Phase 69: 9px entfaellt -- 10px ist
+     die Untergrenze, darunter kippt Versal-Mono in Unleserlichkeit. */
+  --fs-10:10px; --fs-11:11px; --fs-12:12px; --fs-13:13px;
   --fs-14:14px; --fs-15:15px; --fs-17:17px; --fs-18:18px; --fs-20:20px;
   /* Radius-Ergaenzungen */
   --r-xs:6px; --r-pill:999px;
@@ -112,6 +127,9 @@
   --ring:0 0 0 3px;
   /* High-Contrast-Konturen (outdoor) */
   --outline-hc:#000;
+  /* Phase 69: Weiss auf --red kam nur auf 3,1:1 -- dunkle Schrift wie bei
+     den anderen Signalknoepfen (6,3:1). Light/Outdoor drehen auf Weiss. */
+  --on-red:#1a0508;
 }
 
 [data-theme=light]{
@@ -126,18 +144,47 @@
   --glass-border:rgba(0,0,0,.05);
   --tx:#0c1020;
   --tx-dim:#3b4256;
-  --mut:#6a7388;
+  --mut:#5a6276;
   --dim:#a6adbf;
   --bor:rgba(0,0,0,.07);
   --bor2:rgba(0,0,0,.13);
   --div:rgba(0,0,0,.05);
   /* Akzent abgedunkelt: Lime #c8ff3d ist als Textfarbe auf Weiss
-     unleserlich; #5a8a00 liest sich auf Weiss UND traegt dunklen Text. */
-  --pr:#5a8a00;
-  --pr-rgb:90,138,0;
-  --pr-2:#4a7400;
-  --pr-glow:rgba(90,138,0,.30);
-  --pr-soft:rgba(90,138,0,.12);
+     unleserlich. Phase 69: #5a8a00 kam auf der getoenten Nav-Flaeche nur auf
+     3,6:1 -- #3d6600 haelt auch auf getoenten Flaechen >= 5:1 und traegt
+     weisse Schrift (6,8:1). */
+  --pr:#3d6600;
+  --pr-rgb:61,102,0;
+  --pr-2:#305000;
+  --pr-hover:#335600;
+  --pr-glow:rgba(61,102,0,.28);
+  --pr-soft:rgba(61,102,0,.12);
+  --on-pr:#ffffff;
+  /* Phase 69: Signalfarben. Die Dark-Neons (#3ee08a, #ffa336, #5ab8ff ...)
+     lagen auf Weiss bei 1,6-2,9:1. Werte nach Apples kontraststarken
+     Systemfarben, jede >= 4,5:1 auf --bg; Knoepfe tragen darauf Weiss. */
+  --green:#1f7a36;
+  --green-glow:rgba(31,122,54,.22);
+  --orange:#b33c00;
+  --orange-2:#b33c00;
+  --orange-glow:rgba(179,60,0,.22);
+  --red:#d70015;
+  --red-glow:rgba(215,0,21,.2);
+  --blue:#0062c4;
+  --blue-glow:rgba(0,98,196,.22);
+  --purple:#8944ab;
+  --warn:#a35a00;
+  --on-green:#ffffff;
+  --on-blue:#ffffff;
+  --on-orange:#ffffff;
+  --on-red:#ffffff;
+  --lc-bg:var(--surf);
+  --lc-fg:var(--tx);
+  --lc-border:var(--bor2);
+  --lc-blue:#0062c4;
+  --lc-green:#1f7a36;
+  --lc-stale:#a35a00;
+  --lc-purple:#8944ab;
   --sh-sm:0 1px 2px rgba(20,30,60,.05);
   --sh-md:0 8px 28px rgba(20,30,60,.08);
   --sh-lg:0 24px 60px rgba(20,30,60,.12);
@@ -162,9 +209,38 @@
   --bor:rgba(0,0,0,.5);
   --bor2:rgba(0,0,0,.75);
   --div:rgba(0,0,0,.4);
-  --pr:#0066cc;
-  --pr-rgb:0,102,204;
-  --pr-soft:rgba(0,102,204,.18);
+  /* Phase 69: --pr-2/--pr-hover/--on-pr erbten Lime und Fast-Schwarz aus
+     :root -- schwarze Schrift auf Blau (3,5:1), Logo-Verlauf nach Neongruen. */
+  --pr:#0058b0;
+  --pr-rgb:0,88,176;
+  --pr-2:#004a94;
+  --pr-hover:#004f9e;
+  --pr-glow:rgba(0,88,176,.3);
+  --pr-soft:rgba(0,88,176,.16);
+  --on-pr:#ffffff;
+  /* Signalfarben: eine Stufe dunkler als Light, >= 5,4:1 auf jeder Flaeche. */
+  --green:#1a6b2f;
+  --green-glow:rgba(26,107,47,.25);
+  --orange:#a63000;
+  --orange-2:#a63000;
+  --orange-glow:rgba(166,48,0,.25);
+  --red:#b8000f;
+  --red-glow:rgba(184,0,15,.25);
+  --blue:#0040dd;
+  --blue-glow:rgba(0,64,221,.25);
+  --purple:#6e2e94;
+  --warn:#8a4a00;
+  --on-green:#ffffff;
+  --on-blue:#ffffff;
+  --on-orange:#ffffff;
+  --on-red:#ffffff;
+  --lc-bg:var(--surf);
+  --lc-fg:var(--tx);
+  --lc-border:var(--bor2);
+  --lc-blue:#0040dd;
+  --lc-green:#1a6b2f;
+  --lc-stale:#8a4a00;
+  --lc-purple:#6e2e94;
   --sh-sm:0 0 0 1px rgba(0,0,0,.5);
   --sh-md:0 0 0 1px rgba(0,0,0,.5);
   --sh-lg:0 0 0 2px rgba(0,0,0,.6);
@@ -207,5 +283,24 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
 @media (pointer:coarse){
   .btn.icon-only{width:44px;height:44px;padding:11px}
   .map-toggle,.heat-btn{min-height:40px}
+}
+
+/* Phase 69: System-Einstellungen des Nutzers ehren (Windows "Kontrast
+   erhoehen" / "Transparenzeffekte aus"). Nebentext rueckt an den Haupttext,
+   Kanten werden sichtbar, Glas wird deckend. Outdoor ist schon maximal. */
+@media (prefers-contrast:more){
+  :root:not([data-theme=outdoor]):not([data-theme=light]){
+    --mut:var(--tx-dim);
+    --bor:rgba(255,255,255,.22);
+    --bor2:rgba(255,255,255,.34);
+  }
+  :root[data-theme=light]{
+    --mut:var(--tx-dim);
+    --bor:rgba(0,0,0,.24);
+    --bor2:rgba(0,0,0,.36);
+  }
+}
+@media (prefers-reduced-transparency:reduce){
+  :root{--glass:var(--surf)}
 }
 

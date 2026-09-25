@@ -9,9 +9,14 @@
   --tx:var(--dark-tx);--tx-dim:var(--dark-tx-dim);--mut:var(--dark-mut);--dim:var(--dark-dim);
   --bor:rgba(255,255,255,.07);--bor2:rgba(255,255,255,.13);
   --pr:var(--dark-pr);--pr-rgb:200,255,61;--pr-glow:rgba(200,255,61,.35);
+  --pr-2:var(--dark-pr-2);--pr-hover:var(--dark-pr-hover);--pr-soft:rgba(200,255,61,.08);
   --green:var(--dark-green);--green-glow:rgba(62,224,138,.3);
   --orange:var(--dark-orange);
   --red:var(--dark-red);--red-glow:rgba(255,84,112,.3);
+  /* Phase 69: Light/Outdoor dunkeln auch diese ab -- hier zurueck auf Dark */
+  --blue:var(--dark-blue);--purple:var(--dark-purple);--warn:var(--dark-warn);
+  --on-pr:var(--dark-on-pr);--on-green:var(--dark-on-green);--on-blue:var(--dark-on-blue);
+  --on-orange:var(--dark-on-orange);--on-red:var(--dark-on-red);
   --sh-md:0 8px 28px rgba(0,0,0,.35);
   background:radial-gradient(ellipse at center,var(--stage-1) 0%,var(--stage-2) 80%);
   display:none;flex-direction:column;
@@ -131,7 +136,7 @@
   padding:var(--sp-10) var(--sp-14);background:var(--surf);
   border:1px solid var(--bor);border-radius:var(--r-md);
 }
-.pw-foot-l{font-family:var(--mono);font-size:var(--fs-9);color:var(--mut);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+.pw-foot-l{font-family:var(--mono);font-size:var(--fs-10);color:var(--mut);letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
 .pw-foot-v{font-family:var(--mono);font-size:var(--fs-17);font-weight:700;color:var(--tx);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Verbindungsstatus aus Distanz lesbar: gruen/orange/rot */
 .pw-foot-v.ok{color:var(--green)}
@@ -189,7 +194,6 @@
   padding:var(--sp-10) var(--sp-24);
   background:rgba(7,9,18,.72);
   backdrop-filter:blur(20px) saturate(180%);
-  -webkit-backdrop-filter:blur(20px) saturate(180%);
   border-top:1px solid var(--bor);
   font-family:var(--mono);font-size:var(--fs-10);
   color:var(--mut);
@@ -242,7 +246,7 @@
 .settings-group.active{display:block}
 .settings-group-head{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-12);margin-bottom:14px}
 .settings-group-title{font-size:var(--fs-17);font-weight:700;color:var(--tx);margin:0}
-.settings-group-sub{font-family:var(--mono);font-size:var(--fs-9);letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:var(--sp-2) 0 0}
+.settings-group-sub{font-family:var(--mono);font-size:var(--fs-10);letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:var(--sp-2) 0 0}
 .settings-block-note{color:var(--mut);font-size:var(--fs-12);line-height:1.6;margin:0 0 var(--sp-14)}
 .settings-foot-hint{font-family:var(--mono);font-size:var(--fs-11);color:var(--mut);margin-top:10px}
 

@@ -15,8 +15,10 @@
 .driver-num{
   width:48px;height:48px;
   border-radius:var(--r-md);
-  background:var(--driver,var(--pr));
-  color:var(--on-pr);
+  /* Phase 69: Grund ist die Fahrerfarbe (hell, fuer dunklen Grund gewaehlt),
+     nicht der Theme-Akzent -- Schrift daher fest dunkel statt --on-pr. */
+  background:var(--driver,var(--dark-pr));
+  color:var(--dark-on-pr);
   display:grid;place-items:center;
   font-family:var(--mono);font-weight:800;
   font-size:var(--fs-17);letter-spacing:-.04em;
@@ -68,7 +70,7 @@
 }
 .dstat span{
   display:block;
-  font-family:var(--mono);font-size:var(--fs-9);
+  font-family:var(--mono);font-size:var(--fs-10);
   text-transform:uppercase;
   letter-spacing:.1em;
   color:var(--mut);font-weight:700;
@@ -97,7 +99,7 @@
   background:transparent;border:1px solid transparent;border-radius:var(--r-md);padding:var(--sp-4) var(--sp-8);max-width:220px}
 .kc-name-input:hover,.kc-name-input:focus{border-color:var(--bor);background:var(--soft)}
 .kc-mac{font-family:var(--mono);font-size:var(--fs-10);color:var(--mut);font-weight:600;margin-top:2px}
-.kc-badge{font-family:var(--mono);font-size:var(--fs-9);font-weight:700;letter-spacing:.08em;
+.kc-badge{font-family:var(--mono);font-size:var(--fs-10);font-weight:700;letter-spacing:.08em;
   padding:var(--sp-2) var(--sp-6);border-radius:var(--r-pill);border:1px solid var(--bor);color:var(--mut);margin-left:8px}
 .kc-badge.demo{color:var(--pr);border-color:var(--pr)}
 .kc-live{font-family:var(--mono);font-size:var(--fs-11);color:var(--mut);margin-bottom:10px;display:flex;gap:var(--sp-12);flex-wrap:wrap}
@@ -119,7 +121,7 @@
 }
 .thero-stat span{
   display:block;font-family:var(--mono);
-  font-size:var(--fs-9);text-transform:uppercase;
+  font-size:var(--fs-10);text-transform:uppercase;
   letter-spacing:.11em;color:var(--mut);
   font-weight:700;margin-bottom:5px;
 }

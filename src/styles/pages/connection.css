@@ -125,7 +125,7 @@
 }
 .cc-vals i{
   display:block;font-style:normal;
-  font-family:var(--mono);font-size:var(--fs-9);
+  font-family:var(--mono);font-size:var(--fs-10);
   color:var(--mut);text-transform:uppercase;
   letter-spacing:.09em;font-weight:700;
   margin-bottom:2px;

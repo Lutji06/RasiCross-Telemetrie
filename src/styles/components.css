@@ -39,7 +39,7 @@
   box-shadow:var(--glow-lg) var(--green-glow);
 }
 .btn.danger{
-  background:var(--red);color:var(--white);
+  background:var(--red);color:var(--on-red);
   border-color:var(--red);font-weight:700;
   box-shadow:var(--glow-lg) var(--red-glow);
 }
@@ -149,7 +149,6 @@
 .card-glass{
   background:var(--glass);
   backdrop-filter:blur(20px) saturate(160%);
-  -webkit-backdrop-filter:blur(20px) saturate(160%);
   border:1px solid var(--glass-border);
 }
 .card-head{
@@ -271,7 +270,7 @@ select{
 }
 .stat:hover{border-color:var(--bor2)}
 .stat .t{
-  font-family:var(--mono);font-size:var(--fs-9);
+  font-family:var(--mono);font-size:var(--fs-10);
   text-transform:uppercase;letter-spacing:.1em;
   color:var(--mut);margin-bottom:5px;
   white-space:nowrap;font-weight:700;

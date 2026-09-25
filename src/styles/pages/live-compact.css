@@ -27,6 +27,14 @@
 .kart-chip.stale{opacity:.45;filter:grayscale(.6)}
 .kart-badge{display:inline-block;font-size:var(--fs-10);font-weight:600;vertical-align:middle;
   margin-left:8px;padding:var(--sp-2) var(--sp-6);border:1px solid var(--lc-blue);border-radius:var(--r-pill);line-height:1.5}
+/* Phase 69: Kart-Namen kommen per Inline-style in der Kartfarbe (kart-bar,
+   kart-overview, live-ui, races). Die Kartfarben sind fuer dunklen Grund
+   gewaehlt und liegen auf Weiss bei 1,9-2,9:1. Auf hellem Grund traegt
+   Punkt/Rand die Kartfarbe, der Name steht in Textfarbe (Farbe auf Glyphe,
+   Beschriftung lesbar). !important nur, weil der Wert inline kommt --
+   Folgeaufgabe: Farbe dort als Klasse/Custom-Property setzen. */
+:is([data-theme=light],[data-theme=outdoor]) :is(.kart-badge,.kart-chip-main b,.ls-name,.ko-name,.pw-eyebrow-kart,tr.kart-group td){
+  color:var(--tx)!important}
 
 /* Multi-Kart Verwaltung: Haupt-Button + Edit-Icon als Geschwister im Chip
    (Phase 39: kein Button-in-Button mehr — valides HTML, Tastatur-bedienbar) */
@@ -124,7 +132,7 @@ body[data-live-view="overview"] #liveOverview{
   font-variant-numeric:tabular-nums}
 .ko-card.stale .ko-foot{color:var(--orange,var(--lc-stale))}
 .ko-card .ko-pos{font-family:var(--mono);font-weight:800;font-size:var(--fs-13);color:var(--tx);
-  background:rgba(255,255,255,.08);border-radius:var(--r-xs);padding:var(--sp-2) var(--sp-6);flex:0 0 auto}
+  background:color-mix(in srgb,var(--tx) 8%,transparent);border-radius:var(--r-xs);padding:var(--sp-2) var(--sp-6);flex:0 0 auto}
 .ko-card .ko-gap{font-family:var(--mono);font-size:var(--fs-11);color:var(--mut)}
 .ko-card .ko-fl{font-family:var(--mono);font-weight:800;font-size:var(--fs-11);color:var(--lc-purple);
   background:rgba(176,123,255,.14);border-radius:var(--r-xs);padding:var(--sp-2) var(--sp-4);flex:0 0 auto;margin-left:4px}
@@ -151,7 +159,7 @@ body[data-live-view="overview"] #liveOverview{
 .pw-live-map .pw-live-laps .pw-laplist{overflow-y:auto;margin-top:8px;max-height:340px}
 .live-lap-table{width:100%;border-collapse:collapse;font-family:var(--mono)}
 .live-lap-table thead th{position:sticky;top:0;z-index:1;background:var(--surf);
-  font-size:var(--fs-9);font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
+  font-size:var(--fs-10);font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);
   text-align:right;padding:var(--sp-4) var(--sp-8);border-bottom:1px solid var(--bor);white-space:nowrap}
 .live-lap-table thead th:first-child,
 .live-lap-table thead th:last-child{text-align:left}
