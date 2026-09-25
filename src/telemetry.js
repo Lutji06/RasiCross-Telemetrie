@@ -109,12 +109,12 @@ function processTelemetry(d) {
         RasiLapEngine.getOrCreatePart(_r, _mac, _r.currentDriverId, null);
       }
     }
-    if (state.serial.connected && !k.replay.active) k.connection.source = 'serial';
+    if (state.serial.connected) k.connection.source = 'serial';
     k.connection.packets++;
     k.connection.lastPacketAt = Date.now();
     kartMetaFor(_mac, Math.max(0, state.karts.macs().indexOf(_mac))).lastSeenAt = Date.now();
     // Phase 57: unbekannte echte Karts einmalig nach Ausstattung fragen.
-    if (k.connection.source === 'serial' && !k.replay.active) maybeShowEquipDialog(_mac);
+    if (k.connection.source === 'serial') maybeShowEquipDialog(_mac);
     k.connection.kartMac = _mac;
     if (typeof d.rssi === 'number') k.connection.rssi = d.rssi;
     // Verlustzaehlung: eine Quelle. Die Bridge zaehlt ueber die ESP-NOW-
@@ -141,8 +141,8 @@ function processTelemetry(d) {
     const speedSm = k.display.speedLerp == null ? speed : k.display.speedLerp;
     const rpmSm = k.display.rpmLerp == null ? rpm : k.display.rpmLerp;
     // Motorlaufzeit (Phase 27): nur echte Hardware-Pakete zaehlen --
-    // Demo/Replay wuerden den Wartungszaehler verfaelschen.
-    if (k.connection.source === 'serial' && !k.replay.active) {
+    // die Demo wuerde den Wartungszaehler verfaelschen.
+    if (k.connection.source === 'serial') {
       const _eng = RasiEngine.engineStep(k.engine, rpm, Date.now());
       k.engine.totalMs = _eng.totalMs;
       k.engine.lastAt = _eng.lastAt;
@@ -160,22 +160,19 @@ function processTelemetry(d) {
       }
     }
     // Lebens-Statistik (Phase 48): Odometer/Fahrzeit/Topspeed. Zaehlt jede
-    // Live-Quelle (Serial + Demo-Session-Bucket), nie Replay — der wuerde
-    // gefahrene Kilometer doppelt zaehlen.
-    if (!k.replay.active) {
-      // Top-Speed der Lebens-Statistik ist ebenfalls ein angezeigtes Maximum
-      // -> geglaettete Quelle (Phase 61). Der Odometer aendert sich dadurch
-      // praktisch nicht, weil die EMA den Mittelwert erhaelt.
-      const _st = RasiKartStats.statsStep(k.stats, speedSm, Date.now());
-      k.stats.odoM = _st.odoM;
-      k.stats.moveMs = _st.moveMs;
-      k.stats.topKmh = _st.topKmh;
-      k.stats.lastAt = _st.lastAt;
-      k.stats._unsavedMs += _st.addedMs;
-      if (k.stats._unsavedMs >= 60000) {   // 1x pro Fahr-Minute persistieren
-        k.stats._unsavedMs = 0;
-        saveDataDebounced();
-      }
+    // Live-Quelle (Serial + Demo-Session-Bucket).
+    // Top-Speed der Lebens-Statistik ist ebenfalls ein angezeigtes Maximum
+    // -> geglaettete Quelle (Phase 61). Der Odometer aendert sich dadurch
+    // praktisch nicht, weil die EMA den Mittelwert erhaelt.
+    const _st = RasiKartStats.statsStep(k.stats, speedSm, Date.now());
+    k.stats.odoM = _st.odoM;
+    k.stats.moveMs = _st.moveMs;
+    k.stats.topKmh = _st.topKmh;
+    k.stats.lastAt = _st.lastAt;
+    k.stats._unsavedMs += _st.addedMs;
+    if (k.stats._unsavedMs >= 60000) {   // 1x pro Fahr-Minute persistieren
+      k.stats._unsavedMs = 0;
+      saveDataDebounced();
     }
     let gx = (Number(d.gx) || 0) - k.calibration.gxZero;
     let gy = (Number(d.gy) || 0) - k.calibration.gyZero;
@@ -191,8 +188,8 @@ function processTelemetry(d) {
     gy = RasiAttitude.mountFix(gy, 0, 0, k.calibration.mountUpsideDown).gy;
     if (k.calibration.invertGx) gx = -gx;
     if (k.calibration.invertGy) gy = -gy;
-    // Drift (Phase 20): gehaerteter + geglaetteter Gierraten-Index. di teilt die
-    // Eingangs-Normalisierung mit dem Replay-Aggregat; smoothStep liefert
+    // Drift (Phase 20): gehaerteter + geglaetteter Gierraten-Index. di kommt
+    // aus driftInputs (kalibrierte Achsen); smoothStep liefert
     // EMA-Index + entprellten/hysterese-stabilen Status.
     // Hangkompensation (Phase 24): Schwerkraftanteil sin(roll) aus der Quer-g
     // ziehen, damit Hangfahrt nicht als Unter-/Uebersteuern erscheint. Roll vom

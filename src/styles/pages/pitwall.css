@@ -200,9 +200,6 @@
 [data-theme=light] .statusbar{background:rgba(255,255,255,.72)}
 [data-theme=outdoor] .statusbar{background:rgba(255,255,255,.95)}
 .statusbar span b{color:var(--tx-dim);font-weight:700}
-/* Wenn die Replay-Bar (fixed bottom, z-900) sichtbar ist,
-   die Statusbar nach oben schieben, damit sie nicht ueberdeckt wird. */
-body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s ease}
 
 /* Utilities */
 .hidden{display:none!important}
@@ -228,19 +225,6 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
   .topbar{padding:var(--sp-14) var(--sp-18)}
   .content{padding:var(--sp-18)}
 }
-.replay-bar{position:fixed;left:0;right:0;bottom:0;z-index:900;display:flex;
-  align-items:center;gap:var(--sp-14);padding:var(--sp-12) var(--sp-18);background:var(--surf);
-  border-top:1px solid var(--bor);box-shadow:0 -6px 24px rgba(0,0,0,.35)}
-.replay-bar.hidden{display:none}
-.replay-bar .rp-seek-wrap{position:relative;flex:1;min-width:120px;display:flex;align-items:center}
-.replay-bar .rp-seek-wrap .rp-seek{flex:1;width:100%;accent-color:var(--pr)}
-.replay-bar .rp-drift-strip{position:absolute;left:0;right:0;top:-7px;height:4px;pointer-events:none}
-.replay-bar .rp-drift-strip i{position:absolute;top:0;height:4px;background:var(--orange);border-radius:2px;min-width:2px}
-.replay-bar .rp-roll-strip{position:absolute;left:0;right:0;top:-7px;height:4px;pointer-events:none}
-.replay-bar .rp-roll-strip i{position:absolute;top:0;height:4px;width:3px;margin-left:-1.5px;background:var(--rollover);box-shadow:0 0 4px var(--rollover)}
-.replay-bar .rp-time{font-family:var(--mono);font-size:var(--fs-12);color:var(--mut);white-space:nowrap}
-.replay-bar select{background:var(--soft);color:var(--tx);border:1px solid var(--bor);border-radius:var(--r-sm);padding:var(--sp-6) var(--sp-8);font-size:var(--fs-12)}
-.replay-bar #rpPlayBtn{min-width:44px;font-size:var(--fs-15)}
 
 /* ── Einstellungen: Sidebar + Panel + Zeilen ───────────────── */
 .settings-shell{display:grid;grid-template-columns:230px 1fr;gap:var(--sp-18);align-items:start}
@@ -307,11 +291,6 @@ body:has(#replayBar:not(.hidden)) .statusbar{bottom:56px;transition:bottom .25s 
 #audioBtn .ic-audio-off{display:none}
 #audioBtn.muted .ic-audio-on{display:none}
 #audioBtn.muted .ic-audio-off{display:block}
-
-/* Replay-Play-Button: Play/Pause als SVG, Zustand via .paused */
-#rpPlayBtn .ic-rp-play{display:none}
-#rpPlayBtn.paused .ic-rp-play{display:block}
-#rpPlayBtn.paused .ic-rp-pause{display:none}
 
 /* Hero-Kacheln im Light-Theme: weisse 3%-Fuellung waere unsichtbar */
 [data-theme=light] .pw-tel{background:var(--surf)}

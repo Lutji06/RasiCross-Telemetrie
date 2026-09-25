@@ -17,7 +17,6 @@ import './app-init.js';
 // nach dem init()-Aufruf am Dateiende von app-init.js/rasicross.js.
 import './ui-glue.js';
 import './geo.js';
-import './replay.js';
 import './lap-engine.js';
 import './kart-rank.js';
 import './drift.js';

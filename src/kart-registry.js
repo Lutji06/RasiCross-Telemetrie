@@ -39,9 +39,6 @@
       // Sektor-Bestzeiten pro Kart (Phase 30). Strecken-Geometrie/Grenzen
       // bleiben global in state.sectors.boundaries; nur die Bests sind je Kart.
       sectorsBest: [null, null, null],
-      recording: { armed: false, buf: [], startWall: null, overflowed: false },
-      replay: { active: false, packets: [], idx: 0, virtualMs: 0, durationMs: 0,
-                speed: 1, playing: false, raf: null, lastWall: null, snapshot: null },
       calibration: { gxZero: 0, gyZero: 0, swapG: false, invertGx: false,
                      invertGy: false, invertYaw: false, invertRollRate: false, rollZero: 0,
                      mountUpsideDown: false },
@@ -80,7 +77,7 @@
     // Phase 65 Fix-Runde 1: uebernimmt ein bereits existierendes Kart-Objekt
     // (den store.js-Leerzustand) unter einer MAC, statt wie get() ein neues
     // anzulegen -- sonst gingen vor dem ersten Paket geschriebene Felder
-    // (z. B. recording.armed) verloren, weil das erste echte Paket per get()
+    // verloren, weil das erste echte Paket per get()
     // einen frischen Bucket erzeugte. Gleiche Platzpruefung wie get(); ein
     // bereits registriertes mac wird NICHT ueberschrieben.
     function adopt(mac, kart) {

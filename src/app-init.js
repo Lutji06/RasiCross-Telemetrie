@@ -62,7 +62,6 @@ function init() {
   initLiveUiLoops();
   initGViewToggle();
   initKartModelUploader();
-  // Persistierte Rennen-Aufnahmen laden (Replay-Buttons nach Neustart)
   // Phase 68: Rennen-Aufnahmen sind entfallen -- die alte Ablage einmalig
   // abraeumen, damit sie nicht stumm Platz belegt. Kann weg, sobald kein
   // Profil von vor Phase 68 mehr im Umlauf ist.

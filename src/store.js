@@ -190,7 +190,6 @@ function _persistRace(r) {
   return changed ? Object.assign({}, r, { participants: parts }) : r;
 }
 function saveData() {
-  if (activeKart().replay.active) return;  // replay uses disposable state — never persist
   try {
     const k = activeKart();
     // Per-Kart Kalibrierung + Motorlaufzeit (keyed by MAC). Legacy-Felder
