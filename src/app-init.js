@@ -21,8 +21,7 @@ import { addDriver, deleteDriver, renderDriverOptions,
          renderDrivers, renderLapTable } from './laps-drivers.js';
 import { animLoop, initLiveCharts, initLiveUiLoops } from './live-ui.js';
 import { closePitWall, openPitWall } from './pit-wall.js';
-import { exportAll, importAll, initRecStore, replayRace,
-         resetAll } from './recording.js';
+import { exportAll, importAll, resetAll } from './recording.js';
 import RasiSettings from './settings.js';
 import RasiTileRenderer from './tile-renderer.js';
 import { state, activeKart, saveData, saveDataDebounced, loadData, migrateLegacyKartMeta } from './store.js';
@@ -64,7 +63,10 @@ function init() {
   initGViewToggle();
   initKartModelUploader();
   // Persistierte Rennen-Aufnahmen laden (Replay-Buttons nach Neustart)
-  initRecStore();
+  // Phase 68: Rennen-Aufnahmen sind entfallen -- die alte Ablage einmalig
+  // abraeumen, damit sie nicht stumm Platz belegt. Kann weg, sobald kein
+  // Profil von vor Phase 68 mehr im Umlauf ist.
+  try { indexedDB.deleteDatabase('rasicross_recordings'); } catch (e) { /* kein IndexedDB: nichts zu tun */ }
   window.addEventListener('resize', resizeCanvases);
   // Header buttons
   $('themeBtn').onclick = toggleTheme;
@@ -265,7 +267,6 @@ function init() {
     endRace:          () => endRace(false),
     toggleRaceExpand: id => toggleRaceExpand(id),
     deleteRace:       id => deleteRace(id),
-    replayRace:       id => replayRace(id),
   };
   const handleActionClick = (e) => {
     const el = e.target.closest('[data-action]');
