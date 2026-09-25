@@ -109,7 +109,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
   background:rgba(255,255,255,.03);border:1px solid var(--bor);
 }
 .pw-tel-label{
-  font-family:var(--mono);font-size:var(--fs-9);font-weight:800;
+  font-family:var(--mono);font-size:var(--fs-10);font-weight:800;
   color:var(--mut);letter-spacing:.12em;text-transform:uppercase;
   margin-bottom:6px;
 }
@@ -157,7 +157,7 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .pw-flow-step.active .pw-flow-marker{background:var(--pr);color:var(--on-pr);border-color:var(--pr);box-shadow:var(--ring) var(--pr-soft)}
 .pw-flow-step.done .pw-flow-marker{background:rgba(62,224,138,.12);color:var(--green);border-color:var(--green)}
 .pw-flow-text{display:flex;flex-direction:column;gap:var(--sp-2)}
-.pw-flow-num{font-family:var(--mono);font-size:var(--fs-9);font-weight:800;color:var(--mut);letter-spacing:.1em}
+.pw-flow-num{font-family:var(--mono);font-size:var(--fs-10);font-weight:800;color:var(--mut);letter-spacing:.1em}
 .pw-flow-title{font-weight:700;font-size:var(--fs-13);color:var(--tx)}
 .pw-flow-arrow{color:var(--mut);font-size:var(--fs-18);font-weight:300;flex-shrink:0}
 
@@ -201,18 +201,23 @@ tr.invalid td{color:var(--dim);text-decoration:line-through}
 .pw-corner.br{bottom:14px;right:14px;border-left:none;border-top:none}
 .pw-map-tag{
   position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:3;
-  font-family:var(--mono);font-size:var(--fs-9);font-weight:800;
-  color:var(--pr);letter-spacing:.18em;
-  padding:var(--sp-4) var(--sp-12);background:rgba(0,0,0,.6);
+  font-family:var(--mono);font-size:var(--fs-10);font-weight:800;
+  /* Phase 69: Die Pille ist in jedem Theme dunkles Glas ueber der Karte --
+     Schrift daher aus der Dark-Palette, nicht aus dem Theme (Light-Oliv
+     auf Schwarzglas lag bei 1,4:1). Glas dichter, damit helle Kacheln
+     nicht durchscheinen (Vibrancy statt flachem Grau). */
+  color:var(--dark-pr);letter-spacing:.18em;
+  padding:var(--sp-4) var(--sp-12);background:rgba(0,0,0,.72);
   border:1px solid rgba(200,255,61,.3);border-radius:var(--r-pill);
-  backdrop-filter:blur(6px);pointer-events:none;
+  backdrop-filter:blur(8px) saturate(140%);pointer-events:none;
 }
 .pw-map-coord{
   position:absolute;bottom:18px;right:18px;z-index:3;
-  font-family:var(--mono);font-size:var(--fs-10);color:var(--mut);
+  font-family:var(--mono);font-size:var(--fs-10);color:var(--dark-tx-dim);
   font-weight:700;letter-spacing:.06em;
-  padding:var(--sp-4) var(--sp-10);background:rgba(0,0,0,.5);
-  border:1px solid var(--bor);border-radius:var(--r-xs);
+  padding:var(--sp-4) var(--sp-10);background:rgba(0,0,0,.72);
+  backdrop-filter:blur(8px) saturate(140%);
+  border:1px solid rgba(255,255,255,.13);border-radius:var(--r-xs);
   pointer-events:none;
 }
 .pw-map-empty{

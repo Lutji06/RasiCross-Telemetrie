@@ -7,7 +7,6 @@
   background:rgba(5,7,15,.78);
   padding:var(--sp-18);
   backdrop-filter:blur(14px) saturate(180%);
-  -webkit-backdrop-filter:blur(14px) saturate(180%);
   animation:overlayIn .25s ease;
 }
 .overlay.show{display:flex}

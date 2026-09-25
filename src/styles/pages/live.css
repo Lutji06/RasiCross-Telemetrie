@@ -272,7 +272,7 @@
 #gMeter3dCanvas.hidden, #gMeterCanvas.hidden{ display:none; }
 .roll-ind{ margin:var(--sp-10) auto 0; max-width:280px; }
 .roll-val{ text-align:center; font-size:var(--fs-13); margin-top:2px; }
-.roll-cap{ font-family:var(--mono); font-size:var(--fs-9); font-weight:800; letter-spacing:.1em; color:var(--mut); }
+.roll-cap{ font-family:var(--mono); font-size:var(--fs-10); font-weight:800; letter-spacing:.1em; color:var(--mut); }
 .roll-over{ color:var(--rollover); font-weight:700; animation:rollBlink .5s steps(1) infinite; }
 .roll-over.hidden{ display:none; }
 @keyframes rollBlink{ 50%{ opacity:.2; } }

@@ -13,6 +13,13 @@ const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
   fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((line, i) => {
     const m = line.match(/#[0-9a-fA-F]{3,8}\b/);
     if (m) { console.error(p + ':' + (i + 1) + ' rohes Hex ' + m[0] + ' -- Token in tokens.css anlegen'); bad++; }
+    // Phase 69: Der Vite-Minifier haelt bei backdrop-filter + -webkit-backdrop-filter
+    // nur die spaetere (Praefix-)Zeile -- Chromium kennt die nicht, jedes Glas
+    // verlor seinen Blur. Nur die unpraefixierte Form schreiben; den Praefix
+    // ergaenzt der Build selbst.
+    if (/-webkit-backdrop-filter/.test(line)) {
+      console.error(p + ':' + (i + 1) + ' -webkit-backdrop-filter -- nur backdrop-filter schreiben'); bad++;
+    }
     // Phase 50: Skalen-Gate. font-size <=20px nur als var(--fs-*);
     // padding/gap/margin-px nur auf der sp-Skala; border-radius >=6px
     // nur als var(--r-*) (999px-Pille inklusive).

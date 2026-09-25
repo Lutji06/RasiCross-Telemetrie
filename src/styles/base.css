@@ -26,6 +26,14 @@
   position:relative;
 }
 .brand-mark svg{width:100%;height:100%;display:block;position:relative;z-index:2}
+/* Phase 69: Wordmark folgt dem Akzent. Die SVG-Attribute sind fest dunkel;
+   auf dem blauen (Outdoor) und olivgruenen (Light) Grund braucht es Weiss.
+   CSS-Eigenschaften schlagen Praesentationsattribute. */
+.brand-mark svg text,.brand-mark svg circle{fill:var(--on-pr)}
+.brand-mark svg path,.brand-mark svg line{stroke:var(--on-pr)}
+/* 9er-Versal im SVG: Weiss bei 80 % Deckkraft faellt auf dunklem Akzent
+   unter 4,5:1 -- in den hellen Themes voll deckend. */
+:is([data-theme=light],[data-theme=outdoor]) .brand-mark svg text{opacity:1}
 .brand-mark::after{
   content:'';position:absolute;inset:1px;border-radius:var(--r-md);
   background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 50%);
@@ -44,7 +52,7 @@
   margin-bottom:14px;
 }
 .nav-group-title{
-  font-family:var(--mono);font-size:var(--fs-9);
+  font-family:var(--mono);font-size:var(--fs-10);
   text-transform:uppercase;letter-spacing:.14em;
   font-weight:700;color:var(--mut);
   padding:var(--sp-8) var(--sp-10) var(--sp-6);
@@ -109,7 +117,7 @@
 @keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.5}}
 .conn-info{flex:1;min-width:0}
 .conn-info-l{
-  font-family:var(--mono);font-size:var(--fs-9);
+  font-family:var(--mono);font-size:var(--fs-10);
   text-transform:uppercase;letter-spacing:.1em;
   color:var(--mut);font-weight:700;
 }
@@ -135,7 +143,6 @@
   padding:var(--sp-18) var(--sp-24);
   background:rgba(7,9,18,.7);
   backdrop-filter:blur(20px) saturate(180%);
-  -webkit-backdrop-filter:blur(20px) saturate(180%);
   border-bottom:1px solid var(--bor);
   display:flex;align-items:center;gap:var(--sp-14);
   flex-wrap:wrap;
