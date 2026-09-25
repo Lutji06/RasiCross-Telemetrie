@@ -21,18 +21,15 @@ import { addDriver, deleteDriver, renderDriverOptions,
          renderDrivers, renderLapTable } from './laps-drivers.js';
 import { animLoop, initLiveCharts, initLiveUiLoops } from './live-ui.js';
 import { closePitWall, openPitWall } from './pit-wall.js';
-import { enterReplay, exitReplay, exportAll, exportRecordingCsv, importAll,
-         initRecStore, loadRecordingFile, replayRace, replaySeek, resetAll,
-         saveRecording, setReplaySpeed, toggleReplayPlay,
-         updateRecStatus } from './recording.js';
-import RasiReplay from './replay.js';
+import { exportAll, importAll, initRecStore, replayRace,
+         resetAll } from './recording.js';
 import RasiSettings from './settings.js';
 import RasiTileRenderer from './tile-renderer.js';
 import { state, activeKart, saveData, saveDataDebounced, loadData, migrateLegacyKartMeta } from './store.js';
 import { applyTilesPresetFromUrl, onTilesPresetChanged, updateTilesUrlHint,
          onTilesClearClicked, showSettingsGroup, loadSettingsToUi,
          initUpdateUi, scheduleSettingsSave } from './settings-ui.js';
-import { $, setText, rcAlert, rcConfirm, rcToast, formatBytes,
+import { $, setText,
          applyTheme, lastPressEl, setupPressFeedback, setupTabs,
          toggleTheme } from './rasicross.js';
 import RasiMotion from './motion.js';
@@ -150,7 +147,6 @@ function init() {
     state.serial.autoReconnect = $('autoConnectToggle').checked;
     saveData();
   };
-  if ($('recAutoArmToggle')) $('recAutoArmToggle').onchange = () => { state.settings.recordAutoArm = $('recAutoArmToggle').checked; saveData(); };
   if ($('setTilesUrl')) $('setTilesUrl').addEventListener('input', function () { updateTilesUrlHint(); applyTilesPresetFromUrl(); });
   if ($('setTilesPreset')) $('setTilesPreset').addEventListener('change', onTilesPresetChanged);
   if ($('setTilesEnabled')) $('setTilesEnabled').addEventListener('change', function () {
@@ -255,18 +251,6 @@ function init() {
   _bind('edSaveBtn',   saveEditor);
   _bind('dmCancelBtn', closeDriverModal);
   _bind('dmConfirmBtn', confirmDriverChange);
-  _bind('recSaveBtn', saveRecording);
-  _bind('recCsvBtn', exportRecordingCsv);
-  _bind('recLoadBtn', () => $('recLoadFile')?.click());
-  const _rlf = $('recLoadFile');
-  if (_rlf) _rlf.onchange = (e) => { if (e.target.files[0]) loadRecordingFile(e.target.files[0]); e.target.value = ''; };
-  _bind('rpPlayBtn', toggleReplayPlay);
-  _bind('rpExitBtn', exitReplay);
-  const _rps = $('rpSeek');
-  if (_rps) _rps.addEventListener('input', () => replaySeek((Number(_rps.value) || 0) / 1000));
-  const _rsp = $('rpSpeed');
-  if (_rsp) _rsp.addEventListener('change', () => setReplaySpeed(_rsp.value));
-  updateRecStatus();
   // Dynamische Listen-Buttons per Event-Delegation (CSP-konform):
   // innerstes [data-action] gewinnt -> Klick auf einen Karten-Button
   // loest NUR dessen Aktion aus, nie zusaetzlich selectRace (ersetzt
@@ -293,30 +277,5 @@ function init() {
     const c = $(cid);
     if (c) c.addEventListener('click', handleActionClick);
   });
-
-  // Crash-Recovery (Phase 24): liegt die Sicherungsdatei vom letzten Lauf
-  // noch da, war es ein Absturz (regulaeres Beenden loescht sie in main.js).
-  if (window.rasiRec) {
-    window.rasiRec.check().then(async (c) => {
-      if (!c || !c.exists) return;
-      if (c.size < 1024) { window.rasiRec.clear().catch(() => {}); return; }
-      const when = c.mtimeMs ? new Date(c.mtimeMs).toLocaleString('de-DE') : 'unbekannt';
-      const ok = await rcConfirm(
-        `Unvollständige Aufnahme vom letzten Lauf gefunden\n(${when}, ${formatBytes(c.size)}).\nJetzt im Replay laden?`,
-        'Aufnahme wiederherstellen', 'Laden');
-      if (!ok) { window.rasiRec.clear().catch(() => {}); return; }
-      const r = await window.rasiRec.read();
-      if (!r.ok) { rcAlert('Wiederherstellung fehlgeschlagen:\n' + (r.error || '?')); return; }
-      const parsed = RasiReplay.parseRecording(r.text);
-      if (!parsed.ok || parsed.packets.length < 2) {
-        rcAlert('Sicherungsdatei unbrauchbar — wird verworfen.');
-        window.rasiRec.clear().catch(() => {});
-        return;
-      }
-      if (parsed.skipped) rcToast(parsed.skipped + ' fehlerhafte Zeilen übersprungen', 3000);
-      enterReplay(parsed);
-      window.rasiRec.clear().catch(() => {});
-    }).catch(() => {});
-  }
 }
 init();
