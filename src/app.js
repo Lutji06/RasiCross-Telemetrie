@@ -27,7 +27,6 @@ import './tile-renderer.js';
 import './dom-targets.js';
 import './settings.js';
 import './engine.js';
-import './rec-store.js';
 import './karts3d.js';
 import './map-draw.js';
 import './races.js';
@@ -37,7 +36,7 @@ import './track.js';
 import './laps-drivers.js';
 import './live-ui.js';
 import './pit-wall.js';
-import './recording.js';
+import './data-backup.js';
 import './kart-registry.js';
 import './rasicross.js';
 import './kart-bar.js';
@@ -46,21 +45,18 @@ import './conn-ui.js';
 import './karts-page.js';
 import './kart-settings-window.js';
 
-import { state, saveData, activeKart, armRecording,
+import { state, saveData, activeKart,
          updateKartMeta, kartRosterMacs, rcAlert, rcConfirm } from './rasicross.js';
 import { activeRace, toggleRaceRun, endRace } from './races.js';
-import { enterReplay, exitReplay } from './recording.js';
-import RasiReplay from './replay.js';
 
 // Quit-Pfad: main.js before-quit ruft saveData() per executeJavaScript --
 // muss als window-Global erreichbar bleiben.
 window.saveData = saveData;
 // Explizite Test-Bruecke fuer die Playwright-Smoke-Suite (Phase 41).
 window.RasiTest = {
-  state, activeKart, armRecording,
+  state, activeKart,
   updateKartMeta, kartRosterMacs,
   activeRace, toggleRaceRun, endRace,
-  RasiReplay, enterReplay, exitReplay,
   // Dialog-Trigger fuer die Screenshot-Suite (Phase 50): oeffnen das
   // echte Overlay deterministisch, ohne UI-Klickpfade zu koppeln.
   rcAlert, rcConfirm,

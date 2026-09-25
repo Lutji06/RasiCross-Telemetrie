@@ -66,10 +66,9 @@ function kartFor(mac) {
   const key = mac || KartRegistry.DEFAULT_MAC;
   const isNew = !state.karts.has(key);
   // Phase 65 Fix-Runde 1: existiert schon ein Leerzustand (Schreibzugriffe vor
-  // dem ersten Paket, z. B. armRecording()), wird er unter der MAC uebernommen
-  // statt verworfen -- sonst legte get() gleich danach einen frischen Bucket
-  // an und die vorher geschriebenen Felder (recording.armed etc.) gingen
-  // spurlos verloren.
+  // dem ersten Paket), wird er unter der MAC uebernommen statt verworfen --
+  // sonst legte get() gleich danach einen frischen Bucket an und die vorher
+  // geschriebenen Felder gingen spurlos verloren.
   const k = (isNew && _emptyKart) ? state.karts.adopt(key, _emptyKart) : state.karts.get(key);
   if (isNew && _emptyKart && k === _emptyKart) _emptyKart = null;
   // Phase 39: bekannten MAC nach "Karts zuruecksetzen" aus der Persist-Map

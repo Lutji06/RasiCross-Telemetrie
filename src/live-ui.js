@@ -655,7 +655,7 @@ setInterval(() => {
 }, 1000);
 }
 
-// Interface-Marker: von rasicross.js/races.js/pit-wall.js/recording.js
+// Interface-Marker: von rasicross.js/races.js/pit-wall.js
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [initLiveCharts, resizeChartCanvas, drawChart, axisFmt, drawLiveCharts,
       drawYawSparkline, updateLiveDelta, updateLiveKPIs, updateDiagnostics,

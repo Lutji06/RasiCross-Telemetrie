@@ -8,7 +8,7 @@ import KartRegistry from './kart-registry.js';
 import { renderKartsTab } from './karts-page.js';
 import RasiMotion from './motion.js';
 import { state, saveDataDebounced } from './store.js';
-import { armRecording, driftInputs, processTelemetry, resetAttitudeClock } from './telemetry.js';
+import { processTelemetry } from './telemetry.js';
 
 /* ============================================================
    RASICROSS TELEMETRY — Clean Implementation
@@ -32,7 +32,7 @@ import { armRecording, driftInputs, processTelemetry, resetAttitudeClock } from 
     17. Live UI                    -> live-ui.js (Phase 23)
     18. Pit-Wall                   -> pit-wall.js (Phase 23)
     19. Serial / Demo              -> serial-demo.js (Phase 22)
-    19b. Recording/Replay          -> recording.js (Phase 23)
+    19b. Export/Import/Reset       -> data-backup.js (Phase 23; Recording/Replay entfallen, Phase 68)
     20. Init                       -> app-init.js + kart3d-ui.js + ui-glue.js (Phase 44)
    ============================================================ */
 
@@ -358,7 +358,7 @@ function formatBytes(b) {
 
 // (Sektion 19 "Serial / Demo" -> serial-demo.js, Phase 22)
 
-// (Export/Import/Reset + Sektion 19b "Recording/Replay" -> recording.js, Phase 23)
+// (Export/Import/Reset -> data-backup.js; Sektion 19b "Recording/Replay" entfallen, Phase 68)
 
 // (Sektion 20 "Init" -> app-init.js; G-View/Kart-Model-Glue -> kart3d-ui.js;
 //  DOMContentLoaded-IIFE/Sidebar-Spiegel -> ui-glue.js; alles Phase 44)
@@ -375,8 +375,7 @@ export {
   rcAlert, rcConfirm, rcToast, rcAudio,
   formatBytes,
   setTextShared, setHtmlShared, logTime,
-  processTelemetry, armRecording, driftInputs,
-  resetAttitudeClock,
+  processTelemetry,
   bridgeSend, applyTheme, setupTabs, toggleTheme,
   lastPressEl, setupPressFeedback,
 };

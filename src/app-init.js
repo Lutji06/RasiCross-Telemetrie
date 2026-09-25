@@ -21,7 +21,7 @@ import { addDriver, deleteDriver, renderDriverOptions,
          renderDrivers, renderLapTable } from './laps-drivers.js';
 import { animLoop, initLiveCharts, initLiveUiLoops } from './live-ui.js';
 import { closePitWall, openPitWall } from './pit-wall.js';
-import { exportAll, importAll, resetAll } from './recording.js';
+import { exportAll, importAll, resetAll } from './data-backup.js';
 import RasiSettings from './settings.js';
 import RasiTileRenderer from './tile-renderer.js';
 import { state, activeKart, saveData, saveDataDebounced, loadData, migrateLegacyKartMeta } from './store.js';

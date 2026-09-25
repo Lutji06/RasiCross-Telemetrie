@@ -762,7 +762,7 @@ function updateSectorPanel() {
   setText('theoBestTime', tb ? fmtMs(tb) : '--:--.---');
 }
 
-// Interface-Marker: von rasicross.js/serial-demo.js/races.js/recording.js
+// Interface-Marker: von rasicross.js/serial-demo.js/races.js
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [startTrackScan, finishTrackScan, clearTrack, updateBounds, onGpsUpdate,
       recomputeTrackBounds,

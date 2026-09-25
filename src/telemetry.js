@@ -14,7 +14,6 @@ import RasiKartStats from './kart-stats.js';
 import RasiSmoothing from './smoothing.js';
 import RasiKartBar from './kart-bar.js';
 import RasiLapEngine from './lap-engine.js';
-import RasiReplay from './replay.js';
 import { rcToast, rcAudio } from './rasicross.js';
 import { routeConfigAck } from './kart-settings-window.js';
 import { maybeShowEquipDialog } from './kart-equip.js';
@@ -23,56 +22,7 @@ import { state, activeKart, kartFor, saveDataDebounced, kartMetaFor,
          kartRosterMacs } from './store.js';
 import RasiKartRoster from './kart-roster.js';
 
-// Crash-Sicherung (Phase 24): recordPacket sammelt NDJSON-Zeilen und schiebt
-// sie gebuendelt an den Main-Prozess (alle ~25 Pakete oder 2s) — nach einem
-// Absturz bietet init() die Datei zur Wiederherstellung an. Nur in Electron
-// (window.rasiRec); im Browser bleibt alles wie bisher im RAM.
-const REC_FLUSH_N = 25, REC_FLUSH_MS = 2000;
-let _crashQ = [], _crashLastFlush = 0, _crashFailed = false;
-function _crashFlush(now) {
-  if (!window.rasiRec || _crashFailed || !_crashQ.length) return;
-  const batch = _crashQ.join('\n') + '\n';
-  _crashQ = [];
-  _crashLastFlush = now;
-  window.rasiRec.append(batch).then(r => {
-    if (r && r.ok === false && !_crashFailed) {
-      _crashFailed = true;
-      rcToast('⚠ Crash-Sicherung deaktiviert: ' + (r.error || 'Schreibfehler'), 4000);
-    }
-  }).catch(() => {});
-}
-function armRecording() {
-  // Frische Aufnahme starten (auto bei Connect/Demo, wenn aktiviert).
-  // Aufnahme bezieht sich auf den aktuell ausgewaehlten Kart.
-  const k = activeKart();
-  k.recording.buf = [];
-  k.recording.startWall = null;
-  k.recording.overflowed = false;
-  k.recording.armed = true;
-  // Crash-Sicherungsdatei frisch beginnen (Header-Zeile, Pakete folgen).
-  _crashQ = []; _crashLastFlush = Date.now(); _crashFailed = false;
-  if (window.rasiRec) {
-    const header = RasiReplay.serializeRecording([], { created: new Date().toISOString() });
-    window.rasiRec.start(header).catch(() => {});
-  }
-}
-function recordPacket(d) {
-  const k = kartFor(d.from_mac || KartRegistry.DEFAULT_MAC);
-  if (!k) return;
-  const now = Date.now();
-  if (k.recording.startWall == null) k.recording.startWall = now;
-  const rec = Object.assign({}, d, { t_rel: now - k.recording.startWall, _wall: now });
-  const dropped = RasiReplay.pushCapped(k.recording.buf, rec, RasiReplay.REC_MAX);
-  if (dropped && !k.recording.overflowed) {
-    k.recording.overflowed = true;
-    rcToast('⚠ Aufnahme-Puffer voll — älteste Pakete werden verworfen', 4000);
-  }
-  if (window.rasiRec && !_crashFailed) {
-    _crashQ.push(JSON.stringify(rec));
-    if (_crashQ.length >= REC_FLUSH_N || now - _crashLastFlush >= REC_FLUSH_MS) _crashFlush(now);
-  }
-}
-// Drift-Eingaenge aus einem (Roh-)Paket — identisch fuer Live und Replay-Aggregat.
+// Drift-Eingaenge aus einem (Roh-)Paket.
 // Wendet die IMU-Kalibrierung an (gy: Null-Offset, swap, Einbaulage, invertGy;
 // yaw: invertYaw; gz + Roll-Rate: Einbaulage, invertRollRate), damit der
 // Vorzeichen-/Counter-Check konsistente Achsen vergleicht.
@@ -159,7 +109,6 @@ function processTelemetry(d) {
         RasiLapEngine.getOrCreatePart(_r, _mac, _r.currentDriverId, null);
       }
     }
-    if (k.recording.armed && !k.replay.active) recordPacket(d);
     if (state.serial.connected && !k.replay.active) k.connection.source = 'serial';
     k.connection.packets++;
     k.connection.lastPacketAt = Date.now();
@@ -360,8 +309,5 @@ function processTelemetry(d) {
 }
 
 let _attLastMs = 0;            // wall-clock of last attitude fusion step (ms)
-// Phase 42: recording.js setzt die Fusions-Uhr beim Replay-Reset zurueck --
-// ESM-Importe sind read-only, deshalb Setter statt Direktzuweisung.
-function resetAttitudeClock() { _attLastMs = 0; }
 
-export { armRecording, recordPacket, driftInputs, processTelemetry, resetAttitudeClock };
+export { processTelemetry };
