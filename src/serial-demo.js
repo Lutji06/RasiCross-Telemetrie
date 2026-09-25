@@ -6,7 +6,7 @@
 // ============================================================
 import { gpsDist, headingFromPoints } from './geo.js';
 import { state, $, uid, esc, setText, rcAlert, rcToast, saveDataDebounced,
-         armRecording, kartFor, activeKart, processTelemetry } from './rasicross.js';
+         kartFor, activeKart, processTelemetry } from './rasicross.js';
 import { activeRace, endRace, raceValidLaps, renderRaces, startRace } from './races.js';
 import { calcAutoSectors, onGpsUpdate, updateBounds, updateSectorPanel } from './track.js';
 import { drawTrack } from './map-draw.js';
@@ -39,7 +39,6 @@ async function listSerialPorts() {
 }
 async function connectSerial(opts) {
   const _auto = !!(opts && opts.auto);
-  if (activeKart().replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
   // Phase 56: Verbinden stoppt die Demo nie automatisch (Locked Decision) --
   // der Demo-Chip muss zuerst gestoppt werden.
   if (state.demo.running) { rcToast('Demo läuft — zuerst Demo stoppen'); return; }
@@ -56,7 +55,6 @@ async function connectSerial(opts) {
       window.rasiSerial.onClose(() => onSerialClose());
       window.rasiSerial.onError?.(msg => onSerialError(msg));
       state.serial.connected = true;
-      if (state.settings.recordAutoArm) armRecording();
       state.serial.portName = path;
       state.serial.lastPath = path;
       state.serial.dropped = false;
@@ -223,7 +221,6 @@ const DEMO_KART_DEFS = [
   { mac: 'DE:MO:RA:SI:00:03', name: 'Demo 3', color: '#5ad17a', pace: 0.968, phase: 3.2, rssi: -71, soc0: 55 },
 ];
 function startDemo() {
-  if (activeKart().replay.active) { rcToast('Im Replay-Modus — zuerst Replay beenden'); return; }
   if (state.demo.running) return;
   if (state.serial.connected) disconnectSerial();
   const k = activeKart();
@@ -256,10 +253,6 @@ function startDemo() {
   });
   state.karts.setActive(DEMO_KART_DEFS[0].mac);
   state.activeKartMac = DEMO_KART_DEFS[0].mac;
-  // Phase-41-Fund: Auto-Arm erst NACH dem Kart-Wechsel — armRecording()
-  // armiert den aktiven Bucket; vor dem setActive traf es den vor dem
-  // Demo aktiven Kart, und die Demo-Karts zeichneten nichts auf.
-  if (state.settings.recordAutoArm) armRecording();
   RasiKartBar.render(state);
   const chip = $('demoChip');
   if (chip) { chip.classList.add('on'); chip.textContent = '■ Demo läuft'; }

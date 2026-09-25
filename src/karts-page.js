@@ -23,9 +23,8 @@ function _liveHtml(k, now) {
   const hz = hzMap[k.connection.kartMac] != null ? hzMap[k.connection.kartMac] : '--';
   const rssi = k.connection.rssi != null ? k.connection.rssi + 'dBm' : '--';
   const batt = (k.batt && k.batt.present) ? ((k.batt.soc | 0) + '%') : '--';
-  const rec = k.recording.armed ? '<span class="rec">●REC</span>' : '';
   return '<div class="kc-live"><span>' + hz + 'Hz</span><span>' + rssi + '</span>'
-    + '<span>Alter ' + ageStr + '</span><span>Akku ' + batt + '</span>' + rec + '</div>';
+    + '<span>Alter ' + ageStr + '</span><span>Akku ' + batt + '</span></div>';
 }
 
 function _engineHtml(mac) {
