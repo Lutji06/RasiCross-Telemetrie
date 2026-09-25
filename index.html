@@ -864,19 +864,6 @@
 
   <!-- Kart-Karten-Grid: eine Statuskarte pro Session-Kart (conn-ui.js) -->
   <div class="conn-grid" id="connGrid"></div>
-
-  <div class="card" style="margin-top:18px">
-    <div class="card-head"><span class="card-title">Aufnahme &amp; Replay</span><span class="card-sub" id="recStatusText">Bereit</span></div>
-    <p style="color:var(--mut);font-size:13px;margin-bottom:14px">
-      Telemetrie wird im Speicher mitgeschnitten (max. 150 000 Pakete). Speichern als <code>.ndjson</code>; geladene Aufnahmen werden im Replay-Modus abgespielt. CSV-Export für Excel &amp; Co. (Semikolon-getrennt, ein Paket pro Zeile).
-    </p>
-    <div class="row">
-      <button class="btn ghost" id="recSaveBtn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Aufnahme speichern</button>
-      <button class="btn ghost" id="recCsvBtn" title="Aufnahme als CSV exportieren (Excel-kompatibel); bei laufendem Replay wird die geladene Aufnahme exportiert"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M8 17v-6M13 17V8M18 17v-3"/></svg>CSV exportieren</button>
-      <button class="btn ghost" id="recLoadBtn"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>Aufnahme laden &amp; abspielen</button>
-      <input type="file" id="recLoadFile" accept=".ndjson,.jsonl,application/x-ndjson" style="display:none">
-    </div>
-  </div>
 </section>
 
 <!-- ============================================================
@@ -1027,7 +1014,6 @@
           <span class="settings-saved" data-savemark>Automatisch gespeichert ✓</span>
         </header>
         <p class="settings-block-note">Alle Einstellungen, Fahrer, Strecken und Rennen werden im Browser gespeichert.</p>
-        <div class="toggle-row"><span class="label-text">Aufnahme bei Verbindung automatisch starten</span><label class="toggle"><input type="checkbox" id="recAutoArmToggle" checked data-autosave><span class="toggle-knob"></span></label></div>
         <div class="fieldset" style="margin-top:12px">
           <button class="btn ghost" id="exportAllBtn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Alle Daten exportieren</button>
           <button class="btn ghost" id="importAllBtn"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Daten importieren</button>
@@ -1220,24 +1206,6 @@
   </div>
 </div>
 
-<div id="replayBar" class="replay-bar hidden">
-  <button class="btn ghost" id="rpPlayBtn" title="Wiedergabe / Pause">
-    <svg class="ic-rp-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" style="fill:currentColor"/></svg>
-    <svg class="ic-rp-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>
-  </button>
-  <span class="rp-seek-wrap"><span id="rpDriftStrip" class="rp-drift-strip"></span><span id="rpRollStrip" class="rp-roll-strip"></span><input type="range" id="rpSeek" class="rp-seek" min="0" max="1000" value="0"></span>
-  <span class="rp-time"><b id="rpElapsed">00:00</b> / <b id="rpTotal">00:00</b></span>
-  <span class="rp-time" title="Drift-Zeitanteil · stärkster Index">Drift <b id="rpDrift">–</b></span>
-  <select id="rpSpeed" title="Wiedergabe-Geschwindigkeit">
-    <option value="0.25">0.25×</option>
-    <option value="0.5">0.5×</option>
-    <option value="1" selected>1×</option>
-    <option value="2">2×</option>
-    <option value="4">4×</option>
-    <option value="8">8×</option>
-  </select>
-  <button class="btn danger" id="rpExitBtn">Replay beenden</button>
-</div>
 <div id="rcToast"></div>
 
 <script type="module" src="/src/app.js"></script>

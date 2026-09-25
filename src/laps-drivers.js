@@ -395,7 +395,7 @@ function theoreticalBestMs() {
   return (b[0] && b[1] && b[2]) ? b[0] + b[1] + b[2] : null;
 }
 
-// Interface-Marker: von rasicross.js/races.js/serial-demo.js/recording.js
+// Interface-Marker: von rasicross.js/races.js/serial-demo.js
 // genutzte Funktionen -- verhindert no-unused-vars, dokumentiert das API.
 void [checkLapCrossing, triggerLap, renderLapTable, renderLiveLapList,
       getDriverStats, getTotalStats, fmtKm, addDriver, deleteDriver,

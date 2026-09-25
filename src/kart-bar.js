@@ -84,7 +84,6 @@ import { setLivePage } from './live-ui.js';
         && (!isLive || state.liveView !== 'overview') ? ' active' : '');
       chip.style.borderColor = m.color;
       const age = k.connection.lastPacketAt ? (Date.now() - k.connection.lastPacketAt) : 99999;
-      const rec = k.recording.armed ? ' ●REC' : '';
       const rssi = (k.connection.rssi != null) ? (k.connection.rssi + 'dBm') : '--';
       const hz = (state._kartHz && state._kartHz[mac] != null) ? state._kartHz[mac] : '--';
       if (age > 2000) cls += ' stale';
@@ -94,7 +93,7 @@ import { setLivePage } from './live-ui.js';
         + '<b style="color:' + m.color + '">' + escHtml(m.name) + '</b>'
         + ' <span>' + hz + 'Hz</span> <span>' + rssi + '</span>'
         + (k.batt && k.batt.present ? ' <span>' + (k.batt.soc | 0) + '%</span>' : '')
-        + rec + '</button>';
+        + '</button>';
       chip.querySelector('.kart-chip-main').onclick = () => {
         // Phase 65: Der Chip ist die Seitenwahl -- setLivePage setzt das
         // aktive Kart selbst, sobald die Seite aufgeloest ist.

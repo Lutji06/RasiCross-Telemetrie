@@ -104,7 +104,6 @@ import RasiLapEngine from './lap-engine.js';
       const foot = stale
         ? ('⚠ vor ' + Math.round(age / 1000) + ' s')
         : (_rssi + ' · ' + _hz + ' Hz' + _batt);
-      const rec = k.recording.armed ? '<span class="ko-rec">●REC</span>' : '';
       // Phase 31: Positions-Badge + Gap. Phase 32: Gap·Int + Fastest-Lap-Markierung.
       const pe = posByMac[mac];
       const posBadge = pe ? '<span class="ko-pos">P' + pe.pos + '</span>' : '';
@@ -117,7 +116,7 @@ import RasiLapEngine from './lap-engine.js';
         + (isOvertake ? ' ko-overtake' : '');
       return '<div class="' + cls + '" data-mac="' + mac + '" style="border-color:' + m.color + '">'
         + '<div class="ko-head">' + posBadge + '<span class="ko-dot" style="background:' + m.color + '"></span>'
-        +   '<span class="ko-name" style="color:' + m.color + '">' + esc(m.name) + '</span>' + rec + flBadge + '</div>'
+        +   '<span class="ko-name" style="color:' + m.color + '">' + esc(m.name) + '</span>' + flBadge + '</div>'
         + '<div class="ko-big">'
         +   '<div class="ko-speed">' + speed + '<small>km/h</small></div>'
         // Phase 57: RPM-Zelle nur fuer Karts mit Sensor.

@@ -12,7 +12,7 @@ const SRC = path.join(fileURLToPath(new URL('.', import.meta.url)), '..', 'src')
 const PER_KART_FIELDS = ['connection','telemetry','raw','display','gps','spdSrc',
   'batt','max','charts','imu','drift','attitude','driftSmooth','heatmap','lapStart',
   'currentLapMax','currentLapTrace','bestLapTrace','bestLapMs','bestLapNum','liveDelta',
-  'autoLap','sectorsLive','sectorsBest','recording','replay','calibration','engine'];
+  'autoLap','sectorsLive','sectorsBest','calibration','engine'];
 const RE = new RegExp('\\bstate\\.(' + PER_KART_FIELDS.join('|') + ')\\b');
 
 test('facade-free: kein src-Modul liest state.<per-Kart-Feld>', () => {

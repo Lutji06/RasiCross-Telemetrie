@@ -30,7 +30,6 @@
     { group: 'map',       rowId: 'setTilesEnabled',   label: 'OSM-Hintergrund',      keywords: ['karte', 'osm', 'tiles', 'hintergrund'] },
     { group: 'map',       rowId: 'setTilesPreset',    label: 'Karten-Stil',          keywords: ['karte', 'stil', 'preset', 'tiles'] },
     { group: 'map',       rowId: 'setTilesUrl',       label: 'Tile-URL-Template',    keywords: ['karte', 'url', 'tiles', 'eigene'] },
-    { group: 'data',      rowId: 'recAutoArmToggle',  label: 'Aufnahme automatisch starten', keywords: ['aufnahme', 'record', 'auto', 'arm'] },
     { group: 'data',      rowId: 'exportAllBtn',      label: 'Alle Daten exportieren', keywords: ['export', 'backup', 'sichern'] },
     { group: 'data',      rowId: 'importAllBtn',      label: 'Daten importieren',    keywords: ['import', 'backup', 'laden'] },
     { group: 'data',      rowId: 'resetAllBtn',       label: 'Alle Daten zuruecksetzen', keywords: ['reset', 'loeschen', 'zuruecksetzen'] },

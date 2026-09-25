@@ -8,7 +8,6 @@ import KartRegistry from './kart-registry.js';
 import RasiLapEngine from './lap-engine.js';
 import { state, $, css, uid, esc, setText, rcAlert, rcConfirm, rcToast,
          saveData, saveDataDebounced, activeKart } from './rasicross.js';
-import { discardRaceRecording, persistRaceRecording, raceHasRecording } from './recording.js';
 import { drawChart } from './live-ui.js';
 import { loadSavedTrack, updateSectorPanel } from './track.js';
 
@@ -176,7 +175,6 @@ function endRace(auto = false) {
     updateRaceControls();
     updateSectorPanel();
     saveData();
-    persistRaceRecording(r);   // Replay soll App-Neustarts ueberleben
     rcToast(auto ? 'Rennen automatisch beendet' : 'Rennen beendet');
   } catch (e) {
     console.warn('endRace:', e);
@@ -295,7 +293,6 @@ async function deleteRace(id) {
   if (!r) return;
   if (!await rcConfirm(`Rennen "${r.name}" wirklich löschen?`, 'Löschen', 'Löschen', true)) return;
   state.races = state.races.filter(x => x.id !== id);
-  discardRaceRecording(id);
   if (state.activeRaceId === id) state.activeRaceId = null;
   if (state.selectedRaceId === id) state.selectedRaceId = state.races[0]?.id || null;
   if (state.expandedRaceIds) delete state.expandedRaceIds[id];
@@ -381,7 +378,6 @@ function renderRaces() {
         <div class="race-card-actions">
           ${!isActive ? `<button class="btn primary" data-action="setActiveRace" data-id="${r.id}" ${anotherRunning ? 'disabled title="Anderes Rennen läuft noch"' : ''}>Aktivieren</button>` : ''}
           ${(r.status === 'running' || r.status === 'paused') && isActive ? `<button class="btn danger" data-action="endRace">Beenden</button>` : ''}
-          ${(r.status === 'finished' || r.status === 'finished_auto') ? `<button class="btn blue" data-action="replayRace" data-id="${r.id}" ${raceHasRecording(r) ? '' : 'disabled title="Keine Aufnahme zu diesem Rennen vorhanden"'}><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" style="fill:currentColor"/></svg>Replay</button>` : ''}
           <button class="btn ghost expand-btn" data-action="toggleRaceExpand" data-id="${r.id}">
             ${isExpanded ? '▲ Weniger' : '▼ Details'}
           </button>

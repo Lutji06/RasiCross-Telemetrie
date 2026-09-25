@@ -101,7 +101,6 @@
   padding:var(--sp-2) var(--sp-6);border-radius:var(--r-pill);border:1px solid var(--bor);color:var(--mut);margin-left:8px}
 .kc-badge.demo{color:var(--pr);border-color:var(--pr)}
 .kc-live{font-family:var(--mono);font-size:var(--fs-11);color:var(--mut);margin-bottom:10px;display:flex;gap:var(--sp-12);flex-wrap:wrap}
-.kc-live .rec{color:var(--rec);font-weight:700}
 .kc-swatches{display:flex;gap:var(--sp-6)}
 .kc-sw{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent}
 .kc-sw.active{border-color:var(--tx)}

@@ -53,7 +53,7 @@ let _gaugeLastTick = 0;
 // Die Geschwindigkeit gehoert zum Kart, nicht zum Modul -- sonst schwappt
 // beim Kart-Wechsel der Schwung des vorigen in die neue Anzeige. Schluessel
 // ist k.display, damit nichts in den persistierten Zustand waechst und
-// recording.js mit seinem frischen display-Objekt sauber bei null anfaengt.
+// ein neuer Kart-Bucket mit seinem frischen display-Objekt bei null anfaengt.
 const _gVel = new WeakMap();
 function gaugeDt(now) {
   const dt = _gaugeLastTick ? (now - _gaugeLastTick) / 1000 : 1 / 60;

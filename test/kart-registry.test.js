@@ -100,12 +100,12 @@ test('peek macht kein Kart aktiv', () => {
 test('adopt registriert ein uebergebenes Objekt identisch', () => {
   const r = KartRegistry.create();
   const k = KartRegistry.makeKartState();
-  k.recording.armed = true;
+  k.connection.rssi = -42;
   const out = r.adopt('aa:bb', k);
   assert.strictEqual(out, k);
   assert.strictEqual(r.peek('aa:bb'), k);
   assert.deepStrictEqual(r.macs(), ['aa:bb']);
-  assert.strictEqual(r.peek('aa:bb').recording.armed, true);
+  assert.strictEqual(r.peek('aa:bb').connection.rssi, -42);
 });
 
 test('adopt setzt activeMac, wenn vorher null', () => {
@@ -130,7 +130,7 @@ test('adopt ueberschreibt ein bestehendes mac nicht', () => {
   const r = KartRegistry.create();
   const existing = r.get('aa:bb');
   const k = KartRegistry.makeKartState();
-  k.recording.armed = true;
+  k.connection.rssi = -42;
   const out = r.adopt('aa:bb', k);
   assert.strictEqual(out, existing);
   assert.notStrictEqual(out, k);
