@@ -81,7 +81,12 @@ class GPS:
 
     @property
     def fix(self):
-        return self._ok and bool(self._parser and self._parser.fix_stat)
+        # Phase 70: Der Parser vergisst einen Fix nur, wenn ein Satz "kein
+        # Fix" meldet. Verstummt das Modul ganz (Kabel ab, stromlos), galt
+        # der letzte Fix ewig -- Position und Tempo eingefroren, Health "ok",
+        # keine Runden mehr. Ohne NMEA-Bytes in den letzten 3 s: kein Fix.
+        return (self._ok and bool(self._parser and self._parser.fix_stat)
+                and self.has_recent_data)
 
     @property
     def speed_kmh(self):

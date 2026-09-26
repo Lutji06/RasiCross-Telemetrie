@@ -116,6 +116,9 @@ class NVS:
         if v is None: raise OSError("ESP_ERR_NVS_NOT_FOUND")
         n = min(len(v), len(buf)); buf[:n] = v[:n]; return len(v)
     def set_blob(self, key, val): self._store[(self.ns, key)] = bytes(val)
+    def erase_key(self, key):
+        if (self.ns, key) not in self._store: raise OSError("ESP_ERR_NVS_NOT_FOUND")
+        del self._store[(self.ns, key)]
     def commit(self): pass
 esp32.NVS = NVS
 
