@@ -181,6 +181,16 @@ function endRace(auto = false) {
     rcAlert('Fehler beim Beenden:\n' + (e?.message || e));
   }
 }
+// Phase 70: "Ende" sitzt neben "Wechsel", und ein beendetes Rennen laesst
+// sich nicht fortsetzen -- die Knoepfe fragen deshalb nach. Programmatische
+// Enden (Runden-/Zeitziel, stopDemo) rufen endRace() weiter direkt auf.
+async function confirmEndRace() {
+  const r = activeRace();
+  if (!r || (r.status !== 'running' && r.status !== 'paused')) return;
+  if (!await rcConfirm(`Rennen „${r.name}“ jetzt beenden?\n\nEin beendetes Rennen lässt sich nicht fortsetzen.`,
+    'Rennen beenden', 'Beenden', true)) return;
+  endRace(false);
+}
 function pauseRace() {
   const r = activeRace();
   if (!r || r.status !== 'running') return;
@@ -503,7 +513,7 @@ function updateRaceControls() {
 // Interface-Marker: von rasicross.js/serial-demo.js genutzte Funktionen --
 // verhindert no-unused-vars, dokumentiert das API.
 void [activeRace, currentStint, raceValidLaps, raceElapsedMs, createRace,
-      startRace, endRace, pauseRace, toggleRaceRun, openDriverChange,
+      startRace, endRace, confirmEndRace, pauseRace, toggleRaceRun, openDriverChange,
       confirmDriverChange, closeDriverModal, selectRace, setActiveRace,
       toggleRaceExpand, deleteRace, drawRaceHistoryChart, renderRaces,
       renderRaceDetails, renderTrackOptions, updateRaceControls, activePart];
@@ -511,7 +521,7 @@ void [activeRace, currentStint, raceValidLaps, raceElapsedMs, createRace,
 // ESM-Export (Phase 42): bisherige Interface-Globals von races.js
 export {
   activeRace, currentStint, raceValidLaps, raceElapsedMs,
-  createRace, startRace, endRace, pauseRace, toggleRaceRun,
+  createRace, startRace, endRace, confirmEndRace, pauseRace, toggleRaceRun,
   openDriverChange, confirmDriverChange, closeDriverModal,
   selectRace, setActiveRace, toggleRaceExpand, deleteRace,
   drawRaceHistoryChart, renderRaces, renderTrackOptions,

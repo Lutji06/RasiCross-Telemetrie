@@ -18,6 +18,7 @@ import RasiKartOverview from './kart-overview.js';
 import { renderKartsTab } from './karts-page.js';
 import { refreshKartSettingsWindows } from './kart-settings-window.js';
 import RasiKartRank from './kart-rank.js';
+import KartRegistry from './kart-registry.js';
 import RasiLapEngine from './lap-engine.js';
 import RasiLiveView from './live-view.js';
 import { equipForMac } from './kart-equip.js';
@@ -429,7 +430,11 @@ function updateLiveUi() {
         const left = Math.max(0, r.targetLaps - _leaderLaps);
         setText('countdown', `${left} LAPS`);
       }
-      const drv = state.drivers.find(d => d.id === r.currentDriverId);
+      // Phase 70: Fahrer des aktiven Karts, nicht r.currentDriverId (das
+      // setzt nur createRace -- nach einem Wechsel stand hier der Startfahrer
+      // und flackerte gegen den 200-ms-Spiegel in ui-glue.js).
+      const _drvId = RasiLapEngine.currentDriverId(r, state.activeKartMac || KartRegistry.DEFAULT_MAC);
+      const drv = state.drivers.find(d => d.id === _drvId);
       setText('currentDriverName', drv ? drv.name : '--');
     } else if (r) {
       setText('countdown', r.lengthType === 'time' ? fmtClock(r.durationMs) : r.lengthType === 'laps' ? `${r.targetLaps} LAPS` : '∞');

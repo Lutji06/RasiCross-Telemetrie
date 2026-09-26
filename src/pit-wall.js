@@ -119,7 +119,10 @@ function updatePitWall() {
     }
   }
   // Footer
-  const drv = r ? state.drivers.find(d => d.id === r.currentDriverId) : null;
+  // Phase 70: Fahrer des aktiven Karts -- r.currentDriverId blieb nach
+  // einem Fahrerwechsel beim Startfahrer stehen.
+  const _drvId = RasiLapEngine.currentDriverId(r, state.activeKartMac || KartRegistry.DEFAULT_MAC);
+  const drv = _drvId ? state.drivers.find(d => d.id === _drvId) : null;
   setText('pwDriver', drv ? drv.name : '--');
   setText('pwRpm', Math.round(t.rpm).toLocaleString('de-DE'));
   const g = Math.sqrt(t.gx * t.gx + t.gy * t.gy);

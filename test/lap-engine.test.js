@@ -329,3 +329,23 @@ test('partOf tolerates missing race/participants', () => {
   assert.equal(E.partOf({}, 'AA'), null);
   assert.equal(E.partOf({ participants: {} }, null), null);
 });
+
+// Phase 70: Live-Tab und Pit Wall lasen r.currentDriverId -- das setzt nur
+// createRace. Ein Fahrerwechsel aendert den Teilnehmer, nicht das Rennen.
+test('currentDriverId follows a driver change of the kart', () => {
+  const r = { currentDriverId: 'd1',
+    participants: { AA: { mac: 'AA', currentDriverId: 'd1', stints: [] } } };
+  E.applyDriverChange(r.participants.AA, 'd2', 500);
+  assert.equal(E.currentDriverId(r, 'AA'), 'd2');
+});
+
+test('currentDriverId falls back to the race driver without participant', () => {
+  const r = { currentDriverId: 'd1', participants: {} };
+  assert.equal(E.currentDriverId(r, 'AA'), 'd1');
+  assert.equal(E.currentDriverId(r, 'AA'), 'd1', 'lookup must not create AA');
+  assert.equal(Object.keys(r.participants).length, 0);
+});
+
+test('currentDriverId tolerates a missing race', () => {
+  assert.equal(E.currentDriverId(null, 'AA'), null);
+});

@@ -209,6 +209,17 @@
     return stint;
   }
 
+  // Phase 70: aktueller Fahrer eines Karts im Rennen. Der Fahrerwechsel
+  // aendert nur den Teilnehmer (applyDriverChange); r.currentDriverId setzt
+  // allein createRace. Anzeigen, die das Rennfeld lasen, blieben deshalb
+  // beim Startfahrer stehen. Reiner Lookup (partOf) -- legt nichts an.
+  function currentDriverId(r, mac) {
+    if (!r) return null;
+    var p = partOf(r, mac);
+    if (p && p.currentDriverId) return p.currentDriverId;
+    return r.currentDriverId || null;
+  }
+
   // ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiLapEngine
   export default {
     migrateRace: migrateRace,
@@ -227,4 +238,5 @@
     fastestLapHolder: fastestLapHolder,
     positionGains: positionGains,
     applyDriverChange: applyDriverChange,
+    currentDriverId: currentDriverId,
   };
