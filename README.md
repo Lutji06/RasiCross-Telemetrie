@@ -14,7 +14,7 @@ Geschwindigkeit · Drehzahl · GPS-Track · Beschleunigung · Rundenzeiten · Se
 [![Tests](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/check.yml/badge.svg)](https://github.com/Lutji06/RasiCross-Telemetrie/actions/workflows/check.yml)
 [![Release](https://img.shields.io/github/v/release/Lutji06/RasiCross-Telemetrie)](https://github.com/Lutji06/RasiCross-Telemetrie/releases)
 
-<img src="docs/screenshot.png" alt="Das Dashboard während eines Rennens" width="900">
+<img src="docs/screenshot.png" alt="Live-Übersicht während eines Rennens mit drei Karts: Streckenkarte, Leaderboard und eine Karte je Kart" width="900">
 
 </div>
 
@@ -43,7 +43,7 @@ Geschwindigkeit · Drehzahl · GPS-Track · Beschleunigung · Rundenzeiten · Se
    - **macOS Apple Silicon:** `RasiCross-Telemetry-arm64.zip` · **Intel:** `…-x64.zip`
 2. Bridge-ESP per USB anstecken.
 3. App starten → Tab **Verbindung** → COM-Port wählen → **USB verbinden**.
-4. Kart-ESP einschalten. Sobald Pakete ankommen, erscheint das Kart in der Leiste.
+4. Kart-ESP einschalten. Sobald Pakete ankommen, erscheint das Kart in der Leiste. Weitere Karts melden sich genauso an — spätestens nach ~5 s, ohne Zutun.
 
 > [!TIP]
 > **Windows-SmartScreen** meldet beim ersten Start eine unbekannte App: „Weitere Informationen" → „Trotzdem ausführen". Danach nicht mehr.
@@ -58,7 +58,7 @@ Geschwindigkeit · Drehzahl · GPS-Track · Beschleunigung · Rundenzeiten · Se
 
 ```mermaid
 flowchart LR
-    S["Kart-Sender<br>ESP32<br>Hall · MPU-6050 · GPS"]
+    S["Kart-Sender<br>ESP32<br>Hall · MPU-9250 · GPS"]
     B["Bridge<br>ESP32"]
     A["Desktop-App<br>Electron"]
 
@@ -74,7 +74,7 @@ Bis zu **vier Karts** funken gleichzeitig auf denselben Kanal; die Bridge unters
 | --- | --- | --- |
 | Kart-Sender | `sender.py` + `esp_libs/` | Sammelt Sensordaten mit 12,5 Hz, sendet per ESP-NOW |
 | Bridge | `bridge.py` + `esp_libs/frame.py` | Empfängt von bis zu 4 Karts, gibt JSON-Zeilen auf USB |
-| Oberfläche | `index.html`, `src/*.js` (44 ESM-Module) | Auswertung und Darstellung |
+| Oberfläche | `index.html`, `src/*.js` (43 ESM-Module) | Auswertung und Darstellung |
 | Desktop-Hülle | `main.js`, `preload.js` | Electron-Fenster, serieller Port, Datei-Ablage |
 
 Die Oberfläche wird mit **Vite** gebaut. Eine einzelne, direkt im Browser aufrufbare HTML-Datei gibt es nicht mehr — für den Browser-Betrieb siehe [Entwicklung](#entwicklung).
@@ -85,7 +85,7 @@ Die Oberfläche wird mit **Vite** gebaut. Eine einzelne, direkt im Browser aufru
 
 **Pro Knoten (Kart und Bridge):** ESP32-Devkit (z. B. ESP32-WROOM-32) mit MicroPython 1.21+, USB-Kabel.
 
-**Zusätzlich am Kart:** Hall-Sensor (z. B. A3144) am Schwungrad, MPU-6050 (Beschleunigung + Gyro), GPS-Modul mit NMEA (z. B. NEO-6M).
+**Zusätzlich am Kart:** Hall-Sensor (z. B. A3144) am Schwungrad (optional — Karts ohne Drehzahlsensor werden unterstützt), MPU-9250 (Beschleunigung + Gyro; ein MPU-6050 funktioniert genauso, nur die Temperaturkennlinie unterscheidet sich), GPS-Modul NEO-M8N. Die Firmware stellt es beim Start per UBX auf 5 Hz; andere NMEA-Module laufen mit ihrer Standardrate.
 
 **Empfohlen:** Pufferakku am Kart gegen Spannungsspitzen, externe 2,4-GHz-Antennen für Reichweite.
 
@@ -95,7 +95,7 @@ Pinbelegung (Standard, im `Config`-Block änderbar):
 | --- | --- | --- |
 | Hall-Sensor | 4 | Input mit internem Pull-Up, Falling-IRQ |
 | GPS UART2 RX/TX | 16 / 17 | 9600 Baud, gekreuzt anschließen |
-| I²C SDA / SCL | 21 / 22 | MPU-6050 |
+| I²C SDA / SCL | 21 / 22 | MPU-9250 |
 | Status-LED | 2 | onboard (Kart und Bridge) |
 
 > [!WARNING]
@@ -170,18 +170,25 @@ Acht Tabs, links in der Seitenleiste:
 
 | Tab | Inhalt |
 | --- | --- |
-| **Live** | Tacho, Drehzahl, G-Meter, Streckenkarte, Rundenzeiten. Bei mehreren Karts eine Übersicht, per Klick auf eine Karte die Einzelansicht. |
-| **Detail** | Verlauf, Stints und Rundentabelle des laufenden Rennens. |
-| **Rennen** | Rennen anlegen, starten, auswerten. |
+| **Live** | Zum Blättern über die Chip-Leiste: Die **Übersicht** zeigt Streckenkarte, Leaderboard und eine Karte je Kart (Bild oben), danach folgt je Kart eine eigene Seite mit Speed, Drehzahl, Rundenzeit, Sektoren, G-Meter und Rundenliste. |
+| **Detail** | Verlauf von Speed, Drehzahl und G-Kräften, Stints, letzte Runden und Diagnose — für das per Chip gewählte Kart. |
+| **Rennen** | Rennen mit Zeit- oder Rundenziel anlegen, starten, pausieren, auswerten. |
 | **Fahrer** | Fahrerverwaltung, Statistiken, Gesamtstrecke. |
-| **Karts** | Flotte und Wartung: Status je Kart, Motorstunden, Kalibrierung. |
+| **Karts** | Eine Karte je Kart mit Live-Status und Lebensstatistik (km, Ø-Tempo, Top-Speed, Fahrzeit). |
 | **Strecke** | Strecke einmessen, Sektoren setzen, Strecken speichern. |
-| **Verbindung** | COM-Port, Demo-Modus, Aufzeichnung, Diagnose. |
-| **Einstellungen** | Skalen, Kalibrierung, ESP32-Konfiguration, Datenverwaltung. |
+| **Verbindung** | Verbinden, Demo-Modus, Ampel-Status je Kart; unter *Details* Port, Auto-Connect, RSSI-Verlauf und Paket-Log. |
+| **Einstellungen** | Anzeige-Skalen, Drift- und Umkipp-Schwelle, 3D-Modell, Karten-Hintergrund, Daten & Backup. |
 
 ### Mehrere Karts
 
-Bis zu **vier Karts** gleichzeitig. Jedes meldet sich mit eigener MAC an, bekommt Name und Farbe und wird in der Kart-Leiste geführt. Rundenzeiten, Sektoren, Motorstunden und Kalibrierung laufen pro Kart getrennt. Über das ⚙ auf einer Kart-Karte öffnet sich ein **eigenes Fenster** für dieses Kart — praktisch auf einem zweiten Bildschirm in der Box.
+Bis zu **vier Karts** gleichzeitig. Solange ein Platz frei ist, ruft die Bridge alle 5 s per Broadcast nach neuen Karts — ein zweites oder getauschtes Kart erscheint also von selbst. Jedes Kart meldet sich mit eigener MAC an, bekommt Name und Farbe und wird in der Kart-Leiste geführt. Rundenzeiten, Sektoren, Stints, Motorstunden und Kalibrierung laufen pro Kart getrennt. Beim ersten Kontakt fragt die App, ob ein Drehzahlsensor verbaut ist.
+
+Im Rennen bekommt jedes Kart eine **Live-Position**. Abstand zum Führenden und Intervall zum Vordermann misst die App als Streckenabstand in Metern; bei gleicher Rundenzahl entscheidet der Streckenfortschritt. Die schnellste Runde trägt ein ⚡FL-Badge, und ein Rundenrennen endet, sobald der Führende die Zielrunde erreicht. Ein Fahrerwechsel geht für alle Karts in einem Dialog.
+
+Über das ⚙ auf einer Kart-Karte öffnet sich ein **eigenes Fenster** für dieses Kart — Name, Farbe, Kalibrierung, ESP-Konfiguration, Wartung und Ausstattung, praktisch auf einem zweiten Bildschirm in der Box.
+
+> [!NOTE]
+> Mit mehreren Karts gibt es in v2.0.0 noch bekannte Einschränkungen, unter anderem reicht die USB-Bandbreite der Bridge derzeit nur für zwei Karts, und die Umkipp-Warnung kommt verspätet. Die vollständige Liste steht in den [Release-Notes zu v2.0.0](https://github.com/Lutji06/RasiCross-Telemetrie/releases/tag/v2.0.0).
 
 ### Runden und Sektoren
 
@@ -191,23 +198,23 @@ Die Rundenerkennung läuft über einen GPS-Geofence — **keine Lichtschranke n�
 
 Aus Beschleunigung und Gierrate berechnet die App den Rollwinkel (Komplementärfilter). Bei einem **echten Überschlag** (Standard ab 75°) warnt sie akustisch und im Bild — normales Radheben in der Kurve löst bewusst nicht aus.
 
-Die IMU muss nicht in Fahrtrichtung eingebaut sein: Im Kart-Fenster unter *Kalibrierung* lassen sich Nullpunkt, Achsentausch, einzelne Vorzeichen und die Einbaulage **kopfüber** einstellen. Weil die Korrektur erst beim Auswerten greift, wirkt sie auch rückwirkend auf schon aufgezeichnete Fahrten.
+Die IMU muss nicht in Fahrtrichtung eingebaut sein: Im Kart-Fenster unter *Kalibrierung* lassen sich Nullpunkt, Achsentausch, einzelne Vorzeichen und die Einbaulage **kopfüber** einstellen.
 
-### Aufzeichnen und Abspielen
+### Daten sichern
 
-Jede Session lässt sich als NDJSON aufzeichnen und später abspielen — mit Transportleiste, Scrubber und 0,25×–4×. Zusätzlich **CSV-Export** (Semikolon, Dezimalkomma — öffnet direkt in deutschem Excel). Die Aufnahme startet automatisch, sobald die Bridge verbunden ist (abschaltbar).
+Fahrer, Rennen mit allen Runden und Sektoren, Strecken und Karts speichert die App lokal. Unter *Einstellungen → Daten & Backup* lässt sich der Stand als Datei exportieren und wieder einlesen — Kalibrierung und Motorstunden derzeit nur für das gewählte Kart. Einen Mitschnitt jedes einzelnen Telemetriepakets samt Replay gibt es seit v2.0.0 nicht mehr.
 
 ### Karte, Charts, 3D
 
 - **Streckenkarte** mit OpenStreetMap-Hintergrund. Beim Speichern einer Strecke lädt die App die Kacheln in den lokalen Cache — danach funktioniert die Karte **offline**, ideal für eine Boxengasse ohne Empfang. Eigene Tile-URL möglich.
 - **Ghost-Runde:** Die beste Runde läuft als blasse Linie mit Geisterpunkt live mit.
-- **Live-Charts:** Speed + Drehzahl auf gemeinsamer Zeitachse, G-Kräfte in drei Spuren, Gierrate als Sparkline.
+- **Live-Charts** im Detail-Tab: Speed + Drehzahl auf gemeinsamer Zeitachse, G-Kräfte in drei Spuren, Gierrate als Sparkline.
 - **3D-Kart:** Umschalter am G-Meter zwischen 2D-Kreis und einem WebGL-Kart, das sich live neigt. Eigenes `.glb`/`.gltf`-Modell hochladbar. Ohne WebGL fällt die Ansicht still auf 2D zurück.
 - **Batterie:** Bei konfiguriertem Monitoring Spannung, Ladestand und Warnton bei Unterspannung.
 
 ### Bedienung
 
-Kopfzeile rechts: **◐** schaltet zwischen dunkel, hell und *outdoor* (hoher Kontrast bei Sonne), **🔊** schaltet die Töne. Beides wird gespeichert. Die Oberfläche respektiert die Systemeinstellung „Bewegung reduzieren" — dann springen Übergänge sofort, statt zu federn.
+Unten in der Seitenleiste: **◐** schaltet zwischen dunkel, hell und *outdoor* (hoher Kontrast bei Sonne), **🔊** schaltet die Töne, **⛶** öffnet die Pit-Wall im Vollbild. Theme und Töne werden gespeichert. Alle drei Themes sind auf lesbaren Kontrast geprüft. Die Oberfläche respektiert die Systemeinstellung „Bewegung reduzieren" — dann springen Übergänge sofort, statt zu federn.
 
 ---
 
@@ -235,7 +242,7 @@ Viele Werte lassen sich **live aus der App** ändern, ohne neu zu flashen; der S
 | `SEND_MS` | Sendeintervall | `80` (12,5 Hz) |
 | `SEND_MS_DEGRADED` | bei schlechter Funkverbindung | `200` (5 Hz) |
 | `WATCHDOG_MS` | Hardware-Watchdog (0 = aus) | `8000` |
-| `GPS_TIMEOUT_MS` | ohne Fix so lange → „lost" | `10000` |
+| `GPS_TIMEOUT_MS` | so lange ohne NMEA-Daten → „lost" | `10000` |
 | `WIFI_TX_POWER_DBM` | Sendeleistung | `20` (EU-Maximum) |
 | `WHEEL_CIRC_M` | Radumfang in m (0 = nur GPS-Speed) | `0` |
 | `GEAR_RATIO` | Wellenumdrehungen je Radumdrehung | `1.0` |
@@ -253,8 +260,9 @@ Live änderbar: `send_ms`, `pulses_per_rev`, `wheel_circ_m`, `gear_ratio`, `batt
 | --- | --- | --- |
 | `ESPNOW_CHANNEL` | siehe oben | `1` |
 | `HEARTBEAT_MS` | Status an die App alle … | `2000` |
-| `HELLO_MS` | Hello ans Kart alle … (max) | `5000` |
-| `HELLO_QUIET_MS` | Hello nur, wenn das Kart so lange schweigt | `5000` |
+| `HELLO_MS` | Hello-Takt: gerichtet an stumme Karts, dazu Pairing-Broadcast, solange ein Platz frei ist | `5000` |
+| `HELLO_QUIET_MS` | gerichtetes Hello nur, wenn das Kart so lange schweigt | `5000` |
+| `MAX_KARTS` | gleichzeitig verwaltete Karts | `4` |
 | `WATCHDOG_MS` | Hardware-Watchdog | `8000` |
 
 </details>
@@ -314,7 +322,7 @@ Auf der Funkstrecke fahren die Pakete binär; zwischen Bridge und App sind es UT
 | `lost` steigt schnell | Funkstörung, Reichweite überschritten, Antennenausrichtung. |
 | Kart-LED blinkt nie | `LED_PIN` in der Config prüfen. |
 | GPS-Blinken hört nie auf | Freie Sicht zum Himmel? GPS-Pins richtig (RX/TX gekreuzt)? |
-| `gps_health: "lost"` | NMEA kommt an, aber kein Fix — Antennenstandort prüfen. |
+| GPS-Warnung in der App, `gps_health: "lost"` | Das GPS-Modul liefert seit über 10 s keine Daten mehr (nach 3 s Stille gilt schon kein Fix mehr) — Stecker, RX/TX-Verkabelung und Versorgung prüfen. |
 | Drehzahl bleibt 0 | Hall-Sensor verdrahtet? Magnetabstand? `PULSES_PER_REV`? Pull-Up am Pin? |
 | Dauerhaft „umgekippt" trotz ebenem Stand | IMU kopfüber oder verdreht eingebaut — im Kart-Fenster unter *Kalibrierung* die Einbaulage setzen. |
 | `bridge_error: invalid_json` | Korrupte Pakete, meist Funk- oder Spannungsproblem. |
@@ -345,7 +353,7 @@ Unter Windows nimmt dir [`BUILD_EXE.ps1`](BUILD_EXE.ps1) die Arbeit ab: prüft N
 
 ### Aufbau
 
-Die Oberfläche besteht aus 44 ESM-Modulen unter `src/`. Die reine Logik ist konsequent von der DOM-Verdrahtung getrennt und liegt in abhängigkeitsfreien Modulen — `geo.js` (Runden- und Sektormathematik), `attitude.js` (Rollwinkel, Überschlag), `spring.js` (Federn der Oberfläche), `smoothing.js`, `kart-stats.js`, `replay.js`. Genau diese Module sind unit-getestet.
+Die Oberfläche besteht aus 43 ESM-Modulen unter `src/`. Die reine Logik ist konsequent von der DOM-Verdrahtung getrennt und liegt in abhängigkeitsfreien Modulen — `geo.js` (Runden- und Sektormathematik), `lap-engine.js` (Runden pro Kart), `attitude.js` (Rollwinkel, Überschlag), `live-view.js` (Seiten des Live-Tabs), `conn-health.js` (Verbindungsampel, Reconnect), `esp-payload.js` (Config-Downlink im 250-Byte-Budget), `spring.js` (Federn der Oberfläche), `smoothing.js`, `kart-stats.js`. Genau diese Module sind unit-getestet.
 
 ### Prüfen vor dem Commit
 
@@ -364,20 +372,20 @@ Zum Test gehört ein **visuelles Netz**: Playwright vergleicht Screenshots der e
 
 ### Release
 
-Die installierte App prüft beim Start die GitHub-Releases und aktualisiert sich selbst. Dafür muss ein Release **mit `latest.yml`** veröffentlicht werden — das erledigt electron-builder:
-
-```powershell
-# 1. Version in package.json erhöhen (sie folgt den Release-Tags, z. B. 1.0.8) und committen
-# 2. GitHub-Token mit repo-Scope setzen und veröffentlichen:
-$env:GH_TOKEN = "<dein Token>"
-npx electron-builder --win --x64 --publish always
-```
-
-Alternativ baut [`build.yml`](.github/workflows/build.yml) bei jedem Tag-Push Windows und macOS parallel und legt die Artefakte als Release ab:
+Die installierte App prüft beim Start die GitHub-Releases und aktualisiert sich selbst. Dafür muss ein Release **mit `latest.yml`** (Windows) und **`latest-mac.yml`** (macOS) veröffentlicht werden. Die Version in `package.json` folgt den Release-Tags; die internen `9.6`-Formatversionen der Daten bleiben davon unberührt.
 
 ```bash
-git tag v1.0.8 && git push origin v1.0.8
+npm version 2.0.1 --no-git-tag-version      # package.json + package-lock.json
+git commit -am "chore(release): v2.0.1" && git push
+git tag v2.0.1 && git push origin v2.0.1
 ```
+
+Der Tag-Push startet [`build.yml`](.github/workflows/build.yml): Windows und macOS werden parallel gebaut und als Release veröffentlicht.
+
+> [!IMPORTANT]
+> Danach die Dateien am Release prüfen. Veröffentlicht der schnellere Job das Release, bevor der andere fertig ist, überspringt dessen electron-builder den Upload — dann fehlt meist `latest-mac.yml` samt Blockmaps, und Macs finden das Update nicht. Die Datei lässt sich aus den Zips am Release nachbauen und mit `gh release upload` nachreichen.
+
+Nur für Windows geht es auch lokal: `$env:GH_TOKEN = "<Token mit repo-Scope>"`, dann `npx electron-builder --win --x64 --publish always`.
 
 Portable EXE und Dev-Modus aktualisieren sich nicht selbst.
 
