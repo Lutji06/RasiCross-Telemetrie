@@ -124,6 +124,13 @@ class PeerStore:
     def save_list(self, mac_list):
         if not self._nvs:
             return
+        # Phase 70: Alt-Schluessel weg, sobald die Liste gespeichert wird --
+        # sonst holte load() ihn nach "Karts zuruecksetzen" (leere Liste)
+        # beim naechsten Boot per Migration zurueck.
+        try:
+            self._nvs.erase_key(self.LEGACY_KEY)
+        except Exception:
+            pass                                  # gab es nicht (Normalfall)
         try:
             blob = b"".join(m for m in mac_list if m and len(m) == 6)[:6 * Config.MAX_KARTS]
             self._nvs.set_blob(self.KEY, blob if blob else b"")
@@ -299,7 +306,7 @@ class Bridge:
             print("[init] Kart-MAC aus NVS geladen:",
                   ubinascii.hexlify(saved_mac, ":").decode())
 
-        # Broadcast-Peer fuer Pairing-Hellos, solange kein Kart bekannt ist.
+        # Broadcast-Peer fuer Pairing-Hellos, solange ein Kart-Platz frei ist.
         # Ohne diesen Peer kann esp_now.send() den Broadcast nicht raustragen.
         self._bcast = b'\xff\xff\xff\xff\xff\xff'
         try:
@@ -649,30 +656,32 @@ class Bridge:
         """Sendet ein Hello-Paket an den Kart.
         - Bekanntes Kart: gerichtet, nur wenn Kart laenger nichts geschickt
           hat (HELLO_QUIET_MS, spart Airtime).
-        - Unbekanntes Kart (Pairing-Phase): per Broadcast, damit ein frisch
+        - Unbekanntes Kart (Pairing): per Broadcast, damit ein frisch
           gestartetes Kart die Bridge-MAC ohne Hardcoding lernen kann.
-          Loest das Cold-Start-Henne-Ei-Problem zwischen Sender und Bridge."""
+          Loest das Cold-Start-Henne-Ei-Problem zwischen Sender und Bridge.
+          Phase 70: auch wenn schon Karts bekannt sind, solange ein Platz
+          frei ist -- das Kart speichert die Bridge-MAC nicht und sendet
+          ohne sie nie; ein zweites oder getauschtes Kart wurde sonst nie
+          gelernt."""
         now = utime.ticks_ms()
         if utime.ticks_diff(now, self.last_hello_ms) < Config.HELLO_MS:
             return
+        self.last_hello_ms = now
+        hello = ujson.dumps({"type": "bridge_hello"})
 
-        if self.karts:
-            # Gerichtetes Hello an jedes Kart, das laenger nichts geschickt hat
-            self.last_hello_ms = now
-            hello = ujson.dumps({"type": "bridge_hello"})
-            for mac, st in self.karts.items():
-                if st.packet_age_ms < Config.HELLO_QUIET_MS:
-                    continue
-                try:
-                    self.esp.send(mac, hello, False)
-                except Exception:
-                    pass
-        else:
-            # Pairing-Broadcast — kein Kart bekannt
-            self.last_hello_ms = now
+        # Gerichtetes Hello an jedes bekannte Kart, das laenger nichts geschickt hat
+        for mac, st in self.karts.items():
+            if st.packet_age_ms < Config.HELLO_QUIET_MS:
+                continue
             try:
-                self.esp.send(self._bcast,
-                              ujson.dumps({"type": "bridge_hello"}), False)
+                self.esp.send(mac, hello, False)
+            except Exception:
+                pass
+
+        # Pairing-Broadcast, solange noch ein Platz frei ist
+        if len(self.karts) < Config.MAX_KARTS:
+            try:
+                self.esp.send(self._bcast, hello, False)
             except Exception:
                 pass
 

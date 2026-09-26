@@ -234,5 +234,112 @@ class Rueckkanal(unittest.TestCase):
         self.assertLessEqual(len(json.dumps(ack, separators=(',', ':'))), 250)
 
 
+def _nmea(body):
+    cs = 0
+    for c in body:
+        cs ^= ord(c)
+    return ("$%s*%02X\r\n" % (body, cs)).encode()
+
+
+class GpsAusfall(unittest.TestCase):
+    """Kabel ab / GPS stromlos: Der Parser setzt den Fix nur zurueck, wenn
+    ein Satz "kein Fix" meldet. Kommt gar nichts mehr, galt der letzte Fix
+    ewig -- Position und Tempo eingefroren, Health "ok", keine Runden mehr
+    und im Dashboard keine GPS-Warnung (Phase 70)."""
+
+    def setUp(self):
+        self._real_ticks = mpstub.utime.ticks_ms
+        self.clock = [5000]
+        mpstub.utime.ticks_ms = lambda: self.clock[0]
+
+    def tearDown(self):
+        mpstub.utime.ticks_ms = self._real_ticks
+
+    def _gps_mit_fix(self):
+        import gps_task
+        with _Capture():
+            g = gps_task.GPS(17, 16)
+        g._uart.feed(_nmea("GNRMC,120000.00,A,4936.07407,N,00607.19259,E,24.3,90.0,260926,,,A"))
+        g._uart.feed(_nmea("GNGGA,120000.00,4936.07407,N,00607.19259,E,1,09,0.9,300.0,M,47.0,M,,"))
+        g.update()
+        return g
+
+    def test_frischer_fix_gilt(self):
+        g = self._gps_mit_fix()
+        self.assertTrue(g.fix)
+        self.assertEqual(g.health, "ok")
+        self.assertGreater(g.speed_kmh, 0)
+
+    def test_verstummtes_gps_verliert_den_fix(self):
+        g = self._gps_mit_fix()
+        self.clock[0] += 60000            # eine Minute lang kein einziges Byte
+        g.update()
+        self.assertFalse(g.fix)
+        self.assertEqual(g.health, "lost")
+        self.assertEqual(g.speed_kmh, 0.0)
+        self.assertEqual(g.lat, 0.0)
+
+
+class _FrischerNvs(unittest.TestCase):
+    """NVS-Stub ist klassenweit: ohne Leeren laedt eine Bridge die
+    Kart-Liste, die ein frueherer Test gespeichert hat."""
+
+    def setUp(self):
+        self._saved = dict(mpstub.esp32.NVS._store)
+        mpstub.esp32.NVS._store.clear()
+
+    def tearDown(self):
+        mpstub.esp32.NVS._store.clear()
+        mpstub.esp32.NVS._store.update(self._saved)
+
+
+class Pairing(_FrischerNvs):
+    """Das Kart speichert die Bridge-MAC nicht und sendet ohne sie nie.
+    Es lernt sie nur aus einem Broadcast-Hello -- das kam bisher nur,
+    solange die Bridge GAR KEIN Kart kannte (Phase 70)."""
+
+    BCAST = b'\xff' * 6
+
+    def _hellos(self, b):
+        b.esp.sent.clear()
+        b.last_hello_ms = -10 ** 9        # Hello-Intervall sicher abgelaufen
+        b._send_hello()
+        return [m for m, _ in b.esp.sent]
+
+    def test_broadcast_auch_wenn_schon_ein_kart_bekannt_ist(self):
+        _mod, b, _stdin = _bridge()
+        with _Capture():
+            b._handle_packet(KART, frame.pack({"speed": 1.0}, 1))
+        self.assertIn(self.BCAST, self._hellos(b))
+
+    def test_kein_broadcast_wenn_alle_plaetze_belegt(self):
+        mod, b, _stdin = _bridge()
+        with _Capture():
+            for n in range(1, mod.Config.MAX_KARTS + 1):
+                b._handle_packet(bytes([0xde, 0xad, 0, 0, 0, n]), frame.pack({}, n))
+        self.assertNotIn(self.BCAST, self._hellos(b))
+
+
+class PeerStoreAltlast(_FrischerNvs):
+    """Nach "Karts zuruecksetzen" holte die Migration beim naechsten Boot
+    die MAC aus dem alten Einzel-Schluessel kart_mac zurueck (Phase 70)."""
+
+    OLD = b'\x11\x22\x33\x44\x55\x66'
+
+    def test_migration_uebernimmt_alten_schluessel(self):
+        mpstub.esp32.NVS._store[("rasicross", "kart_mac")] = self.OLD
+        _mod, b, _stdin = _bridge()
+        self.assertEqual(list(b.karts), [self.OLD])
+
+    def test_reset_karts_bleibt_nach_neustart_leer(self):
+        mpstub.esp32.NVS._store[("rasicross", "kart_mac")] = self.OLD
+        _mod, b, stdin = _bridge()
+        stdin.lines.append('{"type":"reset_karts"}\n')
+        with _Capture():
+            b._handle_usb()
+        _mod2, b2, _stdin2 = _bridge()
+        self.assertEqual(list(b2.karts), [])
+
+
 if __name__ == '__main__':
     unittest.main()

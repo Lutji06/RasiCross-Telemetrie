@@ -12,6 +12,7 @@ import { calcAutoSectors, onGpsUpdate, updateBounds, updateSectorPanel } from '.
 import { drawTrack } from './map-draw.js';
 import { renderDrivers, renderDriverOptions } from './laps-drivers.js';
 import ConnUi from './conn-ui.js';
+import ConnHealth from './conn-health.js';
 import RasiKartBar from './kart-bar.js';
 
 // 19. SERIAL / DEMO
@@ -164,8 +165,8 @@ function handleSerialLine(line) {
 function scheduleReconnect() {
   if (state.serial.reconnectTimer) return;
   state.serial.reconnectAttempts++;
-  if (state.serial.reconnectAttempts > 30) return;
-  const delay = Math.min(15000, 1500 * Math.pow(1.4, Math.min(state.serial.reconnectAttempts, 8)));
+  // Phase 70: kein Aufgeben mehr nach 30 Versuchen -- ab ~1 min alle 15 s.
+  const delay = ConnHealth.reconnectDelayMs(state.serial.reconnectAttempts);
   state.serial.reconnectTimer = setTimeout(async () => {
     state.serial.reconnectTimer = null;
     if (!state.serial.autoReconnect || state.serial.connected) return;

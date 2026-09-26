@@ -13,6 +13,7 @@ import { state, rcToast, rcConfirm, saveData, saveDataDebounced,
          kartMetaFor, kartRosterMacs, kartCalFor, kartEngineFor, kartStatsFor,
          updateKartMeta, bridgeSend } from './rasicross.js';
 import { ESP_CFG_FIELDS, applyEspConfigAck } from './esp-config.js';
+import EspPayload from './esp-payload.js';
 import { equipSectionMarkup, bindEquipSection, refreshEquipSection,
          applyEquipToEspPanel, equipForMac } from './kart-equip.js';
 import { drawGMeter } from './gauges.js';
@@ -331,7 +332,8 @@ function _bindHandlers(r) {
     const k = _liveKart(r.mac);
     const doc = r.doc;
     const num = (id) => Number(doc.getElementById(id).value);
-    const cfg = {
+    // Phase 70: gerundet -- lange Dezimalzahlen sprengten das 250-B-Limit.
+    const cfg = EspPayload.roundEspConfig({
       type: 'config',
       send_ms: num('espSendMs') || 80,
       pulses_per_rev: num('espPulses') || 1,
@@ -343,7 +345,7 @@ function _bindHandlers(r) {
       batt_cal: num('espBattCal') || 1.0,
       rpm_ceiling: Math.max(0, num('espRpmCeiling') || 0),
       rpm_alpha: num('espRpmAlpha') || 0.25,
-    };
+    });
     const stEl = _el(r, 'espSendStatus');
     if (!state.serial.connected || !k) {
       if (stEl) stEl.textContent = !state.serial.connected ? 'Nicht verbunden' : 'Kart nicht verbunden';

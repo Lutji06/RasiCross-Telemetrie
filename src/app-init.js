@@ -6,7 +6,7 @@
 import { initTrackCanvases, resizeCanvases, drawTrack,
          trackCanvas, scanCanvas } from './map-draw.js';
 import { closeDriverModal, confirmDriverChange,
-         createRace, deleteRace, endRace, openDriverChange, renderRaces,
+         createRace, deleteRace, confirmEndRace, openDriverChange, renderRaces,
          renderTrackOptions, selectRace, setActiveRace, toggleRaceExpand,
          toggleRaceRun, updateRaceControls } from './races.js';
 import { autoConnect, connectSerial, disconnectSerial, listSerialPorts,
@@ -97,7 +97,7 @@ function init() {
   $('newDriverModal').onclick = (e) => { if (e.target.id === 'newDriverModal') $('newDriverModal').classList.remove('show'); };
   // Live tab buttons
   $('startRaceBtn').onclick = toggleRaceRun;
-  $('endRaceBtn').onclick = () => endRace(false);
+  $('endRaceBtn').onclick = confirmEndRace;
   $('changeDriverBtn').onclick = openDriverChange;
   $('heatmapBtn').onclick = () => {
     const k = activeKart();
@@ -263,7 +263,7 @@ function init() {
     deleteDriver:     id => deleteDriver(id),
     selectRace:       id => selectRace(id),
     setActiveRace:    id => setActiveRace(id),
-    endRace:          () => endRace(false),
+    endRace:          () => confirmEndRace(),
     toggleRaceExpand: id => toggleRaceExpand(id),
     deleteRace:       id => deleteRace(id),
   };
