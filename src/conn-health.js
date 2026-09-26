@@ -84,4 +84,13 @@ function heroStatus(a) {
   return { text: 'Nicht verbunden', level: 'idle' };
 }
 
-export default { classifyKart, aggregate, heroStatus, THRESHOLDS };
+// reconnectDelayMs(attempt) -> Wartezeit (ms) vor dem attempt-ten
+// Wiederverbindungsversuch: 2,1 s wachsend bis 15 s, danach konstant.
+// Phase 70: Frueher gab scheduleReconnect nach 30 Versuchen (~6,5 min)
+// fuer immer auf; jetzt wird im 15-s-Takt weiter versucht.
+function reconnectDelayMs(attempt) {
+  const n = (typeof attempt === 'number' && attempt >= 1) ? attempt : 1;
+  return Math.round(Math.min(15000, 1500 * Math.pow(1.4, Math.min(n, 8))));
+}
+
+export default { classifyKart, aggregate, heroStatus, reconnectDelayMs, THRESHOLDS };

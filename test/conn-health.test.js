@@ -107,3 +107,20 @@ test('heroStatus: Demo > verbunden > Reconnect > getrennt > idle', () => {
   assert.deepEqual(CH.heroStatus({}), { text: 'Nicht verbunden', level: 'idle' });
   assert.deepEqual(CH.heroStatus(), { text: 'Nicht verbunden', level: 'idle' });
 });
+
+// Phase 70: Nach 30 Fehlversuchen (~6,5 min) gab das Auto-Reconnect fuer
+// immer auf -- wer die Bridge spaeter wieder ansteckte, musste von Hand
+// verbinden. Die Kurve bleibt, nur das Aufgeben entfaellt.
+test('reconnectDelayMs: Backoff-Kurve wie bisher', () => {
+  assert.equal(CH.reconnectDelayMs(1), 2100);
+  assert.equal(CH.reconnectDelayMs(2), 2940);
+  assert.equal(CH.reconnectDelayMs(8), 15000);
+});
+
+test('reconnectDelayMs gibt nie auf', () => {
+  for (const n of [31, 100, 10000]) assert.equal(CH.reconnectDelayMs(n), 15000);
+});
+
+test('reconnectDelayMs verkraftet Muell-Eingaben', () => {
+  for (const n of [0, -5, undefined, NaN, 'x']) assert.equal(CH.reconnectDelayMs(n), 2100);
+});
