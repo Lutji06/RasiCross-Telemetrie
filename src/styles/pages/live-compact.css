@@ -210,10 +210,11 @@ body[data-live-view="overview"] #liveOverview{
    sperrt der Body den Seiten-Scroll und der Live-Inhalt fuellt
    exakt den Raum zwischen Topbar (sticky) und Statusbar (sticky).
    Andere Tabs (Detail, Strecke, ...) duerfen weiter scrollen.
-   Nur ab Viewport-Hoehe >=760px aktiv, sonst (Mobile/landscape klein)
+   Nur ab Viewport-Hoehe >=680px aktiv (Phase 73: vorher 760 -- ein
+   1366x768-Laptop bekam das Layout nie und musste scrollen), sonst (Mobile/landscape klein)
    wuerde der Inhalt vertikal abgeschnitten werden.
    ------------------------------------------------------------ */
-@media (min-height:760px) and (min-width:1100px){
+@media (min-height:680px) and (min-width:1100px){
   html:has(body[data-tab="live"]),
   body[data-tab="live"]{
     height:100vh;overflow:hidden;
@@ -239,7 +240,7 @@ body[data-live-view="overview"] #liveOverview{
      Viewport. Lebt bewusst NUR hier — siehe Kommentar bei .pw-live-body. */
   body[data-tab="live"] #tab-live .pw-live-map .pw-module{flex:1 1 auto;min-height:0}
   body[data-tab="live"] #tab-live .pw-live-map .pw-map-mod{flex:2 1 0}
-  body[data-tab="live"] #tab-live .pw-live-map .map{flex:1 1 auto;min-height:180px}
+  body[data-tab="live"] #tab-live .pw-live-map .map{flex:1 1 auto;min-height:100px}
   body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps{flex:1 1 0}
   body[data-tab="live"] #tab-live .pw-live-map .pw-live-laps .pw-laplist{flex:1 1 auto;min-height:0;max-height:none}
   /* Seite 0 blaettert nicht in diese Flex-Spalte: das display:flex weiter
@@ -249,7 +250,7 @@ body[data-live-view="overview"] #liveOverview{
      hoechstens 40% der Hoehe und scrollen darin. */
   body[data-tab="live"][data-live-view="overview"] #tab-live.active{
     display:grid;
-    grid-template-rows:auto auto minmax(140px,1fr) fit-content(40%);
+    grid-template-rows:auto auto minmax(190px,1fr) fit-content(40%);
   }
   /* Die Karte fuellt ihre Zeile nur, wenn die Hoehe durchgereicht wird:
      .pw-live-body ist auf Seite 0 ein Block, .pw-live-map die Flex-Spalte
@@ -266,3 +267,44 @@ body[data-live-view="overview"] #liveOverview{
 .pw-diag-grid .pw-diag-label{font-size:var(--fs-11);color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
 .pw-diag-grid .pw-diag-val{font-family:'JetBrains Mono',monospace;font-size:var(--fs-13);color:var(--tx)}
 
+/* ============================================================
+   Bedienbarkeit (Phase 73)
+   Groessere Klickziele dort, wo am Renntag unter Zeitdruck geklickt wird.
+   Steht bewusst am Dateiende: gleiche Spezifitaet wie die Grundregeln in
+   tables.css/live.css, gewinnt ueber die Reihenfolge.
+   ============================================================ */
+/* Rennsteuerung: vorher 26 px hohe Knoepfe in einer sonst leeren Karte.
+   Jetzt fuellen sie die Karte; Start/Pause ist der breiteste. */
+.pw-livebar{align-items:stretch;align-content:center}
+.pw-livebar .btn{flex:1 1 0;min-height:48px;padding:var(--sp-10) var(--sp-12);font-size:var(--fs-14);border-radius:var(--r-md)}
+.pw-livebar #startRaceBtn{flex:2 1 0}
+.pw-livebar .btn svg{width:16px;height:16px}
+/* Hinweis, wenn alle drei Knoepfe gesperrt sind */
+.pw-livebar-hint{flex:1 0 100%;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-8);
+  font-size:var(--fs-12);color:var(--mut)}
+.pw-livebar-hint[hidden]{display:none}
+.pw-livebar-hint button{min-height:32px;padding:0 var(--sp-10);border-radius:var(--r-sm);cursor:pointer;
+  background:var(--soft);border:1px solid var(--bor);color:var(--tx);font:inherit;font-weight:600}
+.pw-livebar-hint button:hover{border-color:var(--bor2)}
+/* Punkte/Pakete: Diagnosezahlen, als Zeile im Kartenkopf statt zwei grosser
+   Kacheln -- die ragten bei niedrigen Fenstern unten aus der Karte. */
+.pw-mod-meta{margin-left:auto;margin-right:var(--sp-10);font-family:var(--mono);font-size:var(--fs-11);
+  color:var(--mut);white-space:nowrap;font-variant-numeric:tabular-nums}
+/* Kart-Chip: vorher war nur die 14 px hohe Textzeile klickbar, der Rand des
+   Chips nicht. Der Knopf fuellt jetzt den ganzen Chip. */
+.kart-chip{padding:0}
+.kart-chip .kart-chip-main{padding:var(--sp-8) var(--sp-12)}
+.kart-overview-btn{min-height:34px}
+.ls-item{min-height:32px}
+.heat-btn{min-height:32px}
+.map-toggle{min-width:32px;min-height:32px}
+.g-view-toggle button{min-height:30px}
+.pw-mod-action{min-height:32px}
+button.conn-details-link{min-height:32px}
+button.cc-diag-btn{min-height:32px}
+/* Niedrige Fenster (1366x768-Laptops): Seitenleiste enger packen, damit
+   Theme/Ton/Vollbild ohne Scrollen erreichbar bleiben. */
+@media (max-height:780px){
+  .sidebar{padding-top:var(--sp-12);padding-bottom:var(--sp-10);gap:var(--sp-2)}
+  .side-foot{padding-top:var(--sp-8);gap:var(--sp-6)}
+}

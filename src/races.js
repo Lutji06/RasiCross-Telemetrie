@@ -521,6 +521,24 @@ function updateRaceControls() {
   }
   if (changeBtn) changeBtn.disabled = !running;
   if (endBtn) endBtn.disabled = !(running || paused);
+  // Phase 73: Sind alle drei Knoepfe gesperrt, sagen warum -- und den Weg
+  // zur Rennen-Seite anbieten, statt den Nutzer raten zu lassen.
+  const hint = $('raceCtlHint');
+  if (hint) {
+    const done = r && (r.status === 'finished' || r.status === 'finished_auto');
+    const show = !r || done;
+    hint.hidden = !show;
+    if (show) {
+      setText('raceCtlHintText', done ? 'Rennen beendet' : 'Kein Rennen aktiv');
+      const b = $('raceCtlHintBtn');
+      if (b && !b.onclick) {
+        b.onclick = () => {
+          const nav = document.querySelector('.nav-item[data-tab="races"]');
+          if (nav) nav.click();
+        };
+      }
+    }
+  }
 }
 
 // Interface-Marker: von rasicross.js/serial-demo.js genutzte Funktionen --
