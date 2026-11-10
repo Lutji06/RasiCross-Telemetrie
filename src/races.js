@@ -27,6 +27,8 @@ function activePart(r) {
   const mac = state.activeKartMac || KartRegistry.DEFAULT_MAC;
   return RasiLapEngine.partOf(r, mac);
 }
+// Phase 71: "jetzt" fuer laufende Rundenzeiten -- steht in der Pause still.
+function lapClockNow() { return RasiLapEngine.lapClockNow(activeRace(), Date.now()); }
 function raceElapsedMs(r) {
   if (!r || !r.startedAt) return 0;
   const end = r.endedAt || (r.status === 'paused' ? r.pausedAt : Date.now());
@@ -78,12 +80,23 @@ function startRace() {
       r.totalPausedMs = (r.totalPausedMs || 0) + pausedMs;
       r.pausedAt = null;
       r.status = 'running';
-      if (typeof k.lapStart === 'number') {
-        // Live-Renndaten noch im Speicher -> Lauf- und Sektor-Uhr um
-        // die Pause vorruecken, damit die Zeit nahtlos weiterlaeuft.
-        k.lapStart += pausedMs;
-        if (typeof k.sectorsLive.sectorStart === 'number') {
-          k.sectorsLive.sectorStart += pausedMs;
+      // Phase 71: Lauf- und Sektor-Uhr ALLER Karts um die Pause vorruecken
+      // (vorher nur das ausgewaehlte -> bei den anderen zaehlte die Pause
+      // zur Runde). Stale GPS-Punkt je Kart verwerfen, sonst ist eine
+      // Geister-Durchfahrt moeglich.
+      const activeHadLap = typeof k.lapStart === 'number';
+      state.karts.macs().forEach(mac => {
+        const kk = state.karts.get(mac);
+        if (!kk) return;
+        RasiLapEngine.shiftKartClock(kk, pausedMs);
+        kk.autoLap.prevLat = null;
+        kk.autoLap.prevLon = null;
+      });
+      if (activeHadLap) {
+        // Live-Renndaten noch im Speicher; activeKart() kann die Fassade
+        // ausserhalb der Registry sein -> dann hier nachziehen.
+        if (!state.karts.macs().some(mac => state.karts.get(mac) === k)) {
+          RasiLapEngine.shiftKartClock(k, pausedMs);
         }
       } else {
         // Nach App-Neustart sind die Live-Lap-Daten weg -> aktuelle
@@ -512,7 +525,7 @@ function updateRaceControls() {
 
 // Interface-Marker: von rasicross.js/serial-demo.js genutzte Funktionen --
 // verhindert no-unused-vars, dokumentiert das API.
-void [activeRace, currentStint, raceValidLaps, raceElapsedMs, createRace,
+void [activeRace, currentStint, raceValidLaps, raceElapsedMs, lapClockNow, createRace,
       startRace, endRace, confirmEndRace, pauseRace, toggleRaceRun, openDriverChange,
       confirmDriverChange, closeDriverModal, selectRace, setActiveRace,
       toggleRaceExpand, deleteRace, drawRaceHistoryChart, renderRaces,
@@ -520,7 +533,7 @@ void [activeRace, currentStint, raceValidLaps, raceElapsedMs, createRace,
 
 // ESM-Export (Phase 42): bisherige Interface-Globals von races.js
 export {
-  activeRace, currentStint, raceValidLaps, raceElapsedMs,
+  activeRace, currentStint, raceValidLaps, raceElapsedMs, lapClockNow,
   createRace, startRace, endRace, confirmEndRace, pauseRace, toggleRaceRun,
   openDriverChange, confirmDriverChange, closeDriverModal,
   selectRace, setActiveRace, toggleRaceExpand, deleteRace,

@@ -7,7 +7,7 @@
 // ============================================================
 import { fmtClock, fmtMs } from './geo.js';
 import { state, $, setText, activeKart } from './rasicross.js';
-import { activeRace, raceElapsedMs } from './races.js';
+import { activeRace, raceElapsedMs, lapClockNow } from './races.js';
 import { theoreticalBestMs } from './laps-drivers.js';
 import KartRegistry from './kart-registry.js';
 import RasiLapEngine from './lap-engine.js';
@@ -98,7 +98,7 @@ function updatePitWall() {
       lapEl.className = 'pw-side-val hold' + (_pwHold.pb ? ' pb' : '');
     } else {
       _pwHold = null;
-      lapEl.textContent = k.lapStart ? fmtMs(now - k.lapStart) : '--:--.---';
+      lapEl.textContent = k.lapStart ? fmtMs(lapClockNow() - k.lapStart) : '--:--.---';
       lapEl.className = 'pw-side-val';
     }
   }

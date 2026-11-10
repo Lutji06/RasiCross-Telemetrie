@@ -220,6 +220,27 @@
     return r.currentDriverId || null;
   }
 
+  // Phase 71: Bezugszeit der laufenden Runde. In der Pause steht die Uhr
+  // auf dem Pausenbeginn -- alle Anzeigen rechnen "lapClockNow - lapStart"
+  // statt "Date.now() - lapStart", sonst tickt die Rundenzeit weiter.
+  function lapClockNow(race, now) {
+    if (race && race.status === 'paused' && race.pausedAt) return race.pausedAt;
+    return now;
+  }
+
+  // Phase 71: beim Fortsetzen Runden- und Sektor-Uhr EINES Karts um die
+  // Pausendauer vorruecken. Muss fuer jedes Kart laufen, nicht nur fuer das
+  // ausgewaehlte -- sonst zaehlt die Pause bei allen anderen zur Runde.
+  // true = Kart hatte eine laufende Runde.
+  function shiftKartClock(k, pausedMs) {
+    if (!k || typeof k.lapStart !== 'number') return false;
+    k.lapStart += pausedMs;
+    if (k.sectorsLive && typeof k.sectorsLive.sectorStart === 'number') {
+      k.sectorsLive.sectorStart += pausedMs;
+    }
+    return true;
+  }
+
   // ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiLapEngine
   export default {
     migrateRace: migrateRace,
@@ -239,4 +260,6 @@
     positionGains: positionGains,
     applyDriverChange: applyDriverChange,
     currentDriverId: currentDriverId,
+    lapClockNow: lapClockNow,
+    shiftKartClock: shiftKartClock,
   };

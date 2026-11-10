@@ -5,8 +5,8 @@
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
 import { fmtClock, fmtMs, nearestTraceDelta } from './geo.js';
-import { state, $, css, dpr, esc, setText, setTextShared, setHtmlShared, activeKart } from './rasicross.js';
-import { activeRace, activePart, raceElapsedMs, endRace } from './races.js';
+import { state, $, css, dpr, elSize, esc, setText, setTextShared, setHtmlShared, activeKart } from './rasicross.js';
+import { activeRace, activePart, raceElapsedMs, lapClockNow, endRace } from './races.js';
 import { drawTrack, resizeCanvases } from './map-draw.js';
 import { getTotalStats, renderLapTable } from './laps-drivers.js';
 import { renderDriftBadge, renderGauges, renderRollBar } from './gauges.js';
@@ -32,16 +32,19 @@ function initLiveCharts() {
   _gCanvas = $('gCanvas'); if (_gCanvas) _gCtx = _gCanvas.getContext('2d');
 }
 function resizeChartCanvas(c) {
-  if (!c) return;
-  const w = c.offsetWidth, h = c.offsetHeight;
+  if (!c) return false;
+  const sz = elSize(c);
+  const w = sz.w, h = sz.h;
   if (w > 0 && h > 0) {
     const targetW = Math.floor(w * dpr()), targetH = Math.floor(h * dpr());
     if (c.width !== targetW || c.height !== targetH) { c.width = targetW; c.height = targetH; }
+    return true;
   }
+  return false;      // unsichtbar (anderer Tab)
 }
 function drawChart(ctx, c, series, min, max, opts = {}) {
   if (!ctx || !c) return;
-  resizeChartCanvas(c);
+  if (!resizeChartCanvas(c)) return;   // unsichtbar -> nicht zeichnen
   const w = c.width, h = c.height;
   if (!w || !h) return;
   const D = dpr();
@@ -145,7 +148,7 @@ function drawLiveCharts() {
 
 function drawYawSparkline() {
   const cv = $('yawSparkCanvas');
-  if (!cv) return;
+  if (!cv || !elSize(cv).w) return;
   const ctx = cv.getContext('2d');
   if (!ctx) return;
   const w = cv.width, h = cv.height;
@@ -325,7 +328,7 @@ function updateLiveKPIs() {
     renderDriftBadge();
     renderRollBar();
     // Rundenzeit: nur alle 100ms aktualisieren ist ok
-    const lapText = k.lapStart ? fmtMs(Date.now() - k.lapStart) : '--:--.---';
+    const lapText = k.lapStart ? fmtMs(lapClockNow() - k.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
       setTextShared('lap', lapText);     // -> kLap, liveLapBig, detailHeroLapCurrent
       _lastKpiText.lap = lapText;
@@ -399,8 +402,6 @@ function updateLiveUi() {
   try {
     const k = activeKart();
     const t = k.telemetry;
-    setText('latText', t.lat ? t.lat.toFixed(6) : '--');
-    setText('lonText', t.lon ? t.lon.toFixed(6) : '--');
     // Koordinaten-Badge auf der Scan-Karte (Strecke-Tab) — live statt Deko
     setText('scanCoordText', (t.lat && t.lon)
       ? `${Math.abs(t.lat).toFixed(4)}°${t.lat >= 0 ? 'N' : 'S'} · ${Math.abs(t.lon).toFixed(4)}°${t.lon >= 0 ? 'E' : 'W'}`
@@ -484,7 +485,9 @@ function renderStints(r) {
 }
 
 // Animation loop
+let _lastRafAt = 0;
 function animLoop() {
+  _lastRafAt = performance.now();
   renderGauges();
   drawTrack();
   drawLiveCharts();
@@ -602,7 +605,14 @@ function refreshOverview() {
 function initLiveUiLoops() {
 // Backup tick (läuft auch wenn rAF im Hintergrund-Iframe pausiert)
 setInterval(() => {
-  try { renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall(); refreshOverview(); renderLeaderStrip(); } catch(e){}
+  try {
+    // Nur einspringen, wenn rAF wirklich steht -- sonst zeichnete dieser
+    // Tick alles ein zweites Mal zusaetzlich zur laufenden Schleife.
+    if (performance.now() - _lastRafAt > 400) {
+      renderGauges(); drawTrack(); drawLiveCharts(); updateLiveKPIs(); updatePitWall();
+    }
+    refreshOverview(); renderLeaderStrip();
+  } catch(e){}
 }, 200);
 
 // 1Hz UI loop

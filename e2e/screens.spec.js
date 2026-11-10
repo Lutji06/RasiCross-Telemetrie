@@ -38,7 +38,7 @@ const SHOT = { animations: 'disabled', caret: 'hide', maxDiffPixels: 2 };
 // bleibt das Layout drumherum; die Einzel-Ansicht deckt demo-live-single ab.
 const DYN = ['canvas', '.map', '.statusbar',
   '#kartBar', '#liveLeaderStrip', '.pw-clockbox', '#hzPill', '#topConnPill',
-  '#battPill', '.pw-kpi-combo', '#latText', '#lonText', '#trackPoints',
+  '#battPill', '.pw-kpi-combo', '#trackPoints',
   '#packetsText', '.kc-live', '#liveOverview'];
 
 async function prep(page, app) {

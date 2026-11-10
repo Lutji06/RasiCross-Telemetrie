@@ -4,7 +4,7 @@
 //  rasicross.js (kart3dIsReady/kart3dTickDt-Accessoren, da ESM-Importe
 //  nicht beschreibbar sind). Nur Deklarationen auf Top-Level.
 // ============================================================
-import { state, $, css, dpr, activeKart, kart3dIsReady, kart3dTickDt } from './rasicross.js';
+import { state, $, css, dpr, elSize, activeKart, kart3dIsReady, kart3dTickDt } from './rasicross.js';
 import RasiKart3D from './karts3d.js';
 import RasiSpring from './spring.js';
 
@@ -91,9 +91,17 @@ function renderGauges() {
 function drawGMeter() {
   const c = $('gMeterCanvas');
   if (!c) return;
-  if (c.width !== c.offsetWidth * dpr()) {
-    c.width = c.offsetWidth * dpr();
-    c.height = c.offsetHeight * dpr();
+  // Unsichtbar (anderer Tab, Uebersicht) -> nichts zeichnen.
+  const sz = elSize(c);
+  const ow = sz.w;
+  if (!ow) return;
+  // Math.floor: bei krummer Skalierung (125 %/150 %) ist offsetWidth*dpr
+  // keine ganze Zahl, c.width aber schon -- der Vergleich schlug dann in
+  // JEDEM Frame an und legte das Canvas jedes Mal neu an.
+  const tw = Math.floor(ow * dpr()), th = Math.floor(sz.h * dpr());
+  if (c.width !== tw || c.height !== th) {
+    c.width = tw;
+    c.height = th;
   }
   const ctx = c.getContext('2d');
   const w = c.width, h = c.height, cx = w/2, cy = h/2, r = w * 0.40, rr = w * 0.46;
