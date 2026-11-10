@@ -248,7 +248,9 @@ function loadData() {
       // (idempotent, additiv — Top-Level laps/stints bleiben erhalten).
       state.races.forEach(r => RasiLapEngine.migrateRace(r, KartRegistry.DEFAULT_MAC));
       // Pause running races on reload
-      state.races.forEach(r => { if (r.status === 'running') { r.status = 'paused'; r.pausedAt = Date.now(); } });
+      // (Pausenbeginn = letzter Speicherzeitpunkt, siehe pauseOnReload)
+      const _savedAt = d.savedAt ? Date.parse(d.savedAt) : NaN;
+      state.races.forEach(r => RasiLapEngine.pauseOnReload(r, _savedAt, Date.now()));
     }
     if (Array.isArray(d.savedTracks)) state.savedTracks = d.savedTracks;
     if (d.activeRaceId) state.activeRaceId = d.activeRaceId;

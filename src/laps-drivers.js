@@ -3,8 +3,8 @@
 //  ESM (Phase 42): explizite Imports statt gemeinsamem Global-Scope.
 //  Nur Deklarationen auf Top-Level.
 // ============================================================
-import { crossingDirectionOk, fmtClock, fmtDelta, fmtMs,
-         lineEndpointsFromGate, segmentsCross, traceDistanceM } from './geo.js';
+import { crossingDirectionOk, crossingTimeMs, fmtClock, fmtDelta, fmtMs,
+         lineEndpointsFromGate, segmentCrossFraction, traceDistanceM } from './geo.js';
 import { state, $, uid, esc, setText, rcAlert, rcConfirm, rcToast, rcAudio,
          saveData, saveDataDebounced, activeKart } from './rasicross.js';
 import { activeRace, endRace } from './races.js';
@@ -28,18 +28,22 @@ function checkLapCrossing(k, mac, lat, lon) {
     if (k.lapStart && (now - k.lapStart) < state.settings.minLapSeconds * 1000) return;
     const A = { lat: k.autoLap.prevLat, lon: k.autoLap.prevLon };
     const B = { lat, lon };
-    if (segmentsCross(A, B, ep.p1, ep.p2) && crossingDirectionOk(A.lat, A.lon, lat, lon, state.startGate.heading)) {
-      triggerLap(k, mac);
+    const frac = segmentCrossFraction(A, B, ep.p1, ep.p2);
+    if (frac != null && crossingDirectionOk(A.lat, A.lon, lat, lon, state.startGate.heading)) {
+      // Phase 74: Durchfahrt zwischen den beiden GPS-Punkten interpolieren,
+      // statt die Empfangszeit des Pakets NACH der Linie zu nehmen.
+      triggerLap(k, mac, crossingTimeMs(frac, now, k.autoLap.prevAt, k.autoLap.prevSeenAt));
     }
   } catch (e) { console.warn('checkLapCrossing:', e); }
 }
 // Phase 30: pro Kart. Erste Durchfahrt (k.lapStart==null) armiert nur; weitere
 // Durchfahrten committen eine Runde in den Teilnehmer-Slot dieses Karts.
-function triggerLap(k, mac) {
+// at = Zeitpunkt der Durchfahrt (interpoliert); fehlt er, zaehlt jetzt.
+function triggerLap(k, mac, at) {
   try {
     const r = activeRace();
     if (!r || r.status !== 'running') return;
-    const now = Date.now();
+    const now = (typeof at === 'number' && isFinite(at)) ? at : Date.now();
     const isAct = (k === activeKart());
     if (k.lapStart) {
       const minMs = state.settings.minLapSeconds * 1000;

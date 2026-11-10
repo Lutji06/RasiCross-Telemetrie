@@ -384,3 +384,27 @@ test('currentDriverId falls back to the race driver without participant', () => 
 test('currentDriverId tolerates a missing race', () => {
   assert.equal(E.currentDriverId(null, 'AA'), null);
 });
+
+test('pauseOnReload: laufendes Rennen pausiert zum letzten Speicherzeitpunkt', () => {
+  const r = { status: 'running', startedAt: 1000, pausedAt: null };
+  assert.equal(E.pauseOnReload(r, 61000, 400000), true);
+  assert.equal(r.status, 'paused');
+  assert.equal(r.pausedAt, 61000);          // nicht 400000: die Zeit, in der die App zu war, zaehlt nicht
+});
+
+test('pauseOnReload: ohne/mit unbrauchbarem Speicherzeitpunkt -> jetzt', () => {
+  for (const bad of [null, undefined, NaN, 500 /* vor Rennstart */, 999999 /* Zukunft */]) {
+    const r = { status: 'running', startedAt: 1000, pausedAt: null };
+    E.pauseOnReload(r, bad, 400000);
+    assert.equal(r.pausedAt, 400000, String(bad));
+  }
+});
+
+test('pauseOnReload: laesst nicht laufende Rennen in Ruhe', () => {
+  for (const status of ['created', 'paused', 'finished', 'finished_auto']) {
+    const r = { status, startedAt: 1000, pausedAt: 7 };
+    assert.equal(E.pauseOnReload(r, 61000, 400000), false);
+    assert.equal(r.status, status);
+    assert.equal(r.pausedAt, 7);
+  }
+});

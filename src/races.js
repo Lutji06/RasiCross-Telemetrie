@@ -99,14 +99,17 @@ function startRace() {
           RasiLapEngine.shiftKartClock(k, pausedMs);
         }
       } else {
-        // Nach App-Neustart sind die Live-Lap-Daten weg -> aktuelle
-        // Runde frisch beginnen (gefahrene Runden bleiben erhalten).
-        k.lapStart = now;
+        // Nach App-Neustart (oder Pause vor der ersten Linie) laeuft keine
+        // Runde. Phase 74: NICHT hier starten -- die Uhr begaenne irgendwo
+        // auf der Strecke, und die Teilrunde bis zur Linie zaehlte als volle
+        // Runde (ab minLapSeconds sogar als Bestzeit). Das Kart armiert wie
+        // beim Start an seiner naechsten Linien-Durchfahrt.
+        k.lapStart = null;
         k.currentLapMax = { speed: 0, rpm: 0 };
         k.currentLapTrace = [];
         k.heatmap.lapMaxSpeed = 0;
         k.sectorsLive.cur = 0;
-        k.sectorsLive.sectorStart = now;
+        k.sectorsLive.sectorStart = null;
         k.sectorsLive.lapSectors = [null, null, null];
         k.sectorsLive.lastLapSectors = null;
       }
@@ -521,6 +524,24 @@ function updateRaceControls() {
   }
   if (changeBtn) changeBtn.disabled = !running;
   if (endBtn) endBtn.disabled = !(running || paused);
+  // Phase 73: Sind alle drei Knoepfe gesperrt, sagen warum -- und den Weg
+  // zur Rennen-Seite anbieten, statt den Nutzer raten zu lassen.
+  const hint = $('raceCtlHint');
+  if (hint) {
+    const done = r && (r.status === 'finished' || r.status === 'finished_auto');
+    const show = !r || done;
+    hint.hidden = !show;
+    if (show) {
+      setText('raceCtlHintText', done ? 'Rennen beendet' : 'Kein Rennen aktiv');
+      const b = $('raceCtlHintBtn');
+      if (b && !b.onclick) {
+        b.onclick = () => {
+          const nav = document.querySelector('.nav-item[data-tab="races"]');
+          if (nav) nav.click();
+        };
+      }
+    }
+  }
 }
 
 // Interface-Marker: von rasicross.js/serial-demo.js genutzte Funktionen --

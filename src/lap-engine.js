@@ -241,6 +241,20 @@
     return true;
   }
 
+  // Beim Laden wird ein laufendes Rennen pausiert. Als Pausenbeginn zaehlt
+  // der letzte Speicherzeitpunkt, nicht "jetzt": sonst liefe die Rennuhr
+  // ueber die ganze Zeit weiter, in der die App geschlossen oder abgestuerzt
+  // war (5 min Neustart = 5 min weniger Restzeit). Unbrauchbarer Zeitpunkt
+  // (fehlt, vor Rennstart, in der Zukunft) -> jetzt.
+  function pauseOnReload(r, savedAtMs, nowMs) {
+    if (!r || r.status !== 'running') return false;
+    var ok = typeof savedAtMs === 'number' && isFinite(savedAtMs)
+      && savedAtMs >= (r.startedAt || 0) && savedAtMs <= nowMs;
+    r.status = 'paused';
+    r.pausedAt = ok ? savedAtMs : nowMs;
+    return true;
+  }
+
   // ESM-Export (Phase 42): Default-Objekt = bisheriges window.RasiLapEngine
   export default {
     migrateRace: migrateRace,
@@ -262,4 +276,5 @@
     currentDriverId: currentDriverId,
     lapClockNow: lapClockNow,
     shiftKartClock: shiftKartClock,
+    pauseOnReload: pauseOnReload,
   };

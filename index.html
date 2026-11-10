@@ -158,6 +158,10 @@
       Wechsel
     </button>
     <button class="btn danger" id="endRaceBtn" disabled>Ende</button>
+    <div class="pw-livebar-hint" id="raceCtlHint" hidden>
+      <span id="raceCtlHintText">Kein Rennen aktiv</span>
+      <button type="button" id="raceCtlHintBtn">Zu den Rennen</button>
+    </div>
   </div>
   </div><!-- /pw-liverow -->
 
@@ -173,15 +177,12 @@
       <div class="pw-module pw-map-mod">
         <div class="pw-mod-head">
           <div class="pw-mod-title">Streckenkarte</div>
+          <div class="pw-mod-meta" title="Aufgezeichnete Streckenpunkte und empfangene Pakete"><span id="trackPoints">0</span> Punkte · <span id="packetsText">0</span> Pakete</div>
           <button class="heat-btn" id="heatmapBtn">Heatmap</button>
         </div>
         <div class="map">
           <canvas id="trackCanvas"></canvas>
           <button id="liveTileToggle" class="map-toggle" title="Karten-Hintergrund umschalten" aria-label="Karten-Hintergrund umschalten"><svg viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></button>
-        </div>
-        <div class="row" style="margin-top:14px;gap:10px">
-          <div class="stat"><div class="t">Punkte</div><div class="n" id="trackPoints">0</div></div>
-          <div class="stat"><div class="t">Pakete</div><div class="n" id="packetsText">0</div></div>
         </div>
       </div>
 

@@ -291,9 +291,17 @@ function processTelemetry(d) {
       // die Uhr. triggerLap handhabt das (k.lapStart null -> nur Start-Zweig).
     }
     // Vorgaenger-GPS-Punkt dieses Karts immer pflegen (Richtungscheck).
+    // Phase 74: dazu die Zeitstempel fuer die Durchfahrts-Interpolation --
+    // prevAt = erstes Auftreten dieser Position (GPS liefert seltener, als
+    // gefunkt wird), prevSeenAt = letztes Paket mit ihr.
     if (lat && lon) {
-      k.autoLap.prevLat = lat;
-      k.autoLap.prevLon = lon;
+      const _tNow = Date.now();
+      if (lat !== k.autoLap.prevLat || lon !== k.autoLap.prevLon) {
+        k.autoLap.prevLat = lat;
+        k.autoLap.prevLon = lon;
+        k.autoLap.prevAt = _tNow;
+      }
+      k.autoLap.prevSeenAt = _tNow;
     }
     // Renn-Speed-Trace pro Teilnehmer (downsampled).
     if (_isPart) {
