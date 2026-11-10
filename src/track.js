@@ -3,8 +3,8 @@
 //  ESM (Phase 42): explizite Imports statt gemeinsamem Global-Scope.
 //  Nur Deklarationen auf Top-Level.
 // ============================================================
-import { crossingDirectionOk, fmtMs, gpsDist, headingFromPoints,
-         lineEndpointsFromGate, segmentsCross } from './geo.js';
+import { crossingDirectionOk, crossingTimeMs, fmtMs, gpsDist, headingFromPoints,
+         lineEndpointsFromGate, segmentCrossFraction } from './geo.js';
 import { state, $, dpr, uid, esc, setText, rcAlert, rcConfirm, rcToast,
          rcAudio, formatBytes, saveData, saveDataDebounced, activeKart } from './rasicross.js';
 import { activeRace, renderTrackOptions } from './races.js';
@@ -708,15 +708,19 @@ function checkSectorCrossings(k, lat, lon) {
     if (!k.autoLap.prevLat) return;   // wait for prev
     const A = { lat: k.autoLap.prevLat, lon: k.autoLap.prevLon };
     const B = { lat, lon };
-    const now = Date.now();
+    const rxNow = Date.now();
     const isAct = (k === activeKart());
     // Cooldown (avoid double trigger)
-    if (sl.sectorStart && (now - sl.sectorStart) < 2000) return;
+    if (sl.sectorStart && (rxNow - sl.sectorStart) < 2000) return;
     for (let i = 0; i < 2; i++) {
       if (sl.cur !== i) continue;
       const ep = lineEndpointsFromGate(bs[i]);
       if (!ep) continue;
-      if (segmentsCross(A, B, ep.p1, ep.p2) && crossingDirectionOk(A.lat, A.lon, lat, lon, bs[i].heading)) {
+      const frac = segmentCrossFraction(A, B, ep.p1, ep.p2);
+      if (frac != null && crossingDirectionOk(A.lat, A.lon, lat, lon, bs[i].heading)) {
+        // Phase 74: gleiche Interpolation wie an Start/Ziel, damit
+        // S1 + S2 + S3 weiter genau die Rundenzeit ergeben.
+        const now = crossingTimeMs(frac, rxNow, k.autoLap.prevAt, k.autoLap.prevSeenAt);
         const sectorMs = now - (sl.sectorStart || k.lapStart);
         sl.lapSectors[i] = sectorMs;
         sl.sectorStart = now;

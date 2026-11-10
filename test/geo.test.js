@@ -226,3 +226,50 @@ test('nearestTraceDelta: null bei kurzer Trace oder fehlender Position', () => {
   assert.equal(geo.nearestTraceDelta(ok, { t: 5, lat: 0, lon: 6 }), null);
   assert.equal(geo.nearestTraceDelta(ok, { lat: 49, lon: 6 }), null);
 });
+
+// -- Zeitnahme: Kreuzungszeitpunkt zwischen zwei GPS-Punkten --
+test('segmentCrossFraction liefert den Anteil des Weges bis zur Linie', () => {
+  const b1 = { lat: -1, lon: 0 }, b2 = { lat: 1, lon: 0 };
+  approx(geo.segmentCrossFraction({ lat: 0, lon: -1 }, { lat: 0, lon: 1 }, b1, b2), 0.5, 1e-9);
+  approx(geo.segmentCrossFraction({ lat: 0, lon: -1 }, { lat: 0, lon: 3 }, b1, b2), 0.25, 1e-9);
+  approx(geo.segmentCrossFraction({ lat: 0, lon: -3 }, { lat: 0, lon: 1 }, b1, b2), 0.75, 1e-9);
+  assert.equal(geo.segmentCrossFraction({ lat: 0, lon: 1 }, { lat: 0, lon: 2 }, b1, b2), null);
+  assert.equal(geo.segmentCrossFraction({ lat: 5, lon: -1 }, { lat: 5, lon: 1 }, b1, b2), null);
+  // gleiche Entscheidung wie segmentsCross
+  for (const [a1, a2] of [[{ lat: 0, lon: -1 }, { lat: 0, lon: 1 }], [{ lat: 0, lon: 1 }, { lat: 0, lon: 2 }]]) {
+    assert.equal(geo.segmentCrossFraction(a1, a2, b1, b2) != null, geo.segmentsCross(a1, a2, b1, b2));
+  }
+});
+
+test('crossingTimeMs interpoliert zwischen den beiden GPS-Punkten', () => {
+  // Punkt A zuerst gesehen bei 1000, Punkt B jetzt (1100), Linie auf halbem Weg
+  assert.equal(geo.crossingTimeMs(0.5, 1100, 1000, 1000), 1050);
+  assert.equal(geo.crossingTimeMs(0, 1100, 1000, 1000), 1000);
+  assert.equal(geo.crossingTimeMs(1, 1100, 1000, 1000), 1100);
+  // GPS langsamer als die Pakete: A kam bei 1000 und wiederholt bei 1083,
+  // B bei 1166 -> gerechnet wird ab dem ERSTEN Auftreten von A
+  assert.equal(geo.crossingTimeMs(0.5, 1166, 1000, 1083), 1083);
+});
+
+test('crossingTimeMs: stehendes Kart oder GPS-Luecke -> nur das letzte Paket-Intervall', () => {
+  // A seit 20 s unveraendert (Kart stand), zuletzt gesehen bei 20900, B bei 21000:
+  // die Durchfahrt liegt im letzten Intervall, nicht 10 s in der Vergangenheit
+  assert.equal(geo.crossingTimeMs(0.5, 21000, 1000, 20900), 20950);
+  // ohne Zeitstempel (alter Zustand) -> jetzt
+  assert.equal(geo.crossingTimeMs(0.5, 5000, null, null), 5000);
+  assert.equal(geo.crossingTimeMs(null, 5000, 4900, 4900), 5000);
+  // nie in der Zukunft, nie vor dem Bezugspunkt
+  assert.equal(geo.crossingTimeMs(7, 1100, 1000, 1000), 1100);
+  assert.equal(geo.crossingTimeMs(-3, 1100, 1000, 1000), 1000);
+});
+
+test('Rundenzeit-Fehler: Interpolation gegen Paket-Raster', () => {
+  // Kart faehrt konstant, Linie wird bei t=10 040 und t=40 070 gekreuzt
+  // (wahre Runde 30 030 ms). Pakete alle 100 ms auf vollen Hundertern.
+  const cross = (trueT) => {
+    const prev = Math.floor(trueT / 100) * 100, now = prev + 100;
+    return geo.crossingTimeMs((trueT - prev) / 100, now, prev, prev);
+  };
+  assert.equal(cross(40070) - cross(10040), 30030);       // interpoliert: exakt
+  assert.equal((40100) - (10100), 30000);                 // Paket-Raster: 30 ms daneben
+});

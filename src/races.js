@@ -99,14 +99,17 @@ function startRace() {
           RasiLapEngine.shiftKartClock(k, pausedMs);
         }
       } else {
-        // Nach App-Neustart sind die Live-Lap-Daten weg -> aktuelle
-        // Runde frisch beginnen (gefahrene Runden bleiben erhalten).
-        k.lapStart = now;
+        // Nach App-Neustart (oder Pause vor der ersten Linie) laeuft keine
+        // Runde. Phase 74: NICHT hier starten -- die Uhr begaenne irgendwo
+        // auf der Strecke, und die Teilrunde bis zur Linie zaehlte als volle
+        // Runde (ab minLapSeconds sogar als Bestzeit). Das Kart armiert wie
+        // beim Start an seiner naechsten Linien-Durchfahrt.
+        k.lapStart = null;
         k.currentLapMax = { speed: 0, rpm: 0 };
         k.currentLapTrace = [];
         k.heatmap.lapMaxSpeed = 0;
         k.sectorsLive.cur = 0;
-        k.sectorsLive.sectorStart = now;
+        k.sectorsLive.sectorStart = null;
         k.sectorsLive.lapSectors = [null, null, null];
         k.sectorsLive.lastLapSectors = null;
       }

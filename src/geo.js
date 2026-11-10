@@ -58,12 +58,35 @@ function headingFromPoints(p1, p2) {
   const dLon = p2.lon - p1.lon;
   return ((Math.atan2(dLon, dLat) * 180 / Math.PI) + 360) % 360;
 }
-function segmentsCross(a1, a2, b1, b2) {
+// Anteil (0..1) der Strecke a1->a2, an dem sie die Linie b1-b2 kreuzt;
+// null, wenn sie sich nicht kreuzen.
+function segmentCrossFraction(a1, a2, b1, b2) {
   const d = (a2.lon - a1.lon) * (b2.lat - b1.lat) - (a2.lat - a1.lat) * (b2.lon - b1.lon);
-  if (Math.abs(d) < 1e-12) return false;
+  if (Math.abs(d) < 1e-12) return null;
   const t = ((b1.lon - a1.lon) * (b2.lat - b1.lat) - (b1.lat - a1.lat) * (b2.lon - b1.lon)) / d;
   const u = ((b1.lon - a1.lon) * (a2.lat - a1.lat) - (b1.lat - a1.lat) * (a2.lon - a1.lon)) / d;
-  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+  return (t >= 0 && t <= 1 && u >= 0 && u <= 1) ? t : null;
+}
+function segmentsCross(a1, a2, b1, b2) {
+  return segmentCrossFraction(a1, a2, b1, b2) != null;
+}
+// Zeitnahme: Zeitpunkt der Linien-Durchfahrt zwischen zwei GPS-Punkten.
+// Ohne das zaehlt die Durchfahrt erst, wenn das Paket NACH der Linie
+// ankommt -- jede Rundenzeit laege bis zu einem Paket-Abstand daneben.
+//   frac    Anteil des Weges A->B bis zur Linie (segmentCrossFraction)
+//   now     Empfangszeit von Punkt B
+//   firstAt wann Punkt A zum ERSTEN Mal gemeldet wurde (GPS liefert seltener
+//           als gefunkt wird; die Position gilt ab ihrem ersten Auftreten)
+//   lastAt  wann Punkt A zuletzt gemeldet wurde
+// Stand das Kart oder fehlte das GPS laenger als maxGapMs, ist firstAt kein
+// brauchbarer Bezug mehr -- dann zaehlt nur das letzte Paket-Intervall.
+function crossingTimeMs(frac, now, firstAt, lastAt, maxGapMs) {
+  if (typeof frac !== 'number' || !isFinite(frac) || lastAt == null) return now;
+  const gap = maxGapMs != null ? maxGapMs : 400;
+  let base = (firstAt != null && now - firstAt <= gap) ? firstAt : lastAt;
+  if (base > now) base = now;
+  const f = Math.max(0, Math.min(1, frac));
+  return Math.round(base + f * (now - base));
 }
 function crossingDirectionOk(prevLat, prevLon, lat, lon, expectedHeading) {
   if (expectedHeading == null) return true;
@@ -193,7 +216,7 @@ function nearestTraceDelta(bestTrace, cur) {
 export {
   fmtMs, fmtClock, fmtDelta,
   gpsDist, traceDistanceM,
-  headingFromPoints, segmentsCross,
+  headingFromPoints, segmentsCross, segmentCrossFraction, crossingTimeMs,
   crossingDirectionOk, lineEndpointsFromGate,
   ghostPointAt,
   declutterLabels,
