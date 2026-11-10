@@ -5,7 +5,7 @@
 // ============================================================
 import { declutterLabels, ghostPointAt, lineEndpointsFromGate } from './geo.js';
 import { state, $, css, dpr, activeKart } from './rasicross.js';
-import { activeRace } from './races.js';
+import { activeRace, lapClockNow } from './races.js';
 import RasiKartRank from './kart-rank.js';
 import RasiLapEngine from './lap-engine.js';
 import RasiTileRenderer from './tile-renderer.js';
@@ -263,7 +263,7 @@ function drawGhostOn(c, ctx) {
   ctx.stroke();
   ctx.setLineDash([]);
   if (k.lapStart) {
-    const gp = ghostPointAt(trace, Date.now() - k.lapStart);
+    const gp = ghostPointAt(trace, lapClockNow() - k.lapStart);
     if (gp) {
       const xy = gpsXYOnCanvas(gp.lat, gp.lon, c);
       ctx.fillStyle = 'rgba(187,154,247,.9)';

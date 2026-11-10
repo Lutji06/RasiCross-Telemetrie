@@ -7,9 +7,44 @@ test('module exports all helpers', () => {
                       'flatValidLaps','flatStints','partValidLaps','bestFromLaps',
                       'commitLap','sectorBestUpdate',
                       'rankParticipants','leaderReachedTarget','fastestLapHolder',
-                      'positionGains','applyDriverChange']) {
+                      'positionGains','applyDriverChange',
+                      'lapClockNow','shiftKartClock']) {
     assert.equal(typeof E[name], 'function', `missing ${name}`);
   }
+});
+
+test('lapClockNow friert waehrend der Pause auf pausedAt ein', () => {
+  assert.equal(E.lapClockNow({ status: 'running', pausedAt: null }, 5000), 5000);
+  assert.equal(E.lapClockNow({ status: 'paused', pausedAt: 3000 }, 5000), 3000);
+  assert.equal(E.lapClockNow({ status: 'paused', pausedAt: null }, 5000), 5000);
+  assert.equal(E.lapClockNow(null, 5000), 5000);
+});
+
+test('shiftKartClock rueckt Runden- und Sektor-Uhr um die Pause vor', () => {
+  const k = { lapStart: 1000, sectorsLive: { sectorStart: 1500 } };
+  assert.equal(E.shiftKartClock(k, 4000), true);
+  assert.equal(k.lapStart, 5000);
+  assert.equal(k.sectorsLive.sectorStart, 5500);
+});
+
+test('shiftKartClock laesst unarmierte Karts und fehlende Sektor-Uhr in Ruhe', () => {
+  const unarmed = { lapStart: null, sectorsLive: { sectorStart: null } };
+  assert.equal(E.shiftKartClock(unarmed, 4000), false);
+  assert.equal(unarmed.lapStart, null);
+  const noSector = { lapStart: 1000, sectorsLive: { sectorStart: null } };
+  assert.equal(E.shiftKartClock(noSector, 4000), true);
+  assert.equal(noSector.lapStart, 5000);
+  assert.equal(noSector.sectorsLive.sectorStart, null);
+});
+
+test('Pause zaehlt nicht zur Rundenzeit: Anzeige vor Pause == Anzeige nach Fortsetzen', () => {
+  const r = { status: 'running', pausedAt: null };
+  const k = { lapStart: 10000, sectorsLive: { sectorStart: 10000 } };
+  r.status = 'paused'; r.pausedAt = 25000;                 // 15 s gefahren
+  assert.equal(E.lapClockNow(r, 90000) - k.lapStart, 15000); // steht in der Pause
+  E.shiftKartClock(k, 100000 - r.pausedAt);                // Fortsetzen bei t=100000
+  r.status = 'running'; r.pausedAt = null;
+  assert.equal(E.lapClockNow(r, 100000) - k.lapStart, 15000);
 });
 
 test('migrateRace wraps legacy laps/stints into participants[kartMac]', () => {

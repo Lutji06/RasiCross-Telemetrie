@@ -271,7 +271,9 @@ function processTelemetry(d) {
       while (k.charts.driftIndex.length > max) k.charts.driftIndex.shift();
     }
     // Track current lap trace
-    if (k.lapStart && lat && lon) {
+    // Phase 71: nicht in der Pause -- die Punkte gehoeren nicht zur Runde
+    // und braechten nach dem Fortsetzen rueckwaerts laufende t-Werte.
+    if (k.lapStart && lat && lon && activeRace()?.status !== 'paused') {
       k.currentLapTrace.push({ t: Date.now() - k.lapStart, lat, lon, speed });
       if (k.currentLapTrace.length > 5000) k.currentLapTrace.shift();
     }

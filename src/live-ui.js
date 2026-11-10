@@ -6,7 +6,7 @@
 // ============================================================
 import { fmtClock, fmtMs, nearestTraceDelta } from './geo.js';
 import { state, $, css, dpr, esc, setText, setTextShared, setHtmlShared, activeKart } from './rasicross.js';
-import { activeRace, activePart, raceElapsedMs, endRace } from './races.js';
+import { activeRace, activePart, raceElapsedMs, lapClockNow, endRace } from './races.js';
 import { drawTrack, resizeCanvases } from './map-draw.js';
 import { getTotalStats, renderLapTable } from './laps-drivers.js';
 import { renderDriftBadge, renderGauges, renderRollBar } from './gauges.js';
@@ -325,7 +325,7 @@ function updateLiveKPIs() {
     renderDriftBadge();
     renderRollBar();
     // Rundenzeit: nur alle 100ms aktualisieren ist ok
-    const lapText = k.lapStart ? fmtMs(Date.now() - k.lapStart) : '--:--.---';
+    const lapText = k.lapStart ? fmtMs(lapClockNow() - k.lapStart) : '--:--.---';
     if (lapText !== _lastKpiText.lap) {
       setTextShared('lap', lapText);     // -> kLap, liveLapBig, detailHeroLapCurrent
       _lastKpiText.lap = lapText;
@@ -399,8 +399,6 @@ function updateLiveUi() {
   try {
     const k = activeKart();
     const t = k.telemetry;
-    setText('latText', t.lat ? t.lat.toFixed(6) : '--');
-    setText('lonText', t.lon ? t.lon.toFixed(6) : '--');
     // Koordinaten-Badge auf der Scan-Karte (Strecke-Tab) — live statt Deko
     setText('scanCoordText', (t.lat && t.lon)
       ? `${Math.abs(t.lat).toFixed(4)}°${t.lat >= 0 ? 'N' : 'S'} · ${Math.abs(t.lon).toFixed(4)}°${t.lon >= 0 ? 'E' : 'W'}`

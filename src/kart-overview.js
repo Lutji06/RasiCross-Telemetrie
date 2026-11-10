@@ -10,7 +10,7 @@
 // ============================================================
 // ESM (Phase 42): explizite Imports statt window-Guards.
 import { fmtMs } from './geo.js';
-import { activeRace } from './races.js';
+import { activeRace, lapClockNow } from './races.js';
 import { setLivePage } from './live-ui.js';
 import RasiKartBar from './kart-bar.js';
 import RasiKartRank from './kart-rank.js';
@@ -83,7 +83,7 @@ import RasiLapEngine from './lap-engine.js';
       const speed = (k.telemetry.speed || 0).toFixed(0);
       const rpm = Math.round(k.telemetry.rpm || 0);
       const rpmWarn = rpm >= (state.settings.rpmWarning || 9000);
-      const lapCur = k.lapStart ? lap(now - k.lapStart) : '--:--.---';
+      const lapCur = k.lapStart ? lap(lapClockNow() - k.lapStart) : '--:--.---';
       const lapBest = lap(k.bestLapMs);
       // Phase 30: Rundenzahl dieses Karts im aktiven Rennen (Teilnehmer-Slot).
       const _part = RasiLapEngine.partOf(r, mac);
