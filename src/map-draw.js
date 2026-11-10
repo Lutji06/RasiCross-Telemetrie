@@ -4,7 +4,7 @@
 //  Nur Deklarationen auf Top-Level -- kein Code laeuft beim Laden.
 // ============================================================
 import { declutterLabels, ghostPointAt, lineEndpointsFromGate } from './geo.js';
-import { state, $, css, dpr, activeKart } from './rasicross.js';
+import { state, $, css, dpr, elSize, activeKart } from './rasicross.js';
 import { activeRace, lapClockNow } from './races.js';
 import RasiKartRank from './kart-rank.js';
 import RasiLapEngine from './lap-engine.js';
@@ -15,6 +15,7 @@ import RasiTiles from '../tiles.js';
 // 9. TRACK MAP DRAWING
 // ============================================================
 let _trackCanvas, _scanCanvas;
+let _trCache = {};
 function resizeCanvases() {
   [_trackCanvas, _scanCanvas, $('editorCanvas')].forEach(c => {
     if (!c) return;
@@ -35,7 +36,15 @@ function gpsXYOnCanvas(lat, lon, c, bounds) {
   // Web-Mercator via RasiTiles -- shared projection with the tile-blit layer.
   // Reference zoom 18 cancels out of the uniform-scale fit; only ratios matter.
   const z = 18;
-  const tr = RasiTiles.bboxToCanvasTransform(b, z, w, h, pad);
+  // Die Transformation haengt nur an Bounds und Canvas-Groesse, wird aber
+  // pro Streckenpunkt gebraucht -- einmal rechnen, solange sich nichts aendert.
+  let tr = _trCache.tr;
+  if (!tr || _trCache.w !== w || _trCache.h !== h || _trCache.pad !== pad ||
+      _trCache.a !== b.minLat || _trCache.b !== b.maxLat ||
+      _trCache.c !== b.minLon || _trCache.d !== b.maxLon) {
+    tr = RasiTiles.bboxToCanvasTransform(b, z, w, h, pad);
+    _trCache = { tr, w, h, pad, a: b.minLat, b: b.maxLat, c: b.minLon, d: b.maxLon };
+  }
   const gx = RasiTiles.lonToGlobalX(lon, z);
   const gy = RasiTiles.latToGlobalY(lat, z);
   return { x: tr.ox + (gx - tr.gxBase) * tr.sc, y: tr.oy + (gy - tr.gyBase) * tr.sc };
@@ -50,6 +59,10 @@ function drawTrackOn(c) {
   const ctx = c.getContext('2d');
   const w = c.width, h = c.height;
   if (!w || !h) return;
+  // Unsichtbare Karte (anderer Tab) nicht zeichnen -- die Schleife lief
+  // sonst auf jedem Tab mit voller Last. Beim Einblenden zeichnet der
+  // naechste Frame.
+  if (!elSize(c).w) return;
   const k = activeKart();
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = css('--soft');

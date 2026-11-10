@@ -310,6 +310,8 @@ function update(imu) {
   if (!isFinite(dt) || dt <= 0) dt = now - _lastTickMs;
   if (dt > 250) dt = 250;  // clamp on long stalls
   _lastTickMs = now;
+  // Unsichtbar (anderer Tab, Uebersicht) -> keinen WebGL-Frame rendern.
+  if (_renderer.domElement && !_renderer.domElement.offsetWidth) return;
 
   var gx = Number(imu.gx) || 0;
   var gy = Number(imu.gy) || 0;

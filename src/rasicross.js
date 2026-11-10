@@ -40,8 +40,47 @@ import { processTelemetry } from './telemetry.js';
 // 1. CONSTANTS & STATE
 // ============================================================
 const $ = id => document.getElementById(id);
-const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+// CSS-Token lesen. Die Zeichenfunktionen fragen pro Frame dutzendfach
+// dieselben Farben ab, und jedes getComputedStyle erzwingt einen
+// Style-Abgleich -- deshalb kurz gepuffert. applyTheme() leert den Puffer
+// sofort; die Sekunde Haltbarkeit faengt alles ab, was Tokens ohne
+// Theme-Wechsel aendert.
+const _cssCache = new Map();
+let _cssCacheAt = 0;
+const cssInvalidate = () => { _cssCache.clear(); };
+const css = name => {
+  const now = performance.now();
+  if (now - _cssCacheAt > 1000) { _cssCache.clear(); _cssCacheAt = now; }
+  let v = _cssCache.get(name);
+  if (v === undefined) {
+    v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    _cssCache.set(name, v);
+  }
+  return v;
+};
 const dpr = () => window.devicePixelRatio || 1;
+// Layout-Groesse eines Elements, ohne pro Frame Layout zu erzwingen:
+// offsetWidth im Zeichen-Loop kostet jedes Mal einen Layout-Abgleich, weil
+// die KPI-Texte davor das DOM veraendern. Ein ResizeObserver haelt die
+// Groesse aktuell; w === 0 heisst unsichtbar (anderer Tab) -> nicht zeichnen.
+const _elSizes = new WeakMap();
+let _elSizeObs = null;
+function elSize(el) {
+  let s = _elSizes.get(el);
+  if (s && _elSizeObs) return s;
+  if (!s) { s = { w: 0, h: 0 }; _elSizes.set(el, s); }
+  s.w = el.offsetWidth; s.h = el.offsetHeight;
+  if (!_elSizeObs && typeof ResizeObserver !== 'undefined') {
+    _elSizeObs = new ResizeObserver(entries => {
+      for (const e of entries) {
+        const t = _elSizes.get(e.target);
+        if (t) { t.w = e.target.offsetWidth; t.h = e.target.offsetHeight; }
+      }
+    });
+  }
+  if (_elSizeObs) _elSizeObs.observe(el);
+  return s;
+}
 const uid = () => 'id_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -281,6 +320,7 @@ function setupTabs() {
 }
 function applyTheme() {
   document.documentElement.dataset.theme = state.theme;
+  cssInvalidate();
 }
 function toggleTheme() {
   // Cycle: dark -> light -> outdoor -> dark
@@ -366,12 +406,12 @@ function formatBytes(b) {
 // Interface-Marker: Kern-Helfer/State, die nur noch von den ausgelagerten
 // Modulen (Phase 22/23) genutzt werden -- verhindert no-unused-vars,
 // dokumentiert das API.
-void [css, dpr, esc, uid, setTextShared, setHtmlShared];
+void [css, dpr, elSize, esc, uid, setTextShared, setHtmlShared];
 
 // ESM-Export (Phase 42): Kern-API fuer die src/-Module (bisherige
 // appCoreGlobals aus eslint.config.js + Phase-42-Accessoren).
 export {
-  $, css, dpr, uid, esc, setText,
+  $, css, dpr, elSize, uid, esc, setText,
   rcAlert, rcConfirm, rcToast, rcAudio,
   formatBytes,
   setTextShared, setHtmlShared, logTime,
