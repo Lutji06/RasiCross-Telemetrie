@@ -96,6 +96,35 @@ wird. Danach funktioniert mpremote wieder.
 3. Diese Dateien per Drag-and-Drop ins ESP32-Root kopieren
 4. ESP32 reset (RESET-Taste oder Thonny → Stop/Restart backend)
 
+## Update-Ablage auf dem Gerät (Phase 72)
+
+Vorbereitung für das Update aus der App. `ota.py` nimmt ein Paket
+stückweise entgegen und prüft es; `main.py` (aus `main_stub.py`) ist ab
+jetzt der **Bootlader**, der umschaltet und bei Fehlschlag zurückrollt.
+`main.py` wird nie per Update ersetzt.
+
+| Pfad auf dem ESP | Inhalt |
+|---|---|
+| `ota_state` | Zustandswort (siehe unten); fehlt im Normalbetrieb |
+| `ota_manifest.json` | installiertes Paket: ID, Etikett, Dateiliste |
+| `ota_new/` | eingehende Dateien des neuen Pakets |
+| `ota_old/` | verdrängte Dateien der vorigen Version, bis die neue bestätigt ist |
+
+| Zustand | Bedeutung |
+|---|---|
+| `ready` | Paket vollständig und geprüft, wartet auf den Neustart |
+| `swap` | Bootlader tauscht gerade die Dateien |
+| `trial` | neue Version läuft auf Probe; bestätigt sie sich nicht, kommt beim nächsten Boot die alte zurück |
+| `rollback`, `rollback2` | Rückfall läuft (Phase 1: Neues löschen, Phase 2: Altes zurückspielen) |
+| `rolledback` | Rückfall abgeschlossen, alte Version läuft |
+
+Jeder Schritt ist wiederholbar: Ein Stromausfall mitten im Umschalten
+oder Rückfall wird beim nächsten Boot zu Ende geführt.
+
+Die Anbindung an Funk und App folgt in den nächsten Phasen —
+`sender.py` und `bridge.py` nutzen `ota.py` noch nicht, die
+Flash-Prozedur oben gilt unverändert.
+
 ## PC-Treiber (Windows)
 
 Auf dem PC selbst brauchst du den USB-zu-Seriell-Treiber:
